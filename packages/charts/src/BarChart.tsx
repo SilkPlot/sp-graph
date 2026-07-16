@@ -7,8 +7,8 @@
  */
 import { type Component } from "solid-js";
 import { ChartRoot, SvgLayer } from "@silkplot/solid";
-import { type CategoryPoint } from "./types.ts";
-import { Placeholder } from "./Placeholder.tsx";
+import { type CategoryPoint } from "./types";
+import { Placeholder } from "./Placeholder";
 
 export interface BarChartProps {
   data: readonly CategoryPoint[];

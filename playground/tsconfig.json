@@ -6,7 +6,7 @@
     "types": ["vite/client"],
     "noEmit": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     { "path": "../packages/core" },
     { "path": "../packages/solid" },

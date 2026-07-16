@@ -11,5 +11,5 @@ export {
   categoricalPalette,
   sequentialRamp,
   CSS_PREFIX,
-} from "./tokens.ts";
-export type { Tokens } from "./tokens.ts";
+} from "./tokens";
+export type { Tokens } from "./tokens";

@@ -6,11 +6,11 @@
  * Pure Solid rendering. No d3-selection anywhere — Solid owns this subtree.
  */
 import type { JSX, ParentComponent } from "solid-js";
-import { useChartBounds } from "./context.ts";
+import { useChartBounds } from "./context";
 
 export interface SvgLayerProps {
   /** Accessible role for the graphic. Default: "img". */
-  role?: string;
+  role?: JSX.AriaAttributes["role"];
   /** Accessible name for screen readers (rendered as <title>). */
   title?: string;
   /** Longer accessible description (rendered as <desc>). */

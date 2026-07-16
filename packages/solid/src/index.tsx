@@ -6,22 +6,22 @@
  * dependency — the host app provides it and compiles these `.tsx` sources with
  * its own `vite-plugin-solid` (the "solid" export condition points here).
  */
-export { ChartRoot } from "./ChartRoot.tsx";
-export type { ChartRootProps } from "./ChartRoot.tsx";
+export { ChartRoot } from "./ChartRoot";
+export type { ChartRootProps } from "./ChartRoot";
 
-export { SvgLayer } from "./SvgLayer.tsx";
-export type { SvgLayerProps } from "./SvgLayer.tsx";
+export { SvgLayer } from "./SvgLayer";
+export type { SvgLayerProps } from "./SvgLayer";
 
-export { Axis } from "./Axis.tsx";
-export type { AxisProps, AxisOrientation } from "./Axis.tsx";
+export { Axis } from "./Axis";
+export type { AxisProps, AxisOrientation } from "./Axis";
 
-export { createResize } from "./createResize.ts";
-export type { Size, CreateResizeReturn } from "./createResize.ts";
+export { createResize } from "./createResize";
+export type { Size, CreateResizeReturn } from "./createResize";
 
 export {
   useChartBounds,
   ChartBoundsContext,
   resolveBounds,
   DEFAULT_MARGINS,
-} from "./context.ts";
-export type { ChartBounds, Margins } from "./context.ts";
+} from "./context";
+export type { ChartBounds, Margins } from "./context";

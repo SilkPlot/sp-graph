@@ -13,8 +13,8 @@ import {
   DEFAULT_MARGINS,
   resolveBounds,
   type Margins,
-} from "./context.ts";
-import { createResize } from "./createResize.ts";
+} from "./context";
+import { createResize } from "./createResize";
 
 export interface ChartRootProps {
   /** Fixed width in px. When omitted, the container is measured. */

@@ -6,8 +6,8 @@
  * placeholder. Shared temporal foundation with the charts — never d3-force for
  * overlap, never d3-axis for the time ruler.
  */
-export { buildTimeGrid } from "./time-grid.ts";
-export type { TimeGridConfig, TimeSlot, TimeGrid } from "./time-grid.ts";
+export { buildTimeGrid } from "./time-grid";
+export type { TimeGridConfig, TimeSlot, TimeGrid } from "./time-grid";
 
-export { resolveEventLanes } from "./overlap-resolver.ts";
-export type { CalendarEvent } from "./overlap-resolver.ts";
+export { resolveEventLanes } from "./overlap-resolver";
+export type { CalendarEvent } from "./overlap-resolver";

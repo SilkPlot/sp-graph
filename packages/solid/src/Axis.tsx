@@ -8,7 +8,7 @@
  */
 import { createMemo, For, type Component } from "solid-js";
 import { computeTicks, type ContinuousScale, type Tick } from "@silkplot/core";
-import { useChartBounds } from "./context.ts";
+import { useChartBounds } from "./context";
 
 export type AxisOrientation = "bottom" | "left" | "top" | "right";
 

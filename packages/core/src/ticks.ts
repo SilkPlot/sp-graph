@@ -9,7 +9,7 @@
  */
 import { format as d3Format } from "d3-format";
 import { timeFormat as d3TimeFormat } from "d3-time-format";
-import type { ContinuousScale, ScaleLinear, ScaleTime } from "./scales.ts";
+import type { ContinuousScale, ScaleLinear, ScaleTime } from "./scales";
 
 /** One computed tick: its data value, pixel position, and rendered label. */
 export interface Tick {

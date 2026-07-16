@@ -4,16 +4,16 @@
  * `LineChart` is real and works end to end. The rest are honest, typed stubs
  * with TODOs mapped to the SR-001 roadmap.
  */
-export { LineChart } from "./LineChart.tsx";
-export type { LineChartProps } from "./LineChart.tsx";
+export { LineChart } from "./LineChart";
+export type { LineChartProps } from "./LineChart";
 
-export { BarChart } from "./BarChart.tsx";
-export type { BarChartProps } from "./BarChart.tsx";
+export { BarChart } from "./BarChart";
+export type { BarChartProps } from "./BarChart";
 
-export { AreaChart } from "./AreaChart.tsx";
-export type { AreaChartProps } from "./AreaChart.tsx";
+export { AreaChart } from "./AreaChart";
+export type { AreaChartProps } from "./AreaChart";
 
-export { ScatterChart } from "./ScatterChart.tsx";
-export type { ScatterChartProps } from "./ScatterChart.tsx";
+export { ScatterChart } from "./ScatterChart";
+export type { ScatterChartProps } from "./ScatterChart";
 
-export type { TimePoint, CategoryPoint, XYPoint } from "./types.ts";
+export type { TimePoint, CategoryPoint, XYPoint } from "./types";

@@ -24,6 +24,13 @@ function resolveCurve(curve: CurveName | CurveFactory | undefined): CurveFactory
   return curve;
 }
 
+/** Normalize a constant-or-accessor option into a plain accessor for d3-shape setters. */
+function toAccessor<Datum>(
+  value: number | ((d: Datum, index: number) => number),
+): (d: Datum, index: number) => number {
+  return typeof value === "number" ? () => value : value;
+}
+
 export interface LinePathOptions<Datum> {
   x: (d: Datum, index: number) => number;
   y: (d: Datum, index: number) => number;
@@ -60,10 +67,10 @@ export function areaPath<Datum>(
   data: readonly Datum[],
   options: AreaPathOptions<Datum>,
 ): string {
-  const y0 = options.y0;
+  const y0 = toAccessor(options.y0);
   const generator = d3Area<Datum>()
     .x((d, i) => options.x(d, i))
-    .y0(typeof y0 === "number" ? y0 : (d, i) => y0(d, i))
+    .y0((d, i) => y0(d, i))
     .y1((d, i) => options.y1(d, i))
     .curve(resolveCurve(options.curve));
   if (options.defined) generator.defined((d, i) => options.defined!(d, i));

@@ -6,8 +6,8 @@
  */
 import { type Component } from "solid-js";
 import { ChartRoot, SvgLayer } from "@silkplot/solid";
-import { type TimePoint } from "./types.ts";
-import { Placeholder } from "./Placeholder.tsx";
+import { type TimePoint } from "./types";
+import { Placeholder } from "./Placeholder";
 
 export interface AreaChartProps {
   data: readonly TimePoint[];

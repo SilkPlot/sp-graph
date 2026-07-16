@@ -15,7 +15,7 @@ export {
   timeScale,
   bandScale,
   ordinalScale,
-} from "./scales.ts";
+} from "./scales";
 export type {
   ContinuousScale,
   LinearScaleOptions,
@@ -26,29 +26,29 @@ export type {
   ScaleTime,
   ScaleBand,
   ScaleOrdinal,
-} from "./scales.ts";
+} from "./scales";
 
 // Ticks — the d3-axis replacement.
 export {
   computeTicks,
   numberFormat,
   timeLabelFormat,
-} from "./ticks.ts";
-export type { Tick, TickOptions } from "./ticks.ts";
+} from "./ticks";
+export type { Tick, TickOptions } from "./ticks";
 
 // Shape — line/area path builders over d3-shape.
-export { linePath, areaPath, curves } from "./shape.ts";
+export { linePath, areaPath, curves } from "./shape";
 export type {
   LinePathOptions,
   AreaPathOptions,
   CurveName,
   CurveFactory,
-} from "./shape.ts";
+} from "./shape";
 
 // Overlap packing — calendar (deterministic lane assignment).
-export { packOverlaps } from "./overlap.ts";
-export type { Interval, PackedInterval } from "./overlap.ts";
+export { packOverlaps } from "./overlap";
+export type { Interval, PackedInterval } from "./overlap";
 
 // Hit-testing — nearest-point lookup via d3-delaunay.
-export { createHitIndex } from "./hit-test.ts";
-export type { HitIndex, HitIndexOptions } from "./hit-test.ts";
+export { createHitIndex } from "./hit-test";
+export type { HitIndex, HitIndexOptions } from "./hit-test";

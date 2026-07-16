@@ -12,7 +12,7 @@
 import { createMemo, Show, type Component } from "solid-js";
 import { timeScale, linearScale, linePath, type CurveName } from "@silkplot/core";
 import { ChartRoot, SvgLayer, Axis, useChartBounds, type Margins } from "@silkplot/solid";
-import { extentOf, type TimePoint } from "./types.ts";
+import { extentOf, type TimePoint } from "./types";
 
 export interface LineChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
