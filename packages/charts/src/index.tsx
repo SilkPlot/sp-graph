@@ -1,8 +1,8 @@
 /**
  * @silkplot/charts — composed chart components.
  *
- * `LineChart` is real and works end to end. The rest are honest, typed stubs
- * with TODOs mapped to the roadmap.
+ * `LineChart`, `BarChart`, `AreaChart`, and `ScatterChart` are all implemented
+ * and covered by browser-mode tests.
  */
 export { LineChart } from "./LineChart";
 export type { LineChartProps } from "./LineChart";
