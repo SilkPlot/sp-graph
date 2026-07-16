@@ -22,7 +22,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@silkplot/core": "workspace:*",
+    "@silkplot/core": "*",
     "d3-time": "^3.1.0",
     "@types/d3-time": "^3.0.4"
   },

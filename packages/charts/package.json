@@ -26,8 +26,8 @@
     "solid-js": "^1.9.14"
   },
   "dependencies": {
-    "@silkplot/core": "workspace:*",
-    "@silkplot/solid": "workspace:*"
+    "@silkplot/core": "*",
+    "@silkplot/solid": "*"
   },
   "devDependencies": {
     "solid-js": "^1.9.14",

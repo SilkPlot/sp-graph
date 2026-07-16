@@ -11,10 +11,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@silkplot/charts": "workspace:*",
-    "@silkplot/core": "workspace:*",
-    "@silkplot/solid": "workspace:*",
-    "@silkplot/theme": "workspace:*",
+    "@silkplot/charts": "*",
+    "@silkplot/core": "*",
+    "@silkplot/solid": "*",
+    "@silkplot/theme": "*",
     "solid-js": "^1.9.14"
   },
   "devDependencies": {
