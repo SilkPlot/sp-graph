@@ -16,12 +16,14 @@
     "typecheck": "tsc -b",
     "dev": "npm run dev --workspace playground",
     "clean": "tsc -b --clean",
-    "test": "echo \"(no tests yet — see roadmap Phase 2) — placeholder\" && exit 0"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "solid-js": "^1.9.14",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
-    "vite-plugin-solid": "^2.11.12"
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^4.1.10"
   }
 }

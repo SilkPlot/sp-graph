@@ -66,9 +66,16 @@ export function timeScale(options: TimeScaleOptions): ScaleTime<number, number> 
 export interface BandScaleOptions {
   domain: readonly string[];
   range: readonly [number, number];
-  /** Inner padding as a fraction of the step [0, 1]. Default: 0.1. */
+  /**
+   * Padding as a fraction of the step [0, 1]. Sets BOTH inner and outer
+   * padding. Default: 0.1 — which applies even when only one of
+   * `paddingInner`/`paddingOuter` is given, so the other stays at 0.1 rather
+   * than d3's bare default of 0.
+   */
   padding?: number;
+  /** Inner padding only. Takes precedence over `padding`. */
   paddingInner?: number;
+  /** Outer padding only. Takes precedence over `padding`. */
   paddingOuter?: number;
   /** Alignment within the range [0, 1]. Default: 0.5. */
   align?: number;
