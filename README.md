@@ -12,8 +12,9 @@ fights Solid for ownership of the DOM.
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
 - **Home:** [silkplot.com](https://silkplot.com)
-- **Status:** early scaffold — a working `LineChart` end to end; everything else is
-  honest, typed stubs with roadmap-mapped TODOs.
+- **Status:** early but real. `LineChart`, `AreaChart`, `BarChart`, and `ScatterChart`
+  render end to end, over a unit-tested core. The calendar layer, gridlines, and
+  tooltip/cursor remain honest, typed stubs with roadmap-mapped TODOs.
 
 ---
 
@@ -56,9 +57,9 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 | Package | Published | Responsibility |
 |---|---|---|
 | [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, ticks, shape paths, overlap packing, hit-testing. |
-| [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis`, `createResize`. `solid-js` is a peer dep. |
-| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart` (real), `BarChart`/`AreaChart`/`ScatterChart` (stubs). |
-| [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs). |
+| [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `createResize`. `solid-js` is a peer dep. |
+| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart` (marks; hit-test interaction is Phase 2). |
+| [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs; the overlap packer itself lives in `core` and is done). |
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
 
@@ -107,21 +108,45 @@ axes with Solid — no `d3-axis` anywhere.
 
 ## Roadmap
 
-Derived from the SR-001 architecture study. Four phases, ordered by real product need:
+Derived from the SR-001 architecture study. Four phases, ordered by real product need.
+✅ done · 🚧 partial · ⬜ not started.
 
-- **Phase 1 — Foundations (in progress).** `ChartRoot`, responsive container, cartesian/time
-  scales, custom `Axis` primitive, gridlines, line/area/bar, tooltip/cursor, shared canvas layer.
-- **Phase 2 — Interaction.** Grouped/stacked bars, scatter, legends, brush/zoom controllers,
-  hit-testing helpers (`d3-delaunay` / quadtree). Test harness lands here.
-- **Phase 3 — Calendar & density.** Heatmap / calendar-heatmap, timeline / time-grid primitives,
-  deterministic event overlap packing, agenda / list views, drag-resize suggestion UI.
-- **Phase 4 — Extras.** Pie / donut and optional hierarchy / force layouts if real consumers
-  demand them.
+- **Phase 1 — Foundations (in progress).** ✅ `ChartRoot` + responsive container ·
+  ✅ cartesian/time scales · ✅ custom `Axis` primitive (continuous + band) ·
+  ✅ line/area/bar · ⬜ gridlines · ⬜ tooltip/cursor · ⬜ shared canvas layer.
+- **Phase 2 — Interaction.** 🚧 scatter (marks render; hit-test wiring pending) ·
+  🚧 hit-testing helpers (`createHitIndex` built and tested in `core`, not yet wired into a
+  chart; quadtree variant pending) · ⬜ grouped/stacked bars · ⬜ legends · ⬜ brush/zoom
+  controllers. **The test harness landed early** — see [Testing](#testing).
+- **Phase 3 — Calendar & density.** 🚧 deterministic event overlap packing (`packOverlaps`
+  done and tested in `core`; the calendar package's `buildTimeGrid` and resolver are still
+  stubs) · ⬜ heatmap / calendar-heatmap · ⬜ agenda / list views · ⬜ drag-resize.
+- **Phase 4 — Extras.** ⬜ Pie / donut and optional hierarchy / force layouts if real
+  consumers demand them.
 
 Substrate policy: **SVG-first** for dashboards, a **Canvas** data layer where density warrants,
 **WebGL** kept off the initial roadmap.
 
 ---
+
+## Testing
+
+```sh
+npm test              # all projects
+npm test -- --project core   # just the pure-math project
+```
+
+Vitest runs three projects, split by what each package actually needs:
+
+| Project | Environment | Why |
+|---|---|---|
+| `core` | node | Pure math — no DOM, so node is fastest and sufficient. |
+| `solid` | real chromium | `createResize` uses `ResizeObserver` and `el.clientWidth`; jsdom implements neither (`clientWidth` is always `0`), so the measurement path can only be exercised honestly in a real browser. |
+| `charts` | real chromium | Composed charts render Solid components. |
+
+Tests live in each package's `test/` directory, never colocated in `src/` — packages ship
+`src` to npm and `tsc -b` compiles it, so a colocated test would be both published and
+emitted into `dist`.
 
 ## Documentation
 
