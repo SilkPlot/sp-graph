@@ -9,6 +9,14 @@ dist/
 .vite/
 playground/dist/
 
+# Test artifacts — browser-mode failure screenshots/attachments, coverage
+**/__screenshots__/
+.vitest-attachments/
+coverage/
+
+# Agent tooling
+.claude/
+
 # Logs
 *.log
 npm-debug.log*

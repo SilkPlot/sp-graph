@@ -13,7 +13,15 @@ import { useChartBounds } from "./context";
 export type AxisOrientation = "bottom" | "left" | "top" | "right";
 
 export interface AxisProps {
-  /** The scale to draw an axis for (linear or time). */
+  /**
+   * The scale to draw an axis for (linear or time).
+   *
+   * A d3 scale is itself a FUNCTION, so storing one in a signal and updating it
+   * with `setScale(next)` hits Solid's updater overload — the scale is called as
+   * `(prev) => next` instead of being stored. Wrap it: `setScale(() => next)`.
+   * The failure is silent at the call site and surfaces later inside tick
+   * computation.
+   */
   scale: ContinuousScale;
   /** Which edge the axis sits on. Default: "bottom". */
   orientation?: AxisOrientation;
