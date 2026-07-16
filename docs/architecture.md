@@ -1,0 +1,59 @@
+# SilkPlot architecture (in-repo pointer)
+
+> **This is a pointer, not the source of truth.** The authoritative architecture lives in
+> **sp-docs** and is derived from the SR-001 study ("in-house Solid + D3 graphing library").
+> This file restates only the load-bearing rules so contributors working in this repo have
+> them close at hand.
+
+## The rule: D3 computes, Solid renders
+
+D3 ships two kinds of modules — those that **operate on data** and those that **manipulate
+the DOM**. SilkPlot uses only the data ones, inside pure functions and Solid memos. Solid
+owns every rendered element and updates it with fine-grained reactivity.
+
+### Compute-only D3 modules SilkPlot uses
+
+`d3-scale` · `d3-shape` · `d3-array` · `d3-path` · `d3-time` · `d3-time-format` ·
+`d3-format` · `d3-interpolate` · `d3-scale-chromatic` · `d3-delaunay`
+
+These live in `@silkplot/core`. They are ordinary dependencies of that package — never
+peer dependencies — so consumers do not manage a `d3-*` peer set.
+
+### Banned modules (never in the render path)
+
+`d3-selection` · `d3-transition` · `d3-axis`
+
+They install a second renderer with conflicting DOM ownership. In particular, `d3-axis` is
+treated as a *reference implementation of axis semantics*: SilkPlot computes ticks from the
+scale (`scale.ticks()` + `d3-format` / `d3-time-format`) and renders tick groups with a Solid
+`<For>`. The canonical example is `@silkplot/solid`'s `Axis`.
+
+Behaviour modules (`d3-zoom`, `d3-brush`, `d3-drag`) are permitted **only** as narrow
+directive/effect adapters that write into signals — never as owners of structure. (Not yet
+implemented; roadmap Phase 2.)
+
+## Layered package model
+
+| Layer | Package | Responsibility |
+|---|---|---|
+| Core model | `@silkplot/core` | Pure math: scales, ticks, shape paths, overlap packing, hit-test indexes. No Solid, no DOM. |
+| Solid primitives | `@silkplot/solid` | `ChartRoot`, `SvgLayer`, `Axis`, `createResize`, bounds context. |
+| Composed charts | `@silkplot/charts` | `LineChart` (real), `BarChart` / `AreaChart` / `ScatterChart` (stubs). |
+| Domain layout | `@silkplot/calendar` | Time-grid engine + deterministic overlap resolver (stubs). |
+| Preset / theme | `@silkplot/theme` | Tokens as objects + CSS custom properties; palette ramps; motion/contrast-aware. |
+
+## Substrate policy
+
+- **SVG-first** for ordinary dashboards — semantic, accessible, inspectable.
+- **Canvas** data layer where mark or calendar density warrants it.
+- **WebGL** kept off the initial roadmap — reserve tier only.
+
+## SSR safety
+
+No `window`, `document`, `ResizeObserver`, or canvas context at module top level. All
+DOM-dependent work belongs in `onMount`, `createEffect`, or a directive, so the library is
+safe to import in SSR environments.
+
+## Engineering priorities
+
+Speed · fluidity · performance · first-hand experience.

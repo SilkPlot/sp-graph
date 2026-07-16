@@ -1,0 +1,35 @@
+{
+  "name": "@silkplot/solid",
+  "version": "0.0.0",
+  "description": "SilkPlot Solid primitives — ChartRoot, SvgLayer, Axis, createResize. D3 computes, Solid renders.",
+  "license": "Apache-2.0",
+  "homepage": "https://silkplot.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/silkplot/sp-graph.git",
+    "directory": "packages/solid"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["src", "dist"],
+  "exports": {
+    ".": {
+      "solid": "./src/index.tsx",
+      "types": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.14"
+  },
+  "dependencies": {
+    "@silkplot/core": "workspace:*"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.14",
+    "typescript": "^7.0.2"
+  }
+}

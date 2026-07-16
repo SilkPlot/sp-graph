@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/solid" },
+    { "path": "./packages/charts" },
+    { "path": "./packages/calendar" },
+    { "path": "./packages/theme" },
+    { "path": "./playground" }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "silkplot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SilkPlot — an open-source Solid + D3 visualization library. D3 computes, Solid renders.",
+  "license": "Apache-2.0",
+  "homepage": "https://silkplot.com",
+  "type": "module",
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "packages/*",
+    "playground"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "dev": "npm run dev --workspace playground",
+    "clean": "tsc -b --clean",
+    "test": "echo \"(no tests yet — see roadmap Phase 2) — placeholder\" && exit 0"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.14",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}

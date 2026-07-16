@@ -1,0 +1,36 @@
+{
+  "name": "@silkplot/charts",
+  "version": "0.0.0",
+  "description": "SilkPlot charts — composed chart components (LineChart and more). D3 computes, Solid renders.",
+  "license": "Apache-2.0",
+  "homepage": "https://silkplot.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/silkplot/sp-graph.git",
+    "directory": "packages/charts"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["src", "dist"],
+  "exports": {
+    ".": {
+      "solid": "./src/index.tsx",
+      "types": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.14"
+  },
+  "dependencies": {
+    "@silkplot/core": "workspace:*",
+    "@silkplot/solid": "workspace:*"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.14",
+    "typescript": "^7.0.2"
+  }
+}

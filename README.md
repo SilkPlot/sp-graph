@@ -1,0 +1,137 @@
+<!-- markdownlint-disable MD013 MD033 -->
+# SilkPlot
+
+> **Fast, fluid, first-hand data visualization for [Solid](https://www.solidjs.com/).**
+> D3 computes. Solid renders.
+
+SilkPlot is an open-source graphing and visualization library built the idiomatic
+Solid way: D3's battle-tested math and geometry modules are used **compute-only**,
+and every pixel is rendered by Solid's fine-grained reactivity. No second renderer
+fights Solid for ownership of the DOM.
+
+- **License:** Apache-2.0
+- **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
+- **Home:** [silkplot.com](https://silkplot.com)
+- **Status:** early scaffold — a working `LineChart` end to end; everything else is
+  honest, typed stubs with roadmap-mapped TODOs.
+
+---
+
+## The philosophy: D3 computes, Solid renders
+
+D3 ships two kinds of modules. Some **operate on data** (scales, shapes, arrays,
+time, formatting, interpolation, color ramps, spatial indexes). Some **manipulate the
+DOM** (`d3-selection`, `d3-transition`, `d3-axis`). SilkPlot uses only the first kind.
+
+- **D3 is the math layer.** Scales, path strings, tick positions, color ramps, overlap
+  packing, and hit-test indexes are all computed by D3 modules inside pure functions and
+  Solid memos.
+- **Solid owns the tree.** Every `<svg>`, `<g>`, `<path>`, `<line>`, and `<text>` is a
+  Solid element. Updates are targeted and fine-grained — no enter/update/exit joins, no
+  `selection.call(axis)`.
+
+### Banned in the render path (non-negotiable)
+
+`d3-selection` · `d3-transition` · `d3-axis`
+
+These create a **second renderer** with conflicting element ownership. `d3-axis` in
+particular is treated as a *reference implementation of axis semantics*, not a runtime
+primitive: SilkPlot computes ticks from the scale and renders them with a Solid `<For>`.
+See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical pattern.
+
+---
+
+## Engineering priorities
+
+1. **Speed** — minimal work per frame; D3 math in memos, recomputed only when inputs change.
+2. **Fluidity** — Solid's fine-grained updates keep interactions smooth on low-end devices.
+3. **Performance** — SSR-safe, tree-shakeable ESM subpaths, no umbrella `d3` dependency.
+4. **First-hand experience** — headless primitives you compose directly. When a chart does
+   not fit a preset, you drop to the model and render exactly the graph you want.
+
+---
+
+## Package map
+
+| Package | Published | Responsibility |
+|---|---|---|
+| [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, ticks, shape paths, overlap packing, hit-testing. |
+| [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis`, `createResize`. `solid-js` is a peer dep. |
+| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart` (real), `BarChart`/`AreaChart`/`ScatterChart` (stubs). |
+| [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs). |
+| [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
+| `playground` | no | Vite + Solid app that proves the architecture end to end. |
+
+> Packages ship **TypeScript/TSX source** with a `"solid"` export condition. The consumer's
+> `vite-plugin-solid` compiles the JSX. Per-package publishable `dist` builds are a
+> documented follow-up, not required to use SilkPlot in a Solid + Vite app today.
+
+---
+
+## Install
+
+```sh
+npm install @silkplot/charts @silkplot/solid @silkplot/core solid-js
+```
+
+Your app must use [`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid) so
+the shipped `.tsx` source is compiled with the correct JSX transform.
+
+## Usage — a LineChart
+
+```tsx
+import { LineChart } from "@silkplot/charts";
+
+const series = [
+  { t: new Date("2026-01-01"), y: 12 },
+  { t: new Date("2026-01-02"), y: 18 },
+  { t: new Date("2026-01-03"), y: 9 },
+  { t: new Date("2026-01-04"), y: 22 },
+  { t: new Date("2026-01-05"), y: 27 },
+];
+
+export default function App() {
+  return (
+    <div style={{ width: "640px", height: "320px" }}>
+      <LineChart data={series} />
+    </div>
+  );
+}
+```
+
+`LineChart` measures its container with `ResizeObserver`, computes a time scale, a linear
+scale, a line path, and tick labels via `@silkplot/core`, and renders the SVG line and both
+axes with Solid — no `d3-axis` anywhere.
+
+---
+
+## Roadmap
+
+Derived from the SR-001 architecture study. Four phases, ordered by real product need:
+
+- **Phase 1 — Foundations (in progress).** `ChartRoot`, responsive container, cartesian/time
+  scales, custom `Axis` primitive, gridlines, line/area/bar, tooltip/cursor, shared canvas layer.
+- **Phase 2 — Interaction.** Grouped/stacked bars, scatter, legends, brush/zoom controllers,
+  hit-testing helpers (`d3-delaunay` / quadtree). Test harness lands here.
+- **Phase 3 — Calendar & density.** Heatmap / calendar-heatmap, timeline / time-grid primitives,
+  deterministic event overlap packing, agenda / list views, drag-resize suggestion UI.
+- **Phase 4 — Extras.** Pie / donut and optional hierarchy / force layouts if real consumers
+  demand them.
+
+Substrate policy: **SVG-first** for dashboards, a **Canvas** data layer where density warrants,
+**WebGL** kept off the initial roadmap.
+
+---
+
+## Documentation
+
+The authoritative architecture and contributor guides live in **sp-docs**, derived from the
+SR-001 study. A short in-repo pointer is at [`docs/architecture.md`](docs/architecture.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). SilkPlot is Apache-2.0 and welcomes issues and PRs.
+
+## License
+
+[Apache-2.0](LICENSE) © 2026 SilkPlot.

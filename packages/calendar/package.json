@@ -1,0 +1,32 @@
+{
+  "name": "@silkplot/calendar",
+  "version": "0.0.0",
+  "description": "SilkPlot calendar — booking-calendar time-grid and overlap primitives. D3 computes, Solid renders.",
+  "license": "Apache-2.0",
+  "homepage": "https://silkplot.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/silkplot/sp-graph.git",
+    "directory": "packages/calendar"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["src", "dist"],
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@silkplot/core": "workspace:*",
+    "d3-time": "^3.1.0",
+    "@types/d3-time": "^3.0.4"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

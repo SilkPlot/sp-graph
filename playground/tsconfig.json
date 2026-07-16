@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "types": ["vite/client"],
+    "noEmit": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"],
+  "references": [
+    { "path": "../packages/core" },
+    { "path": "../packages/solid" },
+    { "path": "../packages/charts" },
+    { "path": "../packages/calendar" },
+    { "path": "../packages/theme" }
+  ]
+}
