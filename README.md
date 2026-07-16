@@ -108,7 +108,7 @@ axes with Solid — no `d3-axis` anywhere.
 
 ## Roadmap
 
-Derived from the SR-001 architecture study. Four phases, ordered by real product need.
+Four phases, ordered by real product need.
 ✅ done · 🚧 partial · ⬜ not started.
 
 - **Phase 1 — Foundations (in progress).** ✅ `ChartRoot` + responsive container ·
@@ -150,8 +150,7 @@ emitted into `dist`.
 
 ## Documentation
 
-The authoritative architecture and contributor guides live in **sp-docs**, derived from the
-SR-001 study. A short in-repo pointer is at [`docs/architecture.md`](docs/architecture.md).
+The load-bearing architecture rules are documented in [`docs/architecture.md`](docs/architecture.md).
 
 ## Contributing
 

@@ -5,7 +5,7 @@
  * a CSS string of custom properties (drop into a `<style>`). Palette ramps wrap
  * `d3-scale-chromatic` so branding stays in tokens, not hard-coded in charts.
  *
- * Accessibility is part of the token contract (SR-001):
+ * Accessibility is part of the token contract:
  *   - categorical series must vary by more than color (stroke/marker/label);
  *   - focus ring and cursor lines target >= 3:1 non-text contrast;
  *   - dark + high-contrast variants are first-class;

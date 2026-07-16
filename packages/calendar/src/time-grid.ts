@@ -1,5 +1,5 @@
 /**
- * Time-grid model — STUB (SR-001 roadmap Phase 3: booking calendar).
+ * Time-grid model — STUB (roadmap Phase 3: booking calendar).
  *
  * The calendar is a first-class consumer of the SAME temporal foundation as the
  * charts: one time scale can feed a time-series chart, a day/week grid, or a
@@ -9,9 +9,8 @@
  * TODO(Phase 3): implement `buildTimeGrid` using `d3-time` intervals
  *   (timeHour/timeMinute) for slot generation, plus a `now` indicator, snap
  *   sizes, and visible-range virtualisation with overscan. Must handle time
- *   zones / DST explicitly (SR-001 flagged this for specialist review — D3 time
- *   helpers sit on ECMAScript `Date` and booking products need product-level
- *   rules beyond that).
+ *   zones / DST explicitly — D3 time helpers sit on ECMAScript `Date` and
+ *   booking products need product-level rules beyond that.
  */
 
 export interface TimeGridConfig {
@@ -43,6 +42,6 @@ export interface TimeGrid {
 /** TODO(Phase 3): real implementation. Placeholder throws to stay honest. */
 export function buildTimeGrid(_config: TimeGridConfig): TimeGrid {
   throw new Error(
-    "[@silkplot/calendar] buildTimeGrid is not implemented yet (SR-001 roadmap Phase 3).",
+    "[@silkplot/calendar] buildTimeGrid is not implemented yet (roadmap Phase 3).",
   );
 }

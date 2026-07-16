@@ -2,8 +2,7 @@
 
 SilkPlot is an open-source Solid + D3 visualization library.
 
-Follow the architecture in **sp-docs** (the authoritative, file-based docs derived from the
-SR-001 study). The in-repo pointer is [`docs/architecture.md`](docs/architecture.md).
+Follow the architecture in [`docs/architecture.md`](docs/architecture.md).
 
 ## The rules that never bend
 

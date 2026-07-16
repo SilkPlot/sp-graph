@@ -2,7 +2,7 @@
  * @silkplot/charts — composed chart components.
  *
  * `LineChart` is real and works end to end. The rest are honest, typed stubs
- * with TODOs mapped to the SR-001 roadmap.
+ * with TODOs mapped to the roadmap.
  */
 export { LineChart } from "./LineChart";
 export type { LineChartProps } from "./LineChart";

@@ -1,9 +1,7 @@
-# SilkPlot architecture (in-repo pointer)
+# SilkPlot architecture
 
-> **This is a pointer, not the source of truth.** The authoritative architecture lives in
-> **sp-docs** and is derived from the SR-001 study ("in-house Solid + D3 graphing library").
-> This file restates only the load-bearing rules so contributors working in this repo have
-> them close at hand.
+> **This file is the load-bearing architecture reference.** It states the rules contributors
+> working in this repo need close at hand.
 
 ## The rule: D3 computes, Solid renders
 

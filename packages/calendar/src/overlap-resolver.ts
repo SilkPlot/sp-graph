@@ -1,8 +1,8 @@
 /**
- * Overlap resolver — STUB wrapper (SR-001 roadmap Phase 3).
+ * Overlap resolver — STUB wrapper (roadmap Phase 3).
  *
- * SR-001 is explicit: calendar event placement is a DETERMINISTIC interval-
- * packing problem, NOT a physics problem — never use `d3-force`. The core lane
+ * Calendar event placement is a DETERMINISTIC interval-packing problem, NOT a
+ * physics problem — never use `d3-force`. The core lane
  * assignment already lives in `@silkplot/core`'s `packOverlaps`. This module
  * will layer calendar-specific concerns on top of it.
  *

@@ -1,7 +1,7 @@
 /**
  * Hit-testing — nearest-point lookup for pointer interaction.
  *
- * SR-001 roadmap Phase 2: cursor/tooltip and point exploration need fast
+ * Roadmap Phase 2: cursor/tooltip and point exploration need fast
  * nearest-mark lookup. For 2-D scatter/point clouds we use `d3-delaunay`
  * (Delaunay/Voronoi) to find the nearest point to a pointer in O(log n)-ish
  * time; for 1-D time-series a bisector is cheaper (TODO below).
@@ -49,5 +49,5 @@ export function createHitIndex<T>(
  * TODO(Phase 2): `createBisectorIndex` for monotonic 1-D (time-series) lookup —
  * a `d3-array` bisector is cheaper than Delaunay when points are sorted along a
  * single axis. Also a `d3-quadtree` variant for very large point clouds where
- * incremental insertion matters. See sp-docs hit-testing section.
+ * incremental insertion matters.
  */

@@ -1,7 +1,7 @@
 /**
  * Overlap packing (calendar) — deterministic interval lane assignment.
  *
- * SR-001 roadmap Phase 3: the booking calendar packs concurrent events into
+ * Roadmap Phase 3: the booking calendar packs concurrent events into
  * columns/lanes with a DETERMINISTIC sweep/partition algorithm — never a
  * `d3-force` physics simulation (heavier, visually unstable). This module owns
  * that math; the Solid calendar package renders lanes from its output.
@@ -10,8 +10,7 @@
  * intentionally minimal.
  *
  * TODO(Phase 3): column-count normalisation (widen events to fill free lanes),
- *   visible-range clipping / overscan, and resource-row grouping. See sp-docs
- *   "calendar" section derived from SR-001.
+ *   visible-range clipping / overscan, and resource-row grouping.
  */
 
 /** A time interval to be packed. `start`/`end` are comparable numbers (e.g. epoch ms). */
