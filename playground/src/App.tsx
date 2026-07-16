@@ -5,8 +5,16 @@
  * @silkplot/solid renders the SVG + axes, @silkplot/charts composes them, and
  * @silkplot/theme supplies the tokens — all wired across workspace packages.
  */
-import { createSignal, type Component } from "solid-js";
-import { LineChart, type TimePoint } from "@silkplot/charts";
+import { createSignal, type Component, type JSX } from "solid-js";
+import {
+  LineChart,
+  AreaChart,
+  BarChart,
+  ScatterChart,
+  type TimePoint,
+  type CategoryPoint,
+  type XYPoint,
+} from "@silkplot/charts";
 import { cssVar } from "@silkplot/theme";
 
 /** Deterministic sample series: 30 days of a wandering value. */
@@ -24,8 +32,48 @@ function makeSeries(days: number): TimePoint[] {
   return out;
 }
 
+/** Categories including a negative, so the zero baseline is visible. */
+const CATEGORIES: CategoryPoint[] = [
+  { label: "Mon", y: 12 },
+  { label: "Tue", y: 19 },
+  { label: "Wed", y: -6 },
+  { label: "Thu", y: 8 },
+  { label: "Fri", y: 15 },
+];
+
+/** Deterministic 2-D cloud — a lattice with a sine offset, no Math.random. */
+function makeCloud(n: number): XYPoint[] {
+  const out: XYPoint[] = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ x: (i % 10) * 4 + Math.sin(i) * 1.5, y: Math.cos(i / 2) * 10 + i * 0.3 });
+  }
+  return out;
+}
+
+const Panel: Component<{ title: string; note: string; children: JSX.Element }> = (props) => (
+  <section style={{ "margin-bottom": cssVar("space-lg") }}>
+    <h2 style={{ margin: "0 0 2px", "font-size": "15px" }}>{props.title}</h2>
+    <p style={{ margin: "0 0 6px", "font-size": "13px", color: cssVar("color-muted") }}>
+      {props.note}
+    </p>
+    <div
+      style={{
+        width: "100%",
+        height: "260px",
+        border: `1px solid ${cssVar("color-grid")}`,
+        "border-radius": cssVar("radius-lg"),
+        padding: cssVar("space-md"),
+        "box-sizing": "border-box",
+      }}
+    >
+      {props.children}
+    </div>
+  </section>
+);
+
 export const App: Component = () => {
   const [series] = createSignal<TimePoint[]>(makeSeries(30));
+  const [cloud] = createSignal<XYPoint[]>(makeCloud(40));
 
   return (
     <main
@@ -64,6 +112,34 @@ export const App: Component = () => {
           strokeWidth={2}
         />
       </section>
+
+      <div style={{ "margin-top": cssVar("space-lg") }}>
+        <Panel title="AreaChart" note="areaPath fill from the zero baseline, beneath a linePath stroke.">
+          <AreaChart
+            data={series()}
+            title="Sample daily series, filled"
+            fill={cssVar("color-focus-ring")}
+            stroke={cssVar("color-focus-ring")}
+          />
+        </Panel>
+
+        <Panel title="BarChart" note="bandScale x + linear y. Wednesday is negative — it hangs below zero.">
+          <BarChart
+            data={CATEGORIES}
+            title="Weekday totals, including a negative"
+            fill={cssVar("color-focus-ring")}
+          />
+        </Panel>
+
+        <Panel title="ScatterChart" note="Two linear scales. Domain is the data extent — no forced zero.">
+          <ScatterChart
+            data={cloud()}
+            title="Deterministic 2-D point cloud"
+            fill={cssVar("color-focus-ring")}
+            fillOpacity={0.7}
+          />
+        </Panel>
+      </div>
 
       <p style={{ "margin-top": cssVar("space-lg"), color: cssVar("color-muted") }}>
         Resize the window — <code>ChartRoot</code> re-measures via

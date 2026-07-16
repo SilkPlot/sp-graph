@@ -7,14 +7,32 @@
  * line with a Solid `<For>`. D3 computes, Solid renders — in one component.
  */
 import { createMemo, For, type Component } from "solid-js";
-import { computeTicks, type ContinuousScale, type Tick } from "@silkplot/core";
+import {
+  computeTicks,
+  computeBandTicks,
+  type ContinuousScale,
+  type ScaleBand,
+  type Tick,
+} from "@silkplot/core";
 import { useChartBounds } from "./context";
 
 export type AxisOrientation = "bottom" | "left" | "top" | "right";
 
+/** Any scale an axis can be drawn for: continuous (linear/time) or discrete band. */
+export type AxisScale = ContinuousScale | ScaleBand<string>;
+
+/**
+ * A band scale has no `ticks()` — that absence is the discriminator. Every band
+ * category is a tick, so there is no count to negotiate.
+ */
+function isBandScale(scale: AxisScale): scale is ScaleBand<string> {
+  return typeof (scale as ContinuousScale).ticks !== "function";
+}
+
 export interface AxisProps {
   /**
-   * The scale to draw an axis for (linear or time).
+   * The scale to draw an axis for — continuous (linear/time) or a band scale
+   * for categorical axes.
    *
    * A d3 scale is itself a FUNCTION, so storing one in a signal and updating it
    * with `setScale(next)` hits Solid's updater overload — the scale is called as
@@ -22,12 +40,12 @@ export interface AxisProps {
    * The failure is silent at the call site and surfaces later inside tick
    * computation.
    */
-  scale: ContinuousScale;
+  scale: AxisScale;
   /** Which edge the axis sits on. Default: "bottom". */
   orientation?: AxisOrientation;
-  /** Desired tick count (a hint passed to the scale). */
+  /** Desired tick count (a hint). Ignored for band scales — every band is a tick. */
   tickCount?: number;
-  /** Target px spacing between ticks when `tickCount` is omitted. */
+  /** Target px spacing between ticks when `tickCount` is omitted. Ignored for band scales. */
   pixelsPerTick?: number;
   /** Length of the tick marks in px. Default: 6. */
   tickSize?: number;
@@ -40,12 +58,14 @@ export const Axis: Component<AxisProps> = (props) => {
   const isHorizontal = (): boolean =>
     orientation() === "bottom" || orientation() === "top";
 
-  const ticks = createMemo<Tick[]>(() =>
-    computeTicks(props.scale, {
+  const ticks = createMemo<Tick[]>(() => {
+    const scale = props.scale;
+    if (isBandScale(scale)) return computeBandTicks(scale);
+    return computeTicks(scale, {
       count: props.tickCount,
       pixelsPerTick: props.pixelsPerTick,
-    }),
-  );
+    });
+  });
 
   const tickSize = (): number => props.tickSize ?? 6;
 

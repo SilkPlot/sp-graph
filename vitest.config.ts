@@ -6,12 +6,29 @@ import solid from "vite-plugin-solid";
 // packages ship `src` to npm and `tsc -b` emits everything under `src` into
 // `dist`, so a colocated test would be both published and compiled.
 //
-// Two projects, because the packages have genuinely different needs:
-//   core  — pure math, no DOM. Node is fastest and sufficient.
-//   solid — primitives that measure real layout. `createResize` uses
-//           ResizeObserver and `el.clientWidth`; jsdom implements neither
-//           (clientWidth is always 0), so a real browser is the only place
-//           the measurement path can be honestly exercised.
+// `core` is pure math with no DOM, so node is fastest and sufficient. Anything
+// rendering Solid runs in a real browser: `createResize` uses ResizeObserver and
+// `el.clientWidth`, and jsdom implements neither (clientWidth is always 0), so a
+// real browser is the only place that path can be honestly exercised.
+const browserProject = (name: string, dir: string) => ({
+  plugins: [solid()],
+  resolve: {
+    // Match the playground: prefer the "solid" condition so we compile the same
+    // TSX source a downstream consumer would.
+    conditions: ["solid", "development", "browser"],
+  },
+  test: {
+    name,
+    include: [`packages/${dir}/test/**/*.test.{ts,tsx}`],
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      headless: true,
+      instances: [{ browser: "chromium" }],
+    },
+  },
+});
+
 export default defineConfig({
   test: {
     projects: [
@@ -22,24 +39,8 @@ export default defineConfig({
           environment: "node",
         },
       },
-      {
-        plugins: [solid()],
-        resolve: {
-          // Match the playground: prefer the "solid" condition so we compile
-          // the same TSX source a downstream consumer would.
-          conditions: ["solid", "development", "browser"],
-        },
-        test: {
-          name: "solid",
-          include: ["packages/solid/test/**/*.test.{ts,tsx}"],
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: true,
-            instances: [{ browser: "chromium" }],
-          },
-        },
-      },
+      browserProject("solid", "solid"),
+      browserProject("charts", "charts"),
     ],
   },
 });

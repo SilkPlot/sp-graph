@@ -31,6 +31,7 @@ export type {
 // Ticks — the d3-axis replacement.
 export {
   computeTicks,
+  computeBandTicks,
   numberFormat,
   timeLabelFormat,
 } from "./ticks";

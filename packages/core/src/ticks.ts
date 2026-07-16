@@ -9,12 +9,12 @@
  */
 import { format as d3Format } from "d3-format";
 import { timeFormat as d3TimeFormat } from "d3-time-format";
-import type { ContinuousScale, ScaleLinear, ScaleTime } from "./scales";
+import type { ContinuousScale, ScaleBand, ScaleLinear, ScaleTime } from "./scales";
 
 /** One computed tick: its data value, pixel position, and rendered label. */
 export interface Tick {
-  /** The underlying domain value (number for linear, Date for time). */
-  value: number | Date;
+  /** The underlying domain value (number for linear, Date for time, string for band). */
+  value: number | Date | string;
   /** Pixel position along the axis, from `scale(value)`. */
   position: number;
   /** Formatted label text. */
@@ -82,6 +82,22 @@ export function computeTicks(scale: ContinuousScale, options: TickOptions = {}):
     position: linear(value),
     label: fmt(value),
   }));
+}
+
+/**
+ * Compute ticks for a discrete band scale — one tick per domain entry, centred
+ * on its band. A band scale has no `ticks()`: every category IS a tick, so
+ * there is no count to negotiate and no formatter to choose.
+ */
+export function computeBandTicks(scale: ScaleBand<string>): Tick[] {
+  const half = scale.bandwidth() / 2;
+  const ticks: Tick[] = [];
+  for (const value of scale.domain()) {
+    const start = scale(value);
+    if (start === undefined) continue;
+    ticks.push({ value, position: start + half, label: value });
+  }
+  return ticks;
 }
 
 /** Numeric label formatter — thin re-export of `d3-format` for label building. */

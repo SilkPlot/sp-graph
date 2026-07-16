@@ -13,7 +13,7 @@ export { SvgLayer } from "./SvgLayer";
 export type { SvgLayerProps } from "./SvgLayer";
 
 export { Axis } from "./Axis";
-export type { AxisProps, AxisOrientation } from "./Axis";
+export type { AxisProps, AxisOrientation, AxisScale } from "./Axis";
 
 export { createResize } from "./createResize";
 export type { Size, CreateResizeReturn } from "./createResize";
