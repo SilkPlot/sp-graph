@@ -12,9 +12,10 @@ fights Solid for ownership of the DOM.
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
 - **Home:** [silkplot.com](https://silkplot.com)
-- **Status:** early but real. `LineChart`, `AreaChart`, `BarChart`, and `ScatterChart`
-  render end to end, over a unit-tested core. The calendar layer, gridlines, and
-  tooltip/cursor remain honest, typed stubs with roadmap-mapped TODOs.
+- **Status:** early but real, and **not yet on npm** — see [Install](#install).
+  `LineChart`, `AreaChart`, `BarChart` and `ScatterChart` render end to end over a
+  unit-tested core, with gridlines and the interaction primitives built. The
+  calendar layer remains an honest, typed stub with roadmap-mapped TODOs.
 
 ---
 
@@ -54,29 +55,42 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 
 ## Package map
 
-| Package | Published | Responsibility |
+| Package | Publish target | Responsibility |
 |---|---|---|
-| [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, ticks, shape paths, overlap packing, hit-testing. |
-| [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `createResize`. `solid-js` is a peer dep. |
-| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart` (marks; hit-test interaction is Phase 2). |
+| [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, extents, ticks, shape paths, overlap packing, hit-testing. |
+| [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `createResize`. `solid-js` is a peer dep. |
+| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel` (marks; hit-test interaction is Phase 2). |
 | [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs; the overlap packer itself lives in `core` and is done). |
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
 
-> Packages ship **TypeScript/TSX source** with a `"solid"` export condition. The consumer's
-> `vite-plugin-solid` compiles the JSX. Per-package publishable `dist` builds are a
-> documented follow-up, not required to use SilkPlot in a Solid + Vite app today.
+> **"Publish target" means intended, not done — nothing is on npm yet.** Packages
+> ship **TypeScript/TSX source** with a `"solid"` export condition, so `exports`
+> still point at `src` and cross-package deps pin `"*"`. Both have to change
+> before a tarball would work outside this workspace.
 
 ---
 
 ## Install
 
+**SilkPlot is not published to npm yet.** `npm install @silkplot/charts` will not
+work, and saying otherwise would waste your afternoon. The packages are wired for
+a workspace, not for a registry: `exports` point at `src`, and the
+`@silkplot/*` cross-dependencies pin `"*"`, which resolves to anything once it
+leaves this repo. Making them publishable is real work and it is on the roadmap.
+
+To try it today, clone and run the playground:
+
 ```sh
-npm install @silkplot/charts @silkplot/solid @silkplot/core solid-js
+git clone https://github.com/SilkPlot/sp-graph.git
+cd sp-graph
+npm install
+npm run dev
 ```
 
-Your app must use [`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid) so
-the shipped `.tsx` source is compiled with the correct JSX transform.
+When it is published, your app will need
+[`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid) so the shipped
+`.tsx` source is compiled with the correct JSX transform.
 
 ## Usage — a LineChart
 
@@ -138,11 +152,12 @@ npm test              # all projects
 npm test -- --project core   # just the pure-math project
 ```
 
-Vitest runs three projects, split by what each package actually needs:
+Vitest runs four projects, split by what each package actually needs:
 
 | Project | Environment | Why |
 |---|---|---|
 | `core` | node | Pure math — no DOM, so node is fastest and sufficient. |
+| `theme` | node | Emits CSS as strings and reads no DOM — same reasoning as `core`. |
 | `solid` | real chromium | `createResize` uses `ResizeObserver` and `el.clientWidth`; jsdom implements neither (`clientWidth` is always `0`), so the measurement path can only be exercised honestly in a real browser. |
 | `charts` | real chromium | Composed charts render Solid components. |
 

@@ -22,10 +22,12 @@ frame yourself; animate through Solid reactivity + `requestAnimationFrame`, neve
 
 ```sh
 npm install
+npm run lint        # biome — warnings are failures, same as CI
 npm run build       # tsc -b across all packages
-npm run typecheck
-npm test            # vitest — node for core, real chromium for solid/charts
+npm run typecheck   # tsc -b, plus the test/ directories via tsconfig.test.json
+npm test            # vitest — node for core/theme, real chromium for solid/charts
 npm run dev         # launches the playground (Vite + Solid)
+npm run perf:hover  # frame-budget measurement; needs `npm run dev` running
 ```
 
 `npm test` downloads a Chromium via Playwright on first run. `tsc -b` is incremental — run
@@ -39,7 +41,11 @@ npm run dev         # launches the playground (Vite + Solid)
 - **SSR-safe.** No `window`, `document`, `ResizeObserver`, or canvas context at module top
   level. All DOM work goes in `onMount` / `createEffect` / directives.
 - **Peer vs dep.** `solid-js` is a **peer dependency** of any package that exports Solid
-  components. The chosen `d3-*` modules are **regular dependencies** of `@silkplot/core`.
+  components. The chosen `d3-*` modules are **regular dependencies** of the package that
+  imports them — mostly `@silkplot/core`, but `d3-scale-chromatic` belongs to
+  `@silkplot/theme`, where the palettes are.
+- **Tokens, not imports.** A primitive reads `var(--sp-…)` with a fallback and never
+  imports `@silkplot/theme`. See [ADR-0001](docs/decisions/adr-0001-theming-contract.md).
 - **ESM-first.** Coarse subpath `exports`; no umbrella `d3` import.
 - **Keep it small.** Prefer a headless primitive over a finished chart. Stubs must be typed
   and carry a `TODO` mapped to the roadmap phase.
@@ -50,8 +56,8 @@ Tests live in each package's **`test/` directory, never colocated in `src/`**. P
 `src` to npm and `tsc -b` compiles it, so a colocated test would be both published to
 consumers and emitted into `dist`.
 
-`core` runs in node (pure math, no DOM). `solid` and `charts` run in a **real headless
-Chromium**, not jsdom — `createResize` depends on `ResizeObserver` and `el.clientWidth`, and
+`core` and `theme` run in node (pure math and CSS-string emission — no DOM). `solid` and
+`charts` run in a **real headless Chromium**, not jsdom — `createResize` depends on `ResizeObserver` and `el.clientWidth`, and
 jsdom implements neither (`clientWidth` is always `0`). A fake DOM would let that path pass
 while proving nothing.
 
@@ -80,7 +86,10 @@ Two traps worth knowing before you lose an hour to either:
 
 1. Branch from `main`.
 2. Keep the change focused; update the relevant `docs/` pointer if behaviour changes.
-3. Ensure `npm run build`, `npm run typecheck`, and `npm test` pass.
+3. Ensure `npm run lint`, `npm run build`, `npm run typecheck`, and `npm test` pass.
+   Lint runs with `--error-on-warnings`, so a warning fails CI — plain `biome lint`
+   exits 0 on warnings, which is exactly how six of them once accumulated under a
+   green build.
 4. Cover new behaviour with a test that fails without your change.
 5. Describe *why*, not just *what*.
 
