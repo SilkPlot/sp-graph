@@ -27,6 +27,9 @@ function mount(
   boundsAccessor: Accessor<ChartBounds> = () => BOUNDS,
 ) {
   return render(() => (
+    // A bare test harness element, present only to give the axis under test an
+    // SVG parent. It is never shown to anyone, so a name would describe nothing.
+    // biome-ignore lint/a11y/noSvgWithoutTitle: test harness element, never rendered to a user
     <svg>
       <ChartBoundsContext.Provider value={boundsAccessor}>
         {children()}

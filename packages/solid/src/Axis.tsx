@@ -76,8 +76,7 @@ export const Axis: Component<AxisProps> = (props) => {
         return bounds().innerHeight;
       case "right":
         return bounds().innerWidth;
-      case "top":
-      case "left":
+      // "top" and "left" both sit at the origin, as does anything unforeseen.
       default:
         return 0;
     }
@@ -94,6 +93,11 @@ export const Axis: Component<AxisProps> = (props) => {
   });
 
   return (
+    // Hiding the axis from assistive tech is deliberate: tick marks are
+    // decoration that restates what the chart's own accessible name and
+    // description already carry. A bare <g> has no tabindex and is not
+    // focusable, so the rule's premise does not hold here.
+    // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a <g> with no tabindex is not focusable
     <g class={props.class} data-silkplot-axis={orientation()} aria-hidden="true">
       <path d={domainPath()} fill="none" stroke="currentColor" stroke-opacity="0.4" />
       <For each={ticks()}>

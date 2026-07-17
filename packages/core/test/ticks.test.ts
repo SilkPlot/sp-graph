@@ -157,7 +157,7 @@ describe("computeTicks — custom format override", () => {
 
 describe("numberFormat", () => {
   it("is a thin passthrough to d3-format specifiers", () => {
-    expect(numberFormat(".1f")(3.14159)).toBe("3.1");
+    expect(numberFormat(".1f")(1.23456)).toBe("1.2");
     expect(numberFormat(",.2f")(1234.5)).toBe("1,234.50");
   });
 });

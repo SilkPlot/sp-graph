@@ -1,0 +1,40 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		// Folder exclusions need the trailing slash. "!**/dist" and "!**/dist/**"
+		// both silently fail to exclude anything here, and Biome's own
+		// useBiomeIgnoreFolder rule flags them.
+		"includes": [
+			"**/*.ts",
+			"**/*.tsx",
+			"!**/dist/",
+			"!**/node_modules/",
+			"!**/__screenshots__/"
+		]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"style": {
+				// Off, because it contradicts a stricter setting we already run.
+				// `noUncheckedIndexedAccess` types every `arr[i]` as `T | undefined`,
+				// so `!` is how this codebase says "the bounds check happened" —
+				// overwhelmingly in tests reading a known-shape result. Enabling the
+				// rule would push authors toward a weaker tsconfig or noisier
+				// assertions, and neither buys real safety. Revisit if `!` starts
+				// appearing where the index genuinely might miss.
+				"noNonNullAssertion": "off"
+			}
+		}
+	},
+	// Formatting is deliberately not adopted. This config is a lint baseline; a
+	// formatter would rewrite every file in the tree and bury the next diff.
+	"formatter": { "enabled": false },
+	"assist": { "enabled": false }
+}

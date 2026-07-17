@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Typechecks `test/` without emitting. `tsc -b` cannot do this job: `test/` is
+  // deliberately outside the package tsconfig's `include`, because everything
+  // under `src` is emitted into `dist` and shipped, and a test compiled into
+  // `dist` would be published to consumers.
+  //
+  // `src` is included here too — not to re-check it, but because the tests
+  // import `../src/index` directly, and TypeScript must see those files to
+  // resolve the import.
+  //
+  // `core` keeps its DOM-free `lib` here, so a core test reaching for `document`
+  // fails the same way a core source file would.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

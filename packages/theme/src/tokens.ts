@@ -82,7 +82,9 @@ function flattenVars(): string[] {
   for (const [k, v] of Object.entries(tokens.fontSize)) lines.push(`${CSS_PREFIX}-font-${kebab(k)}: ${v};`);
   for (const [k, v] of Object.entries(tokens.motion)) lines.push(`${CSS_PREFIX}-motion-${kebab(k)}: ${v};`);
   for (const [k, v] of Object.entries(tokens.color)) lines.push(`${CSS_PREFIX}-color-${kebab(k)}: ${v};`);
-  tokens.categorical.forEach((c, i) => lines.push(`${CSS_PREFIX}-cat-${i}: ${c};`));
+  tokens.categorical.forEach((c, i) => {
+    lines.push(`${CSS_PREFIX}-cat-${i}: ${c};`);
+  });
   return lines;
 }
 

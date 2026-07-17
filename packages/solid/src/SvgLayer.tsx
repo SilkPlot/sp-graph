@@ -23,6 +23,11 @@ export const SvgLayer: ParentComponent<SvgLayerProps> = (props) => {
   const bounds = useChartBounds();
 
   return (
+    // The rule wants a static <title> child. This primitive takes the
+    // accessible name as a `title` prop and renders it conditionally below,
+    // which the rule cannot see. Whether the composed charts actually pass one
+    // is a separate and real question; the rule is not evidence either way.
+    // biome-ignore lint/a11y/noSvgWithoutTitle: <title> is rendered from the `title` prop below
     <svg
       width={bounds().width}
       height={bounds().height}

@@ -31,6 +31,17 @@ const browserProject = (name: string, dir: string) => ({
 
 export default defineConfig({
   test: {
+    // Coverage is reported, never enforced. No `thresholds` key is set here on
+    // purpose: a number that fails the build is a promise about what the tests
+    // prove, and these numbers have not settled yet. Report first, gate later.
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html"],
+      include: ["packages/*/src/**/*.{ts,tsx}"],
+      // Barrel files re-export and hold no logic of their own; counting them
+      // measures the export list, not the code.
+      exclude: ["packages/*/src/index.{ts,tsx}"],
+    },
     projects: [
       {
         test: {
