@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 import { createSignal, type Accessor, type JSX } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { linearScale, timeScale, bandScale } from "@silkplot/core";
+import { linearScale, timeScale, bandScale, extentOf } from "@silkplot/core";
 import {
   createCartesianModel,
   applyYDomainPolicy,
@@ -92,7 +92,7 @@ describe("createCartesianModel", () => {
   it("hands the x factory the full inner width, left to right", () => {
     let given: [number, number] | undefined;
     buildModel<Point, ReturnType<typeof linearScale>>({
-      data,
+      data: () => data,
       x: (range) => {
         given = range;
         return linearScale({ domain: [0, 10], range });
@@ -104,7 +104,7 @@ describe("createCartesianModel", () => {
 
   it("maps y bottom-to-top, inverting SVG's top-left origin", () => {
     const model = buildModel<Point, ReturnType<typeof linearScale>>({
-      data,
+      data: () => data,
       x: (range) => linearScale({ domain: [0, 10], range }),
       y: { accessor: (d) => d.y, domain: "zero-baseline" },
     });
@@ -116,7 +116,7 @@ describe("createCartesianModel", () => {
 
   it("applies the requested policy to the data's extent", () => {
     const model = buildModel<Point, ReturnType<typeof linearScale>>({
-      data,
+      data: () => data,
       x: (range) => linearScale({ domain: [0, 10], range }),
       y: { accessor: (d) => d.y, domain: "zero-floor" },
     });
@@ -126,7 +126,7 @@ describe("createCartesianModel", () => {
 
   it("defaults to extent — the policy that assumes nothing about the mark", () => {
     const model = buildModel<Point, ReturnType<typeof linearScale>>({
-      data,
+      data: () => data,
       x: (range) => linearScale({ domain: [0, 10], range }),
       y: { accessor: (d) => d.y },
     });
@@ -135,7 +135,7 @@ describe("createCartesianModel", () => {
 
   it("survives empty data without emitting NaN positions", () => {
     const model = buildModel<Point, ReturnType<typeof linearScale>>({
-      data: [],
+      data: () => [],
       x: (range) => linearScale({ domain: [0, 1], range }),
       y: { accessor: (d) => d.y },
     });
@@ -145,7 +145,7 @@ describe("createCartesianModel", () => {
 
   it("carries any scale kind on x — time", () => {
     const model = buildModel<Point, ReturnType<typeof timeScale>>({
-      data,
+      data: () => data,
       x: (range) =>
         timeScale({
           domain: [new Date(Date.UTC(2026, 0, 1)), new Date(Date.UTC(2026, 0, 2))],
@@ -159,7 +159,7 @@ describe("createCartesianModel", () => {
 
   it("carries any scale kind on x — band, bandwidth intact", () => {
     const model = buildModel<Point, ReturnType<typeof bandScale>>({
-      data,
+      data: () => data,
       x: (range) => bandScale({ domain: ["a", "b"], range }),
       y: { accessor: (d) => d.y },
     });
@@ -172,7 +172,7 @@ describe("createCartesianModel", () => {
     const collapsed = resolveBounds(0, 0, DEFAULT_MARGINS);
     const model = buildModel<Point, ReturnType<typeof linearScale>>(
       {
-        data,
+        data: () => data,
         x: (range) => linearScale({ domain: [0, 10], range }),
         y: { accessor: (d) => d.y },
       },
@@ -183,7 +183,7 @@ describe("createCartesianModel", () => {
 
   it("reports a drawing area once the container has one", () => {
     const model = buildModel<Point, ReturnType<typeof linearScale>>({
-      data,
+      data: () => data,
       x: (range) => linearScale({ domain: [0, 10], range }),
       y: { accessor: (d) => d.y },
     });
@@ -194,7 +194,7 @@ describe("createCartesianModel", () => {
     const [bounds, setBounds] = createSignal(BOUNDS);
     const model = buildModel<Point, ReturnType<typeof linearScale>>(
       {
-        data,
+        data: () => data,
         x: (range) => linearScale({ domain: [0, 10], range }),
         y: { accessor: (d) => d.y },
       },
@@ -208,5 +208,188 @@ describe("createCartesianModel", () => {
     expect(model.x().range()[1]).toBe(after.innerWidth);
     expect(model.x().range()[1]).not.toBe(widthBefore);
     expect(model.y().range()[0]).toBe(after.innerHeight);
+  });
+});
+
+/**
+ * Replacing the series is the case the resize tests above cannot reach.
+ *
+ * The model used to take `data` as an array, which the caller's component body
+ * evaluated once — so the y memo held a frozen series for its whole life while
+ * the chart's marks read the live prop. The two then disagreed about which data
+ * they were drawing, and the chart still rendered, which is what made it worth
+ * a regression rather than a comment. `data` is an accessor now, and these pin
+ * that it is read, not captured.
+ *
+ * Note the asymmetry these have to respect: `x` was always a thunk and so was
+ * always reactive. A test that watched the x domain would have passed against
+ * the bug. Every case here watches y.
+ */
+describe("createCartesianModel — data replacement", () => {
+  it("recomputes the y domain when the series is replaced", () => {
+    const [data, setData] = createSignal<Point[]>([
+      { x: 0, y: 1 },
+      { x: 10, y: 2 },
+    ]);
+    const model = buildModel<Point, ReturnType<typeof linearScale>>({
+      data,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-floor" },
+    });
+    expect(model.y().domain()).toEqual([0, 2]);
+
+    setData([
+      { x: 0, y: 100 },
+      { x: 10, y: 200 },
+    ]);
+
+    // The original defect exactly: the domain stayed [0, 2] while the marks
+    // moved on, sending the path thousands of pixels off-canvas.
+    expect(model.y().domain()).toEqual([0, 200]);
+  });
+
+  it("keeps the replaced series inside the plotting area", () => {
+    const [data, setData] = createSignal<Point[]>([
+      { x: 0, y: 1 },
+      { x: 10, y: 2 },
+    ]);
+    const model = buildModel<Point, ReturnType<typeof linearScale>>({
+      data,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-floor" },
+    });
+
+    setData([
+      { x: 0, y: 100 },
+      { x: 10, y: 200 },
+    ]);
+
+    // Against the captured-data path this read about -26532 for a 268px area.
+    for (const d of data()) {
+      const py = model.y()(d.y);
+      expect(Number.isFinite(py)).toBe(true);
+      expect(py).toBeGreaterThanOrEqual(0);
+      expect(py).toBeLessThanOrEqual(BOUNDS.innerHeight);
+    }
+  });
+
+  it("recomputes the x domain when the series is replaced", () => {
+    const [data, setData] = createSignal<Point[]>([
+      { x: 0, y: 1 },
+      { x: 10, y: 2 },
+    ]);
+    const model = buildModel<Point, ReturnType<typeof linearScale>>({
+      data,
+      // Derives from the series, so this tracks only if `data` is read live.
+      x: (range) =>
+        linearScale({ domain: extentOf(data(), (d) => d.x), range, nice: false }),
+      y: { accessor: (d) => d.y },
+    });
+    expect(model.x().domain()).toEqual([0, 10]);
+
+    setData([
+      { x: 100, y: 1 },
+      { x: 200, y: 2 },
+    ]);
+
+    expect(model.x().domain()).toEqual([100, 200]);
+  });
+
+  it("tracks a changed y accessor, not just changed data", () => {
+    const rows = [
+      { x: 0, y: 1, alt: 50 },
+      { x: 10, y: 2, alt: 90 },
+    ];
+    const [useAlt, setUseAlt] = createSignal(false);
+    const model = buildModel<(typeof rows)[number], ReturnType<typeof linearScale>>({
+      data: () => rows,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => (useAlt() ? d.alt : d.y), domain: "zero-floor" },
+    });
+    expect(model.y().domain()).toEqual([0, 2]);
+
+    setUseAlt(true);
+
+    // The accessor is invoked inside the memo, so a signal read within it is
+    // tracked like any other. Pins that the fix is not data-only.
+    expect(model.y().domain()).toEqual([0, 90]);
+  });
+
+  it("survives empty -> populated -> empty without emitting NaN", () => {
+    const [data, setData] = createSignal<Point[]>([]);
+    const model = buildModel<Point, ReturnType<typeof linearScale>>({
+      data,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-floor" },
+    });
+    // The documented empty sentinel.
+    expect(model.y().domain()).toEqual([0, 1]);
+
+    // 20, not 25: linearScale nices by default, and nice() takes [0, 25] to
+    // [0, 26]. Pinning 26 would assert a d3 artifact rather than the behaviour
+    // under test, which the house rule warns against.
+    setData([
+      { x: 0, y: 5 },
+      { x: 10, y: 20 },
+    ]);
+    expect(model.y().domain()).toEqual([0, 20]);
+    expect(Number.isNaN(model.y()(5))).toBe(false);
+
+    setData([]);
+    expect(model.y().domain()).toEqual([0, 1]);
+    expect(Number.isNaN(model.y()(0))).toBe(false);
+  });
+
+  it("recomputes when only the cardinality changes", () => {
+    const [data, setData] = createSignal<Point[]>([
+      { x: 0, y: 1 },
+      { x: 10, y: 2 },
+    ]);
+    const model = buildModel<Point, ReturnType<typeof linearScale>>({
+      data,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-floor" },
+    });
+    expect(model.y().domain()).toEqual([0, 2]);
+
+    setData([
+      { x: 0, y: 1 },
+      { x: 5, y: 2 },
+      { x: 10, y: 7 },
+    ]);
+
+    expect(model.y().domain()).toEqual([0, 7]);
+  });
+
+  it("holds the deliberate policy difference across a replacement", () => {
+    // An all-negative series is the only input where zero-floor and
+    // zero-baseline visibly differ, so it is the input that proves a
+    // replacement re-applies the policy rather than collapsing it.
+    const negative: Point[] = [
+      { x: 0, y: -5 },
+      { x: 10, y: -1 },
+    ];
+    const [floorData, setFloorData] = createSignal<Point[]>([{ x: 0, y: 4 }]);
+    const [baseData, setBaseData] = createSignal<Point[]>([{ x: 0, y: 4 }]);
+
+    const floor = buildModel<Point, ReturnType<typeof linearScale>>({
+      data: floorData,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-floor" },
+    });
+    const baseline = buildModel<Point, ReturnType<typeof linearScale>>({
+      data: baseData,
+      x: (range) => linearScale({ domain: [0, 10], range }),
+      y: { accessor: (d) => d.y, domain: "zero-baseline" },
+    });
+
+    setFloorData(negative);
+    setBaseData(negative);
+
+    expect(floor.y().domain()).toEqual([-5, -1]);
+    expect(baseline.y().domain()).toEqual([-5, 0]);
+    // Guard against a vacuous pass: if the policies ever collapse, the two
+    // domains agree and every assertion above still reads plausibly.
+    expect(floor.y().domain()).not.toEqual(baseline.y().domain());
   });
 });

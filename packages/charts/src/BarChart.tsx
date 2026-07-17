@@ -46,7 +46,7 @@ export interface BarChartProps {
  */
 const BarChartBody: Component<BarChartProps> = (props) => {
   const model = createCartesianModel({
-    data: props.data,
+    data: () => props.data,
     x: (range) =>
       bandScale({
         domain: props.data.map((d) => d.label),

@@ -92,7 +92,7 @@ const InteractiveLineBody: Component<{ data: readonly TimePoint[] }> = (props) =
   const [active, setActive] = createSignal<number | undefined>(undefined);
 
   const model = createCartesianModel({
-    data: props.data,
+    data: () => props.data,
     x: (range) =>
       timeScale({
         domain: [

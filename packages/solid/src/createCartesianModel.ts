@@ -59,7 +59,22 @@ export function applyYDomainPolicy(
 }
 
 export interface CartesianModelSpec<T, X extends AxisScale> {
-  data: readonly T[];
+  /**
+   * The current series, as an accessor — `() => props.data`, never `props.data`.
+   *
+   * It is a function for the same reason `x` is: the model reads it inside a
+   * memo, and only a function can be re-read there. Passing the array itself
+   * evaluates the caller's prop getter once, in the component body, which is not
+   * a tracking scope — the model would then hold one frozen array for its whole
+   * life while the chart's marks went on reading the live prop. The result is
+   * not a chart that fails to update; it is a chart whose axis and marks
+   * disagree about which data they are drawing, which is worse, because it still
+   * renders.
+   *
+   * The type is an accessor rather than a documented convention precisely so
+   * that mistake is a compile error instead of a silent one.
+   */
+  data: Accessor<readonly T[]>;
   /**
    * Build the x scale for a given pixel range.
    *
@@ -71,6 +86,10 @@ export interface CartesianModelSpec<T, X extends AxisScale> {
    */
   x: (range: [number, number]) => X;
   y: {
+    /**
+     * Read the y value from a datum. Called inside the model's memo, so a
+     * closure over live props is tracked like any other read.
+     */
     accessor: (d: T) => number;
     /** Defaults to "extent" — the policy that assumes nothing about the mark. */
     domain?: YDomainPolicy;
@@ -100,10 +119,12 @@ export function createCartesianModel<T, X extends AxisScale>(
   // because SVG's origin is top-left while a chart's is bottom-left.
   const x = createMemo(() => spec.x([0, bounds().innerWidth]));
 
+  // `spec.data()` is called here, inside the memo, so replacing the series
+  // recomputes the domain. Reading it anywhere else would re-freeze it.
   const y = createMemo(() =>
     linearScale({
       domain: applyYDomainPolicy(
-        extentOf(spec.data, spec.y.accessor),
+        extentOf(spec.data(), spec.y.accessor),
         spec.y.domain ?? "extent",
       ),
       range: [bounds().innerHeight, 0],
