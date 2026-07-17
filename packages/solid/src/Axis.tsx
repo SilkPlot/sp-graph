@@ -15,6 +15,35 @@ export type AxisOrientation = "bottom" | "left" | "top" | "right";
 
 export type { AxisScale, TickFormat };
 
+/**
+ * Axis LINE / TICK colour, per the theming contract (ADR-0001): read the token
+ * with a fallback so an unthemed consumer still renders.
+ *
+ * `--sp-color-axis` is already the pre-muted scaffolding colour, so it is used
+ * at full strength — the old `stroke-opacity="0.4"` is gone. Two places deciding
+ * one colour (the token AND an opacity) is exactly the double-dimming the reuse
+ * principle forbids: the muting belongs in the token, where high-contrast modes
+ * can raise it, not in an opacity the cascade can't reach. In its own value the
+ * axis line is decorative low-contrast scaffolding (2.58:1 on white) — permitted
+ * for a non-text `aria-hidden` line, and promoted automatically under
+ * `prefers-contrast: more`, where the token becomes `#000000` (light) or
+ * `#808a9c` (dark, 5.20:1).
+ *
+ * `currentColor` is the unthemed fallback, deliberately heavier than the token:
+ * it renders, and looking too heavy is the honest signal that no theme sheet is
+ * loaded — the same choice `Gridlines` makes.
+ */
+const AXIS_STROKE = "var(--sp-color-axis, currentColor)";
+
+/**
+ * Axis tick-LABEL size. Labels stay `fill="currentColor"` (text strength, never
+ * the muted axis token, which at 2.58:1 would fail as text) — only their size is
+ * tokenised. `--sp-font-sm` already resolves to 11px, so this is a pure
+ * token-consumption fix with no visual change, and the `11px` fallback keeps an
+ * unthemed axis identical to before.
+ */
+const AXIS_FONT_SIZE = "var(--sp-font-sm, 11px)";
+
 export interface AxisProps {
   /**
    * The scale to draw an axis for — continuous (linear/time) or a band scale
@@ -93,7 +122,7 @@ export const Axis: Component<AxisProps> = (props) => {
     // focusable, so the rule's premise does not hold here.
     // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a <g> with no tabindex is not focusable
     <g class={props.class} data-silkplot-axis={orientation()} aria-hidden="true">
-      <path d={domainPath()} fill="none" stroke="currentColor" stroke-opacity="0.4" />
+      <path d={domainPath()} fill="none" stroke={AXIS_STROKE} />
       <For each={ticks()}>
         {(tick) => {
           if (isHorizontal()) {
@@ -101,12 +130,12 @@ export const Axis: Component<AxisProps> = (props) => {
             const labelY = orientation() === "bottom" ? tickSize() + 12 : -(tickSize() + 4);
             return (
               <g transform={`translate(${tick.position},${axisOffset()})`}>
-                <line y2={dir * tickSize()} stroke="currentColor" stroke-opacity="0.4" />
+                <line y2={dir * tickSize()} stroke={AXIS_STROKE} />
                 <text
                   y={labelY}
                   text-anchor="middle"
                   fill="currentColor"
-                  font-size="11"
+                  font-size={AXIS_FONT_SIZE}
                 >
                   {tick.label}
                 </text>
@@ -118,13 +147,13 @@ export const Axis: Component<AxisProps> = (props) => {
           const anchor = orientation() === "right" ? "start" : "end";
           return (
             <g transform={`translate(${axisOffset()},${tick.position})`}>
-              <line x2={dir * tickSize()} stroke="currentColor" stroke-opacity="0.4" />
+              <line x2={dir * tickSize()} stroke={AXIS_STROKE} />
               <text
                 x={labelX}
                 dy="0.32em"
                 text-anchor={anchor}
                 fill="currentColor"
-                font-size="11"
+                font-size={AXIS_FONT_SIZE}
               >
                 {tick.label}
               </text>

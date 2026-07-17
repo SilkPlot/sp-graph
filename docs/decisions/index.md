@@ -33,3 +33,9 @@ arrived at.
   spec-literal getter was rejected despite being cheaper, what a captured array
   did to a mounted chart's y axis, and why immutable replacement is the only
   supported contract.
+- [ADR-0004 — Colour scheme and contrast resolve as combinations](adr-0004-scheme-contrast-combinations.md):
+  why there are four palettes not three, how each high-contrast block mirrors a
+  scheme block so the increased-contrast preference survives every dark path
+  without a specificity war, the new dark-high-contrast palette and its
+  legibility ladder, and why the contract is now verified on computed styles in
+  a real browser. Extends ADR-0001.
