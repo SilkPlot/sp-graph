@@ -32,6 +32,8 @@ const arg = (name, fallback) => {
 const URL = arg("url", "http://localhost:5173");
 const RATE = Number(arg("rate", "4"));
 const BUDGET_MS = 16.7;
+const TIMER_TOLERANCE_MS = 1.0;
+const ACCEPTANCE_MS = BUDGET_MS + TIMER_TOLERANCE_MS;
 const DURATION_MS = 3000;
 
 const stats = (xs) => {
@@ -42,8 +44,8 @@ const stats = (xs) => {
     p50: +at(0.5).toFixed(2),
     p95: +at(0.95).toFixed(2),
     max: +s[s.length - 1].toFixed(2),
-    overBudget: s.filter((d) => d > BUDGET_MS + 1).length,
-    pctOver: +((s.filter((d) => d > BUDGET_MS + 1).length / s.length) * 100).toFixed(1),
+    overBudget: s.filter((d) => d > ACCEPTANCE_MS).length,
+    pctOver: +((s.filter((d) => d > ACCEPTANCE_MS).length / s.length) * 100).toFixed(1),
   };
 };
 
@@ -125,14 +127,16 @@ await browser.close();
 const row = (name, s) =>
   `${name.padEnd(22)} frames=${String(s.frames).padStart(4)}  p50=${String(s.p50).padStart(6)}ms  p95=${String(s.p95).padStart(6)}ms  max=${String(s.max).padStart(7)}ms  over-budget=${s.pctOver}%`;
 
-console.log(`\nCPU throttle: ${RATE}x · budget: ${BUDGET_MS}ms · url: ${URL}`);
+console.log(
+  `\nCPU throttle: ${RATE}x · nominal budget: ${BUDGET_MS}ms · harness tolerance: ${TIMER_TOLERANCE_MS.toFixed(1)}ms · acceptance: ${ACCEPTANCE_MS.toFixed(1)}ms · url: ${URL}`,
+);
 console.log(row("idle (no pointer)", idle));
 console.log(row("hover (sweeping)", hover));
 console.log(row("control (+30ms/frame)", control));
 if (errors.length) console.log("page errors:", errors);
 
 // The control must degrade, or the measurement proves nothing.
-const controlDegraded = control.p95 > hover.p95 * 1.5 && control.p95 > BUDGET_MS + 1;
+const controlDegraded = control.p95 > hover.p95 * 1.5 && control.p95 > ACCEPTANCE_MS;
 console.log(
   `\nharness self-check: control ${controlDegraded ? "DEGRADED as expected — the timer can see a slow frame" : "DID NOT DEGRADE — measurement is not trustworthy"}`,
 );
@@ -141,6 +145,8 @@ if (!controlDegraded) {
   process.exit(2);
 }
 
-const holds = hover.p95 <= BUDGET_MS + 1;
-console.log(`verdict: hover p95 ${hover.p95}ms ${holds ? "<=" : ">"} ${BUDGET_MS}ms — ${holds ? "HOLDS" : "MISSES"} the budget at ${RATE}x throttle\n`);
+const holds = hover.p95 <= ACCEPTANCE_MS;
+console.log(
+  `verdict: hover p95 ${hover.p95}ms ${holds ? "<=" : ">"} ${ACCEPTANCE_MS.toFixed(1)}ms acceptance (nominal ${BUDGET_MS}ms + ${TIMER_TOLERANCE_MS.toFixed(1)}ms timer/display tolerance) — ${holds ? "PASSES" : "MISSES"} the harness at ${RATE}x throttle\n`,
+);
 process.exit(holds ? 0 : 1);
