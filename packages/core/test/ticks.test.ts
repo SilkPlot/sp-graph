@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { computeTicks, numberFormat, timeLabelFormat, linearScale, timeScale } from "../src/index";
+import {
+  computeTicks,
+  computeBandTicks,
+  numberFormat,
+  timeLabelFormat,
+  linearScale,
+  timeScale,
+  bandScale,
+} from "../src/index";
 
 describe("computeTicks — linear scale", () => {
   it("returns ticks whose position matches scale(value) and carries a non-empty label", () => {
@@ -152,6 +160,73 @@ describe("computeTicks — custom format override", () => {
     for (const tick of ticks) {
       expect(tick.label).toBe("X");
     }
+  });
+});
+
+describe("computeTicks — formatter typing (compile-time contract)", () => {
+  // These tests earn their keep at `tsc` time as much as at runtime: the
+  // expect-error directive below FAILS the typecheck if the rejection stops
+  // happening, and the inline-lambda cases fail to compile if `v` stops inferring.
+  const D0 = new Date(Date.UTC(2026, 0, 1));
+  const D1 = new Date(Date.UTC(2026, 11, 31));
+
+  it("infers `number` for a linear scale's inline formatter (the old `never` rejected this)", () => {
+    const linear = linearScale({ domain: [0, 100], range: [0, 400] });
+    const ticks = computeTicks(linear, { format: (v) => v.toFixed(2) });
+    expect(ticks.length).toBeGreaterThan(0);
+    for (const tick of ticks) expect(tick.label).toContain(".");
+  });
+
+  it("infers `Date` for a time scale's inline formatter", () => {
+    const time = timeScale({ domain: [D0, D1], range: [0, 800] });
+    // `v` must carry Date methods; the label content is a 4-digit year. The
+    // exact year is not pinned — a tick at local midnight can read a UTC year
+    // one off — but calling `getUTCFullYear` at all is the proof `v` is a Date.
+    const ticks = computeTicks(time, { format: (v) => String(v.getUTCFullYear()) });
+    expect(ticks.length).toBeGreaterThan(0);
+    for (const tick of ticks) expect(tick.label).toMatch(/^\d{4}$/);
+  });
+
+  it("rejects a Date formatter on a linear scale — the direction the old bug travelled", () => {
+    const linear = linearScale({ domain: [0, 100], range: [0, 400] });
+    // Purely a COMPILE-TIME assertion: this closure is never invoked, because at
+    // runtime `v` is a number and `getUTCFullYear` would throw. What matters is
+    // that `tsc` rejects the annotation — exactly what the old `(value: never)`
+    // signature waved through, producing garbage numeric-axis labels. The
+    // ts-expect-error line fails the typecheck if this ever compiles again.
+    const rejected = () =>
+      // @ts-expect-error a Date formatter is a category error on a linear scale
+      computeTicks(linear, { format: (v: Date) => String(v.getUTCFullYear()) });
+    expect(typeof rejected).toBe("function");
+
+    // The mirror direction (a numeric formatter on a TIME scale) is NOT
+    // statically rejectable and is deliberately not asserted: d3's
+    // `ScaleTime<number, number>` is structurally assignable to
+    // `ScaleLinear<number, number>`, so a time scale always also matches the
+    // linear overload. The runtime `isTimeScale` probe still routes it
+    // correctly; the type system simply cannot forbid the annotation. The
+    // load-bearing rejection — the one that had a live bug — is enforced above.
+  });
+});
+
+describe("computeBandTicks — labels and formatter", () => {
+  const band = bandScale({ domain: ["alpha", "beta", "gamma"], range: [0, 300] });
+
+  it("uses each category verbatim as its label when no formatter is given", () => {
+    const ticks = computeBandTicks(band);
+    expect(ticks.map((t) => t.label)).toEqual(["alpha", "beta", "gamma"]);
+    expect(ticks.map((t) => t.value)).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("applies a string formatter to the category label (band takes a formatter, not none)", () => {
+    const ticks = computeBandTicks(band, { format: (v) => v.toUpperCase() });
+    expect(ticks.map((t) => t.label)).toEqual(["ALPHA", "BETA", "GAMMA"]);
+    // The underlying value stays the raw category — only the label is formatted.
+    expect(ticks.map((t) => t.value)).toEqual(["alpha", "beta", "gamma"]);
+    // Vacuous-pass guard: the formatter must actually have changed the labels.
+    expect(computeBandTicks(band).map((t) => t.label)).not.toEqual(
+      ticks.map((t) => t.label),
+    );
   });
 });
 

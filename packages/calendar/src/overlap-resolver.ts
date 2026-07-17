@@ -23,9 +23,14 @@ export interface CalendarEvent extends Interval {
  * Resolve concurrent events into lanes via the core deterministic packer. This
  * thin re-export exists so calendar consumers do not reach into @silkplot/core
  * directly, and gives the deferred calendar work a home for rectangle geometry.
+ *
+ * The event `id` is passed as the packer's tie-break key, so two events sharing
+ * an exact `(start, end)` interval get a stable, input-order-independent lane
+ * assignment keyed on identity rather than array position. A calendar with a
+ * duplicate event id is a caller bug and throws — see `packOverlaps`.
  */
 export function resolveEventLanes(
   events: readonly CalendarEvent[],
 ): PackedInterval<CalendarEvent>[] {
-  return packOverlaps(events);
+  return packOverlaps(events, { key: (e) => e.id });
 }

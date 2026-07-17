@@ -37,7 +37,7 @@ export {
   numberFormat,
   timeLabelFormat,
 } from "./ticks";
-export type { Tick, TickOptions } from "./ticks";
+export type { Tick, TickOptions, BandTickOptions } from "./ticks";
 
 // Shape — line/area path builders over d3-shape.
 export { linePath, areaPath, curves } from "./shape";
@@ -50,7 +50,7 @@ export type {
 
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
-export type { Interval, PackedInterval } from "./overlap";
+export type { Interval, PackedInterval, PackOptions } from "./overlap";
 
 // Hit-testing — nearest-point lookup via d3-delaunay.
 export { createHitIndex } from "./hit-test";

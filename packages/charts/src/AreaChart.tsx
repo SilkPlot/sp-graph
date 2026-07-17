@@ -14,7 +14,7 @@
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
 import { createMemo, type Component } from "solid-js";
-import { timeScale, areaPath, linePath, type CurveName } from "@silkplot/core";
+import { timeScale, areaPath, linePath, extentOf, type CurveName } from "@silkplot/core";
 import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import type { TimePoint } from "./types";
@@ -29,6 +29,18 @@ export interface AreaChartProps {
   margins?: Partial<Margins>;
   /** Area/line curve preset. Default: "monotoneX". */
   curve?: CurveName;
+  /**
+   * Treat a datum as present. Return false and the fill and its top stroke both
+   * break at that point rather than drawing through it — the way to render a
+   * known gap (a sensor offline, a month with no reading) instead of implying
+   * data you do not have. A gap splits the area into separate filled regions;
+   * it does not bridge the hole with a flat span at the baseline.
+   *
+   * This ANDs with the library's own finite check; it cannot switch it off. A
+   * datum whose scaled position is not finite has no pixel to occupy, so it is
+   * always a gap, whatever this returns.
+   */
+  defined?: (d: TimePoint, index: number) => boolean;
   /** Area fill color. Default: "currentColor". */
   fill?: string;
   /** Area fill opacity. Default: 0.2. */
@@ -50,15 +62,24 @@ export interface AreaChartProps {
  */
 const AreaChartBody: Component<AreaChartProps> = (props) => {
   const model = createCartesianModel({
-    data: props.data,
-    x: (range) =>
-      timeScale({
-        domain: [
-          props.data[0]?.t ?? new Date(0),
-          props.data[props.data.length - 1]?.t ?? new Date(1),
-        ],
-        range,
-      }),
+    data: () => props.data,
+    // The time domain is the data's EXTENT, not its first and last datum.
+    //
+    // Reading the ends assumed the series was already sorted, and silently drew
+    // nonsense when it was not: [Jan 10, Jan 1, Jan 5] produced a REVERSED
+    // domain, and the middle point rendered outside the plot area entirely
+    // (scales do not clamp by default). The comment that used to sit here
+    // claimed the opposite — that reading the ends stopped a stray out-of-order
+    // point widening the axis. It never did that; it just failed differently.
+    //
+    // The contract is now: the domain covers your data, and the fill follows
+    // your array. The honest fix for a scrambled series is to sort it before
+    // passing it in. This extent scan is one the y-axis already makes over the
+    // same array.
+    x: (range) => {
+      const [lo, hi] = extentOf(props.data, (d) => d.t.getTime());
+      return timeScale({ domain: [new Date(lo), new Date(hi)], range });
+    },
     // The area is drawn FROM the zero baseline, so 0 must be inside the domain
     // or the fill's flat edge lands on a pixel the axis labels as some other
     // value. "zero-baseline" keeps that honest for all-negative and
@@ -73,10 +94,21 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
   const areaD = createMemo(() => {
     const xs = model.x();
     const ys = model.y();
+    const px = (d: TimePoint): number => xs(d.t);
+    const py = (d: TimePoint): number => ys(d.y);
     return areaPath(props.data, {
-      x: (d) => xs(d.t),
+      x: px,
       y0: baselineY(),
-      y1: (d) => ys(d.y),
+      y1: py,
+      // The finite check is the library's and is not optional: a datum that maps
+      // to a non-finite pixel has nowhere to be drawn, and passing it through
+      // yields a `d` the browser abandons at the bad segment — for a fill that
+      // corrupts the whole shape, not just one span. `extentOf` already keeps
+      // such values out of the DOMAIN; this keeps them out of the MARK, the
+      // other half of the same policy. The area and its top stroke share this
+      // predicate so they break at exactly the same points.
+      defined: (d, i) =>
+        Number.isFinite(px(d)) && Number.isFinite(py(d)) && (props.defined?.(d, i) ?? true),
       curve: props.curve ?? "monotoneX",
     });
   });
@@ -84,9 +116,13 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
   const lineD = createMemo(() => {
     const xs = model.x();
     const ys = model.y();
+    const px = (d: TimePoint): number => xs(d.t);
+    const py = (d: TimePoint): number => ys(d.y);
     return linePath(props.data, {
-      x: (d) => xs(d.t),
-      y: (d) => ys(d.y),
+      x: px,
+      y: py,
+      defined: (d, i) =>
+        Number.isFinite(px(d)) && Number.isFinite(py(d)) && (props.defined?.(d, i) ?? true),
       curve: props.curve ?? "monotoneX",
     });
   });

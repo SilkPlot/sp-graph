@@ -9,11 +9,11 @@
 import { createMemo, For, type Component } from "solid-js";
 import type { Tick } from "@silkplot/core";
 import { useChartBounds } from "./context";
-import { resolveTicks, type AxisScale } from "./scale-ticks";
+import { resolveTicks, type AxisScale, type TickFormat } from "./scale-ticks";
 
 export type AxisOrientation = "bottom" | "left" | "top" | "right";
 
-export type { AxisScale };
+export type { AxisScale, TickFormat };
 
 export interface AxisProps {
   /**
@@ -33,6 +33,15 @@ export interface AxisProps {
   tickCount?: number;
   /** Target px spacing between ticks when `tickCount` is omitted. Ignored for band scales. */
   pixelsPerTick?: number;
+  /**
+   * Explicit tick-label formatter. The value kind follows the scale: a
+   * `(number) => string` for a linear axis, `(Date) => string` for time,
+   * `(string) => string` for a band axis. Omit it and each scale kind's default
+   * labelling applies. Unlike `tickCount`/`pixelsPerTick`, formatting changes
+   * only the LABEL, never a tick's POSITION, so an axis can carry a formatter
+   * without disagreeing with gridlines drawn from the same scale.
+   */
+  format?: TickFormat;
   /** Length of the tick marks in px. Default: 6. */
   tickSize?: number;
   class?: string;
@@ -48,6 +57,7 @@ export const Axis: Component<AxisProps> = (props) => {
     resolveTicks(props.scale, {
       count: props.tickCount,
       pixelsPerTick: props.pixelsPerTick,
+      format: props.format,
     }),
   );
 

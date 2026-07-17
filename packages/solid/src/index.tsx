@@ -28,7 +28,7 @@ export { ChartAnnouncer } from "./ChartAnnouncer";
 export type { ChartAnnouncerProps } from "./ChartAnnouncer";
 
 export { resolveTicks, isBandScale } from "./scale-ticks";
-export type { AxisScale, TickRequest } from "./scale-ticks";
+export type { AxisScale, TickRequest, TickFormat } from "./scale-ticks";
 
 export { createCartesianModel, applyYDomainPolicy } from "./createCartesianModel";
 export type {
