@@ -15,9 +15,10 @@
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
  * TODO(Phase 2): wire `createHitIndex` (d3-delaunay, already in
- *   core/hit-test.ts) for nearest-point cursor/tooltip interaction. That is
- *   its own primitive surface (Crosshair / TooltipAnchor) that has not been
- *   designed yet, so it is intentionally left out of this pass.
+ *   core/hit-test.ts) for nearest-point cursor/tooltip interaction. The
+ *   contracts are settled in docs/decisions/adr-0002-crosshair-and-tooltip-anchor.md
+ *   — note that the resolution belongs to a pointer model, not to this chart
+ *   and not to the cursor.
  */
 import { For, type Component } from "solid-js";
 import { extentOf, linearScale } from "@silkplot/core";

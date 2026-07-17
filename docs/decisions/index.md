@@ -23,3 +23,8 @@ arrived at.
   custom property, why primitives never depend on `@silkplot/theme`, the
   fallback rule for an unthemed consumer, and why colour scheme can be forced
   while contrast and motion cannot.
+- [ADR-0002 — `Crosshair` and `TooltipAnchor` contracts](adr-0002-crosshair-and-tooltip-anchor.md):
+  why the cursor and tooltip are told where to draw rather than resolving the
+  pointer themselves, why the tooltip is HTML beside the SVG rather than inside
+  it, the single-active-point keyboard model and the live region that announces
+  it, and what the hover path may and may not do inside a frame.
