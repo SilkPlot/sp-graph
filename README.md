@@ -113,7 +113,7 @@ Four phases, ordered by real product need.
 
 - **Phase 1 — Foundations (in progress).** ✅ `ChartRoot` + responsive container ·
   ✅ cartesian/time scales · ✅ custom `Axis` primitive (continuous + band) ·
-  ✅ line/area/bar · ⬜ gridlines · ⬜ tooltip/cursor · ⬜ shared canvas layer.
+  ✅ line/area/bar · ✅ gridlines · ⬜ tooltip/cursor · ⬜ shared canvas layer.
 - **Phase 2 — Interaction.** 🚧 scatter (marks render; hit-test wiring pending) ·
   🚧 hit-testing helpers (`createHitIndex` built and tested in `core`, not yet wired into a
   chart; quadtree variant pending) · ⬜ grouped/stacked bars · ⬜ legends · ⬜ brush/zoom
