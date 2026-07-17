@@ -11,5 +11,6 @@ export {
   categoricalPalette,
   sequentialRamp,
   CSS_PREFIX,
+  THEME_ATTR,
 } from "./tokens";
 export type { Tokens } from "./tokens";

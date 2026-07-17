@@ -70,6 +70,35 @@ export const tokens: Tokens = {
 /** Namespace for the generated CSS custom properties. */
 export const CSS_PREFIX = "--sp";
 
+/** Attribute a consumer sets to force a colour scheme: `dark` or `light`. */
+export const THEME_ATTR = "data-sp-theme";
+
+/**
+ * Colour overrides per variant, declared once and emitted wherever the variant
+ * applies. The dark set is rendered into two selectors — the `prefers-color-scheme`
+ * media query and the explicit `[data-sp-theme="dark"]` opt-in — and a second copy
+ * would eventually drift from this one without anything failing to say so.
+ *
+ * Values are deliberately unchanged from the original single-selector emission.
+ */
+type ColorOverrides = Partial<Record<keyof Tokens["color"], string>>;
+
+const DARK_COLORS: ColorOverrides = {
+  surface: "#14161a",
+  text: "#e7eaf0",
+  muted: "#98a2b3",
+  grid: "#2a2f3a",
+  axis: "#667085",
+  cursor: "#cbd2dd",
+};
+
+const HIGH_CONTRAST_COLORS: ColorOverrides = {
+  text: "#000000",
+  grid: "#000000",
+  axis: "#000000",
+  focusRing: "#0033cc",
+};
+
 /** camelCase -> kebab-case so `focusRing` becomes the CSS var `focus-ring`. */
 function kebab(name: string): string {
   return name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -88,9 +117,26 @@ function flattenVars(): string[] {
   return lines;
 }
 
+/** Render a variant's colour overrides as indented custom-property lines. */
+function colorOverrideVars(overrides: ColorOverrides, indent: string): string {
+  return Object.entries(overrides)
+    .map(([k, v]) => `${indent}${CSS_PREFIX}-color-${kebab(k)}: ${v};`)
+    .join("\n");
+}
+
 /**
- * Emit the full token CSS: base `:root` custom properties plus dark,
- * high-contrast, and reduced-motion media overrides.
+ * Emit the full token CSS: base `:root` custom properties plus the dark,
+ * high-contrast, and reduced-motion variants.
+ *
+ * Colour scheme is selectable two ways, because it is a product decision as
+ * much as a user preference — an app with its own light/dark toggle must be
+ * able to make charts follow it, and the only alternative would be for every
+ * such consumer to restate this palette in their own stylesheet.
+ *
+ * Contrast and motion are deliberately NOT given the same opt-in. They are
+ * accessibility preferences the user agent owns: an app overriding
+ * `prefers-reduced-motion` would be reintroducing motion for someone who asked
+ * for less of it. They follow the user, and nothing else.
  */
 export function tokensToCss(): string {
   const base = flattenVars()
@@ -101,40 +147,47 @@ export function tokensToCss(): string {
 ${base}
 }
 
-/* Dark variant */
+/* Dark variant — follows the user agent unless the consumer forces light. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    ${CSS_PREFIX}-color-surface: #14161a;
-    ${CSS_PREFIX}-color-text: #e7eaf0;
-    ${CSS_PREFIX}-color-muted: #98a2b3;
-    ${CSS_PREFIX}-color-grid: #2a2f3a;
-    ${CSS_PREFIX}-color-axis: #667085;
-    ${CSS_PREFIX}-color-cursor: #cbd2dd;
+  :root:not([${THEME_ATTR}="light"]) {
+${colorOverrideVars(DARK_COLORS, "    ")}
   }
+}
+
+/* Dark variant — explicit opt-in. Matches any element, so a consumer can theme
+   a subtree, not just the document. */
+[${THEME_ATTR}="dark"] {
+${colorOverrideVars(DARK_COLORS, "  ")}
 }
 
 /* High-contrast variant — stronger separation, brighter focus ring */
 @media (prefers-contrast: more) {
   :root {
-    ${CSS_PREFIX}-color-text: #000000;
-    ${CSS_PREFIX}-color-grid: #000000;
-    ${CSS_PREFIX}-color-axis: #000000;
-    ${CSS_PREFIX}-color-focus-ring: #0033cc;
+${colorOverrideVars(HIGH_CONTRAST_COLORS, "    ")}
   }
 }
 
 /* Reduced motion — collapse all timings to instant */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    ${CSS_PREFIX}-motion-fast: 0ms;
-    ${CSS_PREFIX}-motion-base: 0ms;
-    ${CSS_PREFIX}-motion-slow: 0ms;
+${Object.keys(tokens.motion)
+  .map((k) => `    ${CSS_PREFIX}-motion-${kebab(k)}: 0ms;`)
+  .join("\n")}
   }
 }
 `;
 }
 
-/** Read a token CSS variable reference, e.g. `cssVar("color-text")`. */
-export function cssVar(name: string): string {
-  return `var(${CSS_PREFIX}-${name})`;
+/**
+ * Build a token CSS variable reference, e.g. `cssVar("color-text")`.
+ *
+ * Pass a `fallback` wherever the stylesheet from `tokensToCss()` might not be
+ * loaded: `@silkplot/theme` is optional, and a `var()` naming an undefined
+ * property is invalid at computed-value time — for an inherited property like
+ * `stroke` that silently resolves to the parent's value rather than to nothing
+ * visible, which is a hard defect to see and a harder one to attribute.
+ */
+export function cssVar(name: string, fallback?: string): string {
+  const ref = `${CSS_PREFIX}-${name}`;
+  return fallback === undefined ? `var(${ref})` : `var(${ref}, ${fallback})`;
 }

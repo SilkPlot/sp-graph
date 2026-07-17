@@ -151,6 +151,9 @@ emitted into `dist`.
 ## Documentation
 
 The load-bearing architecture rules are documented in [`docs/architecture.md`](docs/architecture.md).
+Decisions — what was chosen, what was rejected, and why — are recorded as ADRs in
+[`docs/decisions/`](docs/decisions/index.md). Start with
+[ADR-0001](docs/decisions/adr-0001-theming-contract.md) if you are theming SilkPlot.
 
 ## Contributing
 

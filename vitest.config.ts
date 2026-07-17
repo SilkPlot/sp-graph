@@ -50,6 +50,15 @@ export default defineConfig({
           environment: "node",
         },
       },
+      {
+        // `theme` emits CSS as strings and reads no DOM, so node is sufficient
+        // and fastest — the same reasoning that keeps `core` out of a browser.
+        test: {
+          name: "theme",
+          include: ["packages/theme/test/**/*.test.ts"],
+          environment: "node",
+        },
+      },
       browserProject("solid", "solid"),
       browserProject("charts", "charts"),
     ],
