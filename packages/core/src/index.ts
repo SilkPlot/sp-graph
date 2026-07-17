@@ -28,6 +28,8 @@ export type {
   ScaleOrdinal,
 } from "./scales";
 
+// Extents — numeric span of a series under an accessor.
+export { extentOf } from "./extent";
 // Ticks — the d3-axis replacement.
 export {
   computeTicks,

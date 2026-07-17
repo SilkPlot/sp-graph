@@ -1,19 +1,24 @@
 /**
- * BarChart — a real, end-to-end SilkPlot chart.
+ * BarChart — categorical bars over a band x scale.
  *
- * Composition mirrors LineChart:
- *   @silkplot/core   → bandScale (x, compute), linearScale (y, compute)
- *   @silkplot/solid  → ChartRoot (measure), SvgLayer (render), Axis (render)
+ * Scaffolding comes from `createCartesianModel` and `CartesianFrame`. What
+ * makes this chart a bar chart:
+ *
+ *   - a band x scale, so the model carries a `bandwidth()` the marks need;
+ *   - a "zero-baseline" y-domain, the same policy AreaChart uses and for the
+ *     same reason — the mark is drawn FROM zero;
+ *   - one `<rect>` per datum, sized against that baseline.
  *
  * D3 does all the math inside memos; Solid renders every bar with `<For>`. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
  * TODO(Phase 2): grouped and stacked variants over `d3-shape` stack.
  */
-import { createMemo, For, Show, type Component } from "solid-js";
-import { bandScale, linearScale } from "@silkplot/core";
-import { ChartRoot, SvgLayer, Axis, useChartBounds, type Margins } from "@silkplot/solid";
-import { extentOf, type CategoryPoint } from "./types";
+import { For, Show, type Component } from "solid-js";
+import { bandScale } from "@silkplot/core";
+import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import { CartesianFrame } from "./CartesianFrame";
+import { type CategoryPoint } from "./types";
 
 export interface BarChartProps {
   /** The series to plot, as `{ label: string, y: number }[]`. */
@@ -37,59 +42,54 @@ export interface BarChartProps {
  * are memos that recompute only when data or size change.
  */
 const BarChartBody: Component<BarChartProps> = (props) => {
-  const bounds = useChartBounds();
-
-  const x = createMemo(() =>
-    bandScale({
-      domain: props.data.map((d) => d.label),
-      range: [0, bounds().innerWidth],
-      padding: props.padding,
-    }),
-  );
-
-  const y = createMemo(() => {
-    const [lo, hi] = extentOf(props.data, (d) => d.y);
-    return linearScale({
-      domain: [Math.min(0, lo), Math.max(0, hi)],
-      range: [bounds().innerHeight, 0],
-    });
+  const model = createCartesianModel({
+    data: props.data,
+    x: (range) =>
+      bandScale({
+        domain: props.data.map((d) => d.label),
+        range,
+        padding: props.padding,
+      }),
+    // Bars are drawn FROM the zero baseline, so the domain must contain zero —
+    // the same reasoning as AreaChart, and the same policy.
+    y: { accessor: (d) => d.y, domain: "zero-baseline" },
   });
 
-  const hasArea = () => bounds().innerWidth > 0 && bounds().innerHeight > 0;
-
   return (
-    <SvgLayer role="img" title={props.title} class={props.class}>
-      <Show when={hasArea()}>
-        <Axis scale={y()} orientation="left" />
-        <Axis scale={x()} orientation="bottom" />
-        <For each={props.data}>
-          {(d) => {
-            // `bandScale(label)` returns `number | undefined` — undefined only
-            // if the label were somehow absent from the domain, which cannot
-            // happen here since the domain is built from this same data. Guard
-            // it honestly rather than assuming with `!` or a cast.
-            const barX = () => x()(d.label);
-            // A bar spans from the y-scale's zero baseline to the datum's
-            // value. A negative value hangs below the baseline, so `y` must be
-            // the SMALLER pixel coordinate and `height` the absolute distance
-            // — SVG rejects a negative `height`.
-            const y0 = () => y()(0);
-            const yVal = () => y()(d.y);
-            return (
-              <Show when={barX() !== undefined}>
-                <rect
-                  x={barX()}
-                  y={Math.min(y0(), yVal())}
-                  width={x().bandwidth()}
-                  height={Math.abs(yVal() - y0())}
-                  fill={props.fill ?? "currentColor"}
-                />
-              </Show>
-            );
-          }}
-        </For>
-      </Show>
-    </SvgLayer>
+    <CartesianFrame
+      x={model.x()}
+      y={model.y()}
+      hasArea={model.hasArea()}
+      title={props.title}
+      class={props.class}
+    >
+      <For each={props.data}>
+        {(d) => {
+          // `bandScale(label)` returns `number | undefined` — undefined only
+          // if the label were somehow absent from the domain, which cannot
+          // happen here since the domain is built from this same data. Guard
+          // it honestly rather than assuming with `!` or a cast.
+          const barX = () => model.x()(d.label);
+          // A bar spans from the y-scale's zero baseline to the datum's
+          // value. A negative value hangs below the baseline, so `y` must be
+          // the SMALLER pixel coordinate and `height` the absolute distance
+          // — SVG rejects a negative `height`.
+          const y0 = () => model.y()(0);
+          const yVal = () => model.y()(d.y);
+          return (
+            <Show when={barX() !== undefined}>
+              <rect
+                x={barX()}
+                y={Math.min(y0(), yVal())}
+                width={model.x().bandwidth()}
+                height={Math.abs(yVal() - y0())}
+                fill={props.fill ?? "currentColor"}
+              />
+            </Show>
+          );
+        }}
+      </For>
+    </CartesianFrame>
   );
 };
 

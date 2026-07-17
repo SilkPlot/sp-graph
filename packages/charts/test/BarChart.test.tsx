@@ -11,9 +11,8 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { BarChart } from "../src/index";
 import type { CategoryPoint } from "../src/index";
-import { bandScale, linearScale, computeBandTicks } from "@silkplot/core";
+import { bandScale, linearScale, computeBandTicks, extentOf } from "@silkplot/core";
 import { DEFAULT_MARGINS, resolveBounds } from "@silkplot/solid";
-import { extentOf } from "../src/types";
 
 const WIDTH = 400;
 const HEIGHT = 300;

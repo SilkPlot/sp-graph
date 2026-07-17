@@ -1,18 +1,22 @@
 /**
- * LineChart — a real, end-to-end SilkPlot chart.
+ * LineChart — a time series drawn as a single `linePath` stroke.
  *
- * Composition demonstrates the whole architecture:
- *   @silkplot/core   → timeScale + linearScale (compute), linePath (compute),
- *                      computeTicks (compute — the d3-axis replacement)
- *   @silkplot/solid  → ChartRoot (measure), SvgLayer (render), Axis (render)
+ * The scaffolding — bounds, pixel ranges, the y-domain policy — comes from
+ * `createCartesianModel`; the axes and the SVG frame from `CartesianFrame`.
+ * What is written here is only what makes this chart a line chart:
+ *
+ *   - a time x-domain taken from the first and last datum, not the extent;
+ *   - a "zero-floor" y-domain, because a line has no baseline to honour;
+ *   - one stroked path, no fill.
  *
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
-import { timeScale, linearScale, linePath, type CurveName } from "@silkplot/core";
-import { ChartRoot, SvgLayer, Axis, useChartBounds, type Margins } from "@silkplot/solid";
-import { extentOf, type TimePoint } from "./types";
+import { createMemo, type Component } from "solid-js";
+import { timeScale, linePath, type CurveName } from "@silkplot/core";
+import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import { CartesianFrame } from "./CartesianFrame";
+import { type TimePoint } from "./types";
 
 export interface LineChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
@@ -38,29 +42,27 @@ export interface LineChartProps {
  * the path, and ticks are memos that recompute only when data or size change.
  */
 const LineChartBody: Component<LineChartProps> = (props) => {
-  const bounds = useChartBounds();
-
-  const x = createMemo(() =>
-    timeScale({
-      domain: [
-        props.data[0]?.t ?? new Date(0),
-        props.data[props.data.length - 1]?.t ?? new Date(1),
-      ],
-      range: [0, bounds().innerWidth],
-    }),
-  );
-
-  const y = createMemo(() => {
-    const [lo, hi] = extentOf(props.data, (d) => d.y);
-    return linearScale({
-      domain: [Math.min(0, lo), hi],
-      range: [bounds().innerHeight, 0],
-    });
+  const model = createCartesianModel({
+    data: props.data,
+    // The time domain is the FIRST and LAST datum, not the extent: a series is
+    // plotted in the order given, and a stray out-of-order point should not
+    // silently widen the axis.
+    x: (range) =>
+      timeScale({
+        domain: [
+          props.data[0]?.t ?? new Date(0),
+          props.data[props.data.length - 1]?.t ?? new Date(1),
+        ],
+        range,
+      }),
+    // A line has no baseline to honour, so zero is only the floor — the top
+    // stays the data's own maximum. Area and Bar deliberately differ.
+    y: { accessor: (d) => d.y, domain: "zero-floor" },
   });
 
   const pathD = createMemo(() => {
-    const xs = x();
-    const ys = y();
+    const xs = model.x();
+    const ys = model.y();
     return linePath(props.data, {
       x: (d) => xs(d.t),
       y: (d) => ys(d.y),
@@ -68,23 +70,23 @@ const LineChartBody: Component<LineChartProps> = (props) => {
     });
   });
 
-  const hasArea = () => bounds().innerWidth > 0 && bounds().innerHeight > 0;
-
   return (
-    <SvgLayer role="img" title={props.title} class={props.class}>
-      <Show when={hasArea()}>
-        <Axis scale={y()} orientation="left" />
-        <Axis scale={x()} orientation="bottom" />
-        <path
-          d={pathD()}
-          fill="none"
-          stroke={props.stroke ?? "currentColor"}
-          stroke-width={props.strokeWidth ?? 1.5}
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-      </Show>
-    </SvgLayer>
+    <CartesianFrame
+      x={model.x()}
+      y={model.y()}
+      hasArea={model.hasArea()}
+      title={props.title}
+      class={props.class}
+    >
+      <path
+        d={pathD()}
+        fill="none"
+        stroke={props.stroke ?? "currentColor"}
+        stroke-width={props.strokeWidth ?? 1.5}
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+    </CartesianFrame>
   );
 };
 

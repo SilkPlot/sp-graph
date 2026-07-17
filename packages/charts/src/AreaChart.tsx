@@ -1,16 +1,23 @@
 /**
- * AreaChart — a real, end-to-end SilkPlot chart.
+ * AreaChart — a time series drawn as a filled `areaPath` under a `linePath`.
  *
- * Reuses LineChart's time/linear scales and adds a filled `areaPath` beneath
- * a `linePath` stroke, both from `@silkplot/core`. Same structure as
- * LineChart: an outer `Component` mounting `ChartRoot`, and an inner `...Body`
- * that runs inside it so it can read reactive bounds. D3 computes, Solid
- * renders — no d3-selection, d3-transition, or d3-axis anywhere.
+ * Scaffolding comes from `createCartesianModel` and `CartesianFrame`. What
+ * makes this chart an area chart, and what separates it from LineChart despite
+ * the shared time x-domain:
+ *
+ *   - a "zero-baseline" y-domain, because the fill is drawn FROM zero and a
+ *     domain excluding zero puts the fill's flat edge on a pixel the axis
+ *     labels as some other number;
+ *   - two marks — the fill, then the stroke over it.
+ *
+ * D3 does all the math inside memos; Solid renders every element. No
+ * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
-import { timeScale, linearScale, areaPath, linePath, type CurveName } from "@silkplot/core";
-import { ChartRoot, SvgLayer, Axis, useChartBounds, type Margins } from "@silkplot/solid";
-import { extentOf, type TimePoint } from "./types";
+import { createMemo, type Component } from "solid-js";
+import { timeScale, areaPath, linePath, type CurveName } from "@silkplot/core";
+import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import { CartesianFrame } from "./CartesianFrame";
+import { type TimePoint } from "./types";
 
 export interface AreaChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
@@ -40,36 +47,30 @@ export interface AreaChartProps {
  * scales and paths are memos that recompute only when data or size change.
  */
 const AreaChartBody: Component<AreaChartProps> = (props) => {
-  const bounds = useChartBounds();
-
-  const x = createMemo(() =>
-    timeScale({
-      domain: [
-        props.data[0]?.t ?? new Date(0),
-        props.data[props.data.length - 1]?.t ?? new Date(1),
-      ],
-      range: [0, bounds().innerWidth],
-    }),
-  );
-
-  // The area is drawn FROM the zero baseline, so 0 must be inside the domain or
-  // the fill's flat edge lands on a pixel the axis labels as some other value.
-  // Padding both ends keeps that honest for all-negative and all-positive
-  // series alike. (A line needs no baseline, which is why LineChart doesn't.)
-  const y = createMemo(() => {
-    const [lo, hi] = extentOf(props.data, (d) => d.y);
-    return linearScale({
-      domain: [Math.min(0, lo), Math.max(0, hi)],
-      range: [bounds().innerHeight, 0],
-    });
+  const model = createCartesianModel({
+    data: props.data,
+    x: (range) =>
+      timeScale({
+        domain: [
+          props.data[0]?.t ?? new Date(0),
+          props.data[props.data.length - 1]?.t ?? new Date(1),
+        ],
+        range,
+      }),
+    // The area is drawn FROM the zero baseline, so 0 must be inside the domain
+    // or the fill's flat edge lands on a pixel the axis labels as some other
+    // value. "zero-baseline" keeps that honest for all-negative and
+    // all-positive series alike. (A line needs no baseline, which is why
+    // LineChart uses "zero-floor" instead.)
+    y: { accessor: (d) => d.y, domain: "zero-baseline" },
   });
 
-  /** Pixel position of the zero baseline; the domain above guarantees it is in range. */
-  const baselineY = createMemo(() => y()(0));
+  /** Pixel position of the zero baseline; the domain policy guarantees it is in range. */
+  const baselineY = createMemo(() => model.y()(0));
 
   const areaD = createMemo(() => {
-    const xs = x();
-    const ys = y();
+    const xs = model.x();
+    const ys = model.y();
     return areaPath(props.data, {
       x: (d) => xs(d.t),
       y0: baselineY(),
@@ -79,8 +80,8 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
   });
 
   const lineD = createMemo(() => {
-    const xs = x();
-    const ys = y();
+    const xs = model.x();
+    const ys = model.y();
     return linePath(props.data, {
       x: (d) => xs(d.t),
       y: (d) => ys(d.y),
@@ -88,24 +89,24 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
     });
   });
 
-  const hasArea = () => bounds().innerWidth > 0 && bounds().innerHeight > 0;
-
   return (
-    <SvgLayer role="img" title={props.title} class={props.class}>
-      <Show when={hasArea()}>
-        <Axis scale={y()} orientation="left" />
-        <Axis scale={x()} orientation="bottom" />
-        <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
-        <path
-          d={lineD()}
-          fill="none"
-          stroke={props.stroke ?? "currentColor"}
-          stroke-width={props.strokeWidth ?? 1.5}
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-      </Show>
-    </SvgLayer>
+    <CartesianFrame
+      x={model.x()}
+      y={model.y()}
+      hasArea={model.hasArea()}
+      title={props.title}
+      class={props.class}
+    >
+      <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
+      <path
+        d={lineD()}
+        fill="none"
+        stroke={props.stroke ?? "currentColor"}
+        stroke-width={props.strokeWidth ?? 1.5}
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+    </CartesianFrame>
   );
 };
 

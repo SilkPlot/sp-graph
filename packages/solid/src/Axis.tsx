@@ -7,27 +7,13 @@
  * line with a Solid `<For>`. D3 computes, Solid renders — in one component.
  */
 import { createMemo, For, type Component } from "solid-js";
-import {
-  computeTicks,
-  computeBandTicks,
-  type ContinuousScale,
-  type ScaleBand,
-  type Tick,
-} from "@silkplot/core";
+import { type Tick } from "@silkplot/core";
 import { useChartBounds } from "./context";
+import { resolveTicks, type AxisScale } from "./scale-ticks";
 
 export type AxisOrientation = "bottom" | "left" | "top" | "right";
 
-/** Any scale an axis can be drawn for: continuous (linear/time) or discrete band. */
-export type AxisScale = ContinuousScale | ScaleBand<string>;
-
-/**
- * A band scale has no `ticks()` — that absence is the discriminator. Every band
- * category is a tick, so there is no count to negotiate.
- */
-function isBandScale(scale: AxisScale): scale is ScaleBand<string> {
-  return typeof (scale as ContinuousScale).ticks !== "function";
-}
+export type { AxisScale };
 
 export interface AxisProps {
   /**
@@ -58,14 +44,12 @@ export const Axis: Component<AxisProps> = (props) => {
   const isHorizontal = (): boolean =>
     orientation() === "bottom" || orientation() === "top";
 
-  const ticks = createMemo<Tick[]>(() => {
-    const scale = props.scale;
-    if (isBandScale(scale)) return computeBandTicks(scale);
-    return computeTicks(scale, {
+  const ticks = createMemo<Tick[]>(() =>
+    resolveTicks(props.scale, {
       count: props.tickCount,
       pixelsPerTick: props.pixelsPerTick,
-    });
-  });
+    }),
+  );
 
   const tickSize = (): number => props.tickSize ?? 6;
 

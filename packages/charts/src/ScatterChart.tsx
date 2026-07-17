@@ -1,10 +1,17 @@
 /**
- * ScatterChart — a real, end-to-end SilkPlot chart.
+ * ScatterChart — a point cloud of `<circle>` marks over two linear scales.
  *
- * Same structure as LineChart: an outer `Component` mounting `ChartRoot`, and
- * an inner `...Body` that runs inside it so it can read reactive bounds. Two
- * `linearScale`s (x and y) map data extents to pixel ranges; every point is a
- * Solid `<circle>` rendered with `<For>`. D3 computes, Solid renders — no
+ * Scaffolding comes from `createCartesianModel` and `CartesianFrame`. What
+ * makes this chart a scatter, and the one place it deliberately parts company
+ * with every other chart here:
+ *
+ *   - "extent" y-domain, and a plain extent on x. Neither axis is forced to
+ *     include zero. A line or area wants a meaningful zero baseline; a scatter
+ *     is read by the relative position of the cloud, and forcing zero into a
+ *     domain that does not naturally contain it squashes the points into a
+ *     corner instead of using the plotting area.
+ *
+ * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
  * TODO(Phase 2): wire `createHitIndex` (d3-delaunay, already in
@@ -12,10 +19,11 @@
  *   its own primitive surface (Crosshair / TooltipAnchor) that has not been
  *   designed yet, so it is intentionally left out of this pass.
  */
-import { createMemo, For, Show, type Component } from "solid-js";
-import { linearScale } from "@silkplot/core";
-import { ChartRoot, SvgLayer, Axis, useChartBounds, type Margins } from "@silkplot/solid";
-import { extentOf, type XYPoint } from "./types";
+import { For, type Component } from "solid-js";
+import { extentOf, linearScale } from "@silkplot/core";
+import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import { CartesianFrame } from "./CartesianFrame";
+import { type XYPoint } from "./types";
 
 export interface ScatterChartProps {
   /** The points to plot, as `{ x: number, y: number }[]`. */
@@ -47,38 +55,33 @@ export interface ScatterChartProps {
  * of using the plotting area. So both domains use the data's actual extent.
  */
 const ScatterChartBody: Component<ScatterChartProps> = (props) => {
-  const bounds = useChartBounds();
-
-  const x = createMemo(() => {
-    const [lo, hi] = extentOf(props.data, (d) => d.x);
-    return linearScale({ domain: [lo, hi], range: [0, bounds().innerWidth] });
+  const model = createCartesianModel({
+    data: props.data,
+    // x uses the data's own extent for the same reason y does, below.
+    x: (range) => linearScale({ domain: extentOf(props.data, (d) => d.x), range }),
+    y: { accessor: (d) => d.y, domain: "extent" },
   });
-
-  const y = createMemo(() => {
-    const [lo, hi] = extentOf(props.data, (d) => d.y);
-    return linearScale({ domain: [lo, hi], range: [bounds().innerHeight, 0] });
-  });
-
-  const hasArea = () => bounds().innerWidth > 0 && bounds().innerHeight > 0;
 
   return (
-    <SvgLayer role="img" title={props.title} class={props.class}>
-      <Show when={hasArea()}>
-        <Axis scale={y()} orientation="left" />
-        <Axis scale={x()} orientation="bottom" />
-        <For each={props.data}>
-          {(d) => (
-            <circle
-              cx={x()(d.x)}
-              cy={y()(d.y)}
-              r={props.radius ?? 3}
-              fill={props.fill ?? "currentColor"}
-              fill-opacity={props.fillOpacity ?? 1}
-            />
-          )}
-        </For>
-      </Show>
-    </SvgLayer>
+    <CartesianFrame
+      x={model.x()}
+      y={model.y()}
+      hasArea={model.hasArea()}
+      title={props.title}
+      class={props.class}
+    >
+      <For each={props.data}>
+        {(d) => (
+          <circle
+            cx={model.x()(d.x)}
+            cy={model.y()(d.y)}
+            r={props.radius ?? 3}
+            fill={props.fill ?? "currentColor"}
+            fill-opacity={props.fillOpacity ?? 1}
+          />
+        )}
+      </For>
+    </CartesianFrame>
   );
 };
 

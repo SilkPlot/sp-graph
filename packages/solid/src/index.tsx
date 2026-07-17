@@ -13,7 +13,17 @@ export { SvgLayer } from "./SvgLayer";
 export type { SvgLayerProps } from "./SvgLayer";
 
 export { Axis } from "./Axis";
-export type { AxisProps, AxisOrientation, AxisScale } from "./Axis";
+export type { AxisProps, AxisOrientation } from "./Axis";
+
+export { resolveTicks, isBandScale } from "./scale-ticks";
+export type { AxisScale, TickRequest } from "./scale-ticks";
+
+export { createCartesianModel, applyYDomainPolicy } from "./createCartesianModel";
+export type {
+  CartesianModel,
+  CartesianModelSpec,
+  YDomainPolicy,
+} from "./createCartesianModel";
 
 export { createResize } from "./createResize";
 export type { Size, CreateResizeReturn } from "./createResize";
