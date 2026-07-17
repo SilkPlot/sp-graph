@@ -28,12 +28,70 @@ export interface PackedInterval<T extends Interval> {
   laneCount: number;
 }
 
+/** Options for {@link packOverlaps}. */
+export interface PackOptions<T extends Interval> {
+  /**
+   * A stable identity for each item, used as the FINAL sort tie-break — it only
+   * decides order between two items that share BOTH `start` and `end`, which the
+   * `(start, end)` sort alone leaves to input order (see below). Supplying it
+   * makes packing independent of input order even for exact-duplicate intervals.
+   *
+   * The key must be UNIQUE across the input. A duplicate key is a caller
+   * programming error, not degradable data: one identity mapping to two lanes is
+   * exactly the determinism contract's negation, so `packOverlaps` THROWS rather
+   * than silently packing it. (This is the opposite stance from the finite-value
+   * policy on chart DATA, which degrades — here the offender is caller code.)
+   */
+  key?: (item: T) => string | number;
+}
+
+/** Total order over keys of a single kind (string↔string or number↔number). */
+function compareKeys(a: string | number, b: string | number): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 /**
  * Assign each interval to the lowest free lane such that no two overlapping
- * intervals share a lane. Deterministic: input is sorted by (start, end).
+ * intervals share a lane.
+ *
+ * ## Determinism and the exact-tie caveat
+ *
+ * The sort key is `(start, end)`, which fully orders every pair EXCEPT those
+ * sharing both bounds: equal starts are separated by end, unequal starts by
+ * start, and only an exact `(start, end)` duplicate falls through to the
+ * comparator's `0`. There the result depends on the input array's order (the
+ * sort is stable), so two callers passing the same intervals in different orders
+ * can get the two duplicates' lanes swapped. That is deterministic FOR A GIVEN
+ * input but not ACROSS input orderings.
+ *
+ * Pass `options.key` to remove even that dependency: it is the final tie-break
+ * and pins exact duplicates to a stable order by identity. `key` must be unique;
+ * a duplicate throws (see {@link PackOptions.key}).
  */
-export function packOverlaps<T extends Interval>(items: readonly T[]): PackedInterval<T>[] {
-  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end);
+export function packOverlaps<T extends Interval>(
+  items: readonly T[],
+  options: PackOptions<T> = {},
+): PackedInterval<T>[] {
+  const key = options.key;
+  if (key) {
+    const seen = new Set<string | number>();
+    for (const item of items) {
+      const k = key(item);
+      if (seen.has(k)) {
+        throw new Error(
+          `packOverlaps: duplicate key ${JSON.stringify(k)}. A key must uniquely identify an ` +
+            `item; two items sharing one would map to two lanes, which no rendering can express.`,
+        );
+      }
+      seen.add(k);
+    }
+  }
+
+  const sorted = [...items].sort(
+    (a, b) => a.start - b.start || a.end - b.end || (key ? compareKeys(key(a), key(b)) : 0),
+  );
 
   const result: PackedInterval<T>[] = [];
   // `active` holds the end time currently occupying each lane index.

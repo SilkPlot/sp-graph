@@ -15,7 +15,7 @@ import {
   DEFAULT_MARGINS,
 } from "../src/index";
 import type { AxisOrientation, ChartBounds } from "../src/index";
-import { computeTicks, linearScale, timeScale } from "@silkplot/core";
+import { computeTicks, linearScale, timeScale, bandScale } from "@silkplot/core";
 import type { ContinuousScale } from "@silkplot/core";
 
 const BOUNDS: ChartBounds = resolveBounds(400, 300, DEFAULT_MARGINS);
@@ -104,6 +104,58 @@ describe("Axis — ticks match @silkplot/core computeTicks", () => {
     const axisGroup = getAxisGroup(container);
     const expectedTicks = computeTicks(linear, { pixelsPerTick: 200 });
     expect(getTickGroups(axisGroup)).toHaveLength(expectedTicks.length);
+  });
+});
+
+describe("Axis — format prop threads through to the rendered labels", () => {
+  it("applies a custom formatter to a linear axis, overriding the default labels", () => {
+    const { container } = mount(() => <Axis scale={linear} format={(v: number) => `#${v}`} />);
+    const tickGroups = getTickGroups(getAxisGroup(container));
+    const expected = computeTicks(linear, { format: (v) => `#${v}` });
+
+    expect(tickGroups.length).toBeGreaterThan(0);
+    tickGroups.forEach((g, i) => {
+      expect(g.querySelector("text")?.textContent).toBe(expected[i]?.label);
+    });
+    // Vacuous-pass guard: the formatter must actually differ from the default
+    // labels, or "format was applied" is indistinguishable from "format ignored".
+    expect(expected.map((t) => t.label)).not.toEqual(
+      computeTicks(linear, {}).map((t) => t.label),
+    );
+  });
+
+  it("applies a custom formatter to a time axis", () => {
+    const time = timeScale({
+      domain: [new Date(Date.UTC(2026, 0, 1)), new Date(Date.UTC(2026, 11, 31))],
+      range: [0, BOUNDS.innerWidth],
+    });
+    const { container } = mount(() => <Axis scale={time} format={() => "T"} />);
+    const tickGroups = getTickGroups(getAxisGroup(container));
+
+    expect(tickGroups.length).toBeGreaterThan(0);
+    tickGroups.forEach((g) => {
+      expect(g.querySelector("text")?.textContent).toBe("T");
+    });
+  });
+
+  it("applies a string formatter to a band axis — band takes a formatter, not none", () => {
+    const band = bandScale({ domain: ["a", "b", "c"], range: [0, BOUNDS.innerWidth] });
+    const { container } = mount(() => (
+      <Axis scale={band} format={(v: string) => v.toUpperCase()} />
+    ));
+    const tickGroups = getTickGroups(getAxisGroup(container));
+
+    expect(tickGroups).toHaveLength(3);
+    expect(tickGroups.map((g) => g.querySelector("text")?.textContent)).toEqual(["A", "B", "C"]);
+  });
+
+  it("falls back to the default labels when no formatter is supplied", () => {
+    const { container } = mount(() => <Axis scale={linear} />);
+    const tickGroups = getTickGroups(getAxisGroup(container));
+    const expected = computeTicks(linear, {});
+    tickGroups.forEach((g, i) => {
+      expect(g.querySelector("text")?.textContent).toBe(expected[i]?.label);
+    });
   });
 });
 
