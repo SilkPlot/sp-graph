@@ -43,7 +43,8 @@ scale (`scale.ticks()` + `d3-format` / `d3-time-format`) and renders tick groups
 
 `Axis` also draws categorical axes. A band scale has no `ticks()` — that absence is how the
 component discriminates — so `core`'s `computeBandTicks` returns one tick per domain entry,
-centred on its band. There is no count to negotiate and no formatter to choose.
+centred on its band. There is no count to negotiate; the label defaults to the category
+verbatim, and an optional `(value: string) => string` formatter can override it.
 
 Behaviour modules (`d3-zoom`, `d3-brush`, `d3-drag`) are permitted **only** as narrow
 directive/effect adapters that write into signals — never as owners of structure. (Not yet
@@ -56,7 +57,7 @@ implemented; retained in the dynamic-interaction roadmap.)
 | Core model | `@silkplot/core` | Pure math: scales, extents, ticks, shape paths, overlap packing, hit-test indexes. No Solid, no DOM. |
 | Solid primitives | `@silkplot/solid` | `ChartRoot`, `SvgLayer`, `Axis`, `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `resolveTicks`, `createResize`, bounds context. |
 | Composed charts | `@silkplot/charts` | `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, each composing `createCartesianModel` (marks; hit-test interaction pending). |
-| Domain layout | `@silkplot/calendar` | Time-grid engine + deterministic overlap resolver (stubs; `packOverlaps` itself lives in `core` and is done). |
+| Domain layout | `@silkplot/calendar` | Time-grid engine + deterministic overlap resolver (stubs; `packOverlaps` itself lives in `core` and is done — it takes an optional identity `key` that makes lane assignment independent of input order and throws on a duplicate key). |
 | Preset / theme | `@silkplot/theme` | Tokens as objects + CSS custom properties; palette ramps; motion/contrast-aware. |
 
 ## Substrate policy
