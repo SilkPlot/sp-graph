@@ -18,7 +18,7 @@ import { For, Show, type Component } from "solid-js";
 import { bandScale } from "@silkplot/core";
 import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { type CategoryPoint } from "./types";
+import type { CategoryPoint } from "./types";
 
 export interface BarChartProps {
   /** The series to plot, as `{ label: string, y: number }[]`. */

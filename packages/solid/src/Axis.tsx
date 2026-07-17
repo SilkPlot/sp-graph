@@ -7,7 +7,7 @@
  * line with a Solid `<For>`. D3 computes, Solid renders — in one component.
  */
 import { createMemo, For, type Component } from "solid-js";
-import { type Tick } from "@silkplot/core";
+import type { Tick } from "@silkplot/core";
 import { useChartBounds } from "./context";
 import { resolveTicks, type AxisScale } from "./scale-ticks";
 

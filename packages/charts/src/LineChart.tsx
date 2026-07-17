@@ -16,7 +16,7 @@ import { createMemo, type Component } from "solid-js";
 import { timeScale, linePath, type CurveName } from "@silkplot/core";
 import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { type TimePoint } from "./types";
+import type { TimePoint } from "./types";
 
 export interface LineChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */

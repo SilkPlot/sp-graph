@@ -66,7 +66,6 @@ describe("cssVar", () => {
 
 describe("tokensToCss — the object-to-property mapping", () => {
   const css = tokensToCss();
-  const declared = declaredVars(css);
 
   // Pinned by hand. See the file header for why these are not derived.
   const EXPECTED: Record<string, string> = {

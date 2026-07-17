@@ -23,7 +23,7 @@ import { For, type Component } from "solid-js";
 import { extentOf, linearScale } from "@silkplot/core";
 import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { type XYPoint } from "./types";
+import type { XYPoint } from "./types";
 
 export interface ScatterChartProps {
   /** The points to plot, as `{ x: number, y: number }[]`. */
