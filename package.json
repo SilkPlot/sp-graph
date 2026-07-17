@@ -20,6 +20,7 @@
     "clean": "tsc -b --clean",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "perf:hover": "node scripts/measure-hover-frames.mjs",
     "test:watch": "vitest"
   },
   "devDependencies": {

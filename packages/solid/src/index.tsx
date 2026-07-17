@@ -18,6 +18,15 @@ export type { AxisProps, AxisOrientation } from "./Axis";
 export { Gridlines } from "./Gridlines";
 export type { GridlinesProps, GridlinesAxis } from "./Gridlines";
 
+export { Crosshair } from "./Crosshair";
+export type { CrosshairProps } from "./Crosshair";
+
+export { TooltipAnchor } from "./TooltipAnchor";
+export type { TooltipAnchorProps } from "./TooltipAnchor";
+
+export { ChartAnnouncer } from "./ChartAnnouncer";
+export type { ChartAnnouncerProps } from "./ChartAnnouncer";
+
 export { resolveTicks, isBandScale } from "./scale-ticks";
 export type { AxisScale, TickRequest } from "./scale-ticks";
 
