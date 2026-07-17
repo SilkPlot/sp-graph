@@ -39,3 +39,10 @@ arrived at.
   without a specificity war, the new dark-high-contrast palette and its
   legibility ladder, and why the contract is now verified on computed styles in
   a real browser. Extends ADR-0001.
+- [ADR-0005 — The accessibility contract](adr-0005-accessibility-contract.md):
+  informative-vs-decorative posture with no silent downgrade, required name and
+  a forwarded description channel, an always-shipped overview plus data
+  alternative, the single-entry composite keyboard model (not `role="application"`,
+  and roving tabindex does *not* mean one stop per mark), committed throttled
+  polite announcements, colour/contrast/focus/motion rules, substrate parity, and
+  the library/application boundary.
