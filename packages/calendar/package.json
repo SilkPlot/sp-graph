@@ -1,6 +1,6 @@
 {
   "name": "@silkplot/calendar",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "SilkPlot calendar — booking-calendar time-grid and overlap primitives. D3 computes, Solid renders.",
   "license": "Apache-2.0",
   "homepage": "https://silkplot.com",
