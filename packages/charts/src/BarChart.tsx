@@ -32,6 +32,8 @@ export interface BarChartProps {
   padding?: number;
   /** Bar fill color. Default: "currentColor". */
   fill?: string;
+  /** Draw tick-aligned gridlines behind the marks. Default: true. */
+  gridlines?: boolean;
   /** Accessible name for the chart. */
   title?: string;
   class?: string;
@@ -60,6 +62,7 @@ const BarChartBody: Component<BarChartProps> = (props) => {
       x={model.x()}
       y={model.y()}
       hasArea={model.hasArea()}
+      gridlines={props.gridlines}
       title={props.title}
       class={props.class}
     >

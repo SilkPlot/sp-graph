@@ -39,6 +39,8 @@ export interface ScatterChartProps {
   fill?: string;
   /** Point fill opacity. Default: 1. */
   fillOpacity?: number;
+  /** Draw tick-aligned gridlines behind the marks. Default: true. */
+  gridlines?: boolean;
   /** Accessible name for the chart. */
   title?: string;
   class?: string;
@@ -67,6 +69,7 @@ const ScatterChartBody: Component<ScatterChartProps> = (props) => {
       x={model.x()}
       y={model.y()}
       hasArea={model.hasArea()}
+      gridlines={props.gridlines}
       title={props.title}
       class={props.class}
     >

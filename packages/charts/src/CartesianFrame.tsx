@@ -11,7 +11,7 @@
  * primitive layer before a second consumer asks for it.
  */
 import { Show, type Component, type JSX } from "solid-js";
-import { SvgLayer, Axis, type AxisScale } from "@silkplot/solid";
+import { SvgLayer, Axis, Gridlines, type AxisScale } from "@silkplot/solid";
 
 export interface CartesianFrameProps {
   /** The x scale, drawn as the bottom axis. */
@@ -20,6 +20,8 @@ export interface CartesianFrameProps {
   y: AxisScale;
   /** False when the drawing area has collapsed; children are not rendered. */
   hasArea: boolean;
+  /** Draw tick-aligned gridlines behind the marks. Default: true. */
+  gridlines?: boolean;
   /** Accessible name for the chart. */
   title?: string;
   class?: string;
@@ -30,6 +32,20 @@ export const CartesianFrame: Component<CartesianFrameProps> = (props) => {
   return (
     <SvgLayer role="img" title={props.title} class={props.class}>
       <Show when={props.hasArea}>
+        {/*
+          Gridlines are drawn first so the axes and marks paint over them —
+          SVG has no z-index, so paint order IS stacking order.
+
+          They take the same scale objects as the axes below and no tick hints,
+          exactly as the axes take none. Both resolve through the same function,
+          so the lines land on the labels. Passing a tick hint to one and not
+          the other is the one way to break that, which is why this frame passes
+          neither rather than offering a knob that only reaches half of them.
+        */}
+        <Show when={props.gridlines ?? true}>
+          <Gridlines scale={props.y} axis="y" />
+          <Gridlines scale={props.x} axis="x" />
+        </Show>
         <Axis scale={props.y} orientation="left" />
         <Axis scale={props.x} orientation="bottom" />
         {props.children}

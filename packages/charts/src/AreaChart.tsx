@@ -37,6 +37,8 @@ export interface AreaChartProps {
   stroke?: string;
   /** Line stroke width in px. Default: 1.5. */
   strokeWidth?: number;
+  /** Draw tick-aligned gridlines behind the marks. Default: true. */
+  gridlines?: boolean;
   /** Accessible name for the chart. */
   title?: string;
   class?: string;
@@ -94,6 +96,7 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
       x={model.x()}
       y={model.y()}
       hasArea={model.hasArea()}
+      gridlines={props.gridlines}
       title={props.title}
       class={props.class}
     >

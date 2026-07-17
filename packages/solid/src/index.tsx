@@ -15,6 +15,9 @@ export type { SvgLayerProps } from "./SvgLayer";
 export { Axis } from "./Axis";
 export type { AxisProps, AxisOrientation } from "./Axis";
 
+export { Gridlines } from "./Gridlines";
+export type { GridlinesProps, GridlinesAxis } from "./Gridlines";
+
 export { resolveTicks, isBandScale } from "./scale-ticks";
 export type { AxisScale, TickRequest } from "./scale-ticks";
 
