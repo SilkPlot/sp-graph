@@ -14,7 +14,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
- * TODO(Phase 2): wire `createHitIndex` (d3-delaunay, already in
+ * TODO(dynamic interaction): wire `createHitIndex` (d3-delaunay, already in
  *   core/hit-test.ts) for nearest-point cursor/tooltip interaction. The
  *   contracts are settled in docs/decisions/adr-0002-crosshair-and-tooltip-anchor.md
  *   — note that the resolution belongs to a pointer model, not to this chart

@@ -28,7 +28,9 @@ These are ordinary dependencies of the package that imports them — never peer
 dependencies — so consumers do not manage a `d3-*` peer set. Note that
 `d3-scale-chromatic` belongs to `@silkplot/theme`, not to `core`: palettes are a
 theming concern, and `core` should not drag a colour ramp into a consumer that
-only wanted a scale.
+only wanted a scale. This is the publication target; the pre-publication
+manifests still declare a broader permitted set and must be narrowed to actual
+imports before release.
 
 ### Banned modules (never in the render path)
 
@@ -45,7 +47,7 @@ centred on its band. There is no count to negotiate and no formatter to choose.
 
 Behaviour modules (`d3-zoom`, `d3-brush`, `d3-drag`) are permitted **only** as narrow
 directive/effect adapters that write into signals — never as owners of structure. (Not yet
-implemented; roadmap Phase 2.)
+implemented; retained in the dynamic-interaction roadmap.)
 
 ## Layered package model
 

@@ -12,7 +12,8 @@
  * D3 does all the math inside memos; Solid renders every bar with `<For>`. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
- * TODO(Phase 2): grouped and stacked variants over `d3-shape` stack.
+ * TODO(grouped/stacked extension): grouped and stacked variants over
+ * `d3-shape` stack after consumer evidence justifies them.
  */
 import { For, Show, type Component } from "solid-js";
 import { bandScale } from "@silkplot/core";

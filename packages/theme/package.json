@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "SilkPlot theme — design tokens as objects + CSS custom properties. Motion/contrast-aware.",
   "license": "Apache-2.0",
-  "homepage": "https://silkplot.com",
+  "homepage": "https://github.com/SilkPlot/sp-graph#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/silkplot/sp-graph.git",

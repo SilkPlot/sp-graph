@@ -1,7 +1,7 @@
 /**
  * Overlap packing (calendar) — deterministic interval lane assignment.
  *
- * Roadmap Phase 3: the booking calendar packs concurrent events into
+ * The deferred calendar roadmap packs concurrent events into
  * columns/lanes with a DETERMINISTIC sweep/partition algorithm — never a
  * `d3-force` physics simulation (heavier, visually unstable). This module owns
  * that math; the Solid calendar package renders lanes from its output.
@@ -9,7 +9,7 @@
  * The greedy lane assignment below is real and correct for column packing, but
  * intentionally minimal.
  *
- * TODO(Phase 3): column-count normalisation (widen events to fill free lanes),
+ * TODO(deferred calendar): column-count normalisation (widen events to fill free lanes),
  *   visible-range clipping / overscan, and resource-row grouping.
  */
 

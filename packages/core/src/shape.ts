@@ -3,7 +3,8 @@
  *
  * These produce SVG path `d` strings (compute-only). Solid renders the
  * `<path>`; d3 only computes the geometry. The same generators can target a
- * Canvas 2D context later (roadmap Phase 1 canvas layer) by passing a context.
+ * Canvas 2D context later, if representative density profiling selects that
+ * conditional path, by passing a context.
  */
 import { line as d3Line, area as d3Area, curveLinear, curveMonotoneX } from "d3-shape";
 import type { CurveFactory } from "d3-shape";

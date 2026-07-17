@@ -11,7 +11,7 @@ fights Solid for ownership of the DOM.
 
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
-- **Home:** [silkplot.com](https://silkplot.com)
+- **Home:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
 - **Status:** early but real, and **not yet on npm** — see [Install](#install).
   `LineChart`, `AreaChart`, `BarChart` and `ScatterChart` render end to end over a
   unit-tested core, with gridlines and the interaction primitives built. The
@@ -59,7 +59,7 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 |---|---|---|
 | [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, extents, ticks, shape paths, overlap packing, hit-testing. |
 | [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `createResize`. `solid-js` is a peer dep. |
-| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel` (marks; hit-test interaction is Phase 2). |
+| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel` (marks; composed hit-test interaction remains roadmap work). |
 | [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs; the overlap packer itself lives in `core` and is done). |
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
@@ -67,7 +67,9 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 > **"Publish target" means intended, not done — nothing is on npm yet.** Packages
 > ship **TypeScript/TSX source** with a `"solid"` export condition, so `exports`
 > still point at `src` and cross-package deps pin `"*"`. Both have to change
-> before a tarball would work outside this workspace.
+> before a tarball would work outside this workspace. Pre-publication manifests
+> also list permitted D3 modules that the package does not yet import; release
+> cleanup will trim each package to its actual dependencies.
 
 ---
 
@@ -122,23 +124,30 @@ axes with Solid — no `d3-axis` anywhere.
 
 ## Roadmap
 
-Four phases, ordered by real product need.
-✅ done · 🚧 partial · ⬜ not started.
+These four capability families communicate direction; they are not a strict
+release train. The first Cartesian dashboard MVP combines the completed
+foundation with operational composition, dynamic interaction, accessibility,
+packaging, consumer proof, and a measured density policy. Calendar work remains
+a later product slice.
 
-- **Phase 1 — Foundations (in progress).** ✅ `ChartRoot` + responsive container ·
-  ✅ cartesian/time scales · ✅ custom `Axis` primitive (continuous + band) ·
-  ✅ line/area/bar · ✅ gridlines · 🚧 tooltip/cursor (`Crosshair`, `TooltipAnchor`
-  and `ChartAnnouncer` are built, tested and demonstrated in the playground; the
-  composed charts do not expose them yet — see Phase 2) · ⬜ shared canvas layer.
-- **Phase 2 — Interaction.** 🚧 scatter (marks render; hit-test wiring pending) ·
-  🚧 hit-testing helpers (`createHitIndex` built and tested in `core`, not yet wired into a
-  chart; quadtree variant pending) · ⬜ grouped/stacked bars · ⬜ legends · ⬜ brush/zoom
-  controllers. **The test harness landed early** — see [Testing](#testing).
-- **Phase 3 — Calendar & density.** 🚧 deterministic event overlap packing (`packOverlaps`
-  done and tested in `core`; the calendar package's `buildTimeGrid` and resolver are still
-  stubs) · ⬜ heatmap / calendar-heatmap · ⬜ agenda / list views · ⬜ drag-resize.
-- **Phase 4 — Extras.** ⬜ Pie / donut and optional hierarchy / force layouts if real
-  consumers demand them.
+- **Phase 1 — Foundations.** `ChartRoot`, responsive measurement,
+  Cartesian/time scales, continuous and band axes, line/area/bar/scatter marks,
+  gridlines, presentation primitives, theming, and the current test harness are
+  built. The composed charts do not yet expose the demonstrated interaction
+  primitives.
+- **Phase 2 — Operational Cartesian MVP and interaction.** Multi-series
+  line/area composition, controlled legends, reference overlays, ranked bars,
+  public hit-testing, shared tooltip/cursor state, pan, zoom, visible-range
+  control, reset, responsive recovery, accessibility, installable packages,
+  and representative workload qualification. Grouped and stacked bars remain a
+  later evidence-gated extension.
+- **Phase 3 — Deferred calendar and dense views.** The deterministic overlap
+  packer is built in `core`; the calendar time grid and rectangle resolver remain
+  honest stubs. Week/agenda views, drag-resize, heatmaps, and virtualization wait
+  for validated demand and time-semantics evidence. Canvas is selected only when
+  representative profiling shows SVG cannot meet the agreed budget.
+- **Phase 4 — Extras.** Pie/donut and optional hierarchy or force layouts only
+  when real consumers justify them.
 
 Substrate policy: **SVG-first** for dashboards, a **Canvas** data layer where density warrants,
 **WebGL** kept off the initial roadmap.

@@ -12,8 +12,10 @@ edited — supersede it.
 - **Never use `d3-selection`, `d3-transition`, or `d3-axis` in the render path.** Compute
   ticks from scales and render them with Solid.
 - **SSR-safe.** No `window` / `document` / DOM work at module top level.
-- `solid-js` is a **peer dependency** of Solid-exporting packages; `d3-*` modules are
-  regular dependencies of `@silkplot/core`.
+- `solid-js` is a **peer dependency** of Solid-exporting packages. Runtime
+  `d3-*` use belongs in the importing package's regular dependencies
+  (`d3-scale-chromatic` belongs to `@silkplot/theme`); pre-publication manifests
+  are broader and must be narrowed before release.
 - **Primitives read theme tokens as `var(--sp-…)` with a fallback, and never import
   `@silkplot/theme`.** See [ADR-0001](docs/decisions/adr-0001-theming-contract.md).
 
