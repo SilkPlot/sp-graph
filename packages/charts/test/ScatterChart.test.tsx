@@ -10,10 +10,11 @@
  * measurement.
  */
 import { describe, expect, it } from "vitest";
+import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { ScatterChart } from "../src/index";
 import type { XYPoint } from "../src/index";
-import { linearScale } from "@silkplot/core";
+import { extentOf, linearScale } from "@silkplot/core";
 
 const DATA: XYPoint[] = [
   { x: 1, y: 3 },
@@ -78,6 +79,130 @@ describe("ScatterChart — scales use the data extent, not a zero-forced domain"
       expect(Number(circle.getAttribute("cx"))).toBeCloseTo(x(d.x), 6);
       expect(Number(circle.getAttribute("cy"))).toBeCloseTo(y(d.y), 6);
     });
+  });
+});
+
+/**
+ * Replacing the series on a MOUNTED chart. See LineChart's equivalent block for
+ * why the fixed-data tests above cannot reach this and why these watch Y.
+ *
+ * Scatter needs three points per case, not two. Under the "extent" policy the
+ * lowest datum always lands on the bottom of the area and the highest on the
+ * top, so a two-point series occupies the same two pixels whatever its values —
+ * it cannot tell a recomputed scale from a frozen one. A middle datum can.
+ */
+describe("ScatterChart — data replacement", () => {
+  const BEFORE: XYPoint[] = [
+    { x: 1, y: 1 },
+    { x: 1.5, y: 1.5 },
+    { x: 2, y: 2 },
+  ];
+  const AFTER: XYPoint[] = [
+    { x: 100, y: 100 },
+    { x: 130, y: 140 },
+    { x: 150, y: 150 },
+  ];
+
+  /** The scales ScatterChart composes, rebuilt from the same inputs. */
+  function scalesFor(data: readonly XYPoint[]) {
+    return {
+      x: linearScale({ domain: extentOf(data, (d) => d.x), range: [0, INNER_WIDTH] }),
+      y: linearScale({ domain: extentOf(data, (d) => d.y), range: [INNER_HEIGHT, 0] }),
+    };
+  }
+
+  /** Assert every circle sits where the CURRENT series puts it. */
+  function expectPointsTrack(container: HTMLElement, data: readonly XYPoint[]): void {
+    const { x, y } = scalesFor(data);
+    const circles = getCircles(container);
+    expect(circles).toHaveLength(data.length);
+
+    data.forEach((d, i) => {
+      const cx = Number(circles[i]?.getAttribute("cx"));
+      const cy = Number(circles[i]?.getAttribute("cy"));
+      expect(Number.isFinite(cy)).toBe(true);
+      expect(cx).toBeCloseTo(x(d.x), 6);
+      expect(cy).toBeCloseTo(y(d.y), 6);
+      expect(cy).toBeGreaterThanOrEqual(0);
+      expect(cy).toBeLessThanOrEqual(INNER_HEIGHT);
+    });
+  }
+
+  it("rescales y when the values change", () => {
+    const [data, setData] = createSignal<XYPoint[]>(BEFORE);
+    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    expectPointsTrack(container, BEFORE);
+
+    setData(AFTER);
+
+    expectPointsTrack(container, AFTER);
+    // Guard against a vacuous pass: a shared y-domain would satisfy every
+    // assertion above without the scale ever recomputing.
+    expect(scalesFor(AFTER).y.domain()).not.toEqual(scalesFor(BEFORE).y.domain());
+    // And guard the choice of fixture: the middle point must actually move, or
+    // the extent policy would pin all three to the same pixels regardless.
+    expect(scalesFor(AFTER).y(AFTER[1]?.y as number)).not.toBeCloseTo(
+      scalesFor(BEFORE).y(BEFORE[1]?.y as number),
+      3,
+    );
+  });
+
+  it("rescales y when the domain moves entirely, with no forced zero", () => {
+    // Wholly negative, and nowhere near the original domain. "extent" must not
+    // drag zero in: the cloud fills the area on its own terms.
+    const moved: XYPoint[] = [
+      { x: -60, y: -60 },
+      { x: -40, y: -25 },
+      { x: -20, y: -10 },
+    ];
+    const [data, setData] = createSignal<XYPoint[]>(BEFORE);
+    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+
+    setData(moved);
+
+    expectPointsTrack(container, moved);
+    expect(scalesFor(moved).y.domain()).toEqual([-60, -10]);
+    expect(scalesFor(moved).y.domain()).not.toEqual(scalesFor(BEFORE).y.domain());
+  });
+
+  it("rescales y when only the cardinality changes", () => {
+    const longer: XYPoint[] = [
+      { x: 1, y: 1 },
+      { x: 1.5, y: 1.5 },
+      { x: 2, y: 2 },
+      { x: 3, y: 40 },
+    ];
+    const [data, setData] = createSignal<XYPoint[]>(BEFORE);
+    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+
+    setData(longer);
+
+    // The appended point is the new maximum, so the domain must grow with it.
+    expectPointsTrack(container, longer);
+    expect(scalesFor(longer).y.domain()).not.toEqual(scalesFor(BEFORE).y.domain());
+  });
+
+  it("survives empty -> populated -> empty without emitting NaN", () => {
+    const [data, setData] = createSignal<XYPoint[]>([]);
+    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const noNaN = (): void => {
+      container.querySelectorAll("circle, path").forEach((el) => {
+        for (const attr of ["cx", "cy", "d"]) {
+          const value = el.getAttribute(attr);
+          if (value !== null) expect(value).not.toContain("NaN");
+        }
+      });
+    };
+    expect(getCircles(container)).toHaveLength(0);
+    noNaN();
+
+    setData(AFTER);
+    expectPointsTrack(container, AFTER);
+    noNaN();
+
+    setData([]);
+    expect(getCircles(container)).toHaveLength(0);
+    noNaN();
   });
 });
 

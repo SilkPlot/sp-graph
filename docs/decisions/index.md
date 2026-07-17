@@ -28,3 +28,8 @@ arrived at.
   pointer themselves, why the tooltip is HTML beside the SVG rather than inside
   it, the single-active-point keyboard model and the live region that announces
   it, and what the hover path may and may not do inside a frame.
+- [ADR-0003 — The cartesian model's reactive data input](adr-0003-reactive-data-input.md):
+  why `CartesianModelSpec.data` is an accessor rather than an array, why a
+  spec-literal getter was rejected despite being cheaper, what a captured array
+  did to a mounted chart's y axis, and why immutable replacement is the only
+  supported contract.

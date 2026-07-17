@@ -59,7 +59,7 @@ export interface ScatterChartProps {
  */
 const ScatterChartBody: Component<ScatterChartProps> = (props) => {
   const model = createCartesianModel({
-    data: props.data,
+    data: () => props.data,
     // x uses the data's own extent for the same reason y does, below.
     x: (range) => linearScale({ domain: extentOf(props.data, (d) => d.x), range }),
     y: { accessor: (d) => d.y, domain: "extent" },
