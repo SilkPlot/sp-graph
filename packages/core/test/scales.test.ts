@@ -79,8 +79,19 @@ describe("timeScale", () => {
     // Niced bounds must extend outward past the original, exact domain.
     expect(niceStart!.getTime()).toBeLessThan(start.getTime());
     expect(niceEnd!.getTime()).toBeGreaterThan(end.getTime());
-    expect(niceStart!.toISOString()).toBe("2025-12-31T22:00:00.000Z");
-    expect(niceEnd!.toISOString()).toBe("2026-01-10T22:00:00.000Z");
+
+    // `timeScale` is d3's LOCAL-time scale, so `nice()` snaps to local calendar
+    // midnight — which is a different UTC instant in every zone. Asserting the
+    // absolute instant would only pass where the assertion was written: the
+    // original expectation here, "2025-12-31T22:00:00.000Z", is midnight at
+    // UTC+2 and failed on CI's UTC runner. Assert the property instead — landing
+    // on a local midnight is the contract; the instant it maps to is not.
+    for (const bound of [niceStart!, niceEnd!]) {
+      expect(bound.getHours()).toBe(0);
+      expect(bound.getMinutes()).toBe(0);
+      expect(bound.getSeconds()).toBe(0);
+      expect(bound.getMilliseconds()).toBe(0);
+    }
   });
 
   it("preserves the exact domain when nice is false", () => {
