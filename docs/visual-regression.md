@@ -252,6 +252,7 @@ Remove `continue-on-error` when **all** of the following hold:
 | Date | Consecutive clean runner executions | Note |
 |---|---|---|
 | Harness landed | **0** | No runner execution had occurred. Local runs are not runner runs and do not count toward this. |
+| 2026-07-18 | **1** | First runner execution: 102 passed. Notable because the committed baselines were generated on the workstation, not the runner — the determinism controls held across the environment boundary the harness warns about. Criterion 2 is still formally unmet, so this counts toward criterion 1 only. |
 
 Update this row when the count moves, in the same pull request that observes it.
 A promotion argued from memory is a promotion nobody can audit.
