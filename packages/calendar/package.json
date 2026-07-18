@@ -11,20 +11,26 @@
   },
   "type": "module",
   "sideEffects": false,
-  "files": ["src", "dist"],
+  "files": [
+    "src",
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "build:dist": "tsup && tsc -p tsconfig.dist.json",
+    "prepack": "npm run build:dist"
   },
   "dependencies": {
-    "@silkplot/core": "*",
-    "d3-time": "^3.1.0",
-    "@types/d3-time": "^3.0.4"
+    "@silkplot/core": "0.1.0"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

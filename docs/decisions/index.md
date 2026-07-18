@@ -47,6 +47,14 @@ arrived at.
   polite announcements, colour/contrast/focus/motion rules, substrate parity, and
   the library/application boundary.
 
+- [ADR-0006 — Packages ship a compiled build and their source, not source alone](adr-0006-publishable-dist-builds.md):
+  why the `"solid"` condition still serves source and always will, why the
+  compiled entry beside it is built by Solid's own babel preset rather than a
+  generic JSX transform, the workspace-internal `"source"` condition that keeps
+  typechecking off the build output, why `tsc -b` moved to `.tsbuild` and emits
+  the declarations tsup cannot, and why internal `@silkplot/*` dependencies pin
+  an exact version. Supersedes the source-only emit strategy.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

@@ -33,7 +33,12 @@ const workspaceDirs = [".", ...packageDirs, "playground"];
 
 /** Directories that are entirely build output. */
 const outputDirs = [
+  // Each package emits to two places on purpose, for the same reason the
+  // playground does: `dist` is the publishable tsup build, `.tsbuild` is the
+  // `tsc -b` validation output. One shared directory would let each producer's
+  // leftovers look like the other's product.
   ...packageDirs.map((dir) => `${dir}/dist`),
+  ...packageDirs.map((dir) => `${dir}/.tsbuild`),
   // The playground emits to two places on purpose: `dist` is the Vite bundle,
   // `.tsbuild` is the `tsc -b` validation output. They used to share `dist`,
   // where each producer's leftovers looked like the other's product.

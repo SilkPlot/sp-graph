@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Declaration emit for the published `dist`.
+  //
+  // tsup builds the JavaScript but cannot build the types: its `dts` step drives
+  // the TypeScript compiler through internals that TypeScript 7 no longer
+  // exposes, and crashes on `useCaseSensitiveFileNames`. So `tsc` emits the
+  // declarations itself, which is the compiler this repo already typechecks
+  // with — one source of truth for types instead of two.
+  //
+  // Ordering matters and is encoded in the package's `build:dist` script: tsup
+  // runs first and wipes `dist`, then this writes the declarations into it.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": false,
+    "declarationDir": "./dist"
+  }
+}

@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "build": "npm run clean && tsc -b",
+    "build:dist": "npm run build:dist --workspaces --if-present",
     "build:playground": "npm run build --workspace @silkplot/playground",
     "typecheck": "tsc -b && npm run typecheck:tests",
     "typecheck:tests": "tsc -p packages/core/tsconfig.test.json && tsc -p packages/theme/tsconfig.test.json && tsc -p packages/solid/tsconfig.test.json && tsc -p packages/charts/tsconfig.test.json && tsc -p playground/tsconfig.test.json",
@@ -38,8 +39,10 @@
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
+    "esbuild-plugin-solid": "^0.6.0",
     "playwright": "^1.61.1",
     "solid-js": "^1.9.14",
+    "tsup": "^8.5.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "vite-plugin-solid": "^2.11.12",

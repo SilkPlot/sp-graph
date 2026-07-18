@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist",
+    // NOT `./dist`. `dist` is the publishable tsup build; `tsc -b` is a
+    // validation gate, not a packaging step, so it emits here instead. Sharing
+    // one directory would make each producer's leftovers look like the other's
+    // product — the same defect S004-P05 removed from the playground.
+    "outDir": "./.tsbuild",
     "types": []
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

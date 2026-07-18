@@ -11,41 +11,37 @@
   },
   "type": "module",
   "sideEffects": false,
-  "files": ["src", "dist"],
+  "files": [
+    "src",
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsc -b",
-    "build:dist": "tsup"
+    "build:dist": "tsup && tsc -p tsconfig.dist.json",
+    "prepack": "npm run build:dist"
   },
   "dependencies": {
-    "d3-array": "^3.2.4",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.1.8",
     "d3-delaunay": "^6.0.4",
     "d3-format": "^3.1.2",
-    "d3-interpolate": "^3.0.1",
-    "d3-path": "^3.1.0",
     "d3-scale": "^4.0.2",
-    "d3-scale-chromatic": "^3.1.0",
     "d3-shape": "^3.2.0",
-    "d3-time": "^3.1.0",
-    "d3-time-format": "^4.1.0",
-    "@types/d3-array": "^3.2.2",
-    "@types/d3-delaunay": "^6.0.4",
-    "@types/d3-format": "^3.0.4",
-    "@types/d3-interpolate": "^3.0.4",
-    "@types/d3-path": "^3.1.1",
-    "@types/d3-scale": "^4.0.9",
-    "@types/d3-scale-chromatic": "^3.1.0",
-    "@types/d3-shape": "^3.1.8",
-    "@types/d3-time": "^3.0.4",
-    "@types/d3-time-format": "^4.0.3"
+    "d3-time-format": "^4.1.0"
   },
   "devDependencies": {
-    "tsup": "^8.5.1",
+    "@types/d3-delaunay": "^6.0.4",
+    "@types/d3-format": "^3.0.4",
+    "@types/d3-time-format": "^4.0.3",
     "typescript": "^7.0.2"
   }
 }

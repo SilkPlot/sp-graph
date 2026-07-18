@@ -7,8 +7,10 @@ import solid from "vite-plugin-solid";
 export default defineConfig({
   plugins: [solid()],
   resolve: {
-    // Prefer the "solid" export condition so we get the raw source, not a dist build.
-    conditions: ["solid", "development", "browser"],
+    // "source" first so every workspace package resolves to its TypeScript
+    // source rather than a built `dist`; "solid" next so the JSX this app
+    // compiles is the JSX a Solid-aware consumer compiles.
+    conditions: ["source", "solid", "development", "browser"],
   },
   server: {
     port: 5173,

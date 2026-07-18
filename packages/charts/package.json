@@ -11,23 +11,31 @@
   },
   "type": "module",
   "sideEffects": false,
-  "files": ["src", "dist"],
+  "files": [
+    "src",
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "source": "./src/index.tsx",
       "solid": "./src/index.tsx",
-      "types": "./src/index.tsx",
-      "default": "./src/index.tsx"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "build:dist": "tsup && tsc -p tsconfig.dist.json",
+    "prepack": "npm run build:dist"
   },
   "peerDependencies": {
     "solid-js": "^1.9.14"
   },
   "dependencies": {
-    "@silkplot/core": "*",
-    "@silkplot/solid": "*"
+    "@silkplot/core": "0.1.0",
+    "@silkplot/solid": "0.1.0"
   },
   "devDependencies": {
     "solid-js": "^1.9.14",

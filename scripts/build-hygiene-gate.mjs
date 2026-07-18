@@ -9,10 +9,16 @@
 //      resolved rather than guessing from filenames, because Vite's resolution
 //      order is the thing under test.
 //
-//   2. stale-output — a file in a package's `dist` whose source no longer
-//      exists. `tsc -b` is incremental and never deletes, so a deleted module
-//      survives in `dist` indefinitely; `packages/charts/dist` carried a
-//      `Placeholder` module long after its source was removed.
+//   2. stale-output — a file in a package's `tsc -b` output whose source no
+//      longer exists. `tsc -b` is incremental and never deletes, so a deleted
+//      module survives indefinitely; `packages/charts` carried a `Placeholder`
+//      module long after its source was removed.
+//
+//      That output is `.tsbuild`, not `dist`. Since S004-P03 `dist` is the tsup
+//      build, which is bundled (its file names are entry names, not source
+//      names) and rebuilt from empty on every run — so it cannot go stale, and
+//      a per-source-file check would not describe it. `.tsbuild` is the
+//      incremental, file-per-source output this guard was written for.
 //
 // Run after a build. Exits non-zero naming the offending files.
 
@@ -90,15 +96,15 @@ const filesUnder = (dir, base = dir) => {
 const packagesDir = join(repoRoot, "packages");
 for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
   if (!pkg.isDirectory()) continue;
-  const distDir = join(packagesDir, pkg.name, "dist");
+  const buildDir = join(packagesDir, pkg.name, ".tsbuild");
   const srcDir = join(packagesDir, pkg.name, "src");
-  if (!existsSync(distDir)) continue;
+  if (!existsSync(buildDir)) continue;
 
-  for (const emitted of filesUnder(distDir)) {
+  for (const emitted of filesUnder(buildDir)) {
     const suffix = emittedSuffixes.find((s) => emitted.endsWith(s));
     if (suffix === undefined) {
       failures.push(
-        `stale-output: packages/${pkg.name}/dist/${emitted} is not a recognised ` +
+        `stale-output: packages/${pkg.name}/.tsbuild/${emitted} is not a recognised ` +
           "build artifact. Nothing in the build declares it.",
       );
       continue;
@@ -107,7 +113,7 @@ for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
     const hasSource = sourceExtensions.some((ext) => existsSync(join(srcDir, stem + ext)));
     if (!hasSource) {
       failures.push(
-        `stale-output: packages/${pkg.name}/dist/${emitted} has no source — ` +
+        `stale-output: packages/${pkg.name}/.tsbuild/${emitted} has no source — ` +
           `packages/${pkg.name}/src/${stem}{${sourceExtensions.join(",")}} does not exist. ` +
           "Deleted source survived the build; `npm run build` must start from `npm run clean`.",
       );
@@ -126,4 +132,4 @@ if (failures.length > 0) {
 
 console.log("Build hygiene gate passed:");
 console.log("  ✓ config-shadow — Vite resolves playground/vite.config.ts and nothing else");
-console.log("  ✓ stale-output  — every package dist artifact traces to existing source");
+console.log("  ✓ stale-output  — every package .tsbuild artifact traces to existing source");

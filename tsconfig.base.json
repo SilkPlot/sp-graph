@@ -5,6 +5,13 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // Workspace-internal resolution goes to TypeScript source, never to a build
+    // artifact. Every package's `exports` map opens with a "source" condition
+    // pointing at `./src`; declaring it here means `tsc` picks that branch, so
+    // typechecking never depends on `dist` having been built and never reads a
+    // stale declaration. No published consumer passes this condition, so they
+    // get the "solid" or "default" branch instead. See ADR-0006.
+    "customConditions": ["source"],
     "moduleDetection": "force",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",

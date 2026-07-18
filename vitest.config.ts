@@ -13,9 +13,10 @@ import solid from "vite-plugin-solid";
 const browserProjectIn = (name: string, root: string) => ({
   plugins: [solid()],
   resolve: {
-    // Match the playground: prefer the "solid" condition so we compile the same
-    // TSX source a downstream consumer would.
-    conditions: ["solid", "development", "browser"],
+    // Match the playground: "source" first so every workspace package resolves
+    // to its TypeScript source rather than a built `dist`, then "solid" so the
+    // TSX a Solid-aware consumer gets is the TSX these tests compile.
+    conditions: ["source", "solid", "development", "browser"],
   },
   test: {
     name,
