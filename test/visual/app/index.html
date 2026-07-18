@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SilkPlot — visual fixture</title>
+    <style>
+      /*
+        Determinism, not decoration. Everything here removes a source of pixel
+        variance the chart has no control over:
+
+        - a named font family, because `system-ui` resolves to a different face
+          on every machine and every axis label would then differ;
+        - `font-synthesis: none`, so a missing weight is not faked by an
+          algorithmic bold whose metrics differ by platform;
+        - zero body margin, so the fixture box sits at a fixed origin;
+        - an explicit surface colour, so a transparent frame does not composite
+          against whatever the user agent's default happens to be.
+      */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--sp-color-surface, #ffffff);
+        color: var(--sp-color-text, #000000);
+        font-family: "DejaVu Sans", sans-serif;
+        font-synthesis: none;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

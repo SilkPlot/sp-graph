@@ -195,6 +195,10 @@ Decisions — what was chosen, what was rejected, and why — are recorded as AD
   informative chart requires one.
 - [Release checklist](docs/release-checklist.md) — the manual checks CI cannot make,
   including the assistive-technology matrix that has **not** been run.
+- [Visual regression](docs/visual-regression.md) — what the screenshot baselines cover,
+  how pixel determinism is engineered, and the review workflow a baseline change must go
+  through. Read it before running `--update-snapshots`; re-pinning a baseline is a decision
+  to change what "correct" means, not a way to clear a red run.
 
 > **On accessibility claims.** No assistive-technology testing has been performed
 > against SilkPlot — no NVDA, JAWS, VoiceOver, Orca, Narrator, or TalkBack run.

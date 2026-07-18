@@ -1,0 +1,4 @@
+# Runner output. `baselines/` is the committed artifact and is deliberately not
+# listed here — it is the only thing in this directory that belongs in git.
+.output/
+.report/

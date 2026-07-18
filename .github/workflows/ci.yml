@@ -117,6 +117,106 @@ jobs:
       - name: Test (with coverage)
         run: npm run test:coverage
 
+  # ---------------------------------------------------------------------------
+  # Visual regression — RUNS, REPORTS, AND DOES NOT GATE.
+  #
+  # `continue-on-error: true` is deliberate and temporary. The phase that built
+  # this harness requires it to gate only after THREE CONSECUTIVE CLEAN RUNNER
+  # EXECUTIONS establish stability, and at the time it was wired that count
+  # stood at ZERO — no runner execution had happened at all. Marking it required
+  # before then would be asserting a stability nobody has observed.
+  #
+  # PROMOTION CRITERION — remove `continue-on-error` when ALL of:
+  #   1. three consecutive executions on this runner are clean, with no
+  #      intervening baseline update, no retry, and no code change to the
+  #      harness between them;
+  #   2. the committed baselines were generated in THIS runner environment.
+  #      They currently are not: they were pinned on a maintainer's Linux
+  #      workstation, and font rasterisation differs enough between machines
+  #      that a strict pixel comparison will disagree. Expect this job to be RED
+  #      until the set is re-pinned from a runner-generated artifact — that is
+  #      the known state, not a surprise, and it is exactly why the job cannot
+  #      gate yet. See docs/visual-regression.md.
+  #
+  # Record the count in docs/visual-regression.md when it moves. A promotion
+  # done from memory is a promotion nobody can audit.
+  #
+  # It is its own job rather than a step in `build` so that it CANNOT fail the
+  # build even by accident — a `continue-on-error` step still shares a job's
+  # fate through anything that runs after it — and so its browser process can
+  # never overlap the Vitest browser projects. Two browser runners started
+  # concurrently collide on the browser API port, and the collision reports as a
+  # connect timeout having executed zero tests.
+  visual:
+    name: Visual regression (non-gating)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Invoked directly rather than through a root npm script, so the harness
+      # owns its own entry point and nothing else in the repository has to know
+      # it exists.
+      - name: Visual regression harness (non-gating)
+        id: visual
+        continue-on-error: true
+        run: npx playwright test -c playwright.visual.config.ts
+
+      # The artifacts are the whole point of running a gate that does not gate.
+      # A red-but-ignored job with no diff to look at teaches people to ignore
+      # it; a red job with an expected-vs-actual-vs-diff triptych attached is
+      # reviewable evidence, and it is what the baselines will be re-pinned from
+      # when the gate is promoted.
+      - name: Upload diff artifacts
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: visual-regression-diffs
+          path: |
+            test/visual/.output/
+            test/visual/.report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Says so out loud in the log, because a green checkmark beside a job that
+      # actually failed is the most misread signal in CI.
+      - name: Report gating status
+        if: always()
+        run: |
+          echo "Visual regression outcome: ${{ steps.visual.outcome }}"
+          echo "This job is NON-GATING. See the promotion criterion in this workflow"
+          echo "and the review workflow in docs/visual-regression.md."
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
