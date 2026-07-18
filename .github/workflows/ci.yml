@@ -65,6 +65,15 @@ jobs:
       - name: Build hygiene gate (config shadow, stale output)
         run: npm run gate:build-hygiene
 
+      # `.codacy.yml` narrows duplication and complexity analysis away from test
+      # code, and Codacy requires those exclusions as literal paths — a glob
+      # there matches nothing and reports nothing. An explicit list goes stale
+      # the moment a test file is added, and that failure is silent too: the file
+      # is simply measured again. This step fails when the lists and the test
+      # files on disk disagree. See scripts/duplication-scope-gate.mjs.
+      - name: Duplication scope gate (exclusion lists match the tests on disk)
+        run: npm run gate:duplication-scope
+
       # The `solid`, `charts`, and `playground` Vitest projects run in real
       # headless chromium, not jsdom, so the runner needs a browser. Without this
       # step the test job cannot pass — which is exactly why every run before

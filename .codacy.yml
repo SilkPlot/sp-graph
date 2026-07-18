@@ -47,27 +47,196 @@
 #      tool contradicting a decision, not finding a mistake.
 #
 # Lizard is deliberately NOT touched — not disabled, and its thresholds not
-# raised. Its complexity findings are real signal and are left open on purpose:
-# `packages/charts/src/LineChart.tsx:117` (`LineChartBody`, 80 lines against a
-# limit of 50) is the only one in shipped library code and is the one that
-# matters; `playground/src/App.tsx:558`, `scripts/release-consumer.mjs:267`, and
-# `packages/theme/test/contrast.test.ts:132` are the rest. Refactoring them is
-# real work with test implications and belongs in its own change. Until then
-# they stay visible, which is the point.
+# raised. Its complexity findings on production code are real signal and are left
+# open on purpose: `packages/charts/src/LineChart.tsx:117` (`LineChartBody`, 80
+# lines against a limit of 50) is the only one in shipped library code and is the
+# one that matters; `playground/src/App.tsx:558` and
+# `scripts/release-consumer.mjs:267` are the rest. Refactoring them is real work
+# with test implications and belongs in its own change. Until then they stay
+# visible, which is the point. What Lizard no longer measures is test code, for
+# the reasons set out under "Analysis scope" below.
 #
+# ---------------------------------------------------------------------------
+# Analysis scope — which measurements apply to test code
+# ---------------------------------------------------------------------------
+# Test files stay in QUALITY and SECURITY analysis. They are authored code, they
+# are linted by Biome and typechecked by `tsc` like everything else, and a real
+# defect in a test is a real defect. Nothing below removes them from that.
+#
+# What the `engines:` block below does remove them from is DUPLICATION and
+# CYCLOMATIC COMPLEXITY. That is a scope decision about what those two metrics
+# can meaningfully say, not a way of moving a number:
+#
+#   - Duplication detection assumes repetition is a maintenance liability. In
+#     test code the assumption inverts. A test is read far more often than it is
+#     changed, and it is read by someone trying to work out what the system is
+#     supposed to do — so each test should be self-contained enough to be
+#     understood without jumping elsewhere. Google's testing guidance names this
+#     directly: prefer DAMP (Descriptive And Meaningful Phrases) over DRY in
+#     tests, because a reader forced to mentally execute a shared helper is
+#     reading an implementation instead of a specification.
+#     https://testing.googleblog.com/2019/12/testing-on-toilet-tests-too-dry-make.html
+#     SonarQube documents the same rationale for the same exclusion — test code
+#     contains intentional repetition, so duplication findings on it are noise.
+#     https://docs.sonarsource.com/sonarqube-server/instance-administration/analysis-functions/analysis-scope/exclude-from-coverage-duplication
+#
+#   - Complexity, likewise, measures how hard code is to reason about and change.
+#     A suite that walks every scheme against every contrast mode against every
+#     chart family is branchy because the specification is a matrix, and pushing
+#     that matrix behind abstraction to lower a branch count would make the suite
+#     harder to read, not easier to change.
+#
+# Codacy provides these as separate, scoped exclusions precisely so this
+# distinction can be made — `engines.duplication.exclude_paths` and
+# `engines.metric.exclude_paths` are independent of the repository-wide
+# `exclude_paths` at the bottom of this file.
+# https://docs.codacy.com/repositories-configure/codacy-configuration-file/
+# https://docs.codacy.com/repositories-configure/ignoring-files/
+#
+# This is NOT a licence to stop caring about repetition in tests. Where the
+# duplication was construction and verification noise rather than specification,
+# it was removed, using the carve-out DAMP itself sanctions: small, named,
+# obvious helpers that make the test read BETTER. `packing()` in the core overlap
+# tests, and `num()` and `expectNoNaN()` in the charts test support module, are
+# that work. They stand, and this scope change does not undo them. The line is
+# whether the helper shortens the distance to understanding the assertion or
+# lengthens it.
+engines:
+  # Duplication. Every path below is a TEST file, and none of them is excluded
+  # from quality or security analysis — they are still linted, still typechecked,
+  # and still scanned. What is switched off here is duplication measurement, and
+  # only that.
+  #
+  # Wildcards are enumerated away deliberately. Codacy documents the restriction
+  # explicitly, and it fails silently: "When excluding files from Duplication
+  # analysis, you must state the entire path to the files. Unlike quality
+  # analysis, wildcards will not work, resulting in files not being excluded."
+  # A glob written here would look correct in review and change nothing. So the
+  # list is literal, and `scripts/duplication-scope-gate.mjs` fails the build
+  # when a test file on disk is missing from it — because an explicit list goes
+  # stale the moment someone adds a test, and that drift is invisible for exactly
+  # the same reason.
+  duplication:
+    exclude_paths:
+      - "packages/charts/test/AreaChart-reactive.test.tsx"
+      - "packages/charts/test/AreaChart.test.tsx"
+      - "packages/charts/test/BarChart-reactive.test.tsx"
+      - "packages/charts/test/BarChart.test.tsx"
+      - "packages/charts/test/chart-semantics.test.tsx"
+      - "packages/charts/test/LineChart-keyboard.test.tsx"
+      - "packages/charts/test/LineChart-reactive.test.tsx"
+      - "packages/charts/test/LineChart.test.tsx"
+      - "packages/charts/test/ScatterChart.test.tsx"
+      - "packages/charts/test/support.ts"
+      - "packages/core/test/extent.test.ts"
+      - "packages/core/test/hit-test.test.ts"
+      - "packages/core/test/overlap-identity.test.ts"
+      - "packages/core/test/overlap-support.ts"
+      - "packages/core/test/overlap.test.ts"
+      - "packages/core/test/scales.test.ts"
+      - "packages/core/test/shape.test.ts"
+      - "packages/core/test/ticks.test.ts"
+      - "packages/solid/test/announcer.test.tsx"
+      - "packages/solid/test/Axis.test.tsx"
+      - "packages/solid/test/Axis-theme.test.tsx"
+      - "packages/solid/test/context.test.tsx"
+      - "packages/solid/test/createCartesianModel.test.tsx"
+      - "packages/solid/test/createResize.test.tsx"
+      - "packages/solid/test/Crosshair.test.tsx"
+      - "packages/solid/test/Gridlines.test.tsx"
+      - "packages/solid/test/interaction.test.tsx"
+      - "packages/solid/test/keyboard.test.tsx"
+      - "packages/solid/test/semantics.test.tsx"
+      - "packages/solid/test/SvgLayer.test.tsx"
+      - "packages/solid/test/theme-cascade.test.tsx"
+      - "packages/solid/test/TooltipAnchor.test.tsx"
+      - "packages/theme/test/channels.test.ts"
+      - "packages/theme/test/contrast.test.ts"
+      - "packages/theme/test/tokens.test.ts"
+      - "playground/test/focus.test.tsx"
+      - "playground/test/keyboard.test.tsx"
+      - "test/visual/acceptance-set.spec.ts"
+      - "test/visual/acceptance-set.ts"
+      - "test/visual/app/App.tsx"
+      - "test/visual/app/fixtures.ts"
+      - "test/visual/app/main.tsx"
+      - "test/visual/charts.spec.ts"
+      - "test/visual/vite.config.ts"
+
+  # Cyclomatic complexity — "metric" is Codacy's name for it in this file. The
+  # same list, for the same reason: a test that walks a matrix of schemes,
+  # contrast modes, and chart families is branchy because the matrix is, and its
+  # branch count says nothing about whether the library is hard to change.
+  #
+  # The list is literal here too. Codacy documents the no-wildcard restriction
+  # for duplication and not for metric, but it does not document that metric DOES
+  # accept globs either, and its own example uses a literal path. Guessing wrong
+  # fails the same silent way, so both sections are enumerated and both are
+  # covered by the gate.
+  metric:
+    exclude_paths:
+      - "packages/charts/test/AreaChart-reactive.test.tsx"
+      - "packages/charts/test/AreaChart.test.tsx"
+      - "packages/charts/test/BarChart-reactive.test.tsx"
+      - "packages/charts/test/BarChart.test.tsx"
+      - "packages/charts/test/chart-semantics.test.tsx"
+      - "packages/charts/test/LineChart-keyboard.test.tsx"
+      - "packages/charts/test/LineChart-reactive.test.tsx"
+      - "packages/charts/test/LineChart.test.tsx"
+      - "packages/charts/test/ScatterChart.test.tsx"
+      - "packages/charts/test/support.ts"
+      - "packages/core/test/extent.test.ts"
+      - "packages/core/test/hit-test.test.ts"
+      - "packages/core/test/overlap-identity.test.ts"
+      - "packages/core/test/overlap-support.ts"
+      - "packages/core/test/overlap.test.ts"
+      - "packages/core/test/scales.test.ts"
+      - "packages/core/test/shape.test.ts"
+      - "packages/core/test/ticks.test.ts"
+      - "packages/solid/test/announcer.test.tsx"
+      - "packages/solid/test/Axis.test.tsx"
+      - "packages/solid/test/Axis-theme.test.tsx"
+      - "packages/solid/test/context.test.tsx"
+      - "packages/solid/test/createCartesianModel.test.tsx"
+      - "packages/solid/test/createResize.test.tsx"
+      - "packages/solid/test/Crosshair.test.tsx"
+      - "packages/solid/test/Gridlines.test.tsx"
+      - "packages/solid/test/interaction.test.tsx"
+      - "packages/solid/test/keyboard.test.tsx"
+      - "packages/solid/test/semantics.test.tsx"
+      - "packages/solid/test/SvgLayer.test.tsx"
+      - "packages/solid/test/theme-cascade.test.tsx"
+      - "packages/solid/test/TooltipAnchor.test.tsx"
+      - "packages/theme/test/channels.test.ts"
+      - "packages/theme/test/contrast.test.ts"
+      - "packages/theme/test/tokens.test.ts"
+      - "playground/test/focus.test.tsx"
+      - "playground/test/keyboard.test.tsx"
+      - "test/visual/acceptance-set.spec.ts"
+      - "test/visual/acceptance-set.ts"
+      - "test/visual/app/App.tsx"
+      - "test/visual/app/fixtures.ts"
+      - "test/visual/app/main.tsx"
+      - "test/visual/charts.spec.ts"
+      - "test/visual/vite.config.ts"
+
 # ---------------------------------------------------------------------------
 # Excluded paths — generated and vendored output only
 # ---------------------------------------------------------------------------
-# Everything below is a build artifact, a dependency lockfile, or a binary
-# snapshot. None of it is authored, so analysing it measures a generator rather
-# than the code, and its findings drown the ones a person can act on.
+# This is the repository-wide exclusion: it removes a path from EVERY analysis,
+# quality and security included. Everything below is a build artifact, a
+# dependency lockfile, or a binary snapshot. None of it is authored, so analysing
+# it measures a generator rather than the code, and its findings drown the ones a
+# person can act on.
 #
-# `test/`, `packages/*/test/`, and `playground/` are deliberately NOT excluded.
-# They are authored code, they are typechecked and linted like the rest, and
-# their findings are legitimate. Excluding them to lift a percentage would be
-# exactly the silencing this file exists to avoid.
+# No test path belongs here, and none is listed. Tests are narrowed in scope by
+# the `engines:` block above, for two named metrics, and are otherwise analysed
+# in full. Excluding them wholesale to lift a percentage would be exactly the
+# silencing this file exists to avoid.
 #
 # Patterns use Java glob syntax, which is what Codacy matches these against.
+# (The literal paths under `engines:` above are literal for a documented reason —
+# see the note there. This section is the one where globs work.)
 exclude_paths:
   # npm's resolution lockfile. Flagged at 4,966 lines; it is machine-written and
   # a person editing it by hand would be the bug.
