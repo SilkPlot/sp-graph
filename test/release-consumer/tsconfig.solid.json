@@ -25,5 +25,12 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["src/main.solid.tsx", "src/series.ts"]
+  // `src/quickstart.tsx` is COPIED IN by the gate, from the public site's own
+  // quickstart module. It is not committed here, because a second copy of the
+  // documented code is a second thing to keep in step and it would be wrong
+  // within a week. Typechecking it on this path is what makes the published
+  // quickstart a claim about the PACKED tarballs rather than about the
+  // workspace: inside the workspace it resolves through the "source" condition
+  // to `src` next door and would compile even if the tarball shipped nothing.
+  "include": ["src/main.solid.tsx", "src/series.ts", "src/quickstart.tsx"]
 }

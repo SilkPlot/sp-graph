@@ -83,6 +83,16 @@ export default defineConfig({
       // applied. A focus ring is a computed style under `:focus-visible` and a
       // media query, none of which a node environment resolves.
       browserProjectIn("playground", "playground"),
+      // The public site. It is documentation, so its failure mode is not a
+      // crash — it is a page that quietly stops being true: an example that
+      // renders nothing, a snippet that no longer matches the code beside it, a
+      // layout that scrolls sideways on a phone. Every one of those ships
+      // looking fine to whoever pushed it.
+      //
+      // A browser rather than node, for the same reason the playground needs
+      // one: the layout claims are about computed geometry — `scrollWidth`
+      // against `clientWidth` at a real viewport — and no fake DOM lays out.
+      browserProjectIn("site", "site"),
     ],
   },
 });

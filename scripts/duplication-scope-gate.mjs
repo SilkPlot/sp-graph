@@ -40,7 +40,12 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
  * `*.test.ts` pattern would miss `packages/charts/test/support.ts`, which is
  * exactly the kind of file duplication analysis flags hardest.
  */
-const TEST_ROOTS = [/^packages\/[^/]+\/test\//, /^playground\/test\//, /^test\/visual\//];
+const TEST_ROOTS = [
+  /^packages\/[^/]+\/test\//,
+  /^playground\/test\//,
+  /^site\/test\//,
+  /^test\/visual\//,
+];
 
 /**
  * Paths under those roots that the repository-wide `exclude_paths` already

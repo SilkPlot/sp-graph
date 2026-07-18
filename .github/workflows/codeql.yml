@@ -1,0 +1,141 @@
+# CodeQL — static analysis for the code that ships and the code that builds it.
+#
+# This is a different kind of check from everything in ci.yml. Those gates prove
+# behaviour: the suites assert what the code does, the release gate proves the
+# packed tarballs resolve, the visual harness proves the rendered pixels have
+# not moved. All of them answer "does this work". CodeQL answers "is this
+# reachable in a way nobody intended" — taint from an untrusted value into a
+# sink, an injection path, an unsafe dynamic construct — and none of those show
+# up as a failing assertion, because a suite only fails on the behaviours
+# somebody thought to write down.
+#
+# ---------------------------------------------------------------------------
+# Why this is a separate workflow rather than a job in ci.yml
+# ---------------------------------------------------------------------------
+#
+# Same reasoning that put the detection probes in their own file. CodeQL needs
+# `schedule` and a `security-events: write` permission, and neither belongs on
+# the build, release, visual, baselines, or audit jobs. Adding the schedule to
+# ci.yml's `on:` would fire every one of those jobs weekly and then require `if:`
+# guards on each to suppress them; adding the permission at ci.yml's workflow
+# level would hand write access to the security-events API to jobs that run
+# third-party install scripts and a coverage uploader. A separate file keeps
+# both scoped to the one job that needs them.
+#
+# ---------------------------------------------------------------------------
+# Why `javascript-typescript` is the only language
+# ---------------------------------------------------------------------------
+#
+# CodeQL treats JavaScript and TypeScript as one extractor. It is not a compiled
+# language here, so there is no build step to instrument and no `build-mode`
+# to configure — the extractor reads the source tree directly. That is also why
+# this workflow does not run `npm ci`: nothing it analyses lives in
+# `node_modules`, and installing dependencies would only spend runner minutes
+# executing third-party install scripts in a job that holds a write-scoped
+# token. The one thing worth having in scope is the repository's own source,
+# and checkout alone provides it.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, 04:00 UTC. Deliberately an hour ahead of the Dependabot run and a
+    # day away from the Sunday detection probes, so the three scheduled jobs
+    # never contend for runner capacity or land in the same notification batch.
+    #
+    # THE SCHEDULE IS THE POINT, and it is the part most likely to be deleted by
+    # somebody reasoning that push and pull_request already cover every change.
+    # They cover every change to THIS CODE. They do not cover a change to what is
+    # known about this code.
+    #
+    # CodeQL's queries and its advisory data are updated continuously, upstream,
+    # by people who have never seen this repository. A query written next month
+    # can find a real defect in a file that has not been touched in a year — and
+    # on push/pull_request triggers alone, that finding never surfaces, because
+    # the trigger requires a commit that nobody has any reason to make. A
+    # repository that is stable, or finished, or simply between releases is
+    # exactly the one where this matters most: no commits means no scans means
+    # the security tab keeps reporting the state of the world as it was
+    # understood on the day of the last push.
+    #
+    # A published library is dormant from the maintainer's side and very much
+    # not dormant from a consumer's. The weekly run is what closes that gap.
+    - cron: "0 4 * * 1"
+
+# Read-only at the workflow level. The write scope the analysis needs is granted
+# on the one job that needs it, below, and nowhere else.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL analysis (javascript-typescript)
+    runs-on: ubuntu-latest
+
+    # ---------------------------------------------------------------------
+    # Permissions are restated here, at job level, for the same reason ci.yml
+    # restates `contents: read` on every one of its jobs: a workflow-level
+    # block is INHERITED, so any job added later silently receives whatever the
+    # workflow declared. Inheritance is the wrong default for a token scope. If
+    # a second job is ever added to this file — a summary step, a notifier, a
+    # results uploader — the job-level block means it starts from nothing and
+    # its author has to state what it needs, rather than beginning life with
+    # write access to the security-events API because of a decision made here,
+    # for a different job, that they never read.
+    #
+    # The three scopes, and why each is genuinely required:
+    #
+    #   security-events: write — the ONLY scope in this file that grants any
+    #     write at all. `github/codeql-action/analyze` uploads its SARIF results
+    #     to the code-scanning API, and that upload is the entire output of the
+    #     job. Without it the analysis runs to completion and the findings are
+    #     discarded, which fails in the worst available way: a green check mark
+    #     on a job that reported nothing.
+    #
+    #   contents: read — checkout, and the extractor reading the source tree.
+    #
+    #   actions: read — lets the action read workflow run metadata when
+    #     resolving and uploading results. It is documented as required for
+    #     PRIVATE repositories and is strictly speaking redundant on a public
+    #     one, where that metadata is readable anyway. It is kept, and kept
+    #     explicit, for two reasons: it grants no write of any kind, and if this
+    #     repository's visibility ever changes the analysis keeps working
+    #     instead of failing on a permission nobody would think to connect to
+    #     the visibility flip.
+    #
+    # Notably absent: `pull-requests: write`. CodeQL surfaces findings on a pull
+    # request through the code-scanning integration, not by posting comments,
+    # so it never needs to write to the pull request itself.
+    # ---------------------------------------------------------------------
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # `security-and-quality` over the default `security-extended`: it adds
+          # the maintainability and correctness queries on top of the security
+          # set. This repository already gates hard on behaviour, so the marginal
+          # value here is in the paths the suites cannot reach — and a
+          # correctness query that fires on unreachable or contradictory code is
+          # worth reading even when it is not a vulnerability.
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          # Categorises the results so that if a second language or a second
+          # configuration is ever added, the two result sets do not overwrite
+          # each other in the security tab. Without it, the most recent upload
+          # wins and the earlier language's findings silently vanish.
+          category: "/language:javascript-typescript"

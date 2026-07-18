@@ -57,6 +57,31 @@ jobs:
       - name: Build the playground production bundle (Vite)
         run: npm run build:playground
 
+      # The public documentation site, built the same way and for the same
+      # reason. It is the project's front door and it consumes the packages
+      # through the "solid" export condition exactly as a reader's own app
+      # would, so a break in that path fails here before it reaches the site.
+      # Building it in CI is also what makes the deployed artifact reproducible
+      # rather than whatever a workstation happened to produce.
+      - name: Build the documentation site (Vite)
+        run: npm run build:site
+
+      # Two failures that are invisible to every other gate here, because the
+      # test suite has no opinion about prose and the type checker has none
+      # about a URL in a string:
+      #
+      #   - an internal identifier leaking into this PUBLIC repository. It reads
+      #     as normal prose to whoever wrote it and as an unfollowable pointer to
+      #     everyone else. Ten had already shipped when this gate was written.
+      #   - a link into this repository that 404s, which looks authoritative and
+      #     is not.
+      #
+      # No network: in-repository links are resolved against the files on disk,
+      # and third-party links are checked for shape only, so this can never go
+      # red for somebody else's outage. See scripts/public-surface-gate.mjs.
+      - name: Public surface gate (no internal identifiers, no dead links)
+        run: npm run gate:public-surface
+
       # Two defects that a green test suite cannot see, because the tests run
       # against `src` and both of these live in what the build EMITS: a
       # generated config shadowing `playground/vite.config.ts` (it wins Vite's
@@ -170,9 +195,33 @@ jobs:
             echo "No Codacy token available (expected on a fork PR) — upload will skip."
           fi
 
+      # PINNED BY COMMIT SHA, and it is the only action in this repository that
+      # is. The asymmetry is deliberate rather than inconsistent.
+      #
+      # A major tag like `@v1` is a mutable pointer: the publisher can repoint it
+      # at any commit, at any time, and nothing in this repository would notice.
+      # For the GitHub-owned actions used elsewhere here that is an acceptable
+      # trust, because a compromise of `actions/checkout` implies a
+      # platform-level breach with far bigger consequences than this repository.
+      #
+      # This one is different in the single way that matters: it is third-party
+      # AND it is the only step in any workflow that RECEIVES A SECRET. The
+      # project token is handed to it as an input. If that tag were ever
+      # repointed at hostile code — by a compromised maintainer account, or a
+      # publishing pipeline nobody here can see — the token would be exfiltrated
+      # on the very next push to main, and the first evidence would be somebody
+      # else's dashboard. A SHA cannot be repointed.
+      #
+      # The cost of a SHA pin is that it goes stale silently, which is normally
+      # worse than a tag. That cost is paid: the `github-actions` entry in
+      # dependabot.yml watches action references and will open a pull request
+      # when this one moves, so the pin gets reviewed rather than forgotten.
+      #
+      # 89d6c85 is tag v1 as it resolved when this was pinned. Do not "simplify"
+      # it back to @v1.
       - name: Upload coverage to Codacy
         if: ${{ steps.codacy-token.outputs.present == 'true' && hashFiles('coverage/lcov.info') != '' }}
-        uses: codacy/codacy-coverage-reporter-action@v1
+        uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699 # v1
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: coverage/lcov.info

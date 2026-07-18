@@ -1,0 +1,132 @@
+# Dependency updates.
+#
+# Two ecosystems are watched, and they fail in different ways, which is why they
+# are configured differently rather than symmetrically.
+#
+# ---------------------------------------------------------------------------
+# Why ONE npm entry at the repository root, and not one per workspace
+# ---------------------------------------------------------------------------
+#
+# This is an npm workspaces monorepo: the root `package.json` declares
+# `packages/*`, `playground`, and `site`, and there is exactly ONE lockfile, at
+# the root. Dependabot resolves a workspace root by reading that root manifest
+# and following the workspace globs, so a single `directory: "/"` entry already
+# covers every package.
+#
+# Adding a per-package entry would not give finer-grained updates; it would give
+# several bots contending for the SAME `package-lock.json`. Each would open a
+# pull request computed against a lockfile the others are also rewriting, and
+# every one of them would go stale the moment any sibling merged. The visible
+# symptom is a queue of perpetually-rebasing pull requests, which reads as
+# Dependabot being noisy when the actual defect is the configuration.
+#
+# ---------------------------------------------------------------------------
+# Why updates are GROUPED, and why majors are deliberately left out of the group
+# ---------------------------------------------------------------------------
+#
+# Ungrouped, Dependabot opens one pull request per dependency per week. On a
+# repository with five packages plus a playground and a site, that is routinely
+# fifteen to thirty pull requests in a single morning — and each one runs the
+# full CI matrix: lint, typecheck, a clean build, a Vite production bundle, the
+# release gate that packs tarballs and installs them into an external consumer,
+# the visual regression harness, and several browser test projects. The cost is
+# real, but the worse cost is human: a review queue that large does not get
+# reviewed, it gets rubber-stamped or ignored, and a security-relevant bump is
+# then indistinguishable from thirty patch bumps to build tooling.
+#
+# Grouping collapses that into a handful of pull requests whose CI run proves
+# the combined result — which is the state that will actually exist after merge.
+# Sequential single-dependency pull requests each prove a state that never
+# ships, because merging the first invalidates the rest.
+#
+# Majors are pulled OUT of the groups on purpose. `update-types` on each group
+# lists only `minor` and `patch`, so a major version bump falls through to its
+# own individual pull request. A major is the only bump that is EXPECTED to
+# break something, and it is the one where the CI failure has to be attributable
+# to a single named dependency. Inside a group of twenty, a red visual
+# regression run or a red release gate tells you the group is bad and nothing
+# more, and the response is to bisect a pull request by hand — the exact work
+# the grouping was meant to save.
+#
+# The dev/prod split is on the same reasoning. What ships to a consumer of the
+# published packages is the production tree; the development tree is build and
+# test tooling that no installed package can reach. CI already audits those two
+# trees separately and for the same reason, and a production-tree bump deserves
+# to be looked at on its own rather than buried under a Vite or Vitest bump.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      # Monday morning UTC. Early enough in the week that a group that needs a
+      # follow-up commit still has working days left before it goes stale
+      # against main; a Friday run would sit unreviewed over the weekend and
+      # arrive already needing a rebase.
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    # Five is a deliberate ceiling, not a guess. With the grouping below the
+    # steady-state output is two or three pull requests a week, so this leaves
+    # headroom for majors — which are ungrouped and each get their own — while
+    # still capping the CI spend if a week ever produces an unusual number of
+    # them. When the limit is hit, Dependabot simply defers the remainder to the
+    # next run rather than dropping them.
+    open-pull-requests-limit: 5
+    groups:
+      # The runtime tree — what an installed package actually resolves at a
+      # consumer's site. A regression here ships. Grouped so the combined result
+      # is what CI proves, but kept separate from the development group so a
+      # shipping-surface bump is never reviewed as one line inside a tooling
+      # pull request.
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      # Build and test tooling: TypeScript, Vite, Vitest, Playwright, ESLint and
+      # everything else that exists only to produce and verify the artifact. A
+      # break here fails CI loudly and reaches no consumer, so these travel
+      # together and can be reviewed as a batch.
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+    # `npm ci` is what CI runs, so the lockfile must be updated alongside the
+    # manifest or the install step fails on a mismatch. This is the default, and
+    # it is stated explicitly because the alternative (`lockfile-only`, or
+    # `increase-if-necessary` versioning) is a plausible-looking change that
+    # would quietly break every job in ci.yml.
+    versioning-strategy: increase
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions.
+  #
+  # Workflow action references are dependencies that no package manager sees:
+  # nothing in `npm outdated` or `npm audit` knows that `actions/checkout` or the
+  # coverage reporter exists, so without this entry they are the one part of the
+  # supply chain that never gets updated at all. That matters more than it looks
+  # like it should — actions run on the runner with access to the workflow's
+  # token and, for one step in ci.yml, a repository secret.
+  #
+  # Deliberately NOT grouped. There are only a handful of action references in
+  # this repository, so grouping would save nothing, and each bump is worth
+  # reading on its own: an action update changes code that executes in CI with
+  # credentials in scope, which is a different class of change from a library
+  # bump that only affects what gets built.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions

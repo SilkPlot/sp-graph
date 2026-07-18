@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    // NOT `./dist`. `dist` is Vite's bundle output; `tsc -b` is a validation
+    // gate here, not a packaging step. See `playground/tsconfig.json` for the
+    // defect that sharing one directory caused.
+    "outDir": "./.tsbuild",
+    "types": ["vite/client"],
+    "noEmit": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../packages/core" },
+    { "path": "../packages/solid" },
+    { "path": "../packages/charts" },
+    { "path": "../packages/theme" }
+  ]
+}

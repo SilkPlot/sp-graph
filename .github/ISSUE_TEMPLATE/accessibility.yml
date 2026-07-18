@@ -1,0 +1,158 @@
+name: Accessibility report
+description: A chart that does not reach a non-visual, keyboard, low-vision, or reduced-motion user correctly.
+labels: ["accessibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Read this first — it changes what your report is worth
+
+        **No assistive technology has been tested against SilkPlot. None.** There has
+        been no NVDA, JAWS, VoiceOver, Orca, Narrator, or TalkBack run against it —
+        not a partial one, not an informal one. SilkPlot claims no WCAG conformance
+        and no screen-reader compatibility.
+
+        What exists is a stated contract (ADR-0005) and deterministic automated
+        checks gating CI against it: semantics, the data alternative, contrast
+        recomputed from the WCAG luminance formula, a focus ring read from
+        `getComputedStyle` after a real Tab press, keyboard behaviour, and
+        announcement throttling — all in real headless Chromium, never jsdom.
+
+        Automated checks in one browser are not a screen reader, and everyone here
+        knows it. **So a report from real assistive-technology use is evidence this
+        project does not currently have, and it is the single most valuable kind of
+        issue anyone can file against SilkPlot.** That is why this form asks which
+        technology and which version: without those two facts a report cannot be
+        reproduced, and screen readers differ from each other and from their own
+        previous versions — live-region queueing, coalescing, and dropping are all
+        version-inconsistent. The version is not bureaucracy; it is often the finding.
+
+        A partial report is welcome. "VoiceOver 14.1 on Safari announced nothing when
+        I arrowed, I could not work out why" is useful. Do not hold a report back
+        because you could not diagnose it.
+
+  - type: input
+    id: at-name
+    attributes:
+      label: Which assistive technology
+      description: >-
+        NVDA, JAWS, VoiceOver (macOS or iOS), Orca, Narrator, TalkBack, Dragon, a
+        switch device, a screen magnifier, browser zoom, Windows High Contrast — or
+        "none" if this is a keyboard, contrast, or motion issue found without one.
+        "None" is a real answer and not a lesser one.
+      placeholder: NVDA
+    validations:
+      required: true
+
+  - type: input
+    id: at-version
+    attributes:
+      label: Its exact version
+      description: >-
+        The version string, not "latest". Screen-reader behaviour changes between
+        versions — especially live-region handling, which is the mechanism behind
+        SilkPlot's announcements — so "latest" makes the report unreproducible the
+        moment the next release ships. Put "n/a" if you answered "none" above.
+      placeholder: 2025.1.2
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version, and OS
+      description: >-
+        The pairing matters as much as either part. A screen reader talks to the
+        browser's accessibility tree, and the same reader behaves differently across
+        browsers.
+      placeholder: Firefox 143 on Windows 11 23H2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What area
+      options:
+        - Screen reader announcement — wrong, missing, duplicated, or flooding
+        - Name, description, summary, or table semantics
+        - Keyboard navigation — entering, stepping, leaving, or a focus trap
+        - Visible focus indicator
+        - Colour contrast
+        - Colour used as the only channel
+        - Reduced motion
+        - High contrast / forced colours
+        - Zoom, reflow, or magnification
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: >-
+        If speech is involved, quote what was actually announced, word for word,
+        including anything that was announced twice or not at all. A paraphrase loses
+        the detail that identifies the bug.
+      placeholder: >-
+        Arrowing right announced "42" with no series name and no units, then
+        announced the same value again when I arrowed to the next point.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+      description: >-
+        In your own terms as a user of the technology. You do not need to cite a
+        success criterion — if you know one, it helps, but the lived account is the
+        part we cannot get anywhere else.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        Include the exact keys you pressed and the mode the screen reader was in
+        (browse, focus, forms, quick-nav). SilkPlot uses a `listbox` composite with a
+        single tab stop and deliberately does **not** use `role="application"`, so
+        which mode you were in frequently explains the whole behaviour.
+      placeholder: |
+        1. npm run dev, open the playground line chart
+        2. Tab until focus enters the chart
+        3. Press Right arrow three times
+    validations:
+      required: true
+
+  - type: textarea
+    id: chart-code
+    attributes:
+      label: The chart
+      description: >-
+        The props in play, especially `title`/`labelledBy`, `desc`, `summary`,
+        `table`, `pointLabel`, `announce`, and `decorative`. Several announcement
+        complaints turn out to be the default `pointLabel`, which is honest but poor
+        on purpose — it cannot know your units.
+      render: tsx
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: SilkPlot is not on npm, so the SHA is the only thing that identifies your code.
+      placeholder: 8d84c7d
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: >-
+        Speech recordings, screenshots of the accessibility tree, or a note that you
+        are unsure whether this is a bug at all. Uncertainty is fine — say so and we
+        will work it out on the thread rather than you deciding alone.

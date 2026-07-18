@@ -2,7 +2,8 @@
  * Visible focus and non-colour encoding, proven on COMPUTED styles in a real
  * browser, on the elements that actually removed their own outline.
  *
- * The S002-P11 defect hid because node tests checked that a CSS block existed
+ * The dark high-contrast cascade defect hid because node tests checked that a
+ * CSS block existed
  * and never which declaration won the cascade. A focus ring is worse in that
  * respect: it is a computed style resolved under a `:focus-visible` pseudo-class
  * AND a media query AND a custom-property cascade, so a "the rule is in the
@@ -20,8 +21,8 @@
  *     the presence of an indicator from its absence, rather than passing on any
  *     element at all;
  *   - `the contrast helper rejects a known-failing colour` — proves the 3:1
- *     assertion can fail, using the measured 2.02:1 value from the S002-P11
- *     defect.
+ *     assertion can fail, using the measured 2.02:1 value the dark
+ *     high-contrast cascade defect actually produced.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
@@ -265,7 +266,7 @@ describe("G1 — the reference interaction surface has a visible focus indicator
     expect(ours.width).toBeGreaterThanOrEqual(3);
   });
 
-  it("CONTROL: the 3:1 assertion can fail — the S002-P11 ring measures 2.02:1", () => {
+  it("CONTROL: the 3:1 assertion can fail — the pre-fix ring measured 2.02:1", () => {
     expect(contrastRatio("#0033cc", "#14161a")).toBeCloseTo(2.02, 1);
     expect(contrastRatio("#0033cc", "#14161a")).toBeLessThan(3);
   });
