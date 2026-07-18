@@ -18,33 +18,23 @@
 import { For, Show, type Component } from "solid-js";
 import { bandScale } from "@silkplot/core";
 import {
-  ChartRoot,
-  ChartDataAlternative,
   createCartesianModel,
   createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
   type ChartTableRow,
-  type Margins,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { ChartShell, type CartesianChartProps } from "./scaffold";
 import type { CategoryPoint } from "./types";
 
-export interface BarChartBaseProps {
+export interface BarChartBaseProps extends CartesianChartProps {
   /** The series to plot, as `{ label: string, y: number }[]`. */
   data: readonly CategoryPoint[];
-  /** Fixed width in px. Omit to fill and measure the parent. */
-  width?: number;
-  /** Fixed height in px. Omit to fill and measure the parent. */
-  height?: number;
-  margins?: Partial<Margins>;
   /** Band padding as a fraction of the step [0, 1]. Default: bandScale's default (0.1). */
   padding?: number;
   /** Bar fill color. Default: "currentColor". */
   fill?: string;
-  /** Draw tick-aligned gridlines behind the marks. Default: true. */
-  gridlines?: boolean;
-  class?: string;
 }
 
 /**
@@ -74,14 +64,7 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
   });
 
   return (
-    <CartesianFrame
-      x={model.x()}
-      y={model.y()}
-      hasArea={model.hasArea()}
-      gridlines={props.gridlines}
-      semantics={props.semantics}
-      class={props.class}
-    >
+    <CartesianFrame model={model} layout={props} semantics={props.semantics}>
       <For each={props.data}>
         {(d) => {
           // `bandScale(label)` returns `number | undefined` — undefined only
@@ -116,17 +99,14 @@ export const BarChart: Component<BarChartProps> = (props) => {
   const semantics = createChartSemantics(props);
 
   return (
-    <>
-      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-        <BarChartBody {...props} semantics={semantics} />
-      </ChartRoot>
-      {/* The band labels are already text, so the derived table needs no formatting decision. */}
-      <ChartDataAlternative
-        semantics={semantics}
-        defaultRows={(): readonly ChartTableRow[] =>
-          props.data.map((d) => [d.label, d.y] as const)
-        }
-      />
-    </>
+    <ChartShell
+      layout={props}
+      semantics={semantics}
+      // The band labels are already text, so the derived table needs no
+      // formatting decision — unlike the time series, which must choose one.
+      rows={(): readonly ChartTableRow[] => props.data.map((d) => [d.label, d.y] as const)}
+    >
+      <BarChartBody {...props} semantics={semantics} />
+    </ChartShell>
   );
 };

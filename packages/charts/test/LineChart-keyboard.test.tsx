@@ -197,4 +197,49 @@ describe("the chart's announcement channel", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBe(optionOf(container)!.id);
     expect(announcerOf(container)).toBeNull();
   });
+
+  it("drops the series prefix for a chart named by reference rather than by title", async () => {
+    // A `labelledBy` chart has no `<title>` of its own — the library will not
+    // duplicate page content it cannot keep in sync — so `semantics.name()` is
+    // empty and there is no series wording to prefix. The announcement must
+    // still carry x and y rather than opening with a stray comma.
+    const { container } = render(() => (
+      <>
+        <h2 id="external-heading">Weekly bookings</h2>
+        <LineChart data={DATA} labelledBy="external-heading" desc="Four days" {...SIZE} />
+      </>
+    ));
+    surfaceOf(container)!.focus();
+    await userEvent.keyboard("{ArrowRight}");
+
+    const spoken = announcerOf(container)!.textContent ?? "";
+    expect(spoken).toBe("2026-01-01T00:00:00.000Z, 3");
+    expect(spoken.startsWith(",")).toBe(false);
+    // The surface falls back to the referenced heading for its own name, since
+    // it has no title to build the "use arrow keys" sentence from.
+    expect(surfaceOf(container)!.getAttribute("aria-labelledby")).toBe("external-heading");
+  });
+
+  it("yields empty wording for an index the series does not reach", async () => {
+    // The guard that makes a shrinking series safe: `pointLabel` is called with
+    // whatever index is held, and a datum that is no longer there must produce
+    // "" rather than reading properties off `undefined`. Replacing a four-point
+    // series with a one-point series while point 4 is selected is the path that
+    // reaches it.
+    const [data, setData] = createSignal<TimePoint[]>(DATA);
+    const { container } = render(() => (
+      <LineChart data={data()} title="Weekly bookings" desc="Four days" {...SIZE} />
+    ));
+    surfaceOf(container)!.focus();
+    await userEvent.keyboard("{End}");
+    expect(announcerOf(container)!.textContent).toContain("2026-01-04");
+
+    setData([DATA[0] as TimePoint]);
+
+    // Whatever the clamp settles on, nothing may read as a partial label built
+    // from a missing datum — no "undefined" and no NaN reaching the reader.
+    const spoken = announcerOf(container)!.textContent ?? "";
+    expect(spoken).not.toContain("undefined");
+    expect(spoken).not.toContain("NaN");
+  });
 });

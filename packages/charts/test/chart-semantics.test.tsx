@@ -111,6 +111,41 @@ interface Family {
   };
 }
 
+/**
+ * The replacement fixture, which was the bulk of what the four entries repeated:
+ * a signal, a node reading it, the swap, and the three expectation arrays.
+ *
+ * Only this part is factored. `named`, `unnamed`, and `decorative` stay written
+ * out per family below, because each is one line and because `unnamed` carries a
+ * `@ts-expect-error` that is half the assertion — the directive only passes if
+ * the compiler genuinely rejects that JSX, proving per chart that "informative
+ * and unnamed" is unrepresentable. Routed through a shared loosely-typed
+ * component parameter the checker would raise nothing, the directive would
+ * become an unused suppression, and the compile-time half of the contract would
+ * be gone without a single test turning red.
+ *
+ * `node` takes the JSX as a callback so the real component and its real prop
+ * types stay at the call site; nothing here is cast.
+ */
+function replaceableFrom<D>(
+  before: readonly D[],
+  after: readonly D[],
+  labelsAfter: string[],
+  node: (data: () => readonly D[]) => JSX.Element,
+): ReturnType<Family["replaceable"]> {
+  const [data, setData] = createSignal<readonly D[]>(before);
+  return {
+    node: () => node(data),
+    swap: () => setData(() => after),
+    valuesBefore: ["3", "11", "5"],
+    valuesAfter: ["400", "17", "962"],
+    labelsAfter,
+  };
+}
+
+const ISO_AFTER = TIME_AFTER.map((d) => d.t.toISOString());
+const TABLE = { columns: COLUMNS } as const;
+
 const FAMILIES: Family[] = [
   {
     label: "LineChart",
@@ -122,24 +157,10 @@ const FAMILIES: Family[] = [
       <LineChart data={TIME_BEFORE} width={W} height={H} />
     ),
     decorative: () => <LineChart data={TIME_BEFORE} width={W} height={H} decorative />,
-    replaceable: () => {
-      const [data, setData] = createSignal<TimePoint[]>(TIME_BEFORE);
-      return {
-        node: () => (
-          <LineChart
-            data={data()}
-            width={W}
-            height={H}
-            title={NAME}
-            table={{ columns: COLUMNS }}
-          />
-        ),
-        swap: () => setData(TIME_AFTER),
-        valuesBefore: ["3", "11", "5"],
-        valuesAfter: ["400", "17", "962"],
-        labelsAfter: TIME_AFTER.map((d) => d.t.toISOString()),
-      };
-    },
+    replaceable: () =>
+      replaceableFrom(TIME_BEFORE, TIME_AFTER, ISO_AFTER, (data) => (
+        <LineChart data={data()} width={W} height={H} title={NAME} table={TABLE} />
+      )),
   },
   {
     label: "AreaChart",
@@ -151,24 +172,10 @@ const FAMILIES: Family[] = [
       <AreaChart data={TIME_BEFORE} width={W} height={H} />
     ),
     decorative: () => <AreaChart data={TIME_BEFORE} width={W} height={H} decorative />,
-    replaceable: () => {
-      const [data, setData] = createSignal<TimePoint[]>(TIME_BEFORE);
-      return {
-        node: () => (
-          <AreaChart
-            data={data()}
-            width={W}
-            height={H}
-            title={NAME}
-            table={{ columns: COLUMNS }}
-          />
-        ),
-        swap: () => setData(TIME_AFTER),
-        valuesBefore: ["3", "11", "5"],
-        valuesAfter: ["400", "17", "962"],
-        labelsAfter: TIME_AFTER.map((d) => d.t.toISOString()),
-      };
-    },
+    replaceable: () =>
+      replaceableFrom(TIME_BEFORE, TIME_AFTER, ISO_AFTER, (data) => (
+        <AreaChart data={data()} width={W} height={H} title={NAME} table={TABLE} />
+      )),
   },
   {
     label: "BarChart",
@@ -180,18 +187,10 @@ const FAMILIES: Family[] = [
       <BarChart data={BAND_BEFORE} width={W} height={H} />
     ),
     decorative: () => <BarChart data={BAND_BEFORE} width={W} height={H} decorative />,
-    replaceable: () => {
-      const [data, setData] = createSignal<CategoryPoint[]>(BAND_BEFORE);
-      return {
-        node: () => (
-          <BarChart data={data()} width={W} height={H} title={NAME} table={{ columns: COLUMNS }} />
-        ),
-        swap: () => setData(BAND_AFTER),
-        valuesBefore: ["3", "11", "5"],
-        valuesAfter: ["400", "17", "962"],
-        labelsAfter: ["Oct", "Nov", "Dec"],
-      };
-    },
+    replaceable: () =>
+      replaceableFrom(BAND_BEFORE, BAND_AFTER, ["Oct", "Nov", "Dec"], (data) => (
+        <BarChart data={data()} width={W} height={H} title={NAME} table={TABLE} />
+      )),
   },
   {
     label: "ScatterChart",
@@ -203,24 +202,10 @@ const FAMILIES: Family[] = [
       <ScatterChart data={XY_BEFORE} width={W} height={H} />
     ),
     decorative: () => <ScatterChart data={XY_BEFORE} width={W} height={H} decorative />,
-    replaceable: () => {
-      const [data, setData] = createSignal<XYPoint[]>(XY_BEFORE);
-      return {
-        node: () => (
-          <ScatterChart
-            data={data()}
-            width={W}
-            height={H}
-            title={NAME}
-            table={{ columns: COLUMNS }}
-          />
-        ),
-        swap: () => setData(XY_AFTER),
-        valuesBefore: ["3", "11", "5"],
-        valuesAfter: ["400", "17", "962"],
-        labelsAfter: ["10", "25", "40"],
-      };
-    },
+    replaceable: () =>
+      replaceableFrom(XY_BEFORE, XY_AFTER, ["10", "25", "40"], (data) => (
+        <ScatterChart data={data()} width={W} height={H} title={NAME} table={TABLE} />
+      )),
   },
 ];
 
@@ -237,13 +222,7 @@ function svgOf(container: HTMLElement): SVGSVGElement {
  */
 function computedName(svg: SVGSVGElement): string {
   const labelledBy = svg.getAttribute("aria-labelledby");
-  if (labelledBy !== null) {
-    return labelledBy
-      .split(/\s+/)
-      .map((id) => svg.ownerDocument.getElementById(id)?.textContent?.trim() ?? "")
-      .filter((text) => text.length > 0)
-      .join(" ");
-  }
+  if (labelledBy !== null) return textOfIdRefs(svg, labelledBy);
   const label = svg.getAttribute("aria-label");
   if (label !== null) return label.trim();
   return svg.querySelector("title")?.textContent?.trim() ?? "";
@@ -252,8 +231,18 @@ function computedName(svg: SVGSVGElement): string {
 /** The same resolution for `aria-describedby`, which may reference several nodes. */
 function computedDescription(svg: SVGSVGElement): string {
   const describedBy = svg.getAttribute("aria-describedby");
-  if (describedBy === null) return "";
-  return describedBy
+  return describedBy === null ? "" : textOfIdRefs(svg, describedBy);
+}
+
+/**
+ * Concatenated text of an ID-reference list, the way accname flattens one.
+ *
+ * Both relationships are space-separated ID lists resolved identically, which is
+ * the step that makes a duplicate id dangerous: it silently resolves to a
+ * neighbour's node rather than failing.
+ */
+function textOfIdRefs(svg: SVGSVGElement, idRefs: string): string {
+  return idRefs
     .split(/\s+/)
     .map((id) => svg.ownerDocument.getElementById(id)?.textContent?.trim() ?? "")
     .filter((text) => text.length > 0)

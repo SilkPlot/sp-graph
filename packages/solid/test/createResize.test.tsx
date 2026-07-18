@@ -3,6 +3,33 @@ import { render } from "@solidjs/testing-library";
 import { createRoot } from "solid-js";
 import { createResize } from "../src/index";
 
+/** content-box so the measured size is exactly the declared one, with no padding to subtract. */
+const BOX = { width: "300px", height: "150px", "box-sizing": "content-box" } as const;
+const SEEDED = { width: 300, height: 150 };
+
+/**
+ * Mount a sized box wired to `createResize`, and hand back its API.
+ *
+ * `createResize()` must be called inside a rendered component: `onMount` only
+ * runs within a reactive root, and bare in a test body it silently reads back
+ * `{ width: 0, height: 0 }`. `render()` provides that root — which is exactly
+ * why this is a shared fixture rather than four hand-copied ones that could
+ * each drift out of it.
+ */
+function renderBox(initial?: { width: number; height: number }) {
+  let api!: ReturnType<typeof createResize>;
+  const Fixture = () => {
+    api = createResize(initial);
+    return <div ref={api.setTarget} style={BOX} />;
+  };
+  const { container, unmount } = render(() => <Fixture />);
+  return {
+    api,
+    unmount,
+    el: () => container.firstElementChild as HTMLElement,
+  };
+}
+
 describe("createResize", () => {
   it("defaults to { width: 0, height: 0 } when no initial size is given", () => {
     createRoot((dispose) => {
@@ -20,48 +47,23 @@ describe("createResize", () => {
     });
   });
 
-  it("seeds a real measurement from the target's content box on mount", async () => {
-    // `createResize` must be called inside a rendered component: `onMount`
-    // only runs within a reactive root, and `render()` provides that root.
-    let api!: ReturnType<typeof createResize>;
-    const Fixture = () => {
-      api = createResize();
-      return (
-        <div
-          ref={api.setTarget}
-          style={{ width: "300px", height: "150px", "box-sizing": "content-box" }}
-        />
-      );
-    };
-
-    const { unmount } = render(() => <Fixture />);
+  it("seeds a real measurement from the target's content box on mount", () => {
+    const { api, unmount } = renderBox();
 
     // The seed measurement happens synchronously in onMount, so it should
     // already be correct without needing to await the observer callback.
-    expect(api.size()).toEqual({ width: 300, height: 150 });
+    expect(api.size()).toEqual(SEEDED);
 
     unmount();
   });
 
   it("updates the signal when the observed element is resized after mount", async () => {
-    let api!: ReturnType<typeof createResize>;
-    const Fixture = () => {
-      api = createResize();
-      return (
-        <div
-          ref={api.setTarget}
-          style={{ width: "300px", height: "150px", "box-sizing": "content-box" }}
-        />
-      );
-    };
+    const { api, el, unmount } = renderBox();
 
-    const { container, unmount } = render(() => <Fixture />);
+    await vi.waitFor(() => expect(api.size()).toEqual(SEEDED));
 
-    await vi.waitFor(() => expect(api.size()).toEqual({ width: 300, height: 150 }));
-
-    const el = container.firstElementChild as HTMLElement;
-    el.style.width = "500px";
-    el.style.height = "220px";
+    el().style.width = "500px";
+    el().style.height = "220px";
 
     // ResizeObserver fires asynchronously; poll rather than assert immediately.
     await vi.waitFor(() => expect(api.size()).toEqual({ width: 500, height: 220 }));
@@ -87,34 +89,23 @@ describe("createResize", () => {
   });
 
   it("disconnects the observer on cleanup so post-unmount resizes are not observed", async () => {
-    let api!: ReturnType<typeof createResize>;
-    const Fixture = () => {
-      api = createResize();
-      return (
-        <div
-          ref={api.setTarget}
-          style={{ width: "300px", height: "150px", "box-sizing": "content-box" }}
-        />
-      );
-    };
+    const { api, el, unmount } = renderBox();
 
-    const { container, unmount } = render(() => <Fixture />);
+    await vi.waitFor(() => expect(api.size()).toEqual(SEEDED));
 
-    await vi.waitFor(() => expect(api.size()).toEqual({ width: 300, height: 150 }));
-
-    const el = container.firstElementChild as HTMLElement;
+    const detached = el();
 
     unmount();
 
     // Detached from the document, but still a live element we can mutate.
     expect(() => {
-      el.style.width = "999px";
-      el.style.height = "888px";
+      detached.style.width = "999px";
+      detached.style.height = "888px";
     }).not.toThrow();
 
     // Give any (incorrectly) still-connected observer a chance to fire, then
     // confirm the signal never picked up the post-unmount change.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(api.size()).toEqual({ width: 300, height: 150 });
+    expect(api.size()).toEqual(SEEDED);
   });
 });

@@ -14,7 +14,21 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { computeTicks, timeScale, linearScale } from "@silkplot/core";
+import { computeTicks } from "@silkplot/core";
+import {
+  HEIGHT,
+  INNER_HEIGHT,
+  INNER_WIDTH,
+  NO_MARGINS,
+  WIDTH,
+  axisTicks,
+  expectNoNaN,
+  expectedTimeXScale,
+  expectedYScale,
+  markD,
+  markPaths as getPaths,
+  pathYs,
+} from "./support";
 
 const DATA: TimePoint[] = [
   { t: new Date(Date.UTC(2026, 0, 1)), y: 3 },
@@ -23,42 +37,26 @@ const DATA: TimePoint[] = [
   { t: new Date(Date.UTC(2026, 0, 4)), y: 9 },
 ];
 
-const WIDTH = 400;
-const HEIGHT = 300;
-const MARGINS = { top: 8, right: 12, bottom: 24, left: 40 };
-const NO_MARGINS = { top: 0, right: 0, bottom: 0, left: 0 };
-
-function getPaths(container: HTMLElement): SVGPathElement[] {
-  // Axis domain paths are also <path> elements; the chart's own line path is
-  // the one without a `data-silkplot-axis` ancestor.
-  return Array.from(container.querySelectorAll("svg > g > path")).filter(
-    (p) => !p.closest("[data-silkplot-axis]"),
-  ) as SVGPathElement[];
-}
-
 /**
- * Y coordinates of every point in a path `d`, in order. Only valid for
- * `curve="linear"` output (M/L commands) — the default monotoneX curve emits
- * bezier `C` segments whose control points are not data positions.
+ * The scales LineChart composes, rebuilt from the same inputs.
+ *
+ * `"zero-floor"` is named here, not inherited from a shared default: it is
+ * LineChart's own policy and the one thing that separates it from Area and Bar.
+ * Passing `"zero-baseline"` here would make these tests agree with the wrong
+ * chart, which is why the policy is spelled out at the call site.
  */
-function pathYs(d: string): number[] {
-  return Array.from(d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)).map((m) => Number(m[2]));
-}
-
-/** The x/y scales LineChart builds internally, rebuilt here from the same inputs. */
 function scalesFor(data: readonly TimePoint[], innerWidth: number, innerHeight: number) {
-  const x = timeScale({
-    domain: [data[0]?.t ?? new Date(0), data[data.length - 1]?.t ?? new Date(1)],
-    range: [0, innerWidth],
-  });
-  const values = data.map((d) => d.y);
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const y = linearScale({
-    domain: [Math.min(0, lo), hi],
-    range: [innerHeight, 0],
-  });
-  return { x, y };
+  return {
+    x: expectedTimeXScale(
+      data.map((d) => d.t),
+      innerWidth,
+    ),
+    y: expectedYScale(
+      data.map((d) => d.y),
+      "zero-floor",
+      innerHeight,
+    ),
+  };
 }
 
 describe("LineChart — structure", () => {
@@ -105,26 +103,16 @@ describe("LineChart — structure", () => {
 describe("LineChart — ticks match @silkplot/core computeTicks", () => {
   it("bottom axis tick count matches computeTicks for the equivalent time scale", () => {
     const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
-    const bottomAxis = container.querySelector('g[data-silkplot-axis="bottom"]') as SVGGElement;
-    const innerWidth = WIDTH - MARGINS.left - MARGINS.right;
-    const innerHeight = HEIGHT - MARGINS.top - MARGINS.bottom;
-
-    const { x } = scalesFor(DATA, innerWidth, innerHeight);
+    const { x } = scalesFor(DATA, INNER_WIDTH, INNER_HEIGHT);
     const expectedTicks = computeTicks(x, {});
-    const tickGroups = bottomAxis.querySelectorAll(":scope > g");
-    expect(tickGroups).toHaveLength(expectedTicks.length);
+    expect(axisTicks(container, "bottom")).toHaveLength(expectedTicks.length);
   });
 
   it("left axis tick count matches computeTicks for the equivalent linear scale", () => {
     const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
-    const leftAxis = container.querySelector('g[data-silkplot-axis="left"]') as SVGGElement;
-    const innerWidth = WIDTH - MARGINS.left - MARGINS.right;
-    const innerHeight = HEIGHT - MARGINS.top - MARGINS.bottom;
-
-    const { y } = scalesFor(DATA, innerWidth, innerHeight);
+    const { y } = scalesFor(DATA, INNER_WIDTH, INNER_HEIGHT);
     const expectedTicks = computeTicks(y, {});
-    const tickGroups = leftAxis.querySelectorAll(":scope > g");
-    expect(tickGroups).toHaveLength(expectedTicks.length);
+    expect(axisTicks(container, "left")).toHaveLength(expectedTicks.length);
   });
 });
 
@@ -170,8 +158,8 @@ describe("LineChart — curve behaviour", () => {
     const { container: defaultContainer } = render(() => (
       <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />
     ));
-    const linearD = getPaths(linearContainer)[0]!.getAttribute("d")!;
-    const defaultD = getPaths(defaultContainer)[0]!.getAttribute("d")!;
+    const linearD = markD(linearContainer);
+    const defaultD = markD(defaultContainer);
 
     expect(linearD).toContain("L");
     expect(linearD).not.toContain("C");
@@ -184,7 +172,7 @@ describe("LineChart — y-domain has no forced baseline (unlike Area/Bar)", () =
     const { container } = render(() => (
       <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const lineD = getPaths(container)[0]!.getAttribute("d")!;
+    const lineD = markD(container);
     const { y } = scalesFor(DATA, WIDTH, HEIGHT);
     const ys = pathYs(lineD);
 
@@ -204,7 +192,7 @@ describe("LineChart — y-domain has no forced baseline (unlike Area/Bar)", () =
     const { container } = render(() => (
       <LineChart title="Daily readings" data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const lineD = getPaths(container)[0]!.getAttribute("d")!;
+    const lineD = markD(container);
     const { y } = scalesFor(negative, WIDTH, HEIGHT);
     const ys = pathYs(lineD);
 
@@ -256,7 +244,7 @@ describe("LineChart — data replacement", () => {
    */
   function expectPathTracks(container: HTMLElement, data: readonly TimePoint[]): void {
     const { y } = scalesFor(data, WIDTH, HEIGHT);
-    const ys = pathYs(getPaths(container)[0]?.getAttribute("d") ?? "");
+    const ys = pathYs(markD(container));
     expect(ys).toHaveLength(data.length);
     data.forEach((d, i) => {
       const py = ys[i] as number;
@@ -327,11 +315,7 @@ describe("LineChart — data replacement", () => {
     const { container } = render(() => (
       <LineChart title="Daily readings" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const noNaN = (): void => {
-      container.querySelectorAll("path").forEach((p) => {
-        expect(p.getAttribute("d") ?? "").not.toContain("NaN");
-      });
-    };
+    const noNaN = (): void => expectNoNaN(container, "path", ["d"]);
     noNaN();
 
     setData(AFTER);
@@ -342,7 +326,7 @@ describe("LineChart — data replacement", () => {
     // holding the populated one, and nothing renders a NaN on the way out.
     setData([]);
     noNaN();
-    expect(pathYs(getPaths(container)[0]?.getAttribute("d") ?? "")).toHaveLength(0);
+    expect(pathYs(markD(container))).toHaveLength(0);
   });
 });
 
@@ -351,10 +335,7 @@ describe("LineChart — empty and single-point data", () => {
     expect(() => render(() => <LineChart title="Daily readings" data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
 
     const { container } = render(() => <LineChart title="Daily readings" data={[]} width={WIDTH} height={HEIGHT} />);
-    container.querySelectorAll("path").forEach((p) => {
-      const d = p.getAttribute("d") ?? "";
-      expect(d).not.toContain("NaN");
-    });
+    expectNoNaN(container, "path", ["d"]);
   });
 
   it("single-point data does not throw and produces no NaN in the path d", () => {
@@ -364,9 +345,6 @@ describe("LineChart — empty and single-point data", () => {
     ).not.toThrow();
 
     const { container } = render(() => <LineChart title="Daily readings" data={single} width={WIDTH} height={HEIGHT} />);
-    container.querySelectorAll("path").forEach((p) => {
-      const d = p.getAttribute("d") ?? "";
-      expect(d).not.toContain("NaN");
-    });
+    expectNoNaN(container, "path", ["d"]);
   });
 });

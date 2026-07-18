@@ -14,25 +14,38 @@
  * only `title`, which meant `SvgLayer` supported a `<desc>` that no composed
  * chart could ever reach — the chain was broken here and nowhere else.
  */
-import { Show, type Component, type JSX } from "solid-js";
-import { SvgLayer, Axis, Gridlines, type AxisScale, type ChartSemantics } from "@silkplot/solid";
+import { Show, type JSX } from "solid-js";
+import {
+  SvgLayer,
+  Axis,
+  Gridlines,
+  type AxisScale,
+  type CartesianModel,
+  type ChartSemantics,
+} from "@silkplot/solid";
+import type { CartesianChartProps } from "./scaffold";
 
-export interface CartesianFrameProps {
-  /** The x scale, drawn as the bottom axis. */
-  x: AxisScale;
-  /** The y scale, drawn as the left axis. */
-  y: AxisScale;
-  /** False when the drawing area has collapsed; children are not rendered. */
-  hasArea: boolean;
-  /** Draw tick-aligned gridlines behind the marks. Default: true. */
-  gridlines?: boolean;
+export interface CartesianFrameProps<X extends AxisScale> {
+  /**
+   * The resolved model. Taken whole rather than as unpacked `x`/`y`/`hasArea`
+   * props because all three come from the same object at every call site, and
+   * three separate props are three chances to hand one chart's scale to another
+   * chart's axis. The frame reads them through accessors, so it stays reactive.
+   */
+  model: CartesianModel<X>;
+  /**
+   * The chart's own props, read through for `gridlines` and `class`. The live
+   * props object, not copied values, so each read stays tracked.
+   */
+  layout: CartesianChartProps;
   /** Resolved chart semantics — name, description, and the id relationships. */
   semantics: ChartSemantics;
-  class?: string;
   children?: JSX.Element;
 }
 
-export const CartesianFrame: Component<CartesianFrameProps> = (props) => {
+export const CartesianFrame = <X extends AxisScale>(
+  props: CartesianFrameProps<X>,
+): JSX.Element => {
   const sem = (): ChartSemantics => props.semantics;
 
   return (
@@ -46,9 +59,9 @@ export const CartesianFrame: Component<CartesianFrameProps> = (props) => {
       ariaLabelledBy={sem().labelledBy()}
       ariaDescribedBy={sem().describedBy()}
       ariaDetails={sem().details()}
-      class={props.class}
+      class={props.layout.class}
     >
-      <Show when={props.hasArea}>
+      <Show when={props.model.hasArea()}>
         {/*
           Gridlines are drawn first so the axes and marks paint over them —
           SVG has no z-index, so paint order IS stacking order.
@@ -59,12 +72,12 @@ export const CartesianFrame: Component<CartesianFrameProps> = (props) => {
           the other is the one way to break that, which is why this frame passes
           neither rather than offering a knob that only reaches half of them.
         */}
-        <Show when={props.gridlines ?? true}>
-          <Gridlines scale={props.y} axis="y" />
-          <Gridlines scale={props.x} axis="x" />
+        <Show when={props.layout.gridlines ?? true}>
+          <Gridlines scale={props.model.y()} axis="y" />
+          <Gridlines scale={props.model.x()} axis="x" />
         </Show>
-        <Axis scale={props.y} orientation="left" />
-        <Axis scale={props.x} orientation="bottom" />
+        <Axis scale={props.model.y()} orientation="left" />
+        <Axis scale={props.model.x()} orientation="bottom" />
         {props.children}
       </Show>
     </SvgLayer>

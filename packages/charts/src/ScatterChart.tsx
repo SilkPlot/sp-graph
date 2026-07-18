@@ -23,35 +23,25 @@
 import { For, type Component } from "solid-js";
 import { extentOf, linearScale } from "@silkplot/core";
 import {
-  ChartRoot,
-  ChartDataAlternative,
   createCartesianModel,
   createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
   type ChartTableRow,
-  type Margins,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { ChartShell, type CartesianChartProps } from "./scaffold";
 import type { XYPoint } from "./types";
 
-export interface ScatterChartBaseProps {
+export interface ScatterChartBaseProps extends CartesianChartProps {
   /** The points to plot, as `{ x: number, y: number }[]`. */
   data: readonly XYPoint[];
-  /** Fixed width in px. Omit to fill and measure the parent. */
-  width?: number;
-  /** Fixed height in px. Omit to fill and measure the parent. */
-  height?: number;
-  margins?: Partial<Margins>;
   /** Point radius in px. Default: 3. */
   radius?: number;
   /** Point fill color. Default: "currentColor". */
   fill?: string;
   /** Point fill opacity. Default: 1. */
   fillOpacity?: number;
-  /** Draw tick-aligned gridlines behind the marks. Default: true. */
-  gridlines?: boolean;
-  class?: string;
 }
 
 /**
@@ -81,14 +71,7 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
   });
 
   return (
-    <CartesianFrame
-      x={model.x()}
-      y={model.y()}
-      hasArea={model.hasArea()}
-      gridlines={props.gridlines}
-      semantics={props.semantics}
-      class={props.class}
-    >
+    <CartesianFrame model={model} layout={props} semantics={props.semantics}>
       <For each={props.data}>
         {(d) => (
           <circle
@@ -108,14 +91,12 @@ export const ScatterChart: Component<ScatterChartProps> = (props) => {
   const semantics = createChartSemantics(props);
 
   return (
-    <>
-      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-        <ScatterChartBody {...props} semantics={semantics} />
-      </ChartRoot>
-      <ChartDataAlternative
-        semantics={semantics}
-        defaultRows={(): readonly ChartTableRow[] => props.data.map((d) => [d.x, d.y] as const)}
-      />
-    </>
+    <ChartShell
+      layout={props}
+      semantics={semantics}
+      rows={(): readonly ChartTableRow[] => props.data.map((d) => [d.x, d.y] as const)}
+    >
+      <ScatterChartBody {...props} semantics={semantics} />
+    </ChartShell>
   );
 };

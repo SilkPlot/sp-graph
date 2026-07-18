@@ -9,9 +9,25 @@ import {
   bandScale,
 } from "../src/index";
 
+/** Full year 2026, UTC — the time domain the time-scale cases share. */
+const Y0 = new Date(Date.UTC(2026, 0, 1));
+const Y1 = new Date(Date.UTC(2026, 11, 31));
+
+/**
+ * Freshly built scales, not shared instances: `linearScale` nices its domain at
+ * construction, so a shared object would carry another case's mutation.
+ *
+ * `[0, 100] -> [0, 400]` is already nice, so nice() is a no-op on it — several
+ * cases below depend on that and say so.
+ */
+const nice0to100 = () => linearScale({ domain: [0, 100], range: [0, 400] });
+const wide = (range: [number, number]) => linearScale({ domain: [0, 1000], range });
+const year2026 = (range: [number, number] = [0, 800]) =>
+  timeScale({ domain: [Y0, Y1], range });
+
 describe("computeTicks — linear scale", () => {
   it("returns ticks whose position matches scale(value) and carries a non-empty label", () => {
-    const scale = linearScale({ domain: [0, 100], range: [0, 400] });
+    const scale = nice0to100();
     const ticks = computeTicks(scale);
 
     expect(ticks.length).toBeGreaterThan(0);
@@ -23,10 +39,9 @@ describe("computeTicks — linear scale", () => {
   });
 
   it("keeps tick positions within the range when the domain already sits on nice bounds", () => {
-    // domain [0, 100] is already "nice", so nice() is a no-op and every tick
-    // value stays inside the original domain — positions must stay in-range.
-    const scale = linearScale({ domain: [0, 100], range: [0, 400] });
-    const ticks = computeTicks(scale);
+    // nice() is a no-op on [0, 100], so every tick value stays inside the
+    // original domain — positions must stay in-range.
+    const ticks = computeTicks(nice0to100());
     for (const tick of ticks) {
       expect(tick.position).toBeGreaterThanOrEqual(0);
       expect(tick.position).toBeLessThanOrEqual(400);
@@ -36,10 +51,7 @@ describe("computeTicks — linear scale", () => {
 
 describe("computeTicks — time scale", () => {
   it("returns Date-valued ticks whose position matches scale(value) and carries a label", () => {
-    const scale = timeScale({
-      domain: [new Date(Date.UTC(2026, 0, 1)), new Date(Date.UTC(2026, 11, 31))],
-      range: [0, 800],
-    });
+    const scale = year2026();
     const ticks = computeTicks(scale);
 
     expect(ticks.length).toBeGreaterThan(0);
@@ -83,7 +95,7 @@ describe("computeTicks — scale-kind detection", () => {
 
 describe("computeTicks — count option", () => {
   it("floors count 0 and count 1 to the same minimum of 2", () => {
-    const scale = linearScale({ domain: [0, 100], range: [0, 400] });
+    const scale = nice0to100();
     const zero = computeTicks(scale, { count: 0 });
     const one = computeTicks(scale, { count: 1 });
 
@@ -94,7 +106,7 @@ describe("computeTicks — count option", () => {
   });
 
   it("yields more ticks for a larger requested count (d3 treats count as a hint, not exact)", () => {
-    const scale = linearScale({ domain: [0, 100], range: [0, 400] });
+    const scale = nice0to100();
     const small = computeTicks(scale, { count: 2 });
     const large = computeTicks(scale, { count: 20 });
 
@@ -106,31 +118,27 @@ describe("computeTicks — pixelsPerTick derivation", () => {
   it("derives roughly floor(extent / 80) ticks when count is omitted", () => {
     // extent 800 / 80 = 10 requested; d3 does not guarantee an exact count,
     // so assert a range rather than pinning the exact length.
-    const scale = linearScale({ domain: [0, 1000], range: [0, 800] });
-    const ticks = computeTicks(scale);
+    const ticks = computeTicks(wide([0, 800]));
 
     expect(ticks.length).toBeGreaterThanOrEqual(8);
     expect(ticks.length).toBeLessThanOrEqual(13);
   });
 
   it("clamps the derived count to the minimum of 2 for a small range", () => {
-    const scale = linearScale({ domain: [0, 1000], range: [0, 80] });
-    const ticks = computeTicks(scale);
-
-    expect(ticks.length).toBeGreaterThanOrEqual(2);
+    expect(computeTicks(wide([0, 80])).length).toBeGreaterThanOrEqual(2);
   });
 
   it("clamps to the same minimum when floor(extent / 80) would be 0", () => {
     // extent 40 -> floor(40 / 80) = 0 -> clamped to 2, identical hint to extent 80.
-    const wide = computeTicks(linearScale({ domain: [0, 1000], range: [0, 800] }));
-    const narrow = computeTicks(linearScale({ domain: [0, 1000], range: [0, 40] }));
+    const roomy = computeTicks(wide([0, 800]));
+    const narrow = computeTicks(wide([0, 40]));
 
     expect(narrow.length).toBeGreaterThanOrEqual(2);
-    expect(narrow.length).toBeLessThan(wide.length);
+    expect(narrow.length).toBeLessThan(roomy.length);
   });
 
   it("respects an explicit pixelsPerTick override", () => {
-    const scale = linearScale({ domain: [0, 1000], range: [0, 800] });
+    const scale = wide([0, 800]);
     const coarse = computeTicks(scale, { pixelsPerTick: 400 }); // floor(800 / 400) = 2
     const fine = computeTicks(scale, { pixelsPerTick: 40 }); // floor(800 / 40) = 20
 
@@ -140,8 +148,7 @@ describe("computeTicks — pixelsPerTick derivation", () => {
 
 describe("computeTicks — custom format override", () => {
   it("uses a custom formatter for a linear scale instead of the default", () => {
-    const scale = linearScale({ domain: [0, 100], range: [0, 400] });
-    const ticks = computeTicks(scale, { format: (v: number) => `n${v}` });
+    const ticks = computeTicks(nice0to100(), { format: (v: number) => `n${v}` });
 
     expect(ticks.length).toBeGreaterThan(0);
     for (const tick of ticks) {
@@ -150,11 +157,7 @@ describe("computeTicks — custom format override", () => {
   });
 
   it("uses a custom formatter for a time scale instead of the default", () => {
-    const scale = timeScale({
-      domain: [new Date(Date.UTC(2026, 0, 1)), new Date(Date.UTC(2026, 11, 31))],
-      range: [0, 800],
-    });
-    const ticks = computeTicks(scale, { format: () => "X" });
+    const ticks = computeTicks(year2026(), { format: () => "X" });
 
     expect(ticks.length).toBeGreaterThan(0);
     for (const tick of ticks) {
@@ -167,18 +170,15 @@ describe("computeTicks — formatter typing (compile-time contract)", () => {
   // These tests earn their keep at `tsc` time as much as at runtime: the
   // expect-error directive below FAILS the typecheck if the rejection stops
   // happening, and the inline-lambda cases fail to compile if `v` stops inferring.
-  const D0 = new Date(Date.UTC(2026, 0, 1));
-  const D1 = new Date(Date.UTC(2026, 11, 31));
 
   it("infers `number` for a linear scale's inline formatter (the old `never` rejected this)", () => {
-    const linear = linearScale({ domain: [0, 100], range: [0, 400] });
-    const ticks = computeTicks(linear, { format: (v) => v.toFixed(2) });
+    const ticks = computeTicks(nice0to100(), { format: (v) => v.toFixed(2) });
     expect(ticks.length).toBeGreaterThan(0);
     for (const tick of ticks) expect(tick.label).toContain(".");
   });
 
   it("infers `Date` for a time scale's inline formatter", () => {
-    const time = timeScale({ domain: [D0, D1], range: [0, 800] });
+    const time = year2026();
     // `v` must carry Date methods; the label content is a 4-digit year. The
     // exact year is not pinned — a tick at local midnight can read a UTC year
     // one off — but calling `getUTCFullYear` at all is the proof `v` is a Date.
@@ -188,7 +188,7 @@ describe("computeTicks — formatter typing (compile-time contract)", () => {
   });
 
   it("rejects a Date formatter on a linear scale — the direction the old bug travelled", () => {
-    const linear = linearScale({ domain: [0, 100], range: [0, 400] });
+    const linear = nice0to100();
     // Purely a COMPILE-TIME assertion: this closure is never invoked, because at
     // runtime `v` is a number and `getUTCFullYear` would throw. What matters is
     // that `tsc` rejects the annotation — exactly what the old `(value: never)`

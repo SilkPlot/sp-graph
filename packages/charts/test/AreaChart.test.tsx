@@ -11,7 +11,23 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { AreaChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { computeTicks, timeScale, linearScale } from "@silkplot/core";
+import { computeTicks, timeScale } from "@silkplot/core";
+import {
+  HEIGHT,
+  INNER_HEIGHT,
+  INNER_WIDTH,
+  NO_MARGINS,
+  WIDTH,
+  axisTicks,
+  expectNoNaN,
+  expectedTimeXScale,
+  expectedYScale,
+  markD,
+  markPaths as getPaths,
+  moveCount,
+  pathXs,
+  pathYs,
+} from "./support";
 
 /** Five points so a middle gap leaves a genuine multi-point region on each side. */
 const DATA5: TimePoint[] = [
@@ -29,40 +45,21 @@ const DATA: TimePoint[] = [
   { t: new Date(Date.UTC(2026, 0, 4)), y: 9 },
 ];
 
-const WIDTH = 400;
-const HEIGHT = 300;
-
-function getPaths(container: HTMLElement): SVGPathElement[] {
-  // Axis domain paths are also <path> elements; the chart's own area/line
-  // paths are the ones without a `data-silkplot-axis` ancestor.
-  return Array.from(container.querySelectorAll("svg > g > path")).filter(
-    (p) => !p.closest("[data-silkplot-axis]"),
-  ) as SVGPathElement[];
-}
-
-const NO_MARGINS = { top: 0, right: 0, bottom: 0, left: 0 };
-
 /**
- * Y coordinates of every point in a path `d`, in order. Only valid for
- * `curve="linear"` output (M/L commands) — the default monotoneX curve emits
- * bezier `C` segments whose control points are not data positions.
+ * The y-scale AreaChart composes, rebuilt from the same inputs.
+ *
+ * `"zero-baseline"` is named here rather than inherited from a shared default:
+ * it is what separates AreaChart from LineChart, whose `"zero-floor"` leaves the
+ * top bound at the data's own maximum. The two agree on every all-positive
+ * series and part company on an all-negative one, which is why this argument is
+ * spelled out at the call site instead of being defaulted somewhere central.
  */
-function pathYs(d: string): number[] {
-  return Array.from(d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)).map((m) => Number(m[2]));
-}
-
-/** X coordinates of every M/L point in a path `d`, in order (linear curve only). */
-function pathXs(d: string): number[] {
-  return Array.from(d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)).map((m) => Number(m[1]));
-}
-
-/** The y-scale AreaChart builds internally, rebuilt here from the same inputs. */
 function yScaleFor(data: readonly TimePoint[], innerHeight: number) {
-  const values = data.map((d) => d.y);
-  return linearScale({
-    domain: [Math.min(0, ...values), Math.max(0, ...values)],
-    range: [innerHeight, 0],
-  });
+  return expectedYScale(
+    data.map((d) => d.y),
+    "zero-baseline",
+    innerHeight,
+  );
 }
 
 describe("AreaChart — baseline geometry", () => {
@@ -73,7 +70,7 @@ describe("AreaChart — baseline geometry", () => {
     const { container } = render(() => (
       <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const areaD = getPaths(container)[0]!.getAttribute("d")!;
+    const areaD = markD(container);
     const zeroY = yScaleFor(DATA, HEIGHT)(0);
 
     // The closing edge (the last two points before Z) is the baseline.
@@ -91,7 +88,7 @@ describe("AreaChart — baseline geometry", () => {
     const { container } = render(() => (
       <AreaChart title="Coverage over time" data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const areaD = getPaths(container)[0]!.getAttribute("d")!;
+    const areaD = markD(container);
     const y = yScaleFor(negative, HEIGHT);
     const ys = pathYs(areaD);
 
@@ -224,11 +221,7 @@ describe("AreaChart — data replacement", () => {
     const { container } = render(() => (
       <AreaChart title="Coverage over time" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const noNaN = (): void => {
-      container.querySelectorAll("path").forEach((p) => {
-        expect(p.getAttribute("d") ?? "").not.toContain("NaN");
-      });
-    };
+    const noNaN = (): void => expectNoNaN(container, "path", ["d"]);
     noNaN();
 
     setData(AFTER);
@@ -283,32 +276,16 @@ describe("AreaChart — structure", () => {
 describe("AreaChart — ticks match @silkplot/core computeTicks", () => {
   it("bottom axis tick count matches computeTicks for the equivalent time scale", () => {
     const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
-    const bottomAxis = container.querySelector('g[data-silkplot-axis="bottom"]') as SVGGElement;
-    const margins = { top: 8, right: 12, bottom: 24, left: 40 };
-    const innerWidth = WIDTH - margins.left - margins.right;
-
-    const x = timeScale({
-      domain: [DATA[0]!.t, DATA[DATA.length - 1]!.t],
-      range: [0, innerWidth],
-    });
+    const x = expectedTimeXScale(DATA.map((d) => d.t), INNER_WIDTH);
     const expectedTicks = computeTicks(x, {});
-    const tickGroups = bottomAxis.querySelectorAll(":scope > g");
-    expect(tickGroups).toHaveLength(expectedTicks.length);
+    expect(axisTicks(container, "bottom")).toHaveLength(expectedTicks.length);
   });
 
   it("left axis tick count matches computeTicks for the equivalent linear scale", () => {
     const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
-    const leftAxis = container.querySelector('g[data-silkplot-axis="left"]') as SVGGElement;
-    const margins = { top: 8, right: 12, bottom: 24, left: 40 };
-    const innerHeight = HEIGHT - margins.top - margins.bottom;
-
-    const values = DATA.map((d) => d.y);
-    const lo = Math.min(0, ...values);
-    const hi = Math.max(...values);
-    const y = linearScale({ domain: [lo, hi], range: [innerHeight, 0] });
+    const y = yScaleFor(DATA, INNER_HEIGHT);
     const expectedTicks = computeTicks(y, {});
-    const tickGroups = leftAxis.querySelectorAll(":scope > g");
-    expect(tickGroups).toHaveLength(expectedTicks.length);
+    expect(axisTicks(container, "left")).toHaveLength(expectedTicks.length);
   });
 });
 
@@ -317,11 +294,7 @@ describe("AreaChart — empty data", () => {
     expect(() => render(() => <AreaChart title="Coverage over time" data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
 
     const { container } = render(() => <AreaChart title="Coverage over time" data={[]} width={WIDTH} height={HEIGHT} />);
-    const paths = container.querySelectorAll("path");
-    paths.forEach((p) => {
-      const d = p.getAttribute("d") ?? "";
-      expect(d).not.toContain("NaN");
-    });
+    expectNoNaN(container, "path", ["d"]);
   });
 });
 
@@ -372,7 +345,7 @@ describe("AreaChart — time domain covers the data extent, not first/last", () 
     const { container } = render(() => (
       <AreaChart title="Coverage over time" data={scrambled} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const xs = pathXs(getPaths(container)[0]!.getAttribute("d")!);
+    const xs = pathXs(markD(container));
 
     expect(xs.length).toBeGreaterThan(0);
     for (const x of xs) {
@@ -401,9 +374,9 @@ describe("AreaChart — gaps and the finite guard", () => {
     const whole = render(() => (
       <AreaChart title="Coverage over time" data={DATA5} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
-    const wholeD = getPaths(whole.container)[0]!.getAttribute("d")!;
+    const wholeD = markD(whole.container);
     // One contiguous region: exactly one move command.
-    expect((wholeD.match(/M/g) ?? [])).toHaveLength(1);
+    expect(moveCount(wholeD)).toBe(1);
 
     const gapped = render(() => (
       <AreaChart
@@ -415,9 +388,9 @@ describe("AreaChart — gaps and the finite guard", () => {
         defined={(_d, i) => i !== 2}
       />
     ));
-    const gappedD = getPaths(gapped.container)[0]!.getAttribute("d")!;
+    const gappedD = markD(gapped.container);
     // The gap splits {0,1} from {3,4}: a second move command appears.
-    expect((gappedD.match(/M/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(moveCount(gappedD)).toBeGreaterThanOrEqual(2);
     expect(gappedD).not.toBe(wholeD);
   });
 
@@ -433,13 +406,11 @@ describe("AreaChart — gaps and the finite guard", () => {
       <AreaChart title="Coverage over time" data={withHole} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
 
-    container.querySelectorAll("path").forEach((p) => {
-      expect(p.getAttribute("d") ?? "").not.toContain("NaN");
-    });
+    expectNoNaN(container, "path", ["d"]);
     // Vacuous-pass guard: the non-finite point must actually register as a gap,
     // not silently vanish — the fill splits into two regions.
-    const areaD = getPaths(container)[0]!.getAttribute("d")!;
-    expect((areaD.match(/M/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    const areaD = markD(container);
+    expect(moveCount(areaD)).toBeGreaterThanOrEqual(2);
   });
 
   it("ANDs the finite check with the caller's `defined`, never overriding it", () => {
@@ -455,8 +426,8 @@ describe("AreaChart — gaps and the finite guard", () => {
         defined={(_d, i) => i !== 2}
       />
     ));
-    const areaD = getPaths(container)[0]!.getAttribute("d")!;
+    const areaD = markD(container);
     expect(areaD).not.toContain("NaN");
-    expect((areaD.match(/M/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(moveCount(areaD)).toBeGreaterThanOrEqual(2);
   });
 });

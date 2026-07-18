@@ -14,28 +14,27 @@
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
 import { createMemo, type Component } from "solid-js";
-import { timeScale, areaPath, linePath, extentOf, type CurveName } from "@silkplot/core";
+import { areaPath, linePath, type CurveName } from "@silkplot/core";
 import {
-  ChartRoot,
-  ChartDataAlternative,
   createCartesianModel,
   createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
-  type ChartTableRow,
-  type Margins,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import {
+  ChartShell,
+  StrokedLine,
+  finiteDefined,
+  timeExtentScale,
+  timePointRows,
+  type CartesianChartProps,
+} from "./scaffold";
 import type { TimePoint } from "./types";
 
-export interface AreaChartBaseProps {
+export interface AreaChartBaseProps extends CartesianChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
   data: readonly TimePoint[];
-  /** Fixed width in px. Omit to fill and measure the parent. */
-  width?: number;
-  /** Fixed height in px. Omit to fill and measure the parent. */
-  height?: number;
-  margins?: Partial<Margins>;
   /** Area/line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -58,9 +57,6 @@ export interface AreaChartBaseProps {
   stroke?: string;
   /** Line stroke width in px. Default: 1.5. */
   strokeWidth?: number;
-  /** Draw tick-aligned gridlines behind the marks. Default: true. */
-  gridlines?: boolean;
-  class?: string;
 }
 
 /**
@@ -78,23 +74,7 @@ type AreaChartBodyProps = AreaChartBaseProps & { semantics: ChartSemantics };
 const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   const model = createCartesianModel({
     data: () => props.data,
-    // The time domain is the data's EXTENT, not its first and last datum.
-    //
-    // Reading the ends assumed the series was already sorted, and silently drew
-    // nonsense when it was not: [Jan 10, Jan 1, Jan 5] produced a REVERSED
-    // domain, and the middle point rendered outside the plot area entirely
-    // (scales do not clamp by default). The comment that used to sit here
-    // claimed the opposite — that reading the ends stopped a stray out-of-order
-    // point widening the axis. It never did that; it just failed differently.
-    //
-    // The contract is now: the domain covers your data, and the fill follows
-    // your array. The honest fix for a scrambled series is to sort it before
-    // passing it in. This extent scan is one the y-axis already makes over the
-    // same array.
-    x: (range) => {
-      const [lo, hi] = extentOf(props.data, (d) => d.t.getTime());
-      return timeScale({ domain: [new Date(lo), new Date(hi)], range });
-    },
+    x: (range) => timeExtentScale(props.data, range),
     // The area is drawn FROM the zero baseline, so 0 must be inside the domain
     // or the fill's flat edge lands on a pixel the axis labels as some other
     // value. "zero-baseline" keeps that honest for all-negative and
@@ -106,60 +86,34 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   /** Pixel position of the zero baseline; the domain policy guarantees it is in range. */
   const baselineY = createMemo(() => model.y()(0));
 
-  const areaD = createMemo(() => {
+  /**
+   * The pixel mapping both marks share. Built once per recompute so the fill and
+   * its top stroke are guaranteed to be reading the same scales and the same
+   * gap predicate — two marks that disagreed about which points are defined
+   * would break the stroke and the fill at different places.
+   */
+  const marks = createMemo(() => {
     const xs = model.x();
     const ys = model.y();
-    const px = (d: TimePoint): number => xs(d.t);
-    const py = (d: TimePoint): number => ys(d.y);
-    return areaPath(props.data, {
-      x: px,
-      y0: baselineY(),
-      y1: py,
-      // The finite check is the library's and is not optional: a datum that maps
-      // to a non-finite pixel has nowhere to be drawn, and passing it through
-      // yields a `d` the browser abandons at the bad segment — for a fill that
-      // corrupts the whole shape, not just one span. `extentOf` already keeps
-      // such values out of the DOMAIN; this keeps them out of the MARK, the
-      // other half of the same policy. The area and its top stroke share this
-      // predicate so they break at exactly the same points.
-      defined: (d, i) =>
-        Number.isFinite(px(d)) && Number.isFinite(py(d)) && (props.defined?.(d, i) ?? true),
-      curve: props.curve ?? "monotoneX",
-    });
+    const x = (d: TimePoint): number => xs(d.t);
+    const y = (d: TimePoint): number => ys(d.y);
+    return { x, y, defined: finiteDefined(x, y, props.defined), curve: props.curve ?? "monotoneX" };
+  });
+
+  const areaD = createMemo(() => {
+    const { x, defined, curve } = marks();
+    return areaPath(props.data, { x, y0: baselineY(), y1: marks().y, defined, curve });
   });
 
   const lineD = createMemo(() => {
-    const xs = model.x();
-    const ys = model.y();
-    const px = (d: TimePoint): number => xs(d.t);
-    const py = (d: TimePoint): number => ys(d.y);
-    return linePath(props.data, {
-      x: px,
-      y: py,
-      defined: (d, i) =>
-        Number.isFinite(px(d)) && Number.isFinite(py(d)) && (props.defined?.(d, i) ?? true),
-      curve: props.curve ?? "monotoneX",
-    });
+    const { x, y, defined, curve } = marks();
+    return linePath(props.data, { x, y, defined, curve });
   });
 
   return (
-    <CartesianFrame
-      x={model.x()}
-      y={model.y()}
-      hasArea={model.hasArea()}
-      gridlines={props.gridlines}
-      semantics={props.semantics}
-      class={props.class}
-    >
+    <CartesianFrame model={model} layout={props} semantics={props.semantics}>
       <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
-      <path
-        d={lineD()}
-        fill="none"
-        stroke={props.stroke ?? "currentColor"}
-        stroke-width={props.strokeWidth ?? 1.5}
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
+      <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
     </CartesianFrame>
   );
 };
@@ -168,16 +122,8 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
   const semantics = createChartSemantics(props);
 
   return (
-    <>
-      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-        <AreaChartBody {...props} semantics={semantics} />
-      </ChartRoot>
-      <ChartDataAlternative
-        semantics={semantics}
-        defaultRows={(): readonly ChartTableRow[] =>
-          props.data.map((d) => [d.t.toISOString(), d.y] as const)
-        }
-      />
-    </>
+    <ChartShell layout={props} semantics={semantics} rows={() => timePointRows(props.data)}>
+      <AreaChartBody {...props} semantics={semantics} />
+    </ChartShell>
   );
 };

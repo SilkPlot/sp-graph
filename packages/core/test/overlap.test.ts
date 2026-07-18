@@ -62,6 +62,42 @@ function maxConcurrent(items: readonly Interval[]): number {
   return max;
 }
 
+/**
+ * Build an expected packing from `(item, lane, laneCount)` triples.
+ *
+ * This constructs the expectation; it does not make it. Every case below still
+ * writes its own lanes and lane counts and still fails on its own numbers — what
+ * is shared is the `{ item, lane, laneCount }` object shape, which is the
+ * packer's output format and identical by definition.
+ */
+const packing = <T extends Interval>(
+  ...rows: Array<[item: T, lane: number, laneCount: number]>
+): PackedInterval<T>[] => rows.map(([item, lane, laneCount]) => ({ item, lane, laneCount }));
+
+/** No two overlapping intervals may share a lane. Asserted over whichever set is passed. */
+function expectNoLaneSharing(packed: readonly PackedInterval<Interval>[]): void {
+  for (let i = 0; i < packed.length; i++) {
+    for (let j = i + 1; j < packed.length; j++) {
+      if (overlaps(packed[i]!.item, packed[j]!.item)) {
+        expect(packed[i]!.lane).not.toBe(packed[j]!.lane);
+      }
+    }
+  }
+}
+
+/** Every item in a cluster carries one laneCount, and it equals that cluster's peak concurrency. */
+function expectClusterLaneCounts(
+  items: readonly Interval[],
+  packed: readonly PackedInterval<Interval>[],
+): void {
+  const byItem = new Map(packed.map((p) => [p.item, p]));
+  for (const cluster of overlapClusters(items)) {
+    const laneCounts = new Set(cluster.map((it) => byItem.get(it)!.laneCount));
+    expect(laneCounts.size).toBe(1);
+    expect([...laneCounts][0]).toBe(maxConcurrent(cluster));
+  }
+}
+
 describe("packOverlaps — basic shape", () => {
   it("returns an empty array for empty input", () => {
     expect(packOverlaps([])).toEqual([]);
@@ -75,21 +111,13 @@ describe("packOverlaps — basic shape", () => {
   it("puts two disjoint intervals both in lane 0, each its own 1-lane cluster", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 20, end: 30 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 1 },
-      { item: b, lane: 0, laneCount: 1 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 1], [b, 0, 1]));
   });
 
   it("puts two overlapping intervals in different lanes of a shared 2-lane cluster", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 5, end: 15 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 2 },
-      { item: b, lane: 1, laneCount: 2 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 2], [b, 1, 2]));
   });
 });
 
@@ -97,51 +125,31 @@ describe("packOverlaps — cluster boundaries", () => {
   it("treats touching intervals (a.end === b.start) as non-overlapping — new cluster", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 10, end: 20 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 1 },
-      { item: b, lane: 0, laneCount: 1 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 1], [b, 0, 1]));
   });
 
   it("keeps a genuinely overlapping pair (b.start just before a.end) in one cluster", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 9, end: 20 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 2 },
-      { item: b, lane: 1, laneCount: 2 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 2], [b, 1, 2]));
   });
 
   it("treats two identical zero-length intervals at the same point as touching, not overlapping", () => {
     const a = { start: 5, end: 5 };
     const b = { start: 5, end: 5 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 1 },
-      { item: b, lane: 0, laneCount: 1 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 1], [b, 0, 1]));
   });
 
   it("treats a zero-length interval at another interval's end as touching, not overlapping", () => {
     const a = { start: 0, end: 5 };
     const b = { start: 5, end: 5 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 1 },
-      { item: b, lane: 0, laneCount: 1 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 1], [b, 0, 1]));
   });
 
   it("packs a zero-length interval that starts inside another interval into a second lane", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 5, end: 5 };
-    const packed = packOverlaps([a, b]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 2 },
-      { item: b, lane: 1, laneCount: 2 },
-    ]);
+    expect(packOverlaps([a, b])).toEqual(packing([a, 0, 2], [b, 1, 2]));
   });
 });
 
@@ -150,12 +158,8 @@ describe("packOverlaps — lane reuse", () => {
     const a = { start: 0, end: 100 };
     const b = { start: 10, end: 20 };
     const c = { start: 30, end: 40 };
-    const packed = packOverlaps([a, b, c]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 2 },
-      { item: b, lane: 1, laneCount: 2 },
-      { item: c, lane: 1, laneCount: 2 },
-    ]);
+    // b frees lane 1 at t=20, so c takes it back rather than opening a third.
+    expect(packOverlaps([a, b, c])).toEqual(packing([a, 0, 2], [b, 1, 2], [c, 1, 2]));
   });
 });
 
@@ -164,24 +168,15 @@ describe("packOverlaps — ties", () => {
     const a = { start: 5, end: 10 };
     const b = { start: 5, end: 10 };
     const c = { start: 5, end: 10 };
-    const packed = packOverlaps([a, b, c]);
-    expect(packed).toEqual([
-      { item: a, lane: 0, laneCount: 3 },
-      { item: b, lane: 1, laneCount: 3 },
-      { item: c, lane: 2, laneCount: 3 },
-    ]);
+    expect(packOverlaps([a, b, c])).toEqual(packing([a, 0, 3], [b, 1, 3], [c, 2, 3]));
   });
 
   it("sorts intervals sharing a start by ascending end, and packs them into distinct lanes", () => {
     const a = { start: 0, end: 10 };
     const b = { start: 0, end: 5 };
     const c = { start: 0, end: 20 };
-    const packed = packOverlaps([a, b, c]);
-    expect(packed).toEqual([
-      { item: b, lane: 0, laneCount: 3 },
-      { item: a, lane: 1, laneCount: 3 },
-      { item: c, lane: 2, laneCount: 3 },
-    ]);
+    // Output order is the SORTED order — b (end 5) first, then a, then c.
+    expect(packOverlaps([a, b, c])).toEqual(packing([b, 0, 3], [a, 1, 3], [c, 2, 3]));
   });
 });
 
@@ -242,22 +237,11 @@ describe("packOverlaps — invariants over a larger deterministic set", () => {
   const packed = packOverlaps(items);
 
   it("never assigns overlapping intervals to the same lane", () => {
-    for (let i = 0; i < packed.length; i++) {
-      for (let j = i + 1; j < packed.length; j++) {
-        if (overlaps(packed[i]!.item, packed[j]!.item)) {
-          expect(packed[i]!.lane).not.toBe(packed[j]!.lane);
-        }
-      }
-    }
+    expectNoLaneSharing(packed);
   });
 
   it("gives every item in an overlap cluster the same laneCount, equal to peak concurrency", () => {
-    const byItem = new Map(packed.map((p) => [p.item, p]));
-    for (const cluster of overlapClusters(items)) {
-      const laneCounts = new Set(cluster.map((it) => byItem.get(it)!.laneCount));
-      expect(laneCounts.size).toBe(1);
-      expect([...laneCounts][0]).toBe(maxConcurrent(cluster));
-    }
+    expectClusterLaneCounts(items, packed);
   });
 
   it("uses exactly the lanes [0, laneCount) within each cluster, with no gaps", () => {
@@ -426,22 +410,13 @@ describe("packOverlaps — key permutation determinism across every tie shape", 
   });
 
   it("upholds the geometry invariants: no overlapping pair shares a lane, one laneCount per cluster", () => {
+    // The same two invariants as the unkeyed set above, over a set built to hit
+    // every tie shape. Same property, different data — this still fails on its
+    // own dataset, and it must hold once a key enters the sort just as it did
+    // without one.
     const packed = packOverlaps(KEYED, { key });
-
-    for (let i = 0; i < packed.length; i++) {
-      for (let j = i + 1; j < packed.length; j++) {
-        if (overlaps(packed[i]!.item, packed[j]!.item)) {
-          expect(packed[i]!.lane).not.toBe(packed[j]!.lane);
-        }
-      }
-    }
-
-    const byItem = new Map(packed.map((p) => [p.item, p]));
-    for (const cluster of overlapClusters(KEYED)) {
-      const laneCounts = new Set(cluster.map((it) => byItem.get(it as Keyed)!.laneCount));
-      expect(laneCounts.size).toBe(1);
-      expect([...laneCounts][0]).toBe(maxConcurrent(cluster));
-    }
+    expectNoLaneSharing(packed);
+    expectClusterLaneCounts(KEYED, packed);
   });
 
   it("does not mutate the caller's array or its items when keyed", () => {

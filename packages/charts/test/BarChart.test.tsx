@@ -12,43 +12,36 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { BarChart } from "../src/index";
 import type { CategoryPoint } from "../src/index";
-import { bandScale, linearScale, computeBandTicks, extentOf } from "@silkplot/core";
-import { DEFAULT_MARGINS, resolveBounds } from "@silkplot/solid";
+import { bandScale, computeBandTicks } from "@silkplot/core";
+import {
+  HEIGHT,
+  INNER_HEIGHT,
+  INNER_WIDTH,
+  WIDTH,
+  axisLabels,
+  bars as getBars,
+  expectNoNaN,
+  expectedYScale,
+  num,
+} from "./support";
 
-const WIDTH = 400;
-const HEIGHT = 300;
+/** The geometry attributes a `<rect>` can silently render nothing from. */
+const RECT_ATTRS = ["x", "y", "width", "height"] as const;
 
-/** Rebuild the same bounds ChartRoot resolves for fixed width/height + default margins. */
-function bounds(width = WIDTH, height = HEIGHT) {
-  return resolveBounds(width, height, DEFAULT_MARGINS);
-}
-
-/** Rebuild the exact x/y scales BarChart composes internally, for cross-checking. */
+/**
+ * Rebuild the x/y scales BarChart composes, for cross-checking.
+ *
+ * `"zero-baseline"` is named here rather than inherited from a shared default:
+ * bars are drawn FROM zero, so the domain must contain it. That is AreaChart's
+ * policy and deliberately NOT LineChart's `"zero-floor"`, which would leave the
+ * top bound at the data maximum and put an all-negative chart's baseline
+ * off-canvas.
+ */
 function expectedScales(data: readonly CategoryPoint[], padding?: number) {
-  const b = bounds();
-  const x = bandScale({
-    domain: data.map((d) => d.label),
-    range: [0, b.innerWidth],
-    padding,
-  });
-  const [lo, hi] = extentOf(data, (d) => d.y);
-  const y = linearScale({
-    domain: [Math.min(0, lo), Math.max(0, hi)],
-    range: [b.innerHeight, 0],
-  });
-  return { x, y };
-}
-
-function getBars(container: HTMLElement): SVGRectElement[] {
-  return Array.from(container.querySelectorAll("rect"));
-}
-
-function num(el: Element, attr: string): number {
-  const raw = el.getAttribute(attr);
-  expect(raw, `expected <${el.tagName}> to have a numeric "${attr}" attribute`).not.toBeNull();
-  const value = Number(raw);
-  expect(Number.isNaN(value), `"${attr}"="${raw}" parsed as NaN`).toBe(false);
-  return value;
+  return {
+    x: bandScale({ domain: data.map((d) => d.label), range: [0, INNER_WIDTH], padding }),
+    y: expectedYScale(data.map((d) => d.y), "zero-baseline", INNER_HEIGHT),
+  };
 }
 
 const ALL_POSITIVE: CategoryPoint[] = [
@@ -185,7 +178,6 @@ describe("BarChart — data replacement", () => {
   /** Assert every bar's geometry is the one the CURRENT series implies. */
   function expectBarsTrack(container: HTMLElement, data: readonly CategoryPoint[]): void {
     const { x, y } = expectedScales(data);
-    const { innerHeight } = bounds();
     const baseline = y(0);
     const bars = getBars(container);
     expect(bars).toHaveLength(data.length);
@@ -206,7 +198,7 @@ describe("BarChart — data replacement", () => {
       expect(rectY).toBeCloseTo(Math.min(baseline, value));
       expect(rectHeight).toBeCloseTo(Math.abs(value - baseline));
       expect(rectY).toBeGreaterThanOrEqual(-1e-6);
-      expect(rectY + rectHeight).toBeLessThanOrEqual(innerHeight + 1e-6);
+      expect(rectY + rectHeight).toBeLessThanOrEqual(INNER_HEIGHT + 1e-6);
     });
   }
 
@@ -236,10 +228,7 @@ describe("BarChart — data replacement", () => {
 
     expectBarsTrack(container, relabelled);
     // The band axis must relabel too — the categories are entirely new.
-    const labels = Array.from(
-      container.querySelector('g[data-silkplot-axis="bottom"]')?.querySelectorAll("text") ?? [],
-    ).map((t) => t.textContent);
-    expect(labels).toEqual(relabelled.map((d) => d.label));
+    expect(axisLabels(container, "bottom")).toEqual(relabelled.map((d) => d.label));
     expect(expectedScales(relabelled).y.domain()).not.toEqual(expectedScales(BEFORE).y.domain());
   });
 
@@ -281,7 +270,7 @@ describe("BarChart — data replacement", () => {
 
     // All-positive: the baseline is now the bottom. A stale scale would leave
     // every bar hanging off the top edge with a wildly wrong height.
-    expect(expectedScales(positive).y(0)).toBeCloseTo(bounds().innerHeight);
+    expect(expectedScales(positive).y(0)).toBeCloseTo(INNER_HEIGHT);
     expectBarsTrack(container, positive);
     // Guard: this case only means anything because the baseline pixel MOVED.
     expect(expectedScales(positive).y(0)).not.toBeCloseTo(expectedScales(negative).y(0));
@@ -290,13 +279,7 @@ describe("BarChart — data replacement", () => {
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<CategoryPoint[]>([]);
     const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
-    const noNaN = (): void => {
-      for (const attr of ["x", "y", "width", "height"]) {
-        for (const el of Array.from(container.querySelectorAll(`[${attr}]`))) {
-          expect(el.getAttribute(attr)).not.toContain("NaN");
-        }
-      }
-    };
+    const noNaN = (): void => expectNoNaN(container, "*", RECT_ATTRS);
     expect(getBars(container)).toHaveLength(0);
     noNaN();
 
@@ -318,12 +301,8 @@ describe("BarChart — axes", () => {
     const { x } = expectedScales(ALL_POSITIVE);
     const expectedTicks = computeBandTicks(x);
 
-    const bottomAxis = container.querySelector('g[data-silkplot-axis="bottom"]');
-    expect(bottomAxis).not.toBeNull();
-    const labels = Array.from(bottomAxis?.querySelectorAll("text") ?? []).map(
-      (t) => t.textContent,
-    );
-    expect(labels).toEqual(expectedTicks.map((t) => t.label));
+    expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
+    expect(axisLabels(container, "bottom")).toEqual(expectedTicks.map((t) => t.label));
   });
 
   it("renders a left linear axis", () => {
@@ -351,11 +330,7 @@ describe("BarChart — edge cases", () => {
     ));
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
-    for (const attr of ["x", "y", "width", "height"]) {
-      for (const el of Array.from(container.querySelectorAll(`[${attr}]`))) {
-        expect(el.getAttribute(attr)).not.toContain("NaN");
-      }
-    }
+    expectNoNaN(container, "*", RECT_ATTRS);
   });
 
   it("applies the accessible title", () => {

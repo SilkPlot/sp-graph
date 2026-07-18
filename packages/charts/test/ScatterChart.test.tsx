@@ -14,7 +14,16 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { ScatterChart } from "../src/index";
 import type { XYPoint } from "../src/index";
-import { extentOf, linearScale } from "@silkplot/core";
+import {
+  HEIGHT,
+  INNER_HEIGHT,
+  INNER_WIDTH,
+  WIDTH,
+  circles as getCircles,
+  expectNoNaN,
+  expectedLinearXScale,
+  expectedYScale,
+} from "./support";
 
 const DATA: XYPoint[] = [
   { x: 1, y: 3 },
@@ -23,14 +32,19 @@ const DATA: XYPoint[] = [
   { x: 9, y: 9 },
 ];
 
-const WIDTH = 400;
-const HEIGHT = 300;
-const MARGINS = { top: 8, right: 12, bottom: 24, left: 40 };
-const INNER_WIDTH = WIDTH - MARGINS.left - MARGINS.right;
-const INNER_HEIGHT = HEIGHT - MARGINS.top - MARGINS.bottom;
-
-function getCircles(container: HTMLElement): SVGCircleElement[] {
-  return Array.from(container.querySelectorAll("svg > g > circle")) as SVGCircleElement[];
+/**
+ * The scales ScatterChart composes, rebuilt from the same inputs.
+ *
+ * `"extent"` is named here, and it is the one policy no other chart in this
+ * package uses: a cloud is read by relative position, so forcing zero into a
+ * domain that does not contain it squashes the points into a corner. Both axes
+ * take the data's own extent — the x axis included, unlike every other chart.
+ */
+function scalesFor(data: readonly XYPoint[]) {
+  return {
+    x: expectedLinearXScale(data.map((d) => d.x), INNER_WIDTH),
+    y: expectedYScale(data.map((d) => d.y), "extent", INNER_HEIGHT),
+  };
 }
 
 describe("ScatterChart — structure", () => {
@@ -62,17 +76,7 @@ describe("ScatterChart — scales use the data extent, not a zero-forced domain"
   it("cx/cy match linearScale built over the raw x/y extent (no Math.min(0, lo))", () => {
     const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     const circles = getCircles(container);
-
-    const xs = DATA.map((d) => d.x);
-    const ys = DATA.map((d) => d.y);
-    const x = linearScale({
-      domain: [Math.min(...xs), Math.max(...xs)],
-      range: [0, INNER_WIDTH],
-    });
-    const y = linearScale({
-      domain: [Math.min(...ys), Math.max(...ys)],
-      range: [INNER_HEIGHT, 0],
-    });
+    const { x, y } = scalesFor(DATA);
 
     DATA.forEach((d, i) => {
       const circle = circles[i]!;
@@ -102,14 +106,6 @@ describe("ScatterChart — data replacement", () => {
     { x: 130, y: 140 },
     { x: 150, y: 150 },
   ];
-
-  /** The scales ScatterChart composes, rebuilt from the same inputs. */
-  function scalesFor(data: readonly XYPoint[]) {
-    return {
-      x: linearScale({ domain: extentOf(data, (d) => d.x), range: [0, INNER_WIDTH] }),
-      y: linearScale({ domain: extentOf(data, (d) => d.y), range: [INNER_HEIGHT, 0] }),
-    };
-  }
 
   /** Assert every circle sits where the CURRENT series puts it. */
   function expectPointsTrack(container: HTMLElement, data: readonly XYPoint[]): void {
@@ -185,14 +181,7 @@ describe("ScatterChart — data replacement", () => {
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<XYPoint[]>([]);
     const { container } = render(() => <ScatterChart title="Height against weight" data={data()} width={WIDTH} height={HEIGHT} />);
-    const noNaN = (): void => {
-      container.querySelectorAll("circle, path").forEach((el) => {
-        for (const attr of ["cx", "cy", "d"]) {
-          const value = el.getAttribute(attr);
-          if (value !== null) expect(value).not.toContain("NaN");
-        }
-      });
-    };
+    const noNaN = (): void => expectNoNaN(container, "circle, path", ["cx", "cy", "d"]);
     expect(getCircles(container)).toHaveLength(0);
     noNaN();
 
@@ -243,12 +232,7 @@ describe("ScatterChart — empty data", () => {
     const { container } = render(() => <ScatterChart title="Height against weight" data={[]} width={WIDTH} height={HEIGHT} />);
     expect(getCircles(container)).toHaveLength(0);
 
-    container.querySelectorAll("circle, path").forEach((el) => {
-      for (const attr of ["cx", "cy", "d"]) {
-        const value = el.getAttribute(attr);
-        if (value !== null) expect(value).not.toContain("NaN");
-      }
-    });
+    expectNoNaN(container, "circle, path", ["cx", "cy", "d"]);
   });
 });
 
