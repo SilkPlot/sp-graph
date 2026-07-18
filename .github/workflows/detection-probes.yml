@@ -1,0 +1,106 @@
+# Detection probes — proof that the test suites detect the defects they claim to.
+#
+# Each probe breaks one real behaviour in one real source file, runs the suite
+# that covers it, and requires that suite to GO RED — then restores the file and
+# requires green to return. A green suite says "these assertions did not fire";
+# only a watched failure says "these assertions would fire if the behaviour
+# broke". See scripts/detection-probes.mjs.
+#
+# ---------------------------------------------------------------------------
+# Why this is a separate workflow and not a step in CI
+# ---------------------------------------------------------------------------
+#
+# Three deliberate properties, and a job inside ci.yml would give up all three.
+#
+#   1. IT MUST NOT GATE A PUSH. The probes prove a property of the SUITES, which
+#      changes when somebody edits a suite — not on every commit. Ten sequential
+#      Vitest runs in front of every push buys nothing and costs minutes.
+#
+#   2. IT MUST NOT SHARE A RUNNER WITH THE VITEST BROWSER PROJECTS. Two browser
+#      runners started concurrently collide on the browser API port, and the
+#      collision does not report as a collision: it reports a connect timeout,
+#      executes ZERO tests, and finishes in about a second. A probe interpreting
+#      that run would be reading a crash as evidence.
+#
+#   3. IT NEEDS ITS OWN TRIGGERS. Adding `schedule` and `workflow_dispatch` to
+#      ci.yml's `on:` would apply them to the build, release, visual, and audit
+#      jobs too, which then need `if:` guards they do not otherwise want. A
+#      separate file keeps ci.yml untouched.
+#
+# Weekly rather than daily: the probes fail when a suite's coverage regresses,
+# and a regression that lands on Monday is worth catching by Sunday. Daily would
+# spend runner minutes re-proving an unchanged property. Run it by hand
+# (`workflow_dispatch`, or `npm run probe:detection` locally) whenever a suite
+# named in the probe list is touched — that is when the answer can actually change.
+#
+# A red run here is not a broken build. It is a suite that has stopped detecting
+# something it used to detect, which is a slower and more expensive problem.
+name: Detection probes
+
+on:
+  schedule:
+    # Sundays, 03:00 UTC. Off-peak, and ahead of the working week.
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probes:
+    name: Detection probes (mutate, prove the suite fails, restore)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # A cache hit restores the browser binaries but not the system libraries
+      # they link against, so those are installed either way.
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # The script refuses to start if any file it mutates is already modified,
+      # restores every file from an in-memory backup in a `finally`, and verifies
+      # the restoration by SHA-256 before reporting anything.
+      - name: Run the detection probes
+        run: npm run probe:detection
+
+      # Belt and braces. The script's own restoration check is the real guard;
+      # this is the one that would notice if the script itself were broken, and
+      # it costs nothing.
+      - name: Assert no mutated source survived the run
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "A probe left the working tree modified:"
+            git status --porcelain
+            exit 1
+          fi
+          echo "Working tree clean — every mutation was restored."

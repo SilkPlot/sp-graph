@@ -27,6 +27,7 @@
     "gate:accessibility": "node scripts/accessibility-gate.mjs",
     "gate:build-hygiene": "node scripts/build-hygiene-gate.mjs",
     "gate:duplication-scope": "node scripts/duplication-scope-gate.mjs",
+    "gate:visual-baselines": "node scripts/visual-baseline-guard.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "release:verify:manifests": "node scripts/release-verify.mjs --no-consumer",
     "audit:prod": "npm audit --omit=dev --audit-level=low",
@@ -34,6 +35,7 @@
     "test:accessibility": "node scripts/accessibility-gate.mjs --run",
     "test:coverage": "vitest run --coverage",
     "perf:hover": "node scripts/measure-hover-frames.mjs",
+    "probe:detection": "node scripts/detection-probes.mjs",
     "test:watch": "vitest"
   },
   "devDependencies": {

@@ -164,13 +164,23 @@ run, so a type error surfaces immediately as a failing run rather than shipping
 Cross-platform pixel identity is explicitly out of scope, and this is the
 practical consequence: **the committed baselines were generated on a maintainer
 Linux workstation, not on the CI runner.** Font rasterisation differs enough
-between machines that a strict comparison will disagree even when nothing
+between machines that a strict comparison could disagree even when nothing
 regressed.
 
-So the CI job is expected to be red until the set is re-pinned from a
-runner-generated artifact. That is a known state rather than a surprise, and it
-is the main reason the job cannot gate yet. Do not "fix" it by loosening the
-threshold — re-pin from the pinned environment instead.
+This section used to predict that the CI job would therefore be red until the
+set was re-pinned from a runner-generated artifact, and that this was the main
+reason the job could not gate. **That prediction was wrong, and the evidence
+that falsified it is worth more than the prediction was.** Seven consecutive
+runner executions have been clean against workstation-pinned baselines. The
+determinism controls in the table above — the pinned font face, the disabled
+hinting and subpixel positioning, the forced sRGB profile, software raster —
+close the machine-to-machine gap they were written to close, across a real
+environment boundary rather than in theory.
+
+The exposure is not zero, it is unmeasured beyond seven runs: a runner image
+update could still change rasterisation under us. If that happens the diff will
+be loud, and the remedy is to **re-pin from the runner**, never to loosen
+`threshold` or `maxDiffPixels`. Those numbers are the gate.
 
 ---
 
@@ -225,36 +235,126 @@ author's.**
 - A baseline commit that changes images **and** source in the same commit is not
   reviewable. Split it.
 
+### What enforces it
+
+Everything above was, until recently, a description of a discipline nobody was
+held to. `--update-snapshots` still runs, the suite still goes green, and no
+check noticed. A document that describes a rule without enforcing it is a
+document, not a gate.
+
+`npm run gate:visual-baselines` is the enforcement. It runs in CI as its own job
+and **fails when a file under `test/visual/baselines/` changes without a matching
+entry in the [baseline change log](#baseline-change-log) below**, added in the
+same diff.
+
+An entry has to name the exact ids that moved. The guard checks the set **both
+ways**: a baseline that changed without being named fails, and an id named that
+did *not* change fails too. So the cheapest way out — pasting a previous entry,
+or writing "all baselines updated" — does not work. You have to have looked at
+which images actually moved, which is step 3 (check the blast radius) turned into
+a check. It also reads only the lines **added** by the diff, so an entry from a
+previous re-pin cannot license a new one.
+
+It deliberately does **not** try to verify that the accepter is a second person.
+Git authorship is settable and a name in a file is not an identity; a check on it
+would assert something it cannot know. Two-person review is enforced by branch
+protection and by the reviewer reading the entry. What the guard guarantees is
+that the claim exists, is attributed, and is specific — so a reviewer who
+disagrees has a sentence to disagree with, which is what was missing.
+
+It does not block a legitimate re-pin. Three lines is the whole cost.
+
+**What it compares against.** On a push it uses `github.event.before` — the commit
+the branch pointed at before the push — passed in by the workflow as
+`PUSH_BEFORE_SHA`. That detail is load-bearing rather than incidental: the first
+version of this guard resolved `origin/main`, which on a push-to-main run *is*
+the pushed commit, so it compared HEAD against itself, found nothing, and printed
+a pass on every run regardless of what the push did. It was inert, in the most
+dangerous way available. A base that cannot be determined now **fails** rather
+than falling back to a ref that would be HEAD, and every run — pass or fail —
+prints the base SHA, how it was chosen, and where HEAD is, so a wrong comparison
+is visible in the log instead of hiding behind a green tick.
+
+---
+
+## Baseline change log
+
+Every re-pin, in the same pull request that re-pins. Newest first.
+
+Format — the guard parses it, so it is fixed:
+
+```markdown
+### YYYY-MM-DD — id, id, id
+- **Why:** one sentence naming the cause, per step 2 of the review workflow.
+- **Accepted by:** the person who looked at the rendered before/after.
+```
+
+Ids are baseline file names without `.png` (`area--negative--dark`, not
+`test/visual/baselines/area--negative--dark.png`).
+
+<!-- Entries below. Nothing has been re-pinned since the guard landed. -->
+
 ---
 
 ## CI
 
-The harness runs in CI as its own job, `Visual regression (non-gating)`, and
-uploads expected/actual/diff artifacts on every run.
+The harness runs in CI as its own job, `Visual regression`, and uploads
+expected/actual/diff artifacts on every run.
 
-**It does not gate.** `continue-on-error: true` is set deliberately: the gate is
-promoted only after **three consecutive clean runner executions** establish
-stability. It is its own job rather than a step in the build job so it cannot
-fail the build even by accident, and so its browser process can never overlap
-the Vitest browser projects.
+**It GATES, as of 2026-07-18.** A failing pixel comparison fails the build.
 
-### Promotion criterion
+It is its own job rather than a step in the build job so its browser process can
+never overlap the Vitest browser projects — two browser runners started
+concurrently collide on the browser API port, and the collision reports as a
+connect timeout having executed zero tests.
 
-Remove `continue-on-error` when **all** of the following hold:
+The artifact upload is `if: always()`, which matters more now than it did while
+the job was advisory: the harness step is the one that fails the job, so without
+it the images would be skipped on exactly the runs somebody needs to look at. A
+blocking gate that goes red with no triptych attached is a build everyone is
+stuck on and nobody can diagnose. **If this job is red, download
+`visual-regression-diffs` and look at the images** — that is step 1 of the
+review workflow, and re-pinning from a filename is what it forbids.
 
-1. Three consecutive executions on the runner are clean, with no intervening
-   baseline update, no retry, and no change to the harness between them.
-2. The committed baselines were generated in the runner environment (see
+### Promotion criterion — met, and how
+
+The criterion was:
+
+1. Three consecutive clean runner executions, with no intervening baseline
+   update, no retry, and no change to the harness between them.
+2. The committed baselines generated in the runner environment (see
    [Baselines are pinned to one environment](#baselines-are-pinned-to-one-environment)).
+
+**Criterion 1: met**, with more than double the margin asked for — seven
+consecutive clean executions, read off the run history rather than inferred.
+
+**Criterion 2: not literally met, and recorded as such rather than dropped.**
+The baselines were generated on a maintainer's Linux workstation and still are.
+That criterion existed to guard against exactly one risk: that font
+rasterisation differs enough between the workstation and the runner for a strict
+comparison to disagree. Seven consecutive clean runner executions are direct
+evidence that it does not — the determinism controls hold across precisely the
+boundary the criterion was worried about. So the criterion was **met in
+substance, by evidence, rather than by regenerating the baselines**, and the
+owner approved promotion on that basis on 2026-07-18.
+
+This was a judged decision with evidence behind it, not a criterion that got
+forgotten. A future reader is entitled to disagree with the judgement; they
+should be able to see that it was made.
+
+**If runner-environment drift ever appears, the answer is to regenerate the
+baselines on the runner** — not to demote this gate, and not to widen
+`threshold` or `maxDiffPixels`.
 
 ### Where the count stands
 
 | Date | Consecutive clean runner executions | Note |
 |---|---|---|
 | Harness landed | **0** | No runner execution had occurred. Local runs are not runner runs and do not count toward this. |
-| 2026-07-18 | **1** | First runner execution: 102 passed. Notable because the committed baselines were generated on the workstation, not the runner — the determinism controls held across the environment boundary the harness warns about. Criterion 2 is still formally unmet, so this counts toward criterion 1 only. |
+| 2026-07-18 | **1** | First runner execution: 102 passed. Notable because the committed baselines were generated on the workstation, not the runner — the determinism controls held across the environment boundary the harness warns about. Criterion 2 formally unmet, so this counted toward criterion 1 only. |
+| 2026-07-18 | **7** | `61f4bc6`, `8d59f24`, `8985986`, `f7e79fb`, `cc1bfe9`, `a33ad0b`, `8d84c7d` — every one a `success`. Criterion 1 met at run 3 and carried on holding. **Gate promoted to blocking on this date**, on the criterion-2 reasoning above. |
 
-Update this row when the count moves, in the same pull request that observes it.
-A promotion argued from memory is a promotion nobody can audit.
+Update this table when the count moves, in the same change that observes it. A
+promotion argued from memory is a promotion nobody can audit.
 
 Up: [Documentation](../README.md#documentation)

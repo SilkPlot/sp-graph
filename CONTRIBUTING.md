@@ -83,6 +83,42 @@ Two traps worth knowing before you lose an hour to either:
   hits Solid's updater overload, so the scale is invoked as `(prev) => next` instead of
   stored. Wrap it: `setScale(() => next)`. It fails silently at the call site.
 
+### Running the browser suites
+
+**Run one Vitest project at a time and pin its port.** Vitest's browser mode auto-probes for
+a port, so two concurrent runs collide — and the collision does not report as a collision. It
+reports a connect timeout, executes **zero** tests, and finishes in about a second, which
+reads exactly like a fast pass. The visual harness is a separate Playwright process and
+counts as a second runner, so never run it alongside a Vitest browser project.
+
+```sh
+npx vitest run --project core                                   # node
+npx vitest run --project solid --browser.api.port=63710         # chromium
+npx playwright test -c playwright.visual.config.ts              # not concurrently
+```
+
+Read `$?` directly rather than through a pipe — piping a run to `tail` masks the exit code, so
+a crashed suite reads as success.
+
+## What CI enforces
+
+Beyond lint, typecheck, build, and the suites, CI runs gates that fail for reasons a passing
+test run cannot show you. Each is runnable locally, and each exists because the thing it
+checks has gone wrong before:
+
+| Command | What it fails on |
+|---|---|
+| `npm run gate:accessibility` | An accessibility suite has gone missing, been emptied, or become unreachable. A suite-wide green cannot tell you the accessibility files were among the ones that ran, and deleting a failing test is the cheapest way to stop it failing |
+| `npm run gate:build-hygiene` | A generated config shadows the TypeScript source, or a package `dist` holds output whose source no longer exists |
+| `npm run gate:duplication-scope` | A test file is missing from the Codacy duplication and metric exclusion lists. Those must be literal paths — globs silently do not match there, so the list rots invisibly as tests are added |
+| `npm run gate:visual-baselines` | A pinned screenshot changed without a recorded rationale. Re-pinning is a decision about what "correct" means, not a fix |
+| `npm run release:verify` | The packed tarballs fail outside the workspace: a manifest carrying tests or stale files, an internal dependency off the coordinated version, or an export condition pointing at source |
+| `npm run test:coverage` | Per-package coverage floors, chosen from observed runs rather than a round number |
+| `npm run probe:detection` | **The test suites have stopped detecting.** It applies six known defects, asserts each one is caught, and restores. A refactor that guts a suite still reports green everywhere else — this is what notices |
+
+`probe:detection` runs several full suites and is deliberately not on the per-push path. Run
+it after any substantial refactor of tests or the code they cover.
+
 ## Pull requests
 
 1. Branch from `main`.
