@@ -7,10 +7,16 @@
 export {
   tokens,
   tokensToCss,
+  focusVisibleCss,
   cssVar,
   categoricalPalette,
   sequentialRamp,
+  seriesChannel,
+  seriesDashPatterns,
+  seriesMarkerShapes,
+  markerPath,
   CSS_PREFIX,
   THEME_ATTR,
+  FOCUS_CLASS,
 } from "./tokens";
-export type { Tokens } from "./tokens";
+export type { Tokens, SeriesChannel, MarkerShape } from "./tokens";

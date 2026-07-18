@@ -22,11 +22,20 @@
  */
 import { For, type Component } from "solid-js";
 import { extentOf, linearScale } from "@silkplot/core";
-import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import {
+  ChartRoot,
+  ChartDataAlternative,
+  createCartesianModel,
+  createChartSemantics,
+  type ChartSemantics,
+  type ChartSemanticsProps,
+  type ChartTableRow,
+  type Margins,
+} from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import type { XYPoint } from "./types";
 
-export interface ScatterChartProps {
+export interface ScatterChartBaseProps {
   /** The points to plot, as `{ x: number, y: number }[]`. */
   data: readonly XYPoint[];
   /** Fixed width in px. Omit to fill and measure the parent. */
@@ -42,10 +51,16 @@ export interface ScatterChartProps {
   fillOpacity?: number;
   /** Draw tick-aligned gridlines behind the marks. Default: true. */
   gridlines?: boolean;
-  /** Accessible name for the chart. */
-  title?: string;
   class?: string;
 }
+
+/**
+ * A scatter chart is informative by default and must be named — see
+ * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
+ */
+export type ScatterChartProps = ScatterChartBaseProps & ChartSemanticsProps;
+
+type ScatterChartBodyProps = ScatterChartBaseProps & { semantics: ChartSemantics };
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All
@@ -57,7 +72,7 @@ export interface ScatterChartProps {
  * doesn't naturally contain it would squash the cloud into a corner instead
  * of using the plotting area. So both domains use the data's actual extent.
  */
-const ScatterChartBody: Component<ScatterChartProps> = (props) => {
+const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
   const model = createCartesianModel({
     data: () => props.data,
     // x uses the data's own extent for the same reason y does, below.
@@ -71,7 +86,7 @@ const ScatterChartBody: Component<ScatterChartProps> = (props) => {
       y={model.y()}
       hasArea={model.hasArea()}
       gridlines={props.gridlines}
-      title={props.title}
+      semantics={props.semantics}
       class={props.class}
     >
       <For each={props.data}>
@@ -90,9 +105,17 @@ const ScatterChartBody: Component<ScatterChartProps> = (props) => {
 };
 
 export const ScatterChart: Component<ScatterChartProps> = (props) => {
+  const semantics = createChartSemantics(props);
+
   return (
-    <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-      <ScatterChartBody {...props} />
-    </ChartRoot>
+    <>
+      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
+        <ScatterChartBody {...props} semantics={semantics} />
+      </ChartRoot>
+      <ChartDataAlternative
+        semantics={semantics}
+        defaultRows={(): readonly ChartTableRow[] => props.data.map((d) => [d.x, d.y] as const)}
+      />
+    </>
   );
 };

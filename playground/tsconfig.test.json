@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // See `packages/core/tsconfig.test.json` for why `test/` needs its own config
+  // and why `src` is included alongside it.
+  //
+  // The playground is not a published package, but its tests are the only place
+  // the visible-focus contract is proven on a real focused element, so they are
+  // typechecked on the same terms as every package's tests.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]
+}

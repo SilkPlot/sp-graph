@@ -67,14 +67,14 @@ const MIXED: CategoryPoint[] = [
 describe("BarChart — bar count and geometry", () => {
   it("renders one <rect> per datum", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     expect(getBars(container)).toHaveLength(ALL_POSITIVE.length);
   });
 
   it("gives every bar the band scale's bandwidth as its width", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     const { x } = expectedScales(ALL_POSITIVE);
     const bandwidth = x.bandwidth();
@@ -85,7 +85,7 @@ describe("BarChart — bar count and geometry", () => {
 
   it("positions each bar at the band scale's x for its label", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     const { x } = expectedScales(ALL_POSITIVE);
     const bars = getBars(container);
@@ -98,7 +98,7 @@ describe("BarChart — bar count and geometry", () => {
 
   it("all-positive data: every bar's y sits at or above the zero baseline", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     const { y } = expectedScales(ALL_POSITIVE);
     const baseline = y(0);
@@ -113,7 +113,7 @@ describe("BarChart — negative values", () => {
   it("gives a negative datum a positive height and a y at (not below) the baseline", () => {
     const data: CategoryPoint[] = [{ label: "only", y: -20 }];
     const { container } = render(() => (
-      <BarChart data={data} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={data} width={WIDTH} height={HEIGHT} />
     ));
     const { y } = expectedScales(data);
     const baseline = y(0);
@@ -133,7 +133,7 @@ describe("BarChart — negative values", () => {
 
   it("mixed positive/negative data: every bar has non-negative height, and negative bars sit below the baseline", () => {
     const { container } = render(() => (
-      <BarChart data={MIXED} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={MIXED} width={WIDTH} height={HEIGHT} />
     ));
     const { y } = expectedScales(MIXED);
     const baseline = y(0);
@@ -212,7 +212,7 @@ describe("BarChart — data replacement", () => {
 
   it("rescales y when the values change", () => {
     const [data, setData] = createSignal<CategoryPoint[]>(BEFORE);
-    const { container } = render(() => <BarChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
     expectBarsTrack(container, BEFORE);
 
     setData(AFTER);
@@ -230,7 +230,7 @@ describe("BarChart — data replacement", () => {
       { label: "z", y: 800 },
     ];
     const [data, setData] = createSignal<CategoryPoint[]>(BEFORE);
-    const { container } = render(() => <BarChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
 
     setData(relabelled);
 
@@ -252,7 +252,7 @@ describe("BarChart — data replacement", () => {
       { label: "e", y: 60 },
     ];
     const [data, setData] = createSignal<CategoryPoint[]>(BEFORE);
-    const { container } = render(() => <BarChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
 
     setData(longer);
 
@@ -272,7 +272,7 @@ describe("BarChart — data replacement", () => {
       { label: "b", y: 30 },
     ];
     const [data, setData] = createSignal<CategoryPoint[]>(negative);
-    const { container } = render(() => <BarChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
     // All-negative: every bar hangs from a baseline at the top of the area.
     expect(expectedScales(negative).y(0)).toBeCloseTo(0);
     expectBarsTrack(container, negative);
@@ -289,7 +289,7 @@ describe("BarChart — data replacement", () => {
 
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<CategoryPoint[]>([]);
-    const { container } = render(() => <BarChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <BarChart title="Sales by region" data={data()} width={WIDTH} height={HEIGHT} />);
     const noNaN = (): void => {
       for (const attr of ["x", "y", "width", "height"]) {
         for (const el of Array.from(container.querySelectorAll(`[${attr}]`))) {
@@ -313,7 +313,7 @@ describe("BarChart — data replacement", () => {
 describe("BarChart — axes", () => {
   it("renders a bottom band axis with one label per category, matching computeBandTicks", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     const { x } = expectedScales(ALL_POSITIVE);
     const expectedTicks = computeBandTicks(x);
@@ -328,7 +328,7 @@ describe("BarChart — axes", () => {
 
   it("renders a left linear axis", () => {
     const { container } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
     expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
   });
@@ -337,17 +337,17 @@ describe("BarChart — axes", () => {
 describe("BarChart — edge cases", () => {
   it("empty data does not throw and renders no bars", () => {
     expect(() =>
-      render(() => <BarChart data={[]} width={WIDTH} height={HEIGHT} />),
+      render(() => <BarChart title="Sales by region" data={[]} width={WIDTH} height={HEIGHT} />),
     ).not.toThrow();
     const { container } = render(() => (
-      <BarChart data={[]} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={[]} width={WIDTH} height={HEIGHT} />
     ));
     expect(getBars(container)).toHaveLength(0);
   });
 
   it("emits no NaN in any rendered geometry attribute", () => {
     const { container } = render(() => (
-      <BarChart data={MIXED} width={WIDTH} height={HEIGHT} />
+      <BarChart title="Sales by region" data={MIXED} width={WIDTH} height={HEIGHT} />
     ));
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
@@ -369,7 +369,7 @@ describe("BarChart — edge cases", () => {
 describe("BarChart — padding prop", () => {
   it("passes an explicit padding through to the band scale, changing bandwidth", () => {
     const { container: narrow } = render(() => (
-      <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} padding={0.5} />
+      <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} padding={0.5} />
     ));
     const { x: xNarrow } = expectedScales(ALL_POSITIVE, 0.5);
     const bars = getBars(narrow);

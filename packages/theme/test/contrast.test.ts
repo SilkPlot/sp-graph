@@ -120,6 +120,107 @@ describe("the axis line is decorative low-contrast scaffolding, not a label", ()
   });
 });
 
+describe("categorical series palettes clear the 3:1 non-text floor per surface", () => {
+  const css = tokensToCss();
+
+  /**
+   * The `--sp-cat-N` values from a block, in index order. Read out of the
+   * EMITTED CSS rather than imported from the module: the palettes are only
+   * accessibility-relevant once they reach a selector, and importing the arrays
+   * would pass even if a block forgot to emit them.
+   */
+  function paletteIn(block: string): string[] {
+    return [...block.matchAll(/--sp-cat-(\d+):\s*(#[0-9a-f]{6});/g)]
+      .sort((a, b) => Number(a[1]) - Number(b[1]))
+      .map((m) => m[2]!);
+  }
+
+  // [name, block marker, surface, floor]. The floor is the contract's non-text
+  // 3:1 for the normal variants; the high-contrast variants must actually be
+  // HIGHER, which the ladder test below pins separately.
+  const cases: Array<[string, string, string, number]> = [
+    ["light (base :root)", ":root", LIGHT_SURFACE, 3],
+    [
+      "dark (OS)",
+      '@media (prefers-color-scheme: dark) {\n  :root:not([data-sp-theme="light"])',
+      DARK_SURFACE,
+      3,
+    ],
+    ["dark (explicit attribute)", '\n[data-sp-theme="dark"]', DARK_SURFACE, 3],
+    ["light forced", '\n[data-sp-theme="light"]', LIGHT_SURFACE, 3],
+    ["light high-contrast", "@media (prefers-contrast: more) {\n  :root", LIGHT_SURFACE, 4.5],
+    [
+      "dark high-contrast (OS)",
+      '@media (prefers-color-scheme: dark) and (prefers-contrast: more) {\n  :root:not([data-sp-theme="light"])',
+      DARK_SURFACE,
+      4.5,
+    ],
+    [
+      "dark high-contrast (attribute)",
+      '@media (prefers-contrast: more) {\n  [data-sp-theme="dark"]',
+      DARK_SURFACE,
+      4.5,
+    ],
+  ];
+
+  for (const [name, marker, surface, floor] of cases) {
+    it(`${name}: every series colour clears ${floor}:1 on ${surface}`, () => {
+      const palette = paletteIn(blockAfter(css, marker));
+      // A block that emitted no palette would vacuously pass a forEach.
+      expect(palette.length, `${name} emitted no --sp-cat-* values`).toBeGreaterThan(0);
+      for (const [i, colour] of palette.entries()) {
+        const ratio = contrastRatio(colour, surface);
+        expect(
+          ratio,
+          `--sp-cat-${i} ${colour} is ${ratio.toFixed(2)}:1 on ${surface}, below ${floor}:1`,
+        ).toBeGreaterThanOrEqual(floor);
+      }
+    });
+  }
+
+  it("every variant emits the same NUMBER of series colours", () => {
+    // A dark palette one entry short would silently fall through to a light
+    // colour for the last series — legible background, illegible series.
+    const counts = cases.map(([, marker]) => paletteIn(blockAfter(css, marker)).length);
+    expect(new Set(counts).size, `palette lengths differ: ${counts.join(",")}`).toBe(1);
+  });
+
+  it("raises series contrast when the user asks for more, on both surfaces", () => {
+    const mean = (marker: string, surface: string): number => {
+      const p = paletteIn(blockAfter(css, marker));
+      return p.reduce((s, c) => s + contrastRatio(c, surface), 0) / p.length;
+    };
+    expect(mean("@media (prefers-contrast: more) {\n  :root", LIGHT_SURFACE)).toBeGreaterThan(
+      mean(":root", LIGHT_SURFACE),
+    );
+    expect(
+      mean(
+        '@media (prefers-contrast: more) {\n  [data-sp-theme="dark"]',
+        DARK_SURFACE,
+      ),
+    ).toBeGreaterThan(
+      mean('\n[data-sp-theme="dark"]', DARK_SURFACE),
+    );
+  });
+
+  it("keeps the Tableau 10 failure it replaced as evidence for why per-surface", () => {
+    // The previous palette was one array on :root. These five entries are why a
+    // single categorical palette cannot satisfy a threshold defined against a
+    // background — they are legible on dark and illegible on white.
+    for (const [colour, onWhite] of [
+      ["#edc949", 1.61],
+      ["#ff9da7", 1.98],
+      ["#bab0ab", 2.12],
+      ["#76b7b2", 2.29],
+      ["#f28e2c", 2.42],
+    ] as Array<[string, number]>) {
+      expect(contrastRatio(colour, LIGHT_SURFACE)).toBeCloseTo(onWhite, 1);
+      expect(contrastRatio(colour, LIGHT_SURFACE)).toBeLessThan(3);
+      expect(contrastRatio(colour, DARK_SURFACE)).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
+
 describe("tokensToCss emits scheme×contrast as four combined blocks", () => {
   const css = tokensToCss();
 

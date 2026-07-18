@@ -116,10 +116,21 @@ export const Axis: Component<AxisProps> = (props) => {
   });
 
   return (
-    // Hiding the axis from assistive tech is deliberate: tick marks are
-    // decoration that restates what the chart's own accessible name and
-    // description already carry. A bare <g> has no tabindex and is not
-    // focusable, so the rule's premise does not hold here.
+    // Hiding the axis from assistive tech is deliberate, and CONDITIONAL on the
+    // information surviving elsewhere. ADR-0005 §1 is explicit: hiding the axes
+    // is only defensible once their domain, range, and units live in the
+    // chart's description or its semantic data alternative. Left to itself an
+    // aria-hidden axis relocates that information nowhere, which is a worse
+    // outcome than a noisy tick list.
+    //
+    // What makes it defensible here is `createChartSemantics`: an informative
+    // chart with no `desc`, `summary`, `table`, or `describedBy` raises a
+    // `missing-description` issue — a dev-build warning and a production
+    // diagnostic. So the axis is hidden because its content is carried, and the
+    // case where it is not carried is reported rather than silently accepted.
+    //
+    // Separately, a bare <g> has no tabindex and is not focusable, so the lint
+    // rule's own premise does not hold here.
     // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a <g> with no tabindex is not focusable
     <g class={props.class} data-silkplot-axis={orientation()} aria-hidden="true">
       <path d={domainPath()} fill="none" stroke={AXIS_STROKE} />

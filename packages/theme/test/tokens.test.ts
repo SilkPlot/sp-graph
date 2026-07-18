@@ -124,11 +124,16 @@ describe("tokensToCss — variants", () => {
   it("emits identical dark values in both selectors", () => {
     const auto = blockAfter(css, `:root:not([${THEME_ATTR}="light"])`);
     const forced = blockAfter(css, `[${THEME_ATTR}="dark"] {`);
+    // The name class includes digits on purpose: `--sp-cat-0` must be compared
+    // too. With `[a-z-]+` the categorical palette silently fell out of this
+    // comparison, so the automatic and forced dark paths could have disagreed
+    // about series colours without failing here.
     const props = (block: string) =>
-      [...block.matchAll(/(--sp-[a-z-]+):\s*([^;]+);/g)]
+      [...block.matchAll(/(--sp-[a-z0-9-]+):\s*([^;]+);/g)]
         .map((m) => `${m[1]}:${m[2]!.trim()}`)
         .sort();
     expect(props(auto)).toEqual(props(forced));
+    expect(props(auto).some((p) => p.startsWith("--sp-cat-"))).toBe(true);
     expect(props(auto).length).toBeGreaterThan(0);
   });
 

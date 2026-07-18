@@ -15,11 +15,20 @@
  */
 import { createMemo, type Component } from "solid-js";
 import { timeScale, areaPath, linePath, extentOf, type CurveName } from "@silkplot/core";
-import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import {
+  ChartRoot,
+  ChartDataAlternative,
+  createCartesianModel,
+  createChartSemantics,
+  type ChartSemantics,
+  type ChartSemanticsProps,
+  type ChartTableRow,
+  type Margins,
+} from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import type { TimePoint } from "./types";
 
-export interface AreaChartProps {
+export interface AreaChartBaseProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
   data: readonly TimePoint[];
   /** Fixed width in px. Omit to fill and measure the parent. */
@@ -51,16 +60,22 @@ export interface AreaChartProps {
   strokeWidth?: number;
   /** Draw tick-aligned gridlines behind the marks. Default: true. */
   gridlines?: boolean;
-  /** Accessible name for the chart. */
-  title?: string;
   class?: string;
 }
+
+/**
+ * An area chart is informative by default and must be named — see
+ * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
+ */
+export type AreaChartProps = AreaChartBaseProps & ChartSemanticsProps;
+
+type AreaChartBodyProps = AreaChartBaseProps & { semantics: ChartSemantics };
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All
  * scales and paths are memos that recompute only when data or size change.
  */
-const AreaChartBody: Component<AreaChartProps> = (props) => {
+const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   const model = createCartesianModel({
     data: () => props.data,
     // The time domain is the data's EXTENT, not its first and last datum.
@@ -133,7 +148,7 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
       y={model.y()}
       hasArea={model.hasArea()}
       gridlines={props.gridlines}
-      title={props.title}
+      semantics={props.semantics}
       class={props.class}
     >
       <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
@@ -150,9 +165,19 @@ const AreaChartBody: Component<AreaChartProps> = (props) => {
 };
 
 export const AreaChart: Component<AreaChartProps> = (props) => {
+  const semantics = createChartSemantics(props);
+
   return (
-    <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-      <AreaChartBody {...props} />
-    </ChartRoot>
+    <>
+      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
+        <AreaChartBody {...props} semantics={semantics} />
+      </ChartRoot>
+      <ChartDataAlternative
+        semantics={semantics}
+        defaultRows={(): readonly ChartTableRow[] =>
+          props.data.map((d) => [d.t.toISOString(), d.y] as const)
+        }
+      />
+    </>
   );
 };

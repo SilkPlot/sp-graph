@@ -46,3 +46,13 @@ arrived at.
   and roving tabindex does *not* mean one stop per mark), committed throttled
   polite announcements, colour/contrast/focus/motion rules, substrate parity, and
   the library/application boundary.
+
+## Migrations
+
+An ADR states the decision; a migration states what a consumer has to change.
+
+- [Chart semantics (0.x, breaking)](../migrations/chart-semantics-0.x.md):
+  upgrading to the ADR-0005 chart surface — naming every informative chart,
+  opting decorative charts out explicitly, the description and data-alternative
+  props, and what a missing name does in a development versus a production
+  build.

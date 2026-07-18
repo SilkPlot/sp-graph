@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b && npm run typecheck:tests",
-    "typecheck:tests": "tsc -p packages/core/tsconfig.test.json && tsc -p packages/theme/tsconfig.test.json && tsc -p packages/solid/tsconfig.test.json && tsc -p packages/charts/tsconfig.test.json",
+    "typecheck:tests": "tsc -p packages/core/tsconfig.test.json && tsc -p packages/theme/tsconfig.test.json && tsc -p packages/solid/tsconfig.test.json && tsc -p packages/charts/tsconfig.test.json && tsc -p playground/tsconfig.test.json",
     "lint": "biome lint --error-on-warnings .",
     "dev": "npm run dev --workspace playground",
     "clean": "tsc -b --clean",

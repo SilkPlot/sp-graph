@@ -10,7 +10,7 @@ import solid from "vite-plugin-solid";
 // rendering Solid runs in a real browser: `createResize` uses ResizeObserver and
 // `el.clientWidth`, and jsdom implements neither (clientWidth is always 0), so a
 // real browser is the only place that path can be honestly exercised.
-const browserProject = (name: string, dir: string) => ({
+const browserProjectIn = (name: string, root: string) => ({
   plugins: [solid()],
   resolve: {
     // Match the playground: prefer the "solid" condition so we compile the same
@@ -19,7 +19,7 @@ const browserProject = (name: string, dir: string) => ({
   },
   test: {
     name,
-    include: [`packages/${dir}/test/**/*.test.{ts,tsx}`],
+    include: [`${root}/test/**/*.test.{ts,tsx}`],
     browser: {
       enabled: true,
       provider: playwright(),
@@ -28,6 +28,9 @@ const browserProject = (name: string, dir: string) => ({
     },
   },
 });
+
+const browserProject = (name: string, dir: string) =>
+  browserProjectIn(name, `packages/${dir}`);
 
 export default defineConfig({
   test: {
@@ -61,6 +64,12 @@ export default defineConfig({
       },
       browserProject("solid", "solid"),
       browserProject("charts", "charts"),
+      // The playground is where the reference interaction surface lives, so it
+      // is where the visible-focus contract can be proven end to end — on the
+      // element that actually removed its own outline, with the real stylesheet
+      // applied. A focus ring is a computed style under `:focus-visible` and a
+      // media query, none of which a node environment resolves.
+      browserProjectIn("playground", "playground"),
     ],
   },
 });

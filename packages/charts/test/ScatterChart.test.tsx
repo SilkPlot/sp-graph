@@ -35,17 +35,17 @@ function getCircles(container: HTMLElement): SVGCircleElement[] {
 
 describe("ScatterChart — structure", () => {
   it("renders an <svg>", () => {
-    const { container } = render(() => <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
   it("renders one <circle> per datum", () => {
-    const { container } = render(() => <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(getCircles(container)).toHaveLength(DATA.length);
   });
 
   it("renders both a left and a bottom axis", () => {
-    const { container } = render(() => <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
     expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
   });
@@ -60,7 +60,7 @@ describe("ScatterChart — structure", () => {
 
 describe("ScatterChart — scales use the data extent, not a zero-forced domain", () => {
   it("cx/cy match linearScale built over the raw x/y extent (no Math.min(0, lo))", () => {
-    const { container } = render(() => <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     const circles = getCircles(container);
 
     const xs = DATA.map((d) => d.x);
@@ -130,7 +130,7 @@ describe("ScatterChart — data replacement", () => {
 
   it("rescales y when the values change", () => {
     const [data, setData] = createSignal<XYPoint[]>(BEFORE);
-    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={data()} width={WIDTH} height={HEIGHT} />);
     expectPointsTrack(container, BEFORE);
 
     setData(AFTER);
@@ -156,7 +156,7 @@ describe("ScatterChart — data replacement", () => {
       { x: -20, y: -10 },
     ];
     const [data, setData] = createSignal<XYPoint[]>(BEFORE);
-    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={data()} width={WIDTH} height={HEIGHT} />);
 
     setData(moved);
 
@@ -173,7 +173,7 @@ describe("ScatterChart — data replacement", () => {
       { x: 3, y: 40 },
     ];
     const [data, setData] = createSignal<XYPoint[]>(BEFORE);
-    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={data()} width={WIDTH} height={HEIGHT} />);
 
     setData(longer);
 
@@ -184,7 +184,7 @@ describe("ScatterChart — data replacement", () => {
 
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<XYPoint[]>([]);
-    const { container } = render(() => <ScatterChart data={data()} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={data()} width={WIDTH} height={HEIGHT} />);
     const noNaN = (): void => {
       container.querySelectorAll("circle, path").forEach((el) => {
         for (const attr of ["cx", "cy", "d"]) {
@@ -209,7 +209,7 @@ describe("ScatterChart — data replacement", () => {
 describe("ScatterChart — props", () => {
   it("applies a custom radius", () => {
     const { container } = render(() => (
-      <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} radius={7} />
+      <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} radius={7} />
     ));
     getCircles(container).forEach((c) => {
       expect(c.getAttribute("r")).toBe("7");
@@ -217,7 +217,7 @@ describe("ScatterChart — props", () => {
   });
 
   it("defaults radius to 3, fill to currentColor, and fillOpacity to 1", () => {
-    const { container } = render(() => <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     getCircles(container).forEach((c) => {
       expect(c.getAttribute("r")).toBe("3");
       expect(c.getAttribute("fill")).toBe("currentColor");
@@ -227,7 +227,7 @@ describe("ScatterChart — props", () => {
 
   it("applies custom fill and fillOpacity", () => {
     const { container } = render(() => (
-      <ScatterChart data={DATA} width={WIDTH} height={HEIGHT} fill="steelblue" fillOpacity={0.5} />
+      <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} fill="steelblue" fillOpacity={0.5} />
     ));
     getCircles(container).forEach((c) => {
       expect(c.getAttribute("fill")).toBe("steelblue");
@@ -238,9 +238,9 @@ describe("ScatterChart — props", () => {
 
 describe("ScatterChart — empty data", () => {
   it("does not throw and renders no circles with no NaN geometry anywhere", () => {
-    expect(() => render(() => <ScatterChart data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
+    expect(() => render(() => <ScatterChart title="Height against weight" data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
 
-    const { container } = render(() => <ScatterChart data={[]} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <ScatterChart title="Height against weight" data={[]} width={WIDTH} height={HEIGHT} />);
     expect(getCircles(container)).toHaveLength(0);
 
     container.querySelectorAll("circle, path").forEach((el) => {
@@ -256,11 +256,11 @@ describe("ScatterChart — single-point series (degenerate zero-width domain)", 
   it("does not produce NaN cx/cy even though x and y each have a single value", () => {
     const single: XYPoint[] = [{ x: 5, y: 5 }];
     expect(() =>
-      render(() => <ScatterChart data={single} width={WIDTH} height={HEIGHT} />),
+      render(() => <ScatterChart title="Height against weight" data={single} width={WIDTH} height={HEIGHT} />),
     ).not.toThrow();
 
     const { container } = render(() => (
-      <ScatterChart data={single} width={WIDTH} height={HEIGHT} />
+      <ScatterChart title="Height against weight" data={single} width={WIDTH} height={HEIGHT} />
     ));
     const circles = getCircles(container);
     expect(circles).toHaveLength(1);

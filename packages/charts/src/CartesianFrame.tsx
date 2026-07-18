@@ -9,9 +9,13 @@
  * chart has exactly two axes on exactly those edges is an opinion held by this
  * package's composed charts, not a contract worth freezing in the public
  * primitive layer before a second consumer asks for it.
+ *
+ * It also forwards the whole accessibility relationship set. It used to forward
+ * only `title`, which meant `SvgLayer` supported a `<desc>` that no composed
+ * chart could ever reach — the chain was broken here and nowhere else.
  */
 import { Show, type Component, type JSX } from "solid-js";
-import { SvgLayer, Axis, Gridlines, type AxisScale } from "@silkplot/solid";
+import { SvgLayer, Axis, Gridlines, type AxisScale, type ChartSemantics } from "@silkplot/solid";
 
 export interface CartesianFrameProps {
   /** The x scale, drawn as the bottom axis. */
@@ -22,15 +26,28 @@ export interface CartesianFrameProps {
   hasArea: boolean;
   /** Draw tick-aligned gridlines behind the marks. Default: true. */
   gridlines?: boolean;
-  /** Accessible name for the chart. */
-  title?: string;
+  /** Resolved chart semantics — name, description, and the id relationships. */
+  semantics: ChartSemantics;
   class?: string;
   children?: JSX.Element;
 }
 
 export const CartesianFrame: Component<CartesianFrameProps> = (props) => {
+  const sem = (): ChartSemantics => props.semantics;
+
   return (
-    <SvgLayer role="img" title={props.title} class={props.class}>
+    <SvgLayer
+      role="img"
+      decorative={sem().decorative()}
+      title={sem().name() || undefined}
+      titleId={sem().ids.title}
+      desc={sem().desc()}
+      descId={sem().ids.desc}
+      ariaLabelledBy={sem().labelledBy()}
+      ariaDescribedBy={sem().describedBy()}
+      ariaDetails={sem().details()}
+      class={props.class}
+    >
       <Show when={props.hasArea}>
         {/*
           Gridlines are drawn first so the axes and marks paint over them —

@@ -17,11 +17,20 @@
  */
 import { For, Show, type Component } from "solid-js";
 import { bandScale } from "@silkplot/core";
-import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import {
+  ChartRoot,
+  ChartDataAlternative,
+  createCartesianModel,
+  createChartSemantics,
+  type ChartSemantics,
+  type ChartSemanticsProps,
+  type ChartTableRow,
+  type Margins,
+} from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import type { CategoryPoint } from "./types";
 
-export interface BarChartProps {
+export interface BarChartBaseProps {
   /** The series to plot, as `{ label: string, y: number }[]`. */
   data: readonly CategoryPoint[];
   /** Fixed width in px. Omit to fill and measure the parent. */
@@ -35,16 +44,22 @@ export interface BarChartProps {
   fill?: string;
   /** Draw tick-aligned gridlines behind the marks. Default: true. */
   gridlines?: boolean;
-  /** Accessible name for the chart. */
-  title?: string;
   class?: string;
 }
+
+/**
+ * A bar chart is informative by default and must be named — see
+ * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
+ */
+export type BarChartProps = BarChartBaseProps & ChartSemanticsProps;
+
+type BarChartBodyProps = BarChartBaseProps & { semantics: ChartSemantics };
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All scales
  * are memos that recompute only when data or size change.
  */
-const BarChartBody: Component<BarChartProps> = (props) => {
+const BarChartBody: Component<BarChartBodyProps> = (props) => {
   const model = createCartesianModel({
     data: () => props.data,
     x: (range) =>
@@ -64,7 +79,7 @@ const BarChartBody: Component<BarChartProps> = (props) => {
       y={model.y()}
       hasArea={model.hasArea()}
       gridlines={props.gridlines}
-      title={props.title}
+      semantics={props.semantics}
       class={props.class}
     >
       <For each={props.data}>
@@ -98,9 +113,20 @@ const BarChartBody: Component<BarChartProps> = (props) => {
 };
 
 export const BarChart: Component<BarChartProps> = (props) => {
+  const semantics = createChartSemantics(props);
+
   return (
-    <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-      <BarChartBody {...props} />
-    </ChartRoot>
+    <>
+      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
+        <BarChartBody {...props} semantics={semantics} />
+      </ChartRoot>
+      {/* The band labels are already text, so the derived table needs no formatting decision. */}
+      <ChartDataAlternative
+        semantics={semantics}
+        defaultRows={(): readonly ChartTableRow[] =>
+          props.data.map((d) => [d.label, d.y] as const)
+        }
+      />
+    </>
   );
 };

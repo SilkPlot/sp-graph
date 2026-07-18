@@ -210,10 +210,16 @@ describe("ChartAnnouncer", () => {
     expect(container.querySelector("[data-silkplot-announcer]")?.textContent).toBe("");
   });
 
-  it("updates when the active datum changes", () => {
+  it("updates when the active datum changes", async () => {
+    // Not synchronously: ADR-0005 §4 requires the region to be throttled, so a
+    // second message inside the window is coalesced and lands when the window
+    // closes. The full throttling contract — leading edge, coalescing, the
+    // trailing guarantee, de-duplication, immediate clear — is proven in
+    // `announcer.test.tsx`; this only holds the change to the value.
     const [msg, setMsg] = createSignal("first");
-    const { container } = render(() => <ChartAnnouncer message={msg()} />);
+    const { container } = render(() => <ChartAnnouncer message={msg()} throttleMs={20} />);
     setMsg("second");
+    await new Promise((resolve) => setTimeout(resolve, 60));
     expect(container.querySelector("[data-silkplot-announcer]")?.textContent).toBe(
       "second",
     );

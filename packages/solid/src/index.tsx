@@ -24,8 +24,37 @@ export type { CrosshairProps } from "./Crosshair";
 export { TooltipAnchor } from "./TooltipAnchor";
 export type { TooltipAnchorProps } from "./TooltipAnchor";
 
-export { ChartAnnouncer } from "./ChartAnnouncer";
+export { ChartAnnouncer, DEFAULT_ANNOUNCE_THROTTLE_MS } from "./ChartAnnouncer";
 export type { ChartAnnouncerProps } from "./ChartAnnouncer";
+
+export { createActiveDatum, DEFAULT_PAGE_SIZE } from "./createActiveDatum";
+export type { ActiveDatum, ActiveDatumSpec } from "./createActiveDatum";
+
+export { createChartKeyboard } from "./createChartKeyboard";
+export type { ChartKeyboard, ChartKeyboardSpec, ChartKeyboardRole } from "./createChartKeyboard";
+
+export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
+export type { ChartKeyboardSurfaceProps } from "./ChartKeyboardSurface";
+
+export {
+  createChartSemantics,
+  resolveChartSemantics,
+  isDevelopmentBuild,
+  FALLBACK_CHART_NAME,
+} from "./semantics";
+export type {
+  ChartSemantics,
+  ChartSemanticsProps,
+  ChartSemanticsInput,
+  ChartSemanticsIssue,
+  ChartDataTable,
+  DecorativeSemantics,
+  InformativeSemantics,
+  ResolvedChartSemantics,
+} from "./semantics";
+
+export { ChartDataAlternative } from "./ChartDataAlternative";
+export type { ChartDataAlternativeProps, ChartTableRow } from "./ChartDataAlternative";
 
 export { resolveTicks, isBandScale } from "./scale-ticks";
 export type { AxisScale, TickRequest, TickFormat } from "./scale-ticks";

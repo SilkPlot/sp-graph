@@ -71,7 +71,7 @@ describe("AreaChart — baseline geometry", () => {
   // contradict its own axis. These pin the baseline to the true zero position.
   it("closes on the zero baseline for an all-positive series", () => {
     const { container } = render(() => (
-      <AreaChart data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const areaD = getPaths(container)[0]!.getAttribute("d")!;
     const zeroY = yScaleFor(DATA, HEIGHT)(0);
@@ -89,7 +89,7 @@ describe("AreaChart — baseline geometry", () => {
       { t: new Date(Date.UTC(2026, 0, 2)), y: -2 },
     ];
     const { container } = render(() => (
-      <AreaChart data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const areaD = getPaths(container)[0]!.getAttribute("d")!;
     const y = yScaleFor(negative, HEIGHT);
@@ -163,7 +163,7 @@ describe("AreaChart — data replacement", () => {
   it("rescales y and the fill when the values change", () => {
     const [data, setData] = createSignal<TimePoint[]>(BEFORE);
     const { container } = render(() => (
-      <AreaChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     expectAreaTracks(container, BEFORE);
 
@@ -186,7 +186,7 @@ describe("AreaChart — data replacement", () => {
     ];
     const [data, setData] = createSignal<TimePoint[]>(negative);
     const { container } = render(() => (
-      <AreaChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     // All-negative: zero is the TOP of the domain.
     expect(yScaleFor(negative, HEIGHT)(0)).toBeCloseTo(0, 3);
@@ -210,7 +210,7 @@ describe("AreaChart — data replacement", () => {
     ];
     const [data, setData] = createSignal<TimePoint[]>(BEFORE);
     const { container } = render(() => (
-      <AreaChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
 
     setData(longer);
@@ -222,7 +222,7 @@ describe("AreaChart — data replacement", () => {
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<TimePoint[]>([]);
     const { container } = render(() => (
-      <AreaChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const noNaN = (): void => {
       container.querySelectorAll("path").forEach((p) => {
@@ -242,12 +242,12 @@ describe("AreaChart — data replacement", () => {
 
 describe("AreaChart — structure", () => {
   it("renders an <svg>", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
   it("renders a filled area <path> with a non-empty d, beneath a stroked line <path>", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     const paths = getPaths(container);
     expect(paths).toHaveLength(2);
 
@@ -267,7 +267,7 @@ describe("AreaChart — structure", () => {
   });
 
   it("renders both a left and a bottom axis", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
     expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
   });
@@ -282,7 +282,7 @@ describe("AreaChart — structure", () => {
 
 describe("AreaChart — ticks match @silkplot/core computeTicks", () => {
   it("bottom axis tick count matches computeTicks for the equivalent time scale", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     const bottomAxis = container.querySelector('g[data-silkplot-axis="bottom"]') as SVGGElement;
     const margins = { top: 8, right: 12, bottom: 24, left: 40 };
     const innerWidth = WIDTH - margins.left - margins.right;
@@ -297,7 +297,7 @@ describe("AreaChart — ticks match @silkplot/core computeTicks", () => {
   });
 
   it("left axis tick count matches computeTicks for the equivalent linear scale", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     const leftAxis = container.querySelector('g[data-silkplot-axis="left"]') as SVGGElement;
     const margins = { top: 8, right: 12, bottom: 24, left: 40 };
     const innerHeight = HEIGHT - margins.top - margins.bottom;
@@ -314,9 +314,9 @@ describe("AreaChart — ticks match @silkplot/core computeTicks", () => {
 
 describe("AreaChart — empty data", () => {
   it("does not throw and produces no NaN in the area or line path d", () => {
-    expect(() => render(() => <AreaChart data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
+    expect(() => render(() => <AreaChart title="Coverage over time" data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
 
-    const { container } = render(() => <AreaChart data={[]} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={[]} width={WIDTH} height={HEIGHT} />);
     const paths = container.querySelectorAll("path");
     paths.forEach((p) => {
       const d = p.getAttribute("d") ?? "";
@@ -329,7 +329,7 @@ describe("AreaChart — props", () => {
   it("applies custom fill, fillOpacity, stroke, and strokeWidth", () => {
     const { container } = render(() => (
       <AreaChart
-        data={DATA}
+        title="Coverage over time" data={DATA}
         width={WIDTH}
         height={HEIGHT}
         fill="steelblue"
@@ -346,7 +346,7 @@ describe("AreaChart — props", () => {
   });
 
   it("defaults fill/stroke to currentColor and fillOpacity to 0.2", () => {
-    const { container } = render(() => <AreaChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <AreaChart title="Coverage over time" data={DATA} width={WIDTH} height={HEIGHT} />);
     const [areaEl, lineEl] = getPaths(container) as [SVGPathElement, SVGPathElement];
     expect(areaEl.getAttribute("fill")).toBe("currentColor");
     expect(areaEl.getAttribute("fill-opacity")).toBe("0.2");
@@ -370,7 +370,7 @@ describe("AreaChart — time domain covers the data extent, not first/last", () 
       { t: new Date(Date.UTC(2026, 0, 5)), y: 2 },
     ];
     const { container } = render(() => (
-      <AreaChart data={scrambled} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={scrambled} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const xs = pathXs(getPaths(container)[0]!.getAttribute("d")!);
 
@@ -399,7 +399,7 @@ describe("AreaChart — time domain covers the data extent, not first/last", () 
 describe("AreaChart — gaps and the finite guard", () => {
   it("breaks the fill into separate regions where `defined` returns false", () => {
     const whole = render(() => (
-      <AreaChart data={DATA5} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={DATA5} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const wholeD = getPaths(whole.container)[0]!.getAttribute("d")!;
     // One contiguous region: exactly one move command.
@@ -407,7 +407,7 @@ describe("AreaChart — gaps and the finite guard", () => {
 
     const gapped = render(() => (
       <AreaChart
-        data={DATA5}
+        title="Coverage over time" data={DATA5}
         width={WIDTH}
         height={HEIGHT}
         margins={NO_MARGINS}
@@ -430,7 +430,7 @@ describe("AreaChart — gaps and the finite guard", () => {
       { t: new Date(Date.UTC(2026, 0, 5)), y: 5 },
     ];
     const { container } = render(() => (
-      <AreaChart data={withHole} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <AreaChart title="Coverage over time" data={withHole} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
 
     container.querySelectorAll("path").forEach((p) => {
@@ -447,7 +447,7 @@ describe("AreaChart — gaps and the finite guard", () => {
     // predicate — proof the two conditions compose rather than one masking the other.
     const { container } = render(() => (
       <AreaChart
-        data={DATA5}
+        title="Coverage over time" data={DATA5}
         width={WIDTH}
         height={HEIGHT}
         margins={NO_MARGINS}

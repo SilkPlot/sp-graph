@@ -12,13 +12,27 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, type Component } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
 import { timeScale, linePath, extentOf, type CurveName } from "@silkplot/core";
-import { ChartRoot, createCartesianModel, type Margins } from "@silkplot/solid";
+import {
+  ChartRoot,
+  ChartAnnouncer,
+  ChartDataAlternative,
+  ChartKeyboardSurface,
+  Crosshair,
+  createActiveDatum,
+  createCartesianModel,
+  createChartKeyboard,
+  createChartSemantics,
+  type ChartSemantics,
+  type ChartSemanticsProps,
+  type ChartTableRow,
+  type Margins,
+} from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import type { TimePoint } from "./types";
 
-export interface LineChartProps {
+export interface LineChartBaseProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
   data: readonly TimePoint[];
   /** Fixed width in px. Omit to fill and measure the parent. */
@@ -44,16 +58,63 @@ export interface LineChartProps {
   strokeWidth?: number;
   /** Draw tick-aligned gridlines behind the marks. Default: true. */
   gridlines?: boolean;
-  /** Accessible name for the chart. */
-  title?: string;
+  /**
+   * Give the chart the single-entry keyboard composite. Default: true for an
+   * informative chart, always off for a decorative one.
+   *
+   * On by default because ADR-0005 makes the keyboard model library behaviour
+   * rather than a per-application reference, and because "optional
+   * accessibility ships as absent accessibility" is the failure this contract
+   * exists to prevent. Tab reaches the chart once; arrows, Home/End and Page
+   * keys move within it; Tab leaves. A decorative chart is out of the
+   * accessibility tree entirely, so a focusable surface on one would be a tab
+   * stop that announces nothing.
+   */
+  keyboard?: boolean;
+  /**
+   * How many points a Page Up / Page Down step covers. Default:
+   * `DEFAULT_PAGE_SIZE`, an engineering policy rather than a standard.
+   */
+  pageSize?: number;
+  /**
+   * Accessible wording for one point — series, x, y, and units. Default: the
+   * chart's own name, the ISO timestamp, and the value.
+   *
+   * The default is honest but not good: ADR-0005 §4 asks for "Bookings, Tuesday
+   * 4 March, 42 appointments", and the library knows neither that the unit is
+   * appointments nor how this application writes a date. Supply this and the
+   * announcement becomes a sentence instead of a reading of the data.
+   */
+  pointLabel?: (d: TimePoint, index: number) => string;
+  /**
+   * Which channel carries a keyboard step.
+   *
+   * - `"live"` (default) — a polite live region, per ADR-0005 §4.
+   * - `"option"` — `aria-activedescendant` moves to the rendered option, which
+   *   is the APG mechanism for a listbox and avoids depending on live-region
+   *   behaviour that varies by reader and version.
+   *
+   * They are mutually exclusive by construction. Running both announces every
+   * step twice.
+   */
+  announce?: "live" | "option";
   class?: string;
 }
+
+/**
+ * A line chart is informative by default and must be named — see
+ * `ChartSemanticsProps`. `decorative` is the explicit opt-out; there is no
+ * implicit one.
+ */
+export type LineChartProps = LineChartBaseProps & ChartSemanticsProps;
+
+type LineChartBodyProps = LineChartBaseProps & { semantics: ChartSemantics };
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All scales,
  * the path, and ticks are memos that recompute only when data or size change.
  */
-const LineChartBody: Component<LineChartProps> = (props) => {
+const LineChartBody: Component<LineChartBodyProps> = (props) => {
   const model = createCartesianModel({
     data: () => props.data,
     // The time domain is the data's EXTENT, not its first and last datum.
@@ -99,31 +160,145 @@ const LineChartBody: Component<LineChartProps> = (props) => {
     });
   });
 
+  // ONE active-datum state. The keyboard writes it here; a pointer model writes
+  // the same object when composed-chart hit-testing arrives. There is no second
+  // place to keep an answer, which is what stops the cursor and the announcement
+  // ever describing different points (ADR-0002 §1, §4).
+  const active = createActiveDatum({
+    count: () => props.data.length,
+    pageSize: props.pageSize,
+  });
+  const keyboard = createChartKeyboard({ active });
+
+  const sem = (): ChartSemantics => props.semantics;
+  const enabled = (): boolean => !sem().decorative() && (props.keyboard ?? true);
+  const usesLiveRegion = (): boolean => (props.announce ?? "live") === "live";
+
+  const datum = (): TimePoint | undefined => {
+    const i = active.index();
+    return i === undefined ? undefined : props.data[i];
+  };
+
+  const pointLabel = (index: number): string => {
+    const d = props.data[index];
+    if (d === undefined) return "";
+    if (props.pointLabel) return props.pointLabel(d, index);
+    // ISO 8601 for the same reason the derived table rows use it: it is
+    // unambiguous and locale-independent, and anything friendlier is domain
+    // wording this library would be inventing. The chart's own name stands in
+    // for the series context ADR-0005 §4 asks for.
+    const series = sem().name();
+    return series ? `${series}, ${d.t.toISOString()}, ${d.y}` : `${d.t.toISOString()}, ${d.y}`;
+  };
+
   return (
-    <CartesianFrame
-      x={model.x()}
-      y={model.y()}
-      hasArea={model.hasArea()}
-      gridlines={props.gridlines}
-      title={props.title}
-      class={props.class}
-    >
-      <path
-        d={pathD()}
-        fill="none"
-        stroke={props.stroke ?? "currentColor"}
-        stroke-width={props.strokeWidth ?? 1.5}
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
-    </CartesianFrame>
+    <>
+      <CartesianFrame
+        x={model.x()}
+        y={model.y()}
+        hasArea={model.hasArea()}
+        gridlines={props.gridlines}
+        semantics={props.semantics}
+        class={props.class}
+      >
+        <path
+          d={pathD()}
+          fill="none"
+          stroke={props.stroke ?? "currentColor"}
+          stroke-width={props.strokeWidth ?? 1.5}
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        {/*
+          The active point is marked visually as well as programmatically. A
+          keyboard user who can see the screen gets nothing from an announcement
+          alone, and the ringed marker is drawn in SIZE and OUTLINE as well as
+          colour so it survives a monochrome rendering (ADR-0005 §5). The
+          surface-coloured under-ring keeps it legible over a gridline.
+        */}
+        <Show when={datum()}>
+          {(d) => (
+            <>
+              <circle
+                cx={model.x()(d().t)}
+                cy={model.y()(d().y)}
+                r="7"
+                fill="none"
+                stroke="var(--sp-color-surface, #ffffff)"
+                stroke-width="4"
+              />
+              <circle
+                cx={model.x()(d().t)}
+                cy={model.y()(d().y)}
+                r="7"
+                fill="none"
+                stroke="var(--sp-color-cursor, currentColor)"
+                stroke-width="2"
+              />
+              <Crosshair x={model.x()(d().t)} y={model.y()(d().y)} />
+            </>
+          )}
+        </Show>
+      </CartesianFrame>
+
+      <Show when={enabled()}>
+        <ChartKeyboardSurface
+          keyboard={keyboard}
+          optionLabel={pointLabel}
+          activeDescendant={!usesLiveRegion()}
+          label={
+            sem().name()
+              ? `${sem().name()}. Use arrow keys to step through points.`
+              : undefined
+          }
+          labelledBy={sem().name() ? undefined : sem().labelledBy()}
+          describedBy={sem().describedBy()}
+        />
+      </Show>
+
+      {/*
+        The live region carries the committed step. It is throttled inside
+        `ChartAnnouncer`, so a held arrow key produces announcements at the
+        primitive's policy rate rather than at the key-repeat rate — and the
+        last point of the burst is always the one left in the region.
+
+        It renders only in `announce="live"` mode. In `"option"` mode
+        `aria-activedescendant` carries the step instead, and running both would
+        announce every step twice.
+      */}
+      <Show when={enabled() && usesLiveRegion()}>
+        <ChartAnnouncer
+          message={active.index() === undefined ? "" : pointLabel(active.index()!)}
+        />
+      </Show>
+    </>
   );
 };
 
 export const LineChart: Component<LineChartProps> = (props) => {
+  // Resolved OUTSIDE ChartRoot, because the data alternative is a sibling of
+  // the measured box rather than a child of it — ChartRoot is sized to the
+  // chart, and a table rendered inside it would overlap the drawing.
+  const semantics = createChartSemantics(props);
+
   return (
-    <ChartRoot width={props.width} height={props.height} margins={props.margins}>
-      <LineChartBody {...props} />
-    </ChartRoot>
+    <>
+      <ChartRoot width={props.width} height={props.height} margins={props.margins}>
+        <LineChartBody {...props} semantics={semantics} />
+      </ChartRoot>
+      {/*
+        Rows derived from the same `props.data` the path is drawn from, read
+        inside an accessor so a data replacement moves both together. Timestamps
+        go out as ISO 8601: it is unambiguous and locale-independent, and any
+        other rendering is domain wording the library cannot invent — pass
+        `table.rows` to control it.
+      */}
+      <ChartDataAlternative
+        semantics={semantics}
+        defaultRows={(): readonly ChartTableRow[] =>
+          props.data.map((d) => [d.t.toISOString(), d.y] as const)
+        }
+      />
+    </>
   );
 };

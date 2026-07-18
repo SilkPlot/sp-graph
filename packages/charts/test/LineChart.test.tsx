@@ -63,12 +63,12 @@ function scalesFor(data: readonly TimePoint[], innerWidth: number, innerHeight: 
 
 describe("LineChart — structure", () => {
   it("renders an <svg>", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector("svg")).not.toBeNull();
   });
 
   it("renders exactly one chart <path> with a non-empty, 'M'-starting d, fill none, and a stroke", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     const paths = getPaths(container);
     expect(paths).toHaveLength(1);
 
@@ -82,7 +82,7 @@ describe("LineChart — structure", () => {
   });
 
   it("renders both a left and a bottom axis", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
     expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
   });
@@ -96,7 +96,7 @@ describe("LineChart — structure", () => {
 
   it("applies a custom class to the <svg>", () => {
     const { container } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} class="my-chart" />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} class="my-chart" />
     ));
     expect(container.querySelector("svg")?.getAttribute("class")).toContain("my-chart");
   });
@@ -104,7 +104,7 @@ describe("LineChart — structure", () => {
 
 describe("LineChart — ticks match @silkplot/core computeTicks", () => {
   it("bottom axis tick count matches computeTicks for the equivalent time scale", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     const bottomAxis = container.querySelector('g[data-silkplot-axis="bottom"]') as SVGGElement;
     const innerWidth = WIDTH - MARGINS.left - MARGINS.right;
     const innerHeight = HEIGHT - MARGINS.top - MARGINS.bottom;
@@ -116,7 +116,7 @@ describe("LineChart — ticks match @silkplot/core computeTicks", () => {
   });
 
   it("left axis tick count matches computeTicks for the equivalent linear scale", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     const leftAxis = container.querySelector('g[data-silkplot-axis="left"]') as SVGGElement;
     const innerWidth = WIDTH - MARGINS.left - MARGINS.right;
     const innerHeight = HEIGHT - MARGINS.top - MARGINS.bottom;
@@ -130,7 +130,7 @@ describe("LineChart — ticks match @silkplot/core computeTicks", () => {
 
 describe("LineChart — props", () => {
   it("defaults stroke to currentColor and strokeWidth to 1.5", () => {
-    const { container } = render(() => <LineChart data={DATA} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
     const lineEl = getPaths(container)[0]!;
     expect(lineEl.getAttribute("stroke")).toBe("currentColor");
     expect(lineEl.getAttribute("stroke-width")).toBe("1.5");
@@ -138,7 +138,7 @@ describe("LineChart — props", () => {
 
   it("applies a custom stroke and strokeWidth", () => {
     const { container } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} stroke="navy" strokeWidth={3} />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} stroke="navy" strokeWidth={3} />
     ));
     const lineEl = getPaths(container)[0]!;
     expect(lineEl.getAttribute("stroke")).toBe("navy");
@@ -149,10 +149,10 @@ describe("LineChart — props", () => {
 describe("LineChart — curve behaviour", () => {
   it("defaults to monotoneX: the no-curve-prop path matches an explicit curve='monotoneX' render", () => {
     const { container: defaultContainer } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />
     ));
     const { container: explicitContainer } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} curve="monotoneX" />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} curve="monotoneX" />
     ));
     const defaultD = getPaths(defaultContainer)[0]!.getAttribute("d");
     const explicitD = getPaths(explicitContainer)[0]!.getAttribute("d");
@@ -165,10 +165,10 @@ describe("LineChart — curve behaviour", () => {
 
   it("curve='linear' emits lineto ('L') commands and differs from the monotoneX default", () => {
     const { container: linearContainer } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} curve="linear" />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} curve="linear" />
     ));
     const { container: defaultContainer } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />
     ));
     const linearD = getPaths(linearContainer)[0]!.getAttribute("d")!;
     const defaultD = getPaths(defaultContainer)[0]!.getAttribute("d")!;
@@ -182,7 +182,7 @@ describe("LineChart — curve behaviour", () => {
 describe("LineChart — y-domain has no forced baseline (unlike Area/Bar)", () => {
   it("for an all-positive series, the y-domain low bound is 0 (min(0, lo)), matching linePath's own scale", () => {
     const { container } = render(() => (
-      <LineChart data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const lineD = getPaths(container)[0]!.getAttribute("d")!;
     const { y } = scalesFor(DATA, WIDTH, HEIGHT);
@@ -202,7 +202,7 @@ describe("LineChart — y-domain has no forced baseline (unlike Area/Bar)", () =
       { t: new Date(Date.UTC(2026, 0, 2)), y: -2 },
     ];
     const { container } = render(() => (
-      <LineChart data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={negative} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const lineD = getPaths(container)[0]!.getAttribute("d")!;
     const { y } = scalesFor(negative, WIDTH, HEIGHT);
@@ -270,7 +270,7 @@ describe("LineChart — data replacement", () => {
   it("rescales y when the values change, keeping the path on canvas", () => {
     const [data, setData] = createSignal<TimePoint[]>(BEFORE);
     const { container } = render(() => (
-      <LineChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     expectPathTracks(container, BEFORE);
 
@@ -291,7 +291,7 @@ describe("LineChart — data replacement", () => {
     ];
     const [data, setData] = createSignal<TimePoint[]>(BEFORE);
     const { container } = render(() => (
-      <LineChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
 
     setData(shifted);
@@ -310,7 +310,7 @@ describe("LineChart — data replacement", () => {
     ];
     const [data, setData] = createSignal<TimePoint[]>(BEFORE);
     const { container } = render(() => (
-      <LineChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
 
     setData(longer);
@@ -325,7 +325,7 @@ describe("LineChart — data replacement", () => {
   it("survives empty -> populated -> empty without emitting NaN", () => {
     const [data, setData] = createSignal<TimePoint[]>([]);
     const { container } = render(() => (
-      <LineChart data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+      <LineChart title="Daily readings" data={data()} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const noNaN = (): void => {
       container.querySelectorAll("path").forEach((p) => {
@@ -348,9 +348,9 @@ describe("LineChart — data replacement", () => {
 
 describe("LineChart — empty and single-point data", () => {
   it("empty data does not throw and produces no NaN in the path d", () => {
-    expect(() => render(() => <LineChart data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
+    expect(() => render(() => <LineChart title="Daily readings" data={[]} width={WIDTH} height={HEIGHT} />)).not.toThrow();
 
-    const { container } = render(() => <LineChart data={[]} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={[]} width={WIDTH} height={HEIGHT} />);
     container.querySelectorAll("path").forEach((p) => {
       const d = p.getAttribute("d") ?? "";
       expect(d).not.toContain("NaN");
@@ -360,10 +360,10 @@ describe("LineChart — empty and single-point data", () => {
   it("single-point data does not throw and produces no NaN in the path d", () => {
     const single: TimePoint[] = [{ t: new Date(Date.UTC(2026, 0, 1)), y: 5 }];
     expect(() =>
-      render(() => <LineChart data={single} width={WIDTH} height={HEIGHT} />),
+      render(() => <LineChart title="Daily readings" data={single} width={WIDTH} height={HEIGHT} />),
     ).not.toThrow();
 
-    const { container } = render(() => <LineChart data={single} width={WIDTH} height={HEIGHT} />);
+    const { container } = render(() => <LineChart title="Daily readings" data={single} width={WIDTH} height={HEIGHT} />);
     container.querySelectorAll("path").forEach((p) => {
       const d = p.getAttribute("d") ?? "";
       expect(d).not.toContain("NaN");
