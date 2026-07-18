@@ -81,8 +81,9 @@ and because the sourcemaps resolve through it.
 **Two build outputs, two directories, one producer each.** `dist` is the
 publishable tsup build. `tsc -b` now emits to `.tsbuild`, mirroring what the
 playground already did. Sharing one directory would make each producer's
-leftovers look like the other's product, which is the exact defect S004-P05 was
-written to remove.
+leftovers look like the other's product, which is the exact defect this
+separation was written to remove: stale output survived a rebuild because each
+producer took the other's leavings for its own.
 
 **tsup builds the JavaScript; `tsc` builds the declarations.** tsup's `dts`
 option drives the TypeScript compiler through internals TypeScript 7 no longer

@@ -14,8 +14,8 @@
 //      module survives indefinitely; `packages/charts` carried a `Placeholder`
 //      module long after its source was removed.
 //
-//      That output is `.tsbuild`, not `dist`. Since S004-P03 `dist` is the tsup
-//      build, which is bundled (its file names are entry names, not source
+//      That output is `.tsbuild`, not `dist`. `dist` is now the tsup build,
+//      which is bundled (its file names are entry names, not source
 //      names) and rebuilt from empty on every run — so it cannot go stale, and
 //      a per-source-file check would not describe it. `.tsbuild` is the
 //      incremental, file-per-source output this guard was written for.

@@ -1,0 +1,25 @@
+# Blank issues are off because the three forms below ask for the things that
+# decide whether a report is actionable — the package, the commit, and a
+# reproduction. A blank issue reliably arrives without them, and the follow-up
+# round trip costs the reporter more time than the form does.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/SilkPlot/sp-graph/security/advisories/new
+    about: >-
+      Do not open a public issue for a vulnerability. This repository is public,
+      so a filed issue is disclosure at the moment there is no fix. The advisory
+      form is private between you and the maintainers. See SECURITY.md for scope
+      and what to expect.
+
+# There is deliberately NO link to Discussions here.
+#
+# Discussions is not enabled on this repository, and a contact link pointing at
+# a disabled feature is a 404 on the first screen a new contributor sees — the
+# worst possible place for a dead link, and worse than having no question
+# channel at all. Usage questions and "is this the intended pattern?" go to the
+# integration feedback form below, which says so.
+#
+# If Discussions is enabled later, add the link back here rather than leaving
+# questions routed through an issue form.

@@ -7,6 +7,7 @@
     { "path": "./packages/charts" },
     { "path": "./packages/calendar" },
     { "path": "./packages/theme" },
-    { "path": "./playground" }
+    { "path": "./playground" },
+    { "path": "./site" }
   ]
 }

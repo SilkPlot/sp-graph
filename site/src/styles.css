@@ -1,0 +1,446 @@
+/*
+ * Site styles.
+ *
+ * Colours come from `@silkplot/theme`'s custom properties, so the page follows
+ * the same light/dark and high-contrast resolution the charts do and cannot end
+ * up as a light page around a dark chart. The type scale is the site's own: the
+ * theme's font tokens are CHART sizes (10–16px axis labels), not a page scale,
+ * and stretching them into one would misrepresent what that package is for.
+ *
+ * No web fonts. A documentation site that blocks first paint on a font request
+ * fails the project's own performance stance on its front page.
+ */
+
+:root {
+  --page-max: 62rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 2rem;
+  --text-2xl: clamp(2.5rem, 7vw, 4rem);
+  --rule: color-mix(in srgb, var(--sp-color-axis) 35%, transparent);
+
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--sp-color-surface);
+  color: var(--sp-color-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--text-md);
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:not(pre) > code {
+  background: color-mix(in srgb, var(--sp-color-grid) 55%, transparent);
+  border-radius: var(--sp-radius-sm);
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+a {
+  color: var(--sp-color-focus-ring);
+  text-underline-offset: 0.2em;
+}
+
+/* Skip link — off-screen until focused, never `display: none`, which would
+   remove it from the tab order and defeat the point of having it. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: var(--sp-space-md);
+  z-index: 10;
+  background: var(--sp-color-surface);
+  border: 1px solid var(--sp-color-axis);
+  border-radius: var(--sp-radius-md);
+  padding: var(--sp-space-md) var(--sp-space-lg);
+}
+
+.skip:focus {
+  left: var(--sp-space-md);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+
+.hero,
+.nav,
+main,
+.footer {
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--sp-space-lg);
+}
+
+.hero {
+  padding-block: clamp(2.5rem, 8vw, 5rem) var(--sp-space-xl);
+}
+
+.hero__eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sp-color-muted);
+}
+
+.hero__title {
+  margin: var(--sp-space-sm) 0 0;
+  font-size: var(--text-2xl);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.hero__tagline {
+  margin: var(--sp-space-md) 0 0;
+  font-size: var(--text-lg);
+  color: var(--sp-color-muted);
+}
+
+.hero__tagline strong {
+  color: var(--sp-color-text);
+}
+
+.hero__body {
+  margin: var(--sp-space-lg) 0 0;
+  max-width: 46rem;
+}
+
+.hero__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-md);
+  margin-top: var(--sp-space-xl);
+}
+
+.button {
+  display: inline-block;
+  padding: 0.6em 1.2em;
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-text);
+  color: var(--sp-color-surface);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--sp-color-text);
+  border: 1px solid var(--sp-color-axis);
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--sp-color-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-block: 1px solid var(--rule);
+  padding-block: var(--sp-space-md);
+}
+
+.nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-lg);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+}
+
+.nav a {
+  color: var(--sp-color-muted);
+  text-decoration: none;
+}
+
+.nav a:hover {
+  color: var(--sp-color-text);
+  text-decoration: underline;
+}
+
+/* `main > section`, not `section`.
+   Scroll containers that need an accessible name are `<section>` elements too
+   (a named section is a region; a `<div role="region">` is the same thing said
+   twice, and `<pre>` cannot be named at all). A bare `section` rule would give
+   every one of them page-section padding and a rule line. */
+main > section {
+  padding-block: clamp(2rem, 6vw, 3.5rem);
+  border-bottom: 1px solid var(--rule);
+  scroll-margin-top: 4.5rem;
+}
+
+main > section:last-of-type {
+  border-bottom: 0;
+}
+
+h2 {
+  font-size: var(--text-xl);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--sp-space-lg);
+}
+
+h3 {
+  font-size: var(--text-lg);
+  margin: var(--sp-space-xl) 0 var(--sp-space-md);
+}
+
+p {
+  max-width: 46rem;
+}
+
+.note,
+.callout {
+  font-size: var(--text-sm);
+}
+
+.note {
+  color: var(--sp-color-muted);
+}
+
+.callout {
+  border-left: 3px solid var(--sp-color-axis);
+  background: color-mix(in srgb, var(--sp-color-grid) 40%, transparent);
+  border-radius: 0 var(--sp-radius-md) var(--sp-radius-md) 0;
+  padding: var(--sp-space-lg);
+  max-width: 46rem;
+}
+
+.callout--warn {
+  border-left-color: var(--sp-color-focus-ring);
+}
+
+.facts {
+  padding-left: 1.2em;
+  max-width: 46rem;
+}
+
+.facts li + li {
+  margin-top: var(--sp-space-md);
+}
+
+.limits {
+  max-width: 46rem;
+}
+
+.limits dt {
+  font-weight: 650;
+  margin-top: var(--sp-space-lg);
+}
+
+.limits dd {
+  margin: var(--sp-space-xs) 0 0;
+  color: var(--sp-color-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+
+/* Wide content scrolls inside its own container so the page body never scrolls
+   sideways on a phone. The container is focusable because a scroll region that
+   only a mouse can reach is unreachable for a keyboard-only reader. */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--sp-radius-lg);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+/* Scoped to the SITE's own tables, never `table` generally.
+   Every informative chart ships its own data table, so a bare `table` rule
+   reaches into library output: a 34rem floor on a two-column chart table forced
+   544px of content into a 390px viewport and scrolled the whole document
+   sideways. The floor exists to stop the site's four-column tables collapsing
+   into unreadable slivers, and it belongs only where that risk is. */
+.table-scroll table {
+  min-width: 34rem;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  border-bottom: 1px solid var(--rule);
+}
+
+tbody tr:last-child th,
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+thead th {
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sp-color-muted);
+}
+
+.pill {
+  display: inline-block;
+  border-radius: var(--sp-radius-pill);
+  padding: 0.15em 0.7em;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  border: 1px solid currentcolor;
+}
+
+.pill--alpha {
+  color: var(--sp-color-focus-ring);
+}
+
+.pill--stub {
+  color: var(--sp-color-muted);
+}
+
+/* ── Code ───────────────────────────────────────────────────────────────── */
+
+.code {
+  min-width: 0;
+  margin: var(--sp-space-lg) 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--sp-radius-lg);
+  overflow: hidden;
+}
+
+.code__caption {
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  background: color-mix(in srgb, var(--sp-color-grid) 45%, transparent);
+  border-bottom: 1px solid var(--rule);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--sp-color-muted);
+}
+
+.code__scroll {
+  display: block;
+  overflow-x: auto;
+}
+
+.code__pre {
+  margin: 0;
+  padding: var(--sp-space-lg);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* ── Examples ───────────────────────────────────────────────────────────── */
+
+/* `minmax(0, 1fr)` even in the single-column case, and `min-width: 0` on the
+   card and the code figure.
+   A grid item's default `min-width: auto` refuses to shrink below its content,
+   so a wide `<pre>` widens the track rather than scrolling inside it — the
+   `overflow-x` on the `<pre>` never gets a chance to apply. That is what put
+   383px of sideways scroll on the whole page at 390px wide. */
+.gallery {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-space-xl);
+}
+
+.example {
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--sp-radius-lg);
+  padding: var(--sp-space-xl);
+}
+
+.example__title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.example__blurb {
+  margin: var(--sp-space-xs) 0 var(--sp-space-lg);
+  color: var(--sp-color-muted);
+  font-size: var(--text-sm);
+}
+
+.example__chart {
+  /* The charts measure their parent, so this box IS the chart's width. */
+  width: 100%;
+}
+
+.example__toggle {
+  margin-top: var(--sp-space-lg);
+  padding: 0.45em 1em;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--sp-color-text);
+  background: transparent;
+  border: 1px solid var(--sp-color-axis);
+  border-radius: var(--sp-radius-md);
+  cursor: pointer;
+}
+
+/* The chart's own data table is a real table on the page. Style it to match the
+   others rather than leaving it as browser default — it is content a sighted
+   reader may well want, not a hidden accessibility appendage.
+   Deliberately NOT `display: block` to make it scroll: that is the usual fix for
+   a wide table, and on some engines it drops the table out of the accessibility
+   tree, which on this project would be a self-inflicted wound. */
+.example table {
+  margin-top: var(--sp-space-lg);
+  /* `fixed` so the columns share the card's width instead of being sized by
+     their longest cell. Auto layout takes a table's min-content width as a hard
+     floor, and a single long value — an ISO timestamp, an unrounded float —
+     then pushes the table past its container and the page sideways with it.
+     Paired with wrapping below, since fixed layout clips rather than grows. */
+  table-layout: fixed;
+}
+
+.example table th,
+.example table td {
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  padding-block: var(--sp-space-xl) 3rem;
+  color: var(--sp-color-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (min-width: 48rem) {
+  .gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The theming example carries a control and reads better full width. */
+  .example[data-example="05-theming.tsx"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

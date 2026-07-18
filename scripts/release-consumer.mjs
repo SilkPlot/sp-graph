@@ -136,6 +136,29 @@ export async function verifyConsumer({ repoRoot, tarballs, packageNames, keepFix
     cpSync(join(repoRoot, "test", "release-consumer"), fixture, { recursive: true });
     for (const tarball of tarballs) cpSync(tarball, join(fixture, basename(tarball)));
 
+    // The published quickstart, typechecked against the packed tarballs.
+    //
+    // The site tells a newcomer this is the code that works. Nothing proved it:
+    // the site compiles inside the workspace, where `@silkplot/*` resolves
+    // through the "source" condition to the packages next door, so the
+    // quickstart would compile unchanged even if the tarball shipped no
+    // declarations at all. Copying the real file — never a transcription of it —
+    // into the fixture puts the documented code through the same resolution a
+    // reader who installed the package gets.
+    //
+    // A missing source file fails HERE rather than silently reducing the
+    // fixture's coverage, because a typecheck of a file that does not exist is
+    // a typecheck that passes.
+    const quickstart = join(repoRoot, "site", "src", "quickstart", "app.tsx");
+    if (!existsSync(quickstart)) {
+      return [
+        `the published quickstart is missing at ${quickstart}.\n` +
+          "      The release gate typechecks it against the packed tarballs; without the file\n" +
+          "      that check silently passes and the documented code is proven by nothing.",
+      ];
+    }
+    cpSync(quickstart, join(fixture, "src", "quickstart.tsx"));
+
     // One install, all four tarballs at once. Sequential installs would each hit
     // a registry for the internal @silkplot/* dependencies of the one before.
     console.log("   installing packed tarballs...");

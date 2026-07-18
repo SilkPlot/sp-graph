@@ -1,0 +1,118 @@
+name: Integration feedback
+description: What happened when you tried to use SilkPlot in a real application — including the parts that did not work.
+labels: ["integration-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SilkPlot is **not published to npm yet**, so every real integration today
+        starts with a tarball you built yourself. The packages do pack and install
+        correctly — a gate installs them into a project outside the repository on
+        every run — but that gate proves resolution, not ergonomics. The friction
+        you hit is information the maintainers cannot generate by testing the
+        library against itself.
+
+        This form is for that: the API that did not fit, the build that would not
+        resolve, the chart you had to abandon and hand-roll. **A report that ends in
+        "so I gave up and used something else" is wanted, not unwelcome** — where
+        somebody stops is the most useful signal there is, and it is the one people
+        are least likely to send.
+
+        **Usage questions belong here too.** "Is this the intended pattern?" and
+        "how am I supposed to do X?" are integration feedback: if the answer is not
+        obvious from the documentation, that is a finding about the documentation.
+
+        Not a bug report (something behaves incorrectly) and not an accessibility
+        report — both have their own form.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback
+      options:
+        - Could not get it installed or resolving in my build
+        - The API could not express the chart I needed
+        - A capability is missing entirely
+        - Types fought me — inference, generics, or the discriminated union
+        - SSR, hydration, or a framework integration problem
+        - Performance in a real workload
+        - Documentation sent me the wrong way
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: trying-to-do
+    attributes:
+      label: What you were trying to build
+      description: >-
+        The actual chart and the actual product context, not a reduced version. The
+        real requirement — "a ranked bar chart with a reference line, and the legend
+        has to be controlled from outside" — is what tells us whether the roadmap is
+        pointed at the right things.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: >-
+        Where it stopped working, or where it got harder than it should have been.
+        Paste the error, the resolution failure, or the code you ended up writing to
+        get around it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you did instead
+      description: >-
+        Dropped to the primitives, patched something, used another library, shipped
+        without the chart. Say if you abandoned it — an abandoned integration is a
+        finding, and pretending otherwise costs the project the signal.
+
+  - type: input
+    id: stack
+    attributes:
+      label: Your stack
+      description: Bundler, Solid version, SSR or SPA, meta-framework, and Node version.
+      placeholder: Vite 7 + vite-plugin-solid, solid-js 1.9, SolidStart SSR, Node 24.4.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how-installed
+    attributes:
+      label: How you got SilkPlot into your project
+      description: >-
+        There is no supported answer here yet, which is the point of asking. Every
+        one of these routes has a different failure mode, and knowing which you took
+        is usually the fastest way to explain what you saw.
+      options:
+        - Cloned the repo and ran the playground
+        - npm link / file: reference into my own project
+        - npm pack and installed the tarballs
+        - Vendored the source into my repo
+        - Git dependency
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      placeholder: 8d84c7d
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would have made this work
+      description: >-
+        An API shape, a missing export, a doc that should exist. Optional — a report
+        with no proposed fix is still a good report, and identifying the problem is
+        the harder half.

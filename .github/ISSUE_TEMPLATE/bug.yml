@@ -1,0 +1,112 @@
+name: Bug report
+description: Something renders wrong, throws, or behaves differently from what the docs say.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Not for security vulnerabilities.** This tracker is public, so filing one
+        here is disclosure before a fix exists. Use the private advisory form:
+        <https://github.com/SilkPlot/sp-graph/security/advisories/new>
+
+        **Not for accessibility defects** — those have their own form, which asks
+        the questions that make an accessibility report useful.
+
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: What you observe, precisely. A screenshot helps for anything visual.
+      placeholder: The y-axis renders a single tick at 0 and no others.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      description: >-
+        And why. If the docs led you to expect it, link the line — that is either a
+        bug in the code or a bug in the docs, and both are worth fixing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >-
+        The smallest chart, props, and data that show the problem. Paste it as code
+        rather than describing it — a description of a reproduction is not one, and
+        the shape of the data is very often where the bug is.
+      render: tsx
+      value: |
+        import { LineChart } from "@silkplot/charts";
+
+        const data = [
+          // the data that triggers it — real shape, real edge cases
+        ];
+
+        <LineChart data={data} width={640} height={320} title="…" desc="…" />
+    validations:
+      required: true
+
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which package
+      description: Pick the one the defect is in, or "not sure" — narrowing it is our job, not yours.
+      options:
+        - "@silkplot/core"
+        - "@silkplot/solid"
+        - "@silkplot/charts"
+        - "@silkplot/calendar"
+        - "@silkplot/theme"
+        - playground
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: >-
+        The commit SHA you are on. SilkPlot is not published to npm, so there is no
+        version number that identifies your code — a clone from three weeks ago and
+        one from today both call themselves 0.1.0. `git rev-parse --short HEAD`.
+      placeholder: 8d84c7d
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser, OS, and Node version
+      description: Node from `node -v`. Browser and OS as you would say them out loud.
+      placeholder: Chrome 141 on Ubuntu 24.04, Node 24.4.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: errors
+    attributes:
+      label: Console output
+      description: >-
+        Any errors or warnings, verbatim, with the stack trace if there is one.
+        SilkPlot throws deliberately in a development build for some contract
+        violations, so the message may be the whole answer.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before filing
+      options:
+        - label: I reproduced this on current `main`, not an older clone.
+          required: true
+        - label: >-
+            I checked this is not the documented behaviour — in particular that the
+            chart is not missing a `title`/`labelledBy`, which throws in development
+            on purpose.
+          required: true
