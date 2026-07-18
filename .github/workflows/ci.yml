@@ -41,9 +41,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      # The `solid` and `charts` Vitest projects run in real headless chromium,
-      # not jsdom, so the runner needs a browser. Without this step the test job
-      # cannot pass — which is exactly why every run before this one went red.
+      # The `solid`, `charts`, and `playground` Vitest projects run in real
+      # headless chromium, not jsdom, so the runner needs a browser. Without this
+      # step the test job cannot pass — which is exactly why every run before
+      # this one went red. (`playground` joined the browser projects with the
+      # visible-focus work: a focus ring is a computed style resolved under
+      # `:focus-visible`, a media query, and a custom-property cascade, none of
+      # which a node environment resolves.)
       - name: Resolve Playwright version
         id: playwright
         run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -64,6 +68,25 @@ jobs:
       - name: Install Playwright system dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
+
+      # The accessibility contract (ADR-0005) gets its own gate rather than
+      # relying on the full suite alone. A suite-wide green does not say the
+      # accessibility files were among the ones that ran, and deleting a failing
+      # test file is the easiest way to make it stop failing — which a
+      # suite-wide green reports as a shorter runtime. This step names the
+      # suites, fails if any has gone missing, been emptied, or been made
+      # unreachable by the project layout, and fails if the workflow stops
+      # calling it. See scripts/accessibility-gate.mjs.
+      - name: Accessibility gate (suites present and reachable)
+        run: npm run gate:accessibility
+
+      # The deterministic accessibility checks, run as their own step so a
+      # failure reads as "the accessibility contract regressed" and not as one
+      # more red suite. Sequential with the full run below on purpose: two
+      # concurrent Vitest browser processes collide on the browser API port, and
+      # the collision reports as a connect timeout having executed zero tests.
+      - name: Accessibility checks
+        run: npm run test:accessibility
 
       # Coverage is printed for visibility only. No threshold is enforced — see
       # the `coverage` block in vitest.config.ts.

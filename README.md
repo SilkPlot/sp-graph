@@ -161,7 +161,7 @@ npm test              # all projects
 npm test -- --project core   # just the pure-math project
 ```
 
-Vitest runs four projects, split by what each package actually needs:
+Vitest runs five projects, split by what each package actually needs:
 
 | Project | Environment | Why |
 |---|---|---|
@@ -169,6 +169,14 @@ Vitest runs four projects, split by what each package actually needs:
 | `theme` | node | Emits CSS as strings and reads no DOM — same reasoning as `core`. |
 | `solid` | real chromium | `createResize` uses `ResizeObserver` and `el.clientWidth`; jsdom implements neither (`clientWidth` is always `0`), so the measurement path can only be exercised honestly in a real browser. |
 | `charts` | real chromium | Composed charts render Solid components. |
+| `playground` | real chromium | The reference composition is where the visible-focus contract is proven end to end. A focus ring is a computed style resolved under `:focus-visible`, a media query, and a custom-property cascade — none of which node resolves. |
+
+The accessibility suites also run as their own CI gate:
+
+```sh
+npm run gate:accessibility   # the suites are present, non-empty, and reachable
+npm run test:accessibility   # run exactly those suites
+```
 
 Tests live in each package's `test/` directory, never colocated in `src/` — packages ship
 `src` to npm and `tsc -b` compiles it, so a colocated test would be both published and
@@ -180,6 +188,20 @@ The load-bearing architecture rules are documented in [`docs/architecture.md`](d
 Decisions — what was chosen, what was rejected, and why — are recorded as ADRs in
 [`docs/decisions/`](docs/decisions/index.md). Start with
 [ADR-0001](docs/decisions/adr-0001-theming-contract.md) if you are theming SilkPlot.
+
+- [**Accessibility**](docs/accessibility.md) — author responsibilities, informative vs
+  decorative, descriptions and the data alternative, keyboard behaviour, theme and motion,
+  and **what has and has not been tested**. Read it before you name a chart; every
+  informative chart requires one.
+- [Release checklist](docs/release-checklist.md) — the manual checks CI cannot make,
+  including the assistive-technology matrix that has **not** been run.
+
+> **On accessibility claims.** No assistive-technology testing has been performed
+> against SilkPlot — no NVDA, JAWS, VoiceOver, Orca, Narrator, or TalkBack run.
+> SilkPlot claims no WCAG conformance and no screen-reader compatibility. What it
+> does have is a stated contract ([ADR-0005](docs/decisions/adr-0005-accessibility-contract.md))
+> and deterministic checks gating CI against it. The difference matters; see
+> [Tested limitations](docs/accessibility.md#tested-limitations).
 
 ## Contributing
 
