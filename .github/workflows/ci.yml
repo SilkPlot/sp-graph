@@ -11,19 +11,24 @@ permissions:
 
 jobs:
   build:
-    name: Lint, typecheck, build & test (Node ${{ matrix.node }})
+    name: Lint, typecheck, build & test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [22]
+    # Restated per job so adding a job cannot silently inherit more than it needs.
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # `.nvmrc` is the repository's single tool-version file, so CI cannot
+      # drift from a local checkout by pinning its own number here. The npm
+      # floor lives in the root `engines` field and is enforced by
+      # `engine-strict` in `.npmrc`, which makes the install below fail rather
+      # than warn on an unsupported toolchain.
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
@@ -38,8 +43,27 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Build
+      # `npm run build` cleans first, so this is a build from scratch and not an
+      # incremental one. That matters: `tsc -b` never deletes, so without the
+      # clean a module whose source was deleted stays in `dist` forever.
+      - name: Build (clean)
         run: npm run build
+
+      # `tsc -b` above is a validation gate, not a packaging step — it writes a
+      # gitignored `dist` nothing consumes. This is the bundle a consumer's
+      # bundler actually produces from the packages' TSX source via the "solid"
+      # export condition, and it is the only step that would catch a break in
+      # that path. CI proved `tsc -b` output and nothing else until now.
+      - name: Build the playground production bundle (Vite)
+        run: npm run build:playground
+
+      # Two defects that a green test suite cannot see, because the tests run
+      # against `src` and both of these live in what the build EMITS: a
+      # generated config shadowing `playground/vite.config.ts` (it wins Vite's
+      # config search), and a package `dist` file whose source has been deleted.
+      # See scripts/build-hygiene-gate.mjs.
+      - name: Build hygiene gate (config shadow, stale output)
+        run: npm run gate:build-hygiene
 
       # The `solid`, `charts`, and `playground` Vitest projects run in real
       # headless chromium, not jsdom, so the runner needs a browser. Without this
@@ -92,3 +116,34 @@ jobs:
       # the `coverage` block in vitest.config.ts.
       - name: Test (with coverage)
         run: npm run test:coverage
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Split deliberately, because one aggregate number cannot be acted on.
+      #
+      # What SHIPS to a consumer is the production tree, so that audit gates at
+      # the lowest severity and blocks the build. Development-only findings do
+      # not reach a consumer: the current one is an esbuild dev-server advisory
+      # (low, Windows-only, a transitive dev dependency), accepted rather than
+      # chased because fixing it churns the lockfile for something no installed
+      # package can reach. Reported every run so an accepted finding stays
+      # visible, and non-blocking so it cannot be mistaken for a shipping risk.
+      - name: Audit production dependencies (blocking)
+        run: npm run audit:prod
+
+      - name: Audit dev dependencies (reported, accepted findings do not block)
+        run: npm run audit:dev
+        continue-on-error: true

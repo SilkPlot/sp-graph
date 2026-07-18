@@ -2,7 +2,11 @@
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist",
+    // NOT `./dist`. `dist` is Vite's bundle output; `tsc -b` is a validation
+    // gate here, not a packaging step. Sharing one directory made each
+    // producer's leftovers look like the other's product, which is how stale
+    // output survived a rebuild unnoticed.
+    "outDir": "./.tsbuild",
     "types": ["vite/client"],
     "noEmit": false
   },

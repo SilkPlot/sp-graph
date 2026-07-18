@@ -8,6 +8,22 @@ dist/
 # Vite
 .vite/
 playground/dist/
+playground/.tsbuild/
+
+# Generated config output. `vite.config.ts` / `vitest.config.ts` are the sources;
+# a compiled `.js` beside one WINS Vite's config search, so a tracked build
+# artifact here silently decides what the build does. Only the source is tracked.
+playground/vite.config.js
+playground/vite.config.js.map
+playground/vite.config.d.ts
+playground/vite.config.d.ts.map
+vitest.config.js
+vitest.config.js.map
+vitest.config.d.ts
+vitest.config.d.ts.map
+
+# Release staging — `npm pack` tarballs
+*.tgz
 
 # Test artifacts — browser-mode failure screenshots/attachments, coverage
 **/__screenshots__/
