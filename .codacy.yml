@@ -1,0 +1,92 @@
+---
+# Codacy analysis configuration.
+#
+# The rule this file is written under: a finding is never silenced because it is
+# inconvenient. A finding is fixed, or it stays open and visible. What IS in
+# scope here is correcting a tool that is structurally incapable of being right
+# about this codebase, and excluding files that are generated rather than
+# authored. Those are configuration, not suppression, and the difference is
+# recorded below for every entry so a later reader can tell them apart without
+# having to ask anyone.
+#
+# ---------------------------------------------------------------------------
+# WHAT THIS FILE CANNOT DO — read before adding a tool disable here
+# ---------------------------------------------------------------------------
+# Codacy's configuration file can configure tools; it cannot enable or disable
+# them, and it has no per-pattern disable at all. That is documented, not
+# inferred: "The Codacy configuration file lets you configure tools, but you
+# can't enable or disable them. A tool can only be enabled or disabled on the
+# Code patterns page." A tool or pattern disable written into this file is
+# ignored silently — it looks like it worked and changes nothing, which is worse
+# than not writing it.
+#
+# So the two tool dispositions this repository has decided on live on the Code
+# patterns page, and their JUSTIFICATION lives here, because the repository is
+# where a reader looks for why:
+#
+#   1. ESLint — DISABLED for this repository.
+#      Codacy runs base ESLint 8, not @typescript-eslint, so it has no concept
+#      of TypeScript type-level parameter names. Every one of its 47
+#      `no-unused-vars` findings here is on a TYPE SIGNATURE, not on code:
+#      `packages/core/src/shape.ts:61` is the interface member
+#      `y1: (d: Datum, index: number) => number;`, where `d` and `index` are
+#      documentation inside a function type and there is no variable that could
+#      be unused; `packages/core/src/ticks.ts:102` is the type annotation
+#      `(v: Date) => string`. This repository's linter is Biome (`biome.jsonc`),
+#      which is TypeScript-aware and runs `--error-on-warnings` in CI, and `tsc`
+#      typechecks both `src/` and `test/`. ESLint is redundant where it happens
+#      to be right and wrong where it is not.
+#
+#   2. Agentlinter `clarity/escape-hatch-missing` — DISABLED.
+#      It flags absolute rules that carry no escape hatch, on `AGENTS.md`
+#      (lines 6, 9, 12, 18, 19) and `CLAUDE.md` (line 6) — including the heading
+#      "The rules that never bend" and "Never use `d3-selection`,
+#      `d3-transition`, or `d3-axis`". Those rules are absolute deliberately.
+#      The banned-module rule is the architectural invariant the whole library
+#      rests on; hedging it would be a defect, not an improvement. This is the
+#      tool contradicting a decision, not finding a mistake.
+#
+# Lizard is deliberately NOT touched — not disabled, and its thresholds not
+# raised. Its complexity findings are real signal and are left open on purpose:
+# `packages/charts/src/LineChart.tsx:117` (`LineChartBody`, 80 lines against a
+# limit of 50) is the only one in shipped library code and is the one that
+# matters; `playground/src/App.tsx:558`, `scripts/release-consumer.mjs:267`, and
+# `packages/theme/test/contrast.test.ts:132` are the rest. Refactoring them is
+# real work with test implications and belongs in its own change. Until then
+# they stay visible, which is the point.
+#
+# ---------------------------------------------------------------------------
+# Excluded paths — generated and vendored output only
+# ---------------------------------------------------------------------------
+# Everything below is a build artifact, a dependency lockfile, or a binary
+# snapshot. None of it is authored, so analysing it measures a generator rather
+# than the code, and its findings drown the ones a person can act on.
+#
+# `test/`, `packages/*/test/`, and `playground/` are deliberately NOT excluded.
+# They are authored code, they are typechecked and linted like the rest, and
+# their findings are legitimate. Excluding them to lift a percentage would be
+# exactly the silencing this file exists to avoid.
+#
+# Patterns use Java glob syntax, which is what Codacy matches these against.
+exclude_paths:
+  # npm's resolution lockfile. Flagged at 4,966 lines; it is machine-written and
+  # a person editing it by hand would be the bug.
+  - "package-lock.json"
+
+  # Compiled output. `tsc -b` emits it, `npm run clean` deletes it, and CI
+  # rebuilds it from scratch every run — analysing it analyses the compiler.
+  - "**/dist/**"
+  - "**/.tsbuild/**"
+
+  # Coverage and test-run artifacts, written by Vitest.
+  - "coverage/**"
+  - ".vitest-attachments/**"
+
+  # `npm pack` staging for the release gate — tarball contents, not source.
+  - ".release-staging/**"
+
+  # Visual-regression PNGs: pinned pixel snapshots and the per-run
+  # expected/actual/diff triptychs generated against them.
+  - "test/visual/baselines/**"
+  - "test/visual/.output/**"
+  - "test/visual/.report/**"

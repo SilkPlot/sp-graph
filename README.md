@@ -1,6 +1,9 @@
 <!-- markdownlint-disable MD013 MD033 -->
 # SilkPlot
 
+[![Codacy code quality](https://app.codacy.com/project/badge/Grade/ee37880a80cc4de98b0ba5f5dc68e5d2)](https://app.codacy.com/gh/SilkPlot/sp-graph/dashboard)
+[![Codacy coverage](https://app.codacy.com/project/badge/Coverage/ee37880a80cc4de98b0ba5f5dc68e5d2)](https://app.codacy.com/gh/SilkPlot/sp-graph/dashboard)
+
 > **Fast, fluid, first-hand data visualization for [Solid](https://www.solidjs.com/).**
 > D3 computes. Solid renders.
 

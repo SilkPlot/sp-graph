@@ -46,7 +46,12 @@ export default defineConfig({
     // untested one past any global number and report it as health.
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "json-summary"],
+      // `lcov` is here for the Codacy upload in CI and nothing else — it writes
+      // `coverage/lcov.info`, the only format the coverage reporter reads. The
+      // other three are for humans and for the floors gate; none of them is a
+      // format Codacy can parse, so without this the upload step would have
+      // nothing to send.
+      reporter: ["text", "html", "json-summary", "lcov"],
       include: ["packages/*/src/**/*.{ts,tsx}"],
       // Barrel files re-export and hold no logic of their own; counting them
       // measures the export list, not the code.

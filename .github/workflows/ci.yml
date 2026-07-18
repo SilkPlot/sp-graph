@@ -121,6 +121,53 @@ jobs:
       - name: Test (coverage floors enforced per package)
         run: npm run test:coverage
 
+      # Ships the run above to Codacy so the dashboard reports a real coverage
+      # number instead of "not uploaded". It reads `coverage/lcov.info`, which
+      # exists because `lcov` was added to the reporter list in
+      # `vitest.config.ts` — the other reporters are for humans and for the
+      # floors gate, and Codacy can parse none of them.
+      #
+      # Reporting only. The gate that can fail this job is the per-package
+      # floors check in the step above; this step publishes a number and
+      # enforces nothing, so it must never be the reason a build goes red.
+      #
+      # Both guards below are load-bearing. A pull request from a FORK gets no
+      # repository secrets, so the token is absent there and the upload must
+      # skip rather than fail an outside contributor's build on a credential
+      # they were never going to have. And the reporter must not be invoked with
+      # nothing to send.
+      #
+      # The token presence check is its own step because the `secrets` context
+      # is NOT available in a step-level `if:` — the contexts allowed there are
+      # github, needs, strategy, matrix, job, runner, env, vars, steps, and
+      # inputs. Testing `secrets.*` directly in an `if:` is not a stricter guard
+      # that happens to work; it is an unrecognised named-value that breaks the
+      # workflow parse. `secrets` IS available in a step's `env:`, so the value
+      # is read there and re-published as a boolean output that the `if:` below
+      # can legally see.
+      #
+      # Scoped to this one step rather than declared at job level so the token
+      # is not present in the environment of `npm ci` and the test steps. This
+      # is a public repository running third-party install scripts; the fewer
+      # steps that can read a credential, the better. Nothing echoes the value.
+      - name: Check for a Codacy token
+        id: codacy-token
+        env:
+          CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        run: |
+          if [ -n "$CODACY_PROJECT_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Codacy token available (expected on a fork PR) — upload will skip."
+          fi
+
+      - name: Upload coverage to Codacy
+        if: ${{ steps.codacy-token.outputs.present == 'true' && hashFiles('coverage/lcov.info') != '' }}
+        uses: codacy/codacy-coverage-reporter-action@v1
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: coverage/lcov.info
+
   # ---------------------------------------------------------------------------
   # Release gate — the packages proven AFTER the workspace disappears.
   #

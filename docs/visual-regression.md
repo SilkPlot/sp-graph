@@ -31,7 +31,7 @@ a second. **Never run this at the same time as the Vitest browser projects.**
 |---|---|
 | `npx playwright test -c playwright.visual.config.ts` | Compare against the committed baselines |
 | `… --grep line--negative` | Run one baseline, or a family of them, by id |
-| `… --update-snapshots` | **Re-pin baselines.** Read [Reviewing a diff](#reviewing-a-diff-the-only-route-to-a-new-baseline) before you type this |
+| `… --update-snapshots` | **Re-pin baselines.** Read [Reviewing a diff](#reviewing-a-diff--the-only-route-to-a-new-baseline) before you type this |
 | `npx playwright show-report test/visual/.report` | Open the expected / actual / diff triptych |
 
 Failures write an expected image, an actual image, and a diff into
