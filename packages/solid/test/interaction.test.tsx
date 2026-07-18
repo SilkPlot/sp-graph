@@ -1,18 +1,22 @@
 /**
- * Crosshair, TooltipAnchor and ChartAnnouncer, per ADR-0002.
+ * The interaction surface per ADR-0002, where more than one piece is involved.
  *
- * The primitives are testable without a pointer, which is the point of the ADR:
- * they are told a position. So most of this gives them a position and asserts
- * what renders. Two tests earn their keep beyond that:
+ * `Crosshair` and `TooltipAnchor` are told a position and are proven on their
+ * own in `Crosshair.test.tsx` and `TooltipAnchor.test.tsx`. What is left here is
+ * what no single-primitive file can state:
  *
  *   - the cursor and the tooltip, given the SAME point, must land on the same
  *     pixel. Only the tooltip adds the margins; if both did, or neither, the
  *     tooltip would sit a margin away from the line it describes.
  *   - a simulated pointer move must surface the datum actually nearest, which
  *     is the whole feature and the one thing a position-only test cannot show.
+ *
+ * `ChartAnnouncer`'s live-region basics stay here too: they are the
+ * accessibility channel of this same interaction, and the announcer's full
+ * throttling contract has its own gated suite in `announcer.test.tsx`.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, type JSX } from "solid-js";
+import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { linearScale, createHitIndex } from "@silkplot/core";
 import {
@@ -21,7 +25,6 @@ import {
   ChartAnnouncer,
   ChartRoot,
   SvgLayer,
-  ChartBoundsContext,
   resolveBounds,
   DEFAULT_MARGINS,
 } from "../src/index";
@@ -30,139 +33,15 @@ const W = 400;
 const H = 300;
 const BOUNDS = resolveBounds(W, H, DEFAULT_MARGINS);
 
-function renderInBounds(children: () => JSX.Element) {
-  return render(() => (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: test harness element, never rendered to a user
-    <svg>
-      <ChartBoundsContext.Provider value={() => BOUNDS}>
-        {children()}
-      </ChartBoundsContext.Provider>
-    </svg>
-  ));
-}
-
 const rule = (c: HTMLElement, axis: "x" | "y") =>
   c.querySelector(`[data-silkplot-crosshair-rule="${axis}"]`);
 const num = (el: Element | null, attr: string) => Number(el?.getAttribute(attr));
 
-describe("Crosshair", () => {
-  it("draws a vertical rule down the plot at the given inner-x", () => {
-    const { container } = renderInBounds(() => <Crosshair x={120} />);
-    const v = rule(container, "x");
-    expect(num(v, "x1")).toBe(120);
-    expect(num(v, "x2")).toBe(120);
-    expect(num(v, "y1")).toBe(0);
-    expect(num(v, "y2")).toBe(BOUNDS.innerHeight);
-  });
-
-  it("draws a horizontal rule across the plot at the given inner-y", () => {
-    const { container } = renderInBounds(() => <Crosshair y={60} />);
-    const h = rule(container, "y");
-    expect(num(h, "y1")).toBe(60);
-    expect(num(h, "x2")).toBe(BOUNDS.innerWidth);
-  });
-
-  it("draws both when given both", () => {
-    const { container } = renderInBounds(() => <Crosshair x={10} y={20} />);
-    expect(rule(container, "x")).not.toBeNull();
-    expect(rule(container, "y")).not.toBeNull();
-  });
-
-  it("renders nothing when there is no active point", () => {
-    const { container } = renderInBounds(() => <Crosshair />);
-    expect(rule(container, "x")).toBeNull();
-    expect(rule(container, "y")).toBeNull();
-  });
-
-  it("reads the cursor token with a fallback", () => {
-    const { container } = renderInBounds(() => <Crosshair x={5} />);
-    expect(rule(container, "x")?.getAttribute("stroke")).toBe(
-      "var(--sp-color-cursor, currentColor)",
-    );
-  });
-
-  it("is hidden from assistive tech — the announcer carries the value", () => {
-    const { container } = renderInBounds(() => <Crosshair x={5} />);
-    expect(
-      container.querySelector("[data-silkplot-crosshair]")?.getAttribute("aria-hidden"),
-    ).toBe("true");
-  });
-
-  it("adds no transition, so there is no motion to suppress", () => {
-    const { container } = renderInBounds(() => <Crosshair x={5} />);
-    const el = rule(container, "x") as SVGElement;
-    const style = getComputedStyle(el);
-    // A cursor tracking a pointer is the pointer's motion, not ours. We add no
-    // easing on top, so `prefers-reduced-motion` has nothing to turn off.
-    expect(style.transitionDuration === "" || style.transitionDuration === "0s").toBe(true);
-  });
-});
-
-/** TooltipAnchor needs a real container, so these mount a ChartRoot. */
-function renderTooltip(node: () => JSX.Element) {
-  return render(() => (
-    <ChartRoot width={W} height={H}>
-      {node()}
-    </ChartRoot>
-  ));
-}
-
 const tip = (c: HTMLElement) => c.querySelector("[data-silkplot-tooltip]") as HTMLElement;
-
-/**
- * Mount one anchor and return its element. The position is the argument because
- * the position is what several of these cases are about; the placeholder content
- * is not, so it defaults.
- */
-const mountTip = (x: number, y: number, children: JSX.Element = "x"): HTMLElement => {
-  const { container } = renderTooltip(() => (
-    <TooltipAnchor x={x} y={y}>
-      {children}
-    </TooltipAnchor>
-  ));
-  return tip(container);
-};
 
 /** Where the tooltip's CENTRE sits — the content is centred on the anchor, not left-aligned to it. */
 const tipCentre = (el: HTMLElement): number =>
   Number.parseFloat(el.style.left) + el.getBoundingClientRect().width / 2;
-
-describe("TooltipAnchor", () => {
-  it("converts inner coordinates to container space by adding the margins", () => {
-    const el = mountTip(100, 100);
-    // The content is CENTRED on the anchor, so the conversion shows up in the
-    // element's centre, not its left edge. Asserting `left` directly would be
-    // asserting the width of the letter "x".
-    expect(tipCentre(el)).toBeCloseTo(DEFAULT_MARGINS.left + 100, 0);
-  });
-
-  it("does not swallow the pointer events that positioned it", () => {
-    expect(mountTip(10, 10).style.pointerEvents).toBe("none");
-  });
-
-  it("is absolutely positioned, anchoring to ChartRoot's relative container", () => {
-    expect(mountTip(10, 10).style.position).toBe("absolute");
-  });
-
-  it("clamps to the container rather than running off the right edge", () => {
-    const left = Number.parseFloat(mountTip(BOUNDS.innerWidth + 500, 10).style.left);
-    expect(left).toBeLessThanOrEqual(W);
-  });
-
-  it("clamps rather than running off the left edge", () => {
-    const left = Number.parseFloat(mountTip(-500, 10).style.left);
-    expect(left).toBeGreaterThanOrEqual(0);
-  });
-
-  it("is hidden from assistive tech — it duplicates the announcement", () => {
-    expect(mountTip(10, 10).getAttribute("aria-hidden")).toBe("true");
-  });
-
-  it("renders the caller's content untouched", () => {
-    const el = mountTip(10, 10, <strong>42 units</strong>);
-    expect(el.querySelector("strong")?.textContent).toBe("42 units");
-  });
-});
 
 describe("ChartAnnouncer", () => {
   const live = (c: HTMLElement) =>
