@@ -86,6 +86,36 @@
 #     that matrix behind abstraction to lower a branch count would make the suite
 #     harder to read, not easier to change.
 #
+# OPEN FINDING — the `metric` exclusion does not appear to reach Lizard.
+# `site/test/site.test.tsx` is listed in BOTH lists below, and Lizard still
+# reported `Lizard_nloc-medium` against it ("86 lines of code, limit is 50") on
+# the pull request that added it. So `engines.metric.exclude_paths` and the
+# Lizard tool are evidently not the same scope, and the exclusion that covers
+# every other test file in this repository is not covering this one.
+#
+# It is recorded here rather than worked around, and NOTHING has been guessed at
+# in this file to make it go away. The warning at the top of this file is the
+# reason: a key Codacy does not recognise is ignored silently, so inventing a
+# `lizard:` block would look like a fix in review, change nothing, and leave a
+# false explanation behind for the next reader. That is a worse outcome than an
+# open finding.
+#
+# What would actually resolve it, in preference order: confirm against Codacy's
+# tool/engine documentation which scope Lizard reads and add the correct key; or,
+# if Lizard has no path scoping, take the disposition to the Code patterns page
+# where per-pattern decisions actually apply, and record the justification here.
+# Until one of those happens the finding stays visible and the file stays listed
+# below, because the listing is correct for the engines it does reach.
+#
+# OPEN FINDING — Stylelint `scss_function-disallowed-list` is a malformed
+# pattern on Codacy's side, not a defect in this repository's CSS. It reports
+# "Unknown rule scss_function-disallowed-list. Did you mean
+# function-disallowed-list?" against line 1 of `site/src/styles.css` — a comment.
+# The message is Stylelint saying the configured rule name does not exist, so the
+# finding is about the configuration and cannot be fixed by changing any CSS.
+# It surfaced now only because that is the first stylesheet in the repository.
+# Left open and unsuppressed; the fix is on the Code patterns page.
+#
 # Codacy provides these as separate, scoped exclusions precisely so this
 # distinction can be made — `engines.duplication.exclude_paths` and
 # `engines.metric.exclude_paths` are independent of the repository-wide
