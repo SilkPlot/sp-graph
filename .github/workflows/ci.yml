@@ -112,10 +112,81 @@ jobs:
       - name: Accessibility checks
         run: npm run test:accessibility
 
-      # Coverage is printed for visibility only. No threshold is enforced — see
-      # the `coverage` block in vitest.config.ts.
-      - name: Test (with coverage)
+      # Coverage now GATES, per package, against floors selected from observed
+      # S002/S003 numbers. The floors and the reasoning behind each live in
+      # scripts/coverage-floors.mjs; vitest.config.ts imports them so the numbers
+      # and their justification cannot drift apart. Per package rather than one
+      # aggregate: a single repository-wide percentage is exactly where a stub
+      # hides, and `calendar` sits at 0%.
+      - name: Test (coverage floors enforced per package)
         run: npm run test:coverage
+
+  # ---------------------------------------------------------------------------
+  # Release gate — the packages proven AFTER the workspace disappears.
+  #
+  # Its own job, because everything it proves is invisible from inside the
+  # workspace. In `build` above, npm links @silkplot/* to the packages next door
+  # and TypeScript resolves them through the "source" condition, so a `default`
+  # export pointing at TSX, an internal dependency pinned to "*", or a
+  # declaration whose source was deleted all resolve perfectly and ship broken.
+  #
+  # The consumer fixture is created in the RUNNER's temp directory, outside the
+  # checkout, and installs the packed tarballs with no `file:` link back to the
+  # source tree. Inside the checkout it would resolve through workspace linking
+  # and prove nothing — which is the exact failure the pinned-dependency
+  # criterion exists to catch, so the gate asserts its own fixture is outside.
+  #
+  # It runs a browser, so it is a separate job from `build` for the same reason
+  # the visual harness is: two Vitest/Playwright browser processes started
+  # concurrently collide on the browser API port, and the collision reports as a
+  # connect timeout having executed zero tests.
+  #
+  # This job packs. It never publishes.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Release gate (packed tarballs, external consumer)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Clean, build, pack, allowlist every packed manifest, then install the
+      # tarballs into a project outside the workspace and prove BOTH supported
+      # resolution paths — "solid" serving TSX source, "default" serving the
+      # compiled bundle — through typecheck, a Vite production build, and a real
+      # browser that replaces the data and watches the marks follow.
+      - name: Release verification
+        run: npm run release:verify
 
   # ---------------------------------------------------------------------------
   # Visual regression — RUNS, REPORTS, AND DOES NOT GATE.

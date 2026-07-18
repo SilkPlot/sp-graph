@@ -25,6 +25,7 @@ vitest.config.d.ts.map
 
 # Release staging — `npm pack` tarballs
 *.tgz
+.release-staging/
 
 # Test artifacts — browser-mode failure screenshots/attachments, coverage
 **/__screenshots__/

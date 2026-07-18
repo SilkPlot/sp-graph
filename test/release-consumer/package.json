@@ -1,0 +1,19 @@
+{
+  "name": "silkplot-release-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Template for the release gate's scratch consumer. Copied OUTSIDE this repository and installed against packed tarballs — it deliberately declares no @silkplot dependency here, because a dependency written down in the source tree is one npm could satisfy from the workspace.",
+  "scripts": {
+    "typecheck:solid": "tsc -p tsconfig.solid.json --listFiles",
+    "typecheck:default": "tsc -p tsconfig.default.json --listFiles",
+    "build:solid": "vite build -c vite.solid.config.ts",
+    "build:default": "vite build -c vite.default.config.ts"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.14",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "vite-plugin-solid": "^2.11.12"
+  }
+}

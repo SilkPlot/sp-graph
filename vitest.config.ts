@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import solid from "vite-plugin-solid";
+import { COVERAGE_FLOORS } from "./scripts/coverage-floors.mjs";
 
 // Tests live in each package's `test/` directory, never colocated in `src/`:
 // packages ship `src` to npm and `tsc -b` emits everything under `src` into
@@ -35,16 +36,22 @@ const browserProject = (name: string, dir: string) =>
 
 export default defineConfig({
   test: {
-    // Coverage is reported, never enforced. No `thresholds` key is set here on
-    // purpose: a number that fails the build is a promise about what the tests
-    // prove, and these numbers have not settled yet. Report first, gate later.
+    // Coverage now gates, PER PACKAGE. The floors and the observed numbers each
+    // was chosen from live in scripts/coverage-floors.mjs — one source of truth,
+    // imported rather than restated, so the rationale cannot drift away from the
+    // numbers it explains.
+    //
+    // Per-package globs and no repository-wide threshold, on purpose: a single
+    // aggregate is where a stub hides. Four well-tested packages will carry an
+    // untested one past any global number and report it as health.
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"],
+      reporter: ["text", "html", "json-summary"],
       include: ["packages/*/src/**/*.{ts,tsx}"],
       // Barrel files re-export and hold no logic of their own; counting them
       // measures the export list, not the code.
       exclude: ["packages/*/src/index.{ts,tsx}"],
+      thresholds: COVERAGE_FLOORS,
     },
     projects: [
       {

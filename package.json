@@ -26,6 +26,8 @@
     "test": "vitest run",
     "gate:accessibility": "node scripts/accessibility-gate.mjs",
     "gate:build-hygiene": "node scripts/build-hygiene-gate.mjs",
+    "release:verify": "node scripts/release-verify.mjs",
+    "release:verify:manifests": "node scripts/release-verify.mjs --no-consumer",
     "audit:prod": "npm audit --omit=dev --audit-level=low",
     "audit:dev": "npm audit --audit-level=low",
     "test:accessibility": "node scripts/accessibility-gate.mjs --run",

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Typecheck of resolution path A.
+  //
+  // `customConditions: ["solid"]` makes TypeScript take the same branch of the
+  // exports map that `vite-plugin-solid` takes at build time, so this typechecks
+  // the shipped TSX SOURCE. Without it TypeScript would follow "types" into
+  // `dist` and quietly check a different set of files than the bundler compiles.
+  //
+  // Nothing here extends the repository's tsconfig.base.json. A consumer has no
+  // access to it, so borrowing it would prove the packages typecheck under
+  // SilkPlot's own compiler settings rather than under a consumer's.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "customConditions": ["solid"],
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "types": [],
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/main.solid.tsx", "src/series.ts"]
+}

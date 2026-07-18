@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Typecheck of resolution path B.
+  //
+  // No `customConditions`, so TypeScript resolves `@silkplot/*` through "types"
+  // to the emitted `dist/*.d.ts` — the declarations a consumer with no Solid
+  // toolchain actually gets. This is the only check in the estate that reads
+  // them: everything inside the workspace passes the "source" condition and
+  // typechecks against `src`, so a declaration emit could be broken, incomplete,
+  // or referencing a type it never exported and nothing would notice.
+  //
+  // `jsx` is deliberately absent. This path compiles no JSX.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": [],
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    // NOT skipped, unlike every other tsconfig here. The shipped `.d.ts` files
+    // are the artifact under test on this path; skipping lib checks would let a
+    // declaration that references a type it never exported pass, and that
+    // failure reaches a consumer as a broken install.
+    "skipLibCheck": false
+  },
+  "include": ["src/main.default.ts", "src/series.ts"]
+}
