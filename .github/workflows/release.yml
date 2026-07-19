@@ -1,0 +1,208 @@
+# ---------------------------------------------------------------------------
+# Publish the @silkplot/* packages to npm.
+#
+# WHY THIS IS A WORKFLOW AND NOT A COMMAND SOMEBODY RUNS
+#
+# npm provenance. A published package can carry a signed, verifiable statement of
+# which repository, which commit, and which workflow run produced it, and npm
+# shows that on the package page. It is generated from the OIDC token GitHub
+# mints for a workflow run — so it can only be produced by CI. A maintainer
+# running `npm publish` on a workstation cannot create one, and there is no way
+# to add it afterwards.
+#
+# That matters more than usual here. Nothing about a tarball on a registry proves
+# it was built from the source it claims; provenance is the only thing that ties
+# what a consumer installs back to a commit anybody can read. For a library whose
+# whole argument is that its behaviour is verifiable, publishing unverifiable
+# artifacts would be an odd place to stop.
+#
+# WHY IT IS MANUAL (workflow_dispatch, never a push or tag trigger)
+#
+# npm restricts unpublishing once a package has dependents or after 72 hours, so
+# a bad release cannot be withdrawn — only superseded and deprecated. An
+# automatic trigger means a merge can publish, and "a merge can publish" plus a
+# 72-hour window is how an unintended version becomes permanent. Publishing is a
+# decision, so it takes a deliberate act: someone opens this workflow, types the
+# version they mean, and confirms.
+#
+# The typed version is checked against the manifests rather than trusted. Typing
+# the wrong number into a dispatch box is exactly the mistake this guard exists
+# for, and it is unrecoverable in a way almost nothing else in this repository is.
+# ---------------------------------------------------------------------------
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish — must match package.json exactly (e.g. 0.2.0-next.0)"
+        required: true
+        type: string
+      dist_tag:
+        description: "npm dist-tag. Keep prereleases off `latest`."
+        required: true
+        default: next
+        type: choice
+        options: [next, latest]
+      dry_run:
+        description: "Pack and validate without publishing. Leave true until you mean it."
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish (${{ inputs.dry_run && 'dry run' || inputs.dist_tag }})
+    runs-on: ubuntu-latest
+    permissions:
+      # The OIDC token provenance is generated from. Without this the publish
+      # succeeds and silently produces NO provenance, which is the failure worth
+      # naming: it does not error, it just quietly ships an unverifiable package.
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          # Writes the auth line npm needs. The token itself comes from the
+          # secret below and is scoped to the publish step only.
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The typed version against the manifests, before anything is built. Every
+      # publishable package must carry the same version AND pin its internal
+      # @silkplot/* dependencies to that same version — a mixed pair resolves
+      # off the registry into a combination nobody tested.
+      - name: Verify the candidate matches the manifests
+        env:
+          WANT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          fail=0
+          for pkg in core theme solid charts; do
+            got=$(node -p "require('./packages/$pkg/package.json').version")
+            if [ "$got" != "$WANT" ]; then
+              echo "::error::@silkplot/$pkg is $got, but $WANT was requested"
+              fail=1
+            fi
+            deps=$(node -p "
+              const d = require('./packages/$pkg/package.json').dependencies || {};
+              Object.entries(d).filter(([k]) => k.startsWith('@silkplot/'))
+                .filter(([,v]) => v !== '$WANT').map(([k,v]) => k+'@'+v).join(', ')")
+            if [ -n "$deps" ]; then
+              echo "::error::@silkplot/$pkg has internal dependencies off the candidate: $deps"
+              fail=1
+            fi
+          done
+          if [ "$fail" != "0" ]; then
+            echo "Refusing to publish. Fix the manifests, do not re-type the input."
+            exit 1
+          fi
+          echo "All four packages are at $WANT with internal dependencies pinned to it."
+
+      # A prerelease on `latest` is the mistake that cannot be undone by
+      # publishing again: `npm install @silkplot/charts` would hand an alpha to
+      # everyone until a higher stable version exists. Blocked outright rather
+      # than left to the person filling in the form.
+      - name: Refuse a prerelease on `latest`
+        env:
+          WANT: ${{ inputs.version }}
+          TAG: ${{ inputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          if [ "$TAG" = "latest" ] && case "$WANT" in *-*) true;; *) false;; esac; then
+            echo "::error::$WANT is a prerelease and must not go to \`latest\`. Use \`next\`."
+            exit 1
+          fi
+          echo "Publishing $WANT to \`$TAG\`."
+
+      # The same gate the release job runs on every pull request: clean, build,
+      # pack, allowlist every packed manifest, then install the tarballs into a
+      # consumer OUTSIDE the workspace and prove both resolution paths through a
+      # typecheck, a production build, and a real browser. It packs; it never
+      # publishes. Running it here means the artifact that gets published is the
+      # one that was just proven, not one built earlier from a different tree.
+      - name: Resolve Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}
+
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Release gate (packed tarballs, external consumer)
+        run: npm run release:verify
+
+      - name: Public surface gate
+        run: npm run gate:public-surface
+
+      # `--dry-run` runs every validation and prints exactly what would ship
+      # without contacting the registry to write. Default true so the first run
+      # of this workflow by anybody is harmless.
+      #
+      # `calendar` is absent from this list deliberately and not by oversight:
+      # its public entry point throws, and publishing it would advertise an
+      # implementation that does not exist.
+      #
+      # Order matters. `core` and `theme` have no internal dependencies; `solid`
+      # depends on `core`; `charts` depends on both. Publishing a dependent
+      # before its dependency leaves a window in which an install resolves a
+      # version the registry does not have yet.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          TAG: ${{ inputs.dist_tag }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is not set. Add it as a repository secret (granular, publish-only, scoped to @silkplot)."
+            exit 1
+          fi
+          extra=""
+          if [ "$DRY" = "true" ]; then extra="--dry-run"; fi
+          for pkg in core theme solid charts; do
+            echo "── @silkplot/$pkg"
+            npm publish --workspace "@silkplot/$pkg" \
+              --tag "$TAG" \
+              --access public \
+              --provenance \
+              $extra
+          done
+
+      - name: What happens next
+        if: success()
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "DRY RUN only — nothing was published."
+            echo "Re-run with dry_run=false to publish for real."
+          else
+            echo "Published ${{ inputs.version }} to the \`${{ inputs.dist_tag }}\` tag."
+            echo "Still to do, and NOT done by this workflow:"
+            echo "  - annotated tag v${{ inputs.version }} on this commit"
+            echo "  - GitHub prerelease pointing at the changelog"
+            echo "  - registry-only consumer verification (install from npm, outside any clone)"
+            echo "This workflow deliberately does not tag or release: a publish that"
+            echo "half-succeeds should not leave a tag claiming it fully did."
+          fi

@@ -111,4 +111,48 @@ example in the documentation.
 - [ ] A packed tarball installs and renders in a consumer project outside this
       workspace
 
+## Publication
+
+Publishing is the one step in this repository that cannot be undone. npm
+restricts unpublishing once a package has dependents or after 72 hours, so a bad
+release is not withdrawn — it is superseded by a higher version and the bad one
+is deprecated with a message pointing at the replacement. Assume every item here
+is permanent.
+
+- [ ] The `@silkplot` npm org exists, the publishing identity owns it, and 2FA is
+      configured
+- [ ] The `NPM_TOKEN` repository secret is a **granular** token — publish-only,
+      scoped to `@silkplot`, with an expiry — and not a classic automation token
+- [ ] The version is **greater than the last source tag** under semver. Check it
+      rather than assume: `0.1.0-alpha.0` sorts BELOW `0.1.0`, and a version that
+      sorts backwards cannot be corrected once published
+- [ ] All four publishable packages carry the same version, and every internal
+      `@silkplot/*` dependency is pinned to exactly that version — never `"*"`,
+      never a caret. A mixed pair resolves off the registry into a combination
+      nobody tested
+- [ ] `@silkplot/calendar` is NOT in the publish set while its entry point throws
+- [ ] The publish workflow was run with `dry_run: true` first, and its output
+      lists exactly the four expected packages at the expected version
+- [ ] A prerelease goes to `next`. **`latest` stays untouched** — `npm install
+      @silkplot/charts` must not hand an alpha to somebody who did not ask
+- [ ] The run shows provenance was generated. A publish with `id-token: write`
+      missing succeeds *silently without provenance*; confirm it on the package
+      page rather than inferring it from a green run
+
+### After publishing
+
+- [ ] Annotated tag `v<version>` on the exact published commit, pushed
+- [ ] GitHub prerelease (marked as a prerelease) pointing at the changelog entry,
+      with limitations and supported environments
+- [ ] **Registry-only verification**: in a fresh temporary directory outside any
+      clone, `npm install @silkplot/charts@next`, then typecheck, production
+      build, and render a chart in a browser. Installing inside a clone proves
+      nothing — workspace resolution answers first
+- [ ] `ON_REGISTRY` flipped to `true` in `site/src/content.ts`, and the site
+      redeployed, so the install instructions stop telling readers to build a
+      tarball
+- [ ] README pre-publication language replaced with the real install command
+- [ ] Release evidence recorded in the build handoff: version, commit, tag,
+      provenance, and what the registry-only consumer actually did
+
 Up: [Documentation](../README.md#documentation)
