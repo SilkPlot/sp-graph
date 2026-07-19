@@ -6,7 +6,7 @@
   "homepage": "https://silkplot.pages.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/silkplot/sp-graph.git",
+    "url": "git+https://github.com/SilkPlot/sp-graph.git",
     "directory": "packages/calendar"
   },
   "type": "module",
