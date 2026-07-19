@@ -101,12 +101,35 @@
 # Codacy's configured threshold of 50. So the local tool confirms the fact and
 # cannot confirm the disposition; only Codacy's own analysis can.
 #
-# An `engines.lizard.exclude_paths` block is therefore added below AS A TEST, not
-# as an assertion. This file's opening warning still stands — an unrecognised key
-# is ignored silently — so the block is written to be falsified: the next pull
-# request's Codacy analysis either clears the finding or does not, and whichever
-# happens gets recorded there. That is the difference between a guess and a
-# hypothesis with a stated verification.
+# An `engines.lizard.exclude_paths` block was therefore added below AS A TEST,
+# not as an assertion, written to be falsified by the next analysis.
+#
+# RESULT, 2026-07-19: CONFIRMED. Codacy honours a tool-named key here. Repository
+# issues went from 17 to 14 on the merge, and the two that cleared were exactly
+# the two predicted — `site/test/site.test.tsx` and
+# `packages/theme/test/contrast.test.ts`. The third was an unrelated security fix
+# in the same change.
+#
+# The second of those is the part worth keeping. `contrast.test.ts` had been
+# measured by Lizard the entire time, in a repository that believed its test code
+# was out of complexity scope. Nothing reported it, because a metric that
+# silently measures more than intended does not look like a failure — it looks
+# like a number. The scope decision had been correct in `.codacy.yml` and wrong
+# in effect for as long as Lizard has been enabled.
+#
+# OPEN FINDING — Agentlinter `clarity/escape-hatch-missing` is recorded above as
+# DISABLED, and it is still reporting. Six findings survive on `AGENTS.md` and
+# `CLAUDE.md` as of 2026-07-19, including the ones named in that disposition
+# ("The rules that never bend", the banned-module rule). So either the disable
+# was never applied on the Code patterns page, or it was applied and does not
+# take effect for this tool.
+#
+# This is recorded as a CONTRADICTION between this file and observed behaviour
+# rather than quietly corrected in either direction, because it is not yet known
+# which one is wrong. Resolving it means looking at the Code patterns page and
+# then either applying the disable or rewriting the disposition above to say the
+# findings are accepted-and-visible instead. Both are honest; the current state,
+# where the file claims something the dashboard contradicts, is not.
 #
 # OPEN FINDING — Stylelint `scss_function-disallowed-list` is a malformed
 # pattern on Codacy's side, not a defect in this repository's CSS. It reports
