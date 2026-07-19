@@ -12,8 +12,12 @@ scales, bounds, or ticks.
 ## Install
 
 ```sh
-npm install @silkplot/charts solid-js
+npm install @silkplot/charts@next solid-js
 ```
+Published under the `next` dist-tag. **Use `@next` explicitly and pin an exact
+version** — npm assigned `latest` to this package's first-ever publish because no
+earlier version existed, so a bare install resolves here today and will resolve
+somewhere else once a stable release exists.
 
 `solid-js` is a **peer dependency**. `@silkplot/core` and `@silkplot/solid` are
 regular dependencies pinned to the exact coordinated version: these packages are

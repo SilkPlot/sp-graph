@@ -11,8 +11,12 @@ and the CSS custom properties they emit. Scheme (light/dark) and contrast
 ## Install
 
 ```sh
-npm install @silkplot/theme
+npm install @silkplot/theme@next
 ```
+Published under the `next` dist-tag. **Use `@next` explicitly and pin an exact
+version** — npm assigned `latest` to this package's first-ever publish because no
+earlier version existed, so a bare install resolves here today and will resolve
+somewhere else once a stable release exists.
 
 ## The contract
 

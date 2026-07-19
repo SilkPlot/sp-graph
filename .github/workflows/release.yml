@@ -72,8 +72,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          # Writes the auth line npm needs. The token itself comes from the
-          # secret below and is scoped to the publish step only.
+          # Still required under trusted publishing, and not vestigial: it writes
+          # the `.npmrc` that points npm at the public registry, which is what
+          # tells npm which registry to perform the OIDC exchange against. There
+          # is no token here any more — see the publish step.
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
@@ -169,9 +171,48 @@ jobs:
       # depends on `core`; `charts` depends on both. Publishing a dependent
       # before its dependency leaves a window in which an install resolves a
       # version the registry does not have yet.
+      # Trusted publishing needs npm 11.5.1 or newer, and `.nvmrc` pins Node 22,
+      # which bundles npm 10.9. Without this step npm has no OIDC support at all:
+      # it would fall back to looking for a token, find none, and fail — or worse,
+      # on a future runner image, publish WITHOUT provenance and report success.
+      #
+      # Upgraded here rather than at the top of the job so every preceding step —
+      # `npm ci`, the release gate, the packing — runs on the npm the repository
+      # actually pins. This step changes the publisher, not the build.
+      #
+      # The version floor is asserted rather than assumed. `npm@latest` resolving
+      # to something older is not a plausible failure today, but a publish that
+      # silently loses its authentication mechanism is expensive enough to be
+      # worth one comparison.
+      - name: Upgrade npm for trusted publishing
+        run: |
+          set -euo pipefail
+          npm install -g npm@latest
+          have=$(npm --version)
+          echo "npm is now $have"
+          node -e '
+            const [h,w] = [process.argv[1], "11.5.1"].map(v => v.split(".").map(Number));
+            const ok = h[0]>w[0] || (h[0]===w[0] && (h[1]>w[1] || (h[1]===w[1] && h[2]>=w[2])));
+            if (!ok) { console.error(`::error::npm ${process.argv[1]} is below 11.5.1; trusted publishing is unavailable.`); process.exit(1); }
+          ' "$have"
+
       - name: Publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # NO NPM_TOKEN. Authentication is trusted publishing: npm exchanges the
+          # OIDC token GitHub mints for this workflow run (see `id-token: write`
+          # above) for a short-lived, single-use publish credential scoped to
+          # this repository and workflow.
+          #
+          # That removes the standing secret entirely. The token this replaced
+          # was a classic Automation token — the only kind that bypasses 2FA, and
+          # therefore account-wide write with no expiry, which was by a distance
+          # the broadest credential in this estate. A leaked one publishes
+          # anything, anywhere, as the owner. There is now nothing to leak.
+          #
+          # It also removes the deadline: npm is restricting 2FA-bypassing tokens
+          # for direct publishing in January 2027, so the token path was going to
+          # stop working regardless.
+          #
           # `WANT` is re-declared here rather than inherited: `env:` is per-step,
           # and the already-published check below reads it under `set -u`, where
           # an undeclared variable aborts the step rather than quietly comparing
@@ -181,10 +222,6 @@ jobs:
           DRY: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN is not set. Add it as a repository secret (granular, publish-only, scoped to @silkplot)."
-            exit 1
-          fi
           extra=""
           if [ "$DRY" = "true" ]; then extra="--dry-run"; fi
 

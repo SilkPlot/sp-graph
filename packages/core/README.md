@@ -11,8 +11,12 @@ hit-test indexes, computed by D3's data modules inside plain functions.
 ## Install
 
 ```sh
-npm install @silkplot/core
+npm install @silkplot/core@next
 ```
+Published under the `next` dist-tag. **Use `@next` explicitly and pin an exact
+version** — npm assigned `latest` to this package's first-ever publish because no
+earlier version existed, so a bare install resolves here today and will resolve
+somewhere else once a stable release exists.
 
 ## What is here
 
