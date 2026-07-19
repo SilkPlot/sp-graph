@@ -17,6 +17,31 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 Nothing yet.
 
+## [0.2.0-next.1] — 2026-07-19
+
+No library code changed. This release exists for two reasons, both of which
+needed a version number to carry them.
+
+### Changed
+
+- **Every package README now shows `@next` on the install line.** The npm page is
+  where most people meet a package, and all four were showing a bare
+  `npm install @silkplot/…`. That resolves here today only because npm assigned
+  `latest` to the first-ever publish, and it will quietly mean something else the
+  moment a stable release exists. The READMEs now say to use the tag explicitly
+  and to pin, and say why.
+
+### Infrastructure
+
+- **Published by trusted publishing (OIDC) rather than a long-lived token.** The
+  credential that published `0.2.0-next.0` was a classic npm Automation token —
+  the only kind that bypasses 2FA, and therefore account-wide write with no
+  expiry. npm exchanges a short-lived OIDC token minted for the workflow run
+  instead, so no standing publish secret exists anywhere. npm is also restricting
+  2FA-bypassing tokens for direct publishing in January 2027, so the previous
+  path had an expiry date regardless. This release is the proof that the new one
+  works: it is the first published without a token.
+
 ## [0.2.0-next.0] — unreleased candidate
 
 The first publicly installable SilkPlot, published under the **`next`**
@@ -80,5 +105,6 @@ Solid-aware bundler — the `"solid"` export condition serves TSX source so your
 bundler compiles the JSX itself, which is what keeps fine-grained reactivity
 intact through to your application.
 
-[Unreleased]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.0...HEAD
+[Unreleased]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.1...HEAD
+[0.2.0-next.1]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.0...v0.2.0-next.1
 [0.2.0-next.0]: https://github.com/SilkPlot/sp-graph/compare/v0.1.0...v0.2.0-next.0
