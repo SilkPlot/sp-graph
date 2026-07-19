@@ -56,6 +56,10 @@ function mount(
         <span data-testid="first-values">
           {m.visible()[0]?.data.map((d) => (d.y === null ? "-" : d.y)).join(",") ?? ""}
         </span>
+        <span data-testid="time-domain">
+          {m.timeDomain().map((ms) => new Date(ms).toISOString()).join("..")}
+        </span>
+        <span data-testid="issues">{m.issues().map((i) => i.code).join(",")}</span>
       </div>
     );
   });
@@ -239,6 +243,55 @@ describe("empty to populated", () => {
 
     setData([series("a", [3, 4])]);
     expect(read("counts")).toBe("1/1:2");
+  });
+});
+
+describe("the time domain tracks the same replacement", () => {
+  it("widens as later instants arrive", () => {
+    const { read, setData } = mount([series("a", [1, 2])]);
+    expect(read("time-domain")).toBe(
+      `${at(0).toISOString()}..${at(1).toISOString()}`,
+    );
+
+    setData([series("a", [1, 2, 3, 4])]);
+    expect(read("time-domain")).toBe(
+      `${at(0).toISOString()}..${at(3).toISOString()}`,
+    );
+  });
+
+  it("narrows to the visible series", () => {
+    const short: Series = { id: "short", label: "SHORT", data: [point(0, 1)] };
+    const long: Series = { id: "long", label: "LONG", data: [point(0, 1), point(9, 2)] };
+    const { read, setVisible } = mount([short, long], undefined);
+
+    expect(read("time-domain")).toBe(`${at(0).toISOString()}..${at(9).toISOString()}`);
+
+    setVisible(["short"]);
+    // A zero-width domain — one instant — and still finite, which is what a
+    // scale needs. The axis describes what is drawn, not what was hidden.
+    expect(read("time-domain")).toBe(`${at(0).toISOString()}..${at(0).toISOString()}`);
+  });
+});
+
+describe("diagnostics surface through the reactive layer", () => {
+  it("reports a non-finite value and clears the issue when the data is replaced", () => {
+    const { read, setData } = mount([series("a", [1, Number.NaN, 3])]);
+    expect(read("issues")).toBe("invalid-value");
+
+    // The issue list is derived, not accumulated — a repaired dataset must not
+    // keep reporting a fault the current data does not have.
+    setData([series("a", [1, 2, 3])]);
+    expect(read("issues")).toBe("");
+  });
+
+  it("reports an unparseable instant distinctly from a bad value", () => {
+    const broken: Series = {
+      id: "a",
+      label: "A",
+      data: [{ t: new Date("nonsense"), y: 1 }],
+    };
+    const { read } = mount([broken]);
+    expect(read("issues")).toBe("invalid-time");
   });
 });
 

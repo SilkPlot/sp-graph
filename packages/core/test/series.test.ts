@@ -84,6 +84,15 @@ describe("identity (ADR-0008 §1)", () => {
       .toThrow(/two series share the id "dup"/);
   });
 
+  it("defaults its posture to the build, with no option passed", () => {
+    // No `strict` given: the default is `isDevelopmentBuild()`, and a test run
+    // is a development build. This pins the DEFAULT rather than the explicit
+    // flag — a contract whose default posture is untested is one that could
+    // silently ship lenient.
+    expect(() => normalizeSeries([series("dup", [1]), series("dup", [2])]))
+      .toThrow(/two series share the id/);
+  });
+
   it("keeps the first occurrence and reports in production", () => {
     const onIssue = vi.fn();
     const model = normalizeSeries([series("dup", [1]), series("dup", [999])], {
@@ -131,6 +140,21 @@ describe("missing and invalid are different, and neither is zero (ADR-0008 §4)"
     // The VALUE was fine; the record is still broken, because it has no x.
     expect(data[0]?.state).toBe("invalid");
     expect(data[0]?.y).toBeNull();
+    expect(model.issues.map((i) => i.code)).toContain("invalid-time");
+  });
+
+  it("survives a `t` that is not a Date at all", () => {
+    // An untyped caller — JSON straight off the wire, no revival step — passes
+    // a string where the types promise a Date. It must degrade to a gap rather
+    // than throw on `.getTime()`, which is what a dashboard needs from one bad
+    // record, and it must not be mistaken for a declared absence.
+    const untyped = [
+      { id: "s", label: "S", data: [{ t: "2026-03-01T00:00:00Z" as unknown as Date, y: 5 }] },
+    ];
+    const model = normalizeSeries(untyped, LENIENT);
+
+    expect(model.byId.get("s")?.data[0]?.state).toBe("invalid");
+    expect(model.byId.get("s")?.data[0]?.y).toBeNull();
     expect(model.issues.map((i) => i.code)).toContain("invalid-time");
   });
 
@@ -502,6 +526,21 @@ describe("the row-oriented adapter (ADR-0008 §2)", () => {
     // `Number("")` is 0. That coercion is the defect; this asserts its absence.
     expect(built[0]?.data[0]?.y).toBeNull();
     expect(built[0]?.data[0]?.y).not.toBe(0);
+  });
+
+  it("accepts an ISO string instant — the shape JSON actually arrives in", () => {
+    // The primary case rather than an edge one: a fetch response has no Date
+    // objects in it, so a wide row's timestamp is a string until something
+    // revives it. The adapter is that something.
+    const jsonRows = [
+      { time: "2026-03-01T00:00:00.000Z", inlet: 21.4 },
+      { time: "2026-03-01T01:00:00.000Z", inlet: 21.9 },
+    ];
+    const built = fromRows(jsonRows, { t: "time", values: ["inlet"] });
+    const model = normalizeSeries(built, LENIENT);
+
+    expect(model.byId.get("inlet")?.data.every((d) => d.state === "present")).toBe(true);
+    expect(model.timeDomain).toEqual([at(T0).getTime(), at(T1).getTime()]);
   });
 
   it("carries labels and gap policy through", () => {
