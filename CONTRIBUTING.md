@@ -110,7 +110,7 @@ checks has gone wrong before:
 |---|---|
 | `npm run gate:accessibility` | An accessibility suite has gone missing, been emptied, or become unreachable. A suite-wide green cannot tell you the accessibility files were among the ones that ran, and deleting a failing test is the cheapest way to stop it failing |
 | `npm run gate:build-hygiene` | A generated config shadows the TypeScript source, or a package `dist` holds output whose source no longer exists |
-| `npm run gate:duplication-scope` | A test file is missing from the Codacy duplication and metric exclusion lists. Those must be literal paths — globs silently do not match there, so the list rots invisibly as tests are added |
+| `npm run gate:duplication-scope` | A test file is missing from one of the Codacy scoped exclusion lists (duplication, metric, **and lizard**). Those must be literal paths — globs silently do not match there, so the list rots invisibly as tests are added |
 | `npm run gate:visual-baselines` | A pinned screenshot changed without a recorded rationale. Re-pinning is a decision about what "correct" means, not a fix |
 | `npm run release:verify` | The packed tarballs fail outside the workspace: a manifest carrying tests or stale files, an internal dependency off the coordinated version, or an export condition pointing at source |
 | `npm run test:coverage` | Per-package coverage floors, chosen from observed runs rather than a round number |
@@ -118,6 +118,35 @@ checks has gone wrong before:
 
 `probe:detection` runs several full suites and is deliberately not on the per-push path. Run
 it after any substantial refactor of tests or the code they cover.
+
+### Running Codacy locally
+
+CI reports Codacy findings on every pull request, but waiting for a dashboard to tell you
+about a complexity or security finding is a slow way to learn it. The Codacy CLI runs a
+subset of the same tools on your machine:
+
+```sh
+codacy-cli install          # once, installs the pinned runtimes and tools
+codacy-cli analyze          # whole repository
+codacy-cli analyze --tool lizard path/to/file.ts
+```
+
+Install it from the project's [releases](https://github.com/codacy/codacy-cli-v2/releases) —
+download the archive for your platform, **verify it against the published `checksums.txt`**,
+and put the binary on your `PATH`. Do not pipe an install script from the network into a
+shell. The binary is not vendored here.
+
+`.codacy/codacy.yaml` pins the tool versions so a local run and a CI run compare like for
+like. It is deliberately a **subset** of what Codacy runs server-side, and the relationship
+only holds one way: every tool configured locally is also enabled on Codacy, so a local
+finding is a real finding — but Codacy additionally runs Biome, Stylelint, markdownlint and
+others that this CLI cannot execute. **A clean local run means "nothing found by these
+tools", never "nothing found."** CI stays authoritative.
+
+ESLint is deliberately absent. It is disabled for this repository on Codacy — it runs as
+base ESLint rather than the TypeScript-aware configuration, so its findings here were all on
+type signatures. Running it locally would produce findings CI ignores, which teaches people
+to dismiss output.
 
 ## Pull requests
 
