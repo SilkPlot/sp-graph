@@ -55,3 +55,24 @@ export type { Interval, PackedInterval, PackOptions } from "./overlap";
 // Hit-testing — nearest-point lookup via d3-delaunay.
 export { createHitIndex } from "./hit-test";
 export type { HitIndex, HitIndexOptions } from "./hit-test";
+
+// Layered time selection — the dashboard scope precedence model (ADR-0007).
+export { resolveEffectiveDomain } from "./time-scope";
+export type {
+  GlobalRange,
+  DynamicSelection,
+  SectionWindow,
+  SectionLatest,
+  SectionScope,
+  TimeScopes,
+  EffectiveDomain,
+  EffectiveRange,
+  EffectiveLatest,
+  EffectiveEmpty,
+  EmptyReason,
+  TimeScopeIssue,
+  ResolveOptions,
+} from "./time-scope";
+
+// Build-environment detection, shared by the contracts that fail loud in dev.
+export { isDevelopmentBuild } from "./build-env";
