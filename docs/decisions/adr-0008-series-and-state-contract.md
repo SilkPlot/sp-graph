@@ -236,6 +236,16 @@ them.
 
 ### 9. Formatting is the caller's, and the library's defaults stay generic
 
+> **The PRINCIPLE below stands. The PROP SHAPE this section's example declared
+> is superseded by [ADR-0010](adr-0010-formatter-props-by-surface.md).** Props
+> are named for the surface they reach — `xTickFormat`, `yTickFormat`,
+> `tableTimeFormat`, `tableValueFormat` — rather than for the value kind they
+> receive. Building the surface showed a `Date` reaches two surfaces with
+> incompatible constraints (an axis tick has a few characters; a table cell is
+> read aloud), which the declared `formatTick`/`formatValue` pair could not
+> express. `formatTooltip` is NOT superseded: it stays declared and unbuilt
+> until the many-series active-datum model is decided.
+
 Tick text, tooltip wording, units, locale, and display time zone are supplied by
 the caller. Library defaults remain deliberately generic and
 locale-independent — ISO 8601 instants, unadorned numbers, and headings like

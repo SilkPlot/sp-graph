@@ -97,6 +97,7 @@ export type {
   SeriesIssue,
   SeriesIssueCode,
   SeriesGeometry,
+  MultiSeriesFormatProps,
   SeriesTable,
   SeriesTableOptions,
   SeriesTableRow,

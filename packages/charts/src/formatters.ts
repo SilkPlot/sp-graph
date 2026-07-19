@@ -30,48 +30,13 @@
  * signature before the behaviour exists. When that surface is built, its
  * formatter joins this interface.
  */
-import type { SeriesTableOptions } from "@silkplot/core";
+import type { MultiSeriesFormatProps, SeriesTableOptions } from "@silkplot/core";
 
-export interface MultiSeriesFormatProps {
-  /**
-   * Bottom-axis tick labels. Default: the time scale's own tick format.
-   *
-   * Changes the LABEL only, never a tick's position, so it cannot move the
-   * ticks away from the gridlines drawn behind them.
-   */
-  xTickFormat?: (value: Date) => string;
-  /**
-   * Left-axis tick labels. Default: the linear scale's own tick format.
-   *
-   * This is where a unit belongs on the AXIS — "R 1.2k", "42°" — rather than in
-   * the series label, which is the legend's and the table heading's wording.
-   */
-  yTickFormat?: (value: number) => string;
-  /**
-   * The data table's instant column. Default: ISO 8601.
-   *
-   * Reaches the CSV export too, because the export is the table serialised
-   * rather than a second derivation of the data — see `tableValueFormat` for
-   * what that implies.
-   */
-  tableTimeFormat?: (t: Date) => string;
-  /**
-   * A data-table value cell. Default: the raw number, unadorned. Called only
-   * for a present reading; a gap stays an empty cell.
-   *
-   * **This reaches the CSV export.** The export is defined as the table
-   * serialised — same rows, same headings — so a formatter that returns
-   * `"R 1 234,56"` puts that string in the downloaded file, where a spreadsheet
-   * will treat it as text rather than a number. That is the correct consequence
-   * of one stated rule rather than a bug: the alternative is a table and an
-   * export that disagree about what a cell says, which is worse and silent.
-   *
-   * Return a NUMBER to change nothing about the export — the return type is
-   * `string | number` precisely so a caller can format for display without
-   * committing the export to text.
-   */
-  tableValueFormat?: (y: number, label: string) => string | number;
-}
+// Defined in `core` so ADR-0008's DOM-free examples can import it without
+// pulling this package's Solid chain; re-exported here because this is the
+// package whose components actually take it. The per-prop documentation and the
+// reasoning for the four-way split are on the interface in `core`.
+export type { MultiSeriesFormatProps };
 
 /**
  * The table half of the props, as the options `seriesTable` takes.
