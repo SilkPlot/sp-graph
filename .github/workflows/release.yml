@@ -172,6 +172,11 @@ jobs:
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # `WANT` is re-declared here rather than inherited: `env:` is per-step,
+          # and the already-published check below reads it under `set -u`, where
+          # an undeclared variable aborts the step rather than quietly comparing
+          # against an empty string.
+          WANT: ${{ inputs.version }}
           TAG: ${{ inputs.dist_tag }}
           DRY: ${{ inputs.dry_run }}
         run: |
@@ -182,14 +187,45 @@ jobs:
           fi
           extra=""
           if [ "$DRY" = "true" ]; then extra="--dry-run"; fi
+
+          # Each package is checked against the registry before publishing, so a
+          # re-run after a partial failure completes the release instead of
+          # dying on the first package that already exists.
+          #
+          # This is not hypothetical. The first real run of this workflow failed
+          # on `core` with EOTP, and it failed BEFORE any write — but it could
+          # just as easily have failed on `solid`, leaving `core` and `theme`
+          # published. Retrying that without this check hits npm's "cannot
+          # publish over the previously published version" 403 on the first
+          # package and stops, so the release would be stuck half-done with no
+          # way forward except a version bump. A coordinated release that cannot
+          # be resumed is a coordinated release that strands consumers on a
+          # mixed set.
+          #
+          # `npm view` returning non-zero means "not published", which is the
+          # normal case here and must not trip `set -e` — hence the `|| true`.
+          # The version is compared exactly rather than checking the package
+          # exists at all: a package with older versions is still unpublished AT
+          # THIS VERSION and must go out.
+          published=0
+          skipped=0
           for pkg in core theme solid charts; do
             echo "── @silkplot/$pkg"
+            existing=$(npm view "@silkplot/$pkg@$WANT" version 2>/dev/null || true)
+            if [ -n "$existing" ]; then
+              echo "   already on the registry at $WANT — skipping."
+              echo "   (a re-run after a partial failure; not an error)"
+              skipped=$((skipped + 1))
+              continue
+            fi
             npm publish --workspace "@silkplot/$pkg" \
               --tag "$TAG" \
               --access public \
               --provenance \
               $extra
+            published=$((published + 1))
           done
+          echo "Published $published package(s); skipped $skipped already at $WANT."
 
       - name: What happens next
         if: success()
