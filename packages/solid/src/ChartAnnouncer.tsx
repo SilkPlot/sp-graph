@@ -84,6 +84,16 @@ export interface ChartAnnouncerProps {
   message?: string;
   /** Minimum gap between announcements. Default: `DEFAULT_ANNOUNCE_THROTTLE_MS`. */
   throttleMs?: number;
+  /**
+   * Names what this region is for, as the value of its marker attribute.
+   *
+   * A chart can legitimately carry more than one: a keyboard step and a
+   * latest-value reading are different events, and one is silent while the other
+   * speaks. Naming them keeps "the announcer" from being ambiguous to a reader
+   * of the DOM — and to a test, which would otherwise assert against whichever
+   * happened to come first.
+   */
+  channel?: string;
 }
 
 export const ChartAnnouncer: Component<ChartAnnouncerProps> = (props) => {
@@ -151,7 +161,7 @@ export const ChartAnnouncer: Component<ChartAnnouncerProps> = (props) => {
 
   return (
     <div
-      data-silkplot-announcer
+      data-silkplot-announcer={props.channel ?? ""}
       role="status"
       aria-live="polite"
       style={VISUALLY_HIDDEN}
