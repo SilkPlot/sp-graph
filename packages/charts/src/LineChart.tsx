@@ -12,7 +12,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component, type JSX } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
 import { linePath, type CurveName, type Series } from "@silkplot/core";
 import {
   ChartAnnouncer,
@@ -125,9 +125,23 @@ export interface SingleSeriesInput {
   visibleSeries?: never;
 }
 
-export interface MultiSeriesInput<M = unknown> {
-  /** Stable series, each with its own id, label, gap policy, and style. */
-  series: readonly Series<M>[];
+export interface MultiSeriesInput {
+  /**
+   * Stable series, each with its own id, label, gap policy, and style.
+   *
+   * `Series<unknown>`, deliberately NOT generic on the metadata type. The
+   * generic exists in `core` and flows through the model, but the chart exposes
+   * no callback that hands it back yet — tooltip and activation are a later
+   * contract — so a generic here would buy nothing and cost real compatibility:
+   * a generic function component is not assignable to Solid's `Component<P>`,
+   * which breaks `createComponent(LineChart, …)`, the exact call JSX compiles
+   * to. The packed-consumer release gate caught this outside the workspace,
+   * where the workspace's own JSX call sites could not.
+   *
+   * A caller's `Series<Reading>[]` is assignable here, so no metadata is lost
+   * on the way in. The generic returns when a surface exists that gives it back.
+   */
+  series: readonly Series[];
   /**
    * Controlled visibility by series id (ADR-0008 §6). Omit for uncontrolled —
    * every series visible. An EMPTY array means nothing is visible, and is a
@@ -142,8 +156,8 @@ export interface MultiSeriesInput<M = unknown> {
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out; there is no
  * implicit one.
  */
-export type LineChartProps<M = unknown> = LineChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInput<M>) &
+export type LineChartProps = LineChartBaseProps &
+  (SingleSeriesInput | MultiSeriesInput) &
   ChartSemanticsProps;
 
 type LineChartBodyProps = LineChartBaseProps & {
@@ -340,10 +354,10 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 };
 
 /** The multi-series path: one stroked path per visible series. */
-const LineChartMulti = <M,>(
-  props: LineChartBaseProps & MultiSeriesInput<M> & { semantics: ChartSemantics },
-): JSX.Element => {
-  const scope = createMultiSeriesScope<M>({
+const LineChartMulti: Component<
+  LineChartBaseProps & MultiSeriesInput & { semantics: ChartSemantics }
+> = (props) => {
+  const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
   });
@@ -356,7 +370,7 @@ const LineChartMulti = <M,>(
       columns={scope.table().columns}
       latest={scope.isLatest}
     >
-      <MultiSeriesBody<M>
+      <MultiSeriesBody
         scope={scope}
         layout={props}
         semantics={props.semantics}
@@ -383,7 +397,7 @@ const LineChartMulti = <M,>(
   );
 };
 
-export const LineChart = <M,>(props: LineChartProps<M>): JSX.Element => {
+export const LineChart: Component<LineChartProps> = (props) => {
   // Resolved OUTSIDE ChartRoot — see `ChartShell`, which is where the reason
   // lives now that all four charts share the arrangement.
   const semantics = createInspectableSemantics(props);
@@ -398,7 +412,7 @@ export const LineChart = <M,>(props: LineChartProps<M>): JSX.Element => {
       when={props.series !== undefined}
       fallback={<LineChartSingle {...(props as LineChartBaseProps & SingleSeriesInput)} semantics={semantics} />}
     >
-      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInput<M>)} semantics={semantics} />
+      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInput)} semantics={semantics} />
     </Show>
   );
 };

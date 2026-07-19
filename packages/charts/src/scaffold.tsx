@@ -253,15 +253,23 @@ export const StrokedLine: Component<{
  * because silently merging them renders a chart with a phantom extra series and
  * nothing to indicate it.
  */
-export function assertOneInput(props: { data?: unknown; series?: unknown }): void {
+export function assertOneInput(
+  props: { data?: unknown; series?: unknown },
+  options: {
+    /** Throw rather than warn. Defaults to `isDevelopmentBuild()`. */
+    strict?: boolean;
+    /** Diagnostic sink. Defaults to `console.warn`. */
+    onIssue?: (message: string) => void;
+  } = {},
+): void {
   if (props.data === undefined || props.series === undefined) return;
   const message =
     "SilkPlot: a chart was given both `data` and `series`. They are two spellings of " +
     "the same input and cannot both apply — `data` is sugar for a one-element `series` " +
     "array. Merging them would draw a series the caller never passed. `series` is used " +
     "and `data` is ignored.";
-  if (isDevelopmentBuild()) throw new Error(message);
-  console.warn(message);
+  if (options.strict ?? isDevelopmentBuild()) throw new Error(message);
+  (options.onIssue ?? ((m: string) => console.warn(m)))(message);
 }
 
 /**
