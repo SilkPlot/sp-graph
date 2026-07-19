@@ -21,6 +21,20 @@
  * constants still agree with it. The production path keeps the contract; the
  * test keeps them honest. See `series-style.test.tsx`.
  *
+ * ## Which index a series gets
+ *
+ * Its position in the CALLER's array — see ADR-0009, which exists because
+ * ADR-0008 §1 reads at a glance as though colour must follow identity and does
+ * not say that. Identity (data, visibility, legend, table) is keyed on `id`;
+ * the default palette slot is positional.
+ *
+ * The consequence that is easy to mistake for a bug: hiding a series never
+ * recolours the others (the slot comes from the caller's array, not from the
+ * visible subset — covered by a standing detection probe), but re-sorting the
+ * array does. A caller who needs a colour pinned across sorts sets
+ * `style.stroke`, which keeps the dash channel because the override below is
+ * per property.
+ *
  * ## Why indices wrap rather than run out
  *
  * A 22-series chart is a stated requirement and the palette holds eight. Wrapping
