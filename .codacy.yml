@@ -37,7 +37,13 @@
 #      typechecks both `src/` and `test/`. ESLint is redundant where it happens
 #      to be right and wrong where it is not.
 #
-#   2. Agentlinter `clarity/escape-hatch-missing` — DISABLED.
+#   2. Agentlinter `clarity/escape-hatch-missing` — INTENDED to be disabled,
+#      and AS OF 2026-07-19 IT IS NOT. Queried directly: the pattern is enabled
+#      for this repository and six of its findings are live on `AGENTS.md` and
+#      `CLAUDE.md`, including the exact rules named below. The disable described
+#      here was never applied on the Code patterns page. The reasoning still
+#      stands and the action is outstanding — this entry describes an intent,
+#      not a state, until someone toggles it and the findings clear.
 #      It flags absolute rules that carry no escape hatch, on `AGENTS.md`
 #      (lines 6, 9, 12, 18, 19) and `CLAUDE.md` (line 6) — including the heading
 #      "The rules that never bend" and "Never use `d3-selection`,
@@ -117,19 +123,18 @@
 # like a number. The scope decision had been correct in `.codacy.yml` and wrong
 # in effect for as long as Lizard has been enabled.
 #
-# OPEN FINDING — Agentlinter `clarity/escape-hatch-missing` is recorded above as
-# DISABLED, and it is still reporting. Six findings survive on `AGENTS.md` and
-# `CLAUDE.md` as of 2026-07-19, including the ones named in that disposition
-# ("The rules that never bend", the banned-module rule). So either the disable
-# was never applied on the Code patterns page, or it was applied and does not
-# take effect for this tool.
+# RESOLVED, 2026-07-19 — and the answer was that THIS FILE was wrong.
 #
-# This is recorded as a CONTRADICTION between this file and observed behaviour
-# rather than quietly corrected in either direction, because it is not yet known
-# which one is wrong. Resolving it means looking at the Code patterns page and
-# then either applying the disable or rewriting the disposition above to say the
-# findings are accepted-and-visible instead. Both are honest; the current state,
-# where the file claims something the dashboard contradicts, is not.
+# The contradiction was: `clarity/escape-hatch-missing` documented as disabled,
+# six of its findings live. Querying the repository's pattern settings directly
+# settled it — the pattern is ENABLED. It was never turned off. The disposition
+# above has been corrected to describe an intent rather than a state.
+#
+# Worth noting how long that survived: a disposition written as a statement of
+# fact ("DISABLED") read as done to every subsequent reader, including the one
+# who wrote it. Nothing checks that the tool dispositions recorded in this file
+# match the dashboard, and until one of its patterns happened to fire on a new
+# file, nothing would have.
 #
 # OPEN FINDING — Stylelint `scss_function-disallowed-list` is a malformed
 # pattern on Codacy's side, not a defect in this repository's CSS. It reports
