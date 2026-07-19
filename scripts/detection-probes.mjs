@@ -308,18 +308,18 @@ const PROBES = [
     messagePattern: /to deeply equal|to be/,
   },
   {
-    id: "multi-series-stale-identity",
+    id: "multi-series-palette-stability",
     file: "packages/charts/src/MultiSeriesBody.tsx",
     project: "charts",
     browser: true,
     breaks:
-      "series are rendered keyed by IDENTITY — key them by position instead and a reorder " +
-      "hands series 0's rendered path series 1's data, silently, in the DOM",
-    anchor: "        <For each={props.scope.visible()}>",
-    mutation: "        <Index each={props.scope.visible()}>",
+      "a series' palette slot comes from its position in the CALLER's array — key it on " +
+      "visible position instead and hiding one series silently recolours the rest",
+    anchor: "              resolveSeriesStyle(series.style, series.sourceIndex, {",
+    mutation: "              resolveSeriesStyle(series.style, i(), {",
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
-    observed: "the reorder test sees both paths keep their old `d`",
+    observed: "the hidden series' colour shifts from --sp-cat-1 to --sp-cat-0",
     messagePattern: /to be|expected/,
   },
   {
