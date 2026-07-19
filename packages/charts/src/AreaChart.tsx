@@ -13,7 +13,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
+import { createMemo, Show, type Component, type JSX } from "solid-js";
 import { areaPath, linePath, type CurveName } from "@silkplot/core";
 import {
   ChartEmptyMark,
@@ -24,12 +24,16 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { createMultiSeriesScope } from "./multi-series";
+import { MultiSeriesBody } from "./MultiSeriesBody";
+import type { MultiSeriesInput, SingleSeriesInput } from "./LineChart";
 import {
   ChartShell,
+  StrokedLine,
+  assertOneInput,
   TIME_SERIES_COLUMNS,
   createInspectableSemantics,
   createTimeSeriesScope,
-  StrokedLine,
   finiteDefined,
   timePointRows,
   type TimeSeriesChartProps,
@@ -38,8 +42,6 @@ import {
 import type { TimePoint } from "./types";
 
 export interface AreaChartBaseProps extends TimeSeriesChartProps {
-  /** The series to plot, as `{ t: Date, y: number }[]`. */
-  data: readonly TimePoint[];
   /** Area/line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -68,9 +70,12 @@ export interface AreaChartBaseProps extends TimeSeriesChartProps {
  * An area chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
  */
-export type AreaChartProps = AreaChartBaseProps & ChartSemanticsProps;
+export type AreaChartProps<M = unknown> = AreaChartBaseProps &
+  (SingleSeriesInput | MultiSeriesInput<M>) &
+  ChartSemanticsProps;
 
 type AreaChartBodyProps = AreaChartBaseProps & {
+  data: readonly TimePoint[];
   semantics: ChartSemantics;
   scope: TimeSeriesScope;
 };
@@ -136,8 +141,88 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   );
 };
 
-export const AreaChart: Component<AreaChartProps> = (props) => {
+/** The multi-series path: one fill plus its top stroke, per visible series. */
+const AreaChartMulti = <M,>(
+  props: AreaChartBaseProps & MultiSeriesInput<M> & { semantics: ChartSemantics },
+): JSX.Element => {
+  const scope = createMultiSeriesScope<M>({
+    series: () => props.series,
+    visibleSeries: () => props.visibleSeries,
+  });
+
+  return (
+    <ChartShell
+      layout={props}
+      semantics={props.semantics}
+      rows={() => scope.table().rows}
+      columns={scope.table().columns}
+      latest={scope.isLatest}
+    >
+      <MultiSeriesBody<M>
+        scope={scope}
+        layout={props}
+        semantics={props.semantics}
+        area
+        fillOpacity={props.fillOpacity}
+        // The fill is drawn FROM zero, so zero must be inside the domain or the
+        // flat edge lands on a pixel the axis labels as some other value. Line
+        // deliberately differs; an all-negative series is where you see it.
+        yDomain="zero-baseline"
+        emptyMessage={props.emptyMessage}
+        renderSeries={(ctx) => {
+          // ONE defined predicate, built once and shared by both marks. Two
+          // separately-built predicates would break the fill and its stroke at
+          // different points — which renders, and reads as a drawing bug.
+          const defined = finiteDefined(ctx.x, ctx.y, ctx.defined);
+          const curve = props.curve ?? "monotoneX";
+          return (
+            <>
+              <path
+                d={areaPath(ctx.points, {
+                  x: ctx.x,
+                  y0: ctx.baseline,
+                  y1: ctx.y,
+                  defined,
+                  curve,
+                })}
+                fill={ctx.style.fill}
+                fill-opacity={ctx.style.fillOpacity}
+                stroke="none"
+              />
+              <StrokedLine
+                d={linePath(ctx.points, { x: ctx.x, y: ctx.y, defined, curve })}
+                stroke={ctx.style.stroke}
+                strokeWidth={ctx.style.strokeWidth}
+                dash={ctx.style.dash}
+              />
+            </>
+          );
+        }}
+      />
+    </ChartShell>
+  );
+};
+
+export const AreaChart = <M,>(props: AreaChartProps<M>): JSX.Element => {
   const semantics = createInspectableSemantics(props);
+  assertOneInput(props);
+
+  return (
+    <Show
+      when={props.series !== undefined}
+      fallback={
+        <AreaChartSingle {...(props as AreaChartBaseProps & SingleSeriesInput)} semantics={semantics} />
+      }
+    >
+      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInput<M>)} semantics={semantics} />
+    </Show>
+  );
+};
+
+/** The original single-series surface, unchanged. */
+const AreaChartSingle: Component<
+  AreaChartBaseProps & SingleSeriesInput & { semantics: ChartSemantics }
+> = (props) => {
   // Outside ChartRoot: the table is a sibling of the measured box, so the scope
   // must be readable from both sides of it, and the table takes the VISIBLE rows.
   const scope = createTimeSeriesScope(() => props.data);
@@ -145,12 +230,12 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
   return (
     <ChartShell
       layout={props}
-      semantics={semantics}
+      semantics={props.semantics}
       rows={() => timePointRows(scope.visible())}
       columns={TIME_SERIES_COLUMNS}
       latest={scope.isLatest}
     >
-      <AreaChartBody {...props} semantics={semantics} scope={scope} />
+      <AreaChartBody {...props} semantics={props.semantics} scope={scope} />
     </ChartShell>
   );
 };

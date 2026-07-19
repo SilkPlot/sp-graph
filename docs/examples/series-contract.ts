@@ -1,59 +1,60 @@
 /**
  * Typed examples for ADR-0008 — the multi-series and composition state contract.
  *
- * WHAT THIS FILE IS. The contract types below are declared here, not imported.
- * At the time this was written the implementation did not exist yet: the
- * decision was deliberately settled before the components that consume it, so
- * there is nothing to import from. Declaring the shapes here and exercising
- * them is what makes the ADR checkable rather than merely readable — it proves
- * the contract is expressible in TypeScript, that its generics flow, and that
- * the states it claims are representable actually are.
+ * WHAT THIS FILE IS. Typed examples of every shape ADR-0008 must support,
+ * checked by the compiler rather than only read.
  *
- * WHAT IT IS NOT. It is not a test of the library, because it does not call the
- * library. When the implementation lands, the declarations in Part 1 are
- * replaced by imports from `@silkplot/core` and every example below must
- * continue to compile unchanged. That substitution is the point: if an example
- * has to change, the implementation diverged from the decision, and this file
- * is where that shows up.
+ * It was written BEFORE the implementation, because the decision was
+ * deliberately settled ahead of the components that consume it. Part 1 declared
+ * the contract's types; Part 2 exercised them. That proved the contract was
+ * expressible, that its metadata generic flowed, and that every state it claims
+ * is representable actually is.
+ *
+ * THE SUBSTITUTION HAS NOW HAPPENED, and it is the point of the whole exercise.
+ * The series half of Part 1 is imported from `@silkplot/core` instead of
+ * declared, and **Part 2 is byte-identical** — not one example was edited to
+ * make it compile. That is evidence the implementation matches the decision
+ * rather than a claim that it does.
+ *
+ * The rule stands for the parts still declared. When the reference-overlay and
+ * composition props are built, their declarations become imports too, and Part 2
+ * must again compile UNCHANGED. If an example has to be edited, the
+ * implementation diverged from the decision — so edit the implementation, or
+ * supersede the ADR. Do not edit the example to fit the code.
+ *
+ * WHAT IT IS NOT. It is not a test of runtime behaviour: it type-checks shapes
+ * and does not call the library. The suites do that.
  */
 
 /* ------------------------------------------------------------------------- */
-/* Part 1 — the contract, as ADR-0008 declares it.                            */
-/*          Replaced by imports once the implementation ships.                */
+/* Part 1 — the contract.                                                     */
+/*                                                                            */
+/* The series half is now IMPORTED from the implementation rather than         */
+/* declared. That substitution is the test: every example in Part 2 below      */
+/* compiled against the declarations, and compiles UNCHANGED against the real  */
+/* types. Nothing in Part 2 was edited to make this work.                      */
+/*                                                                            */
+/* What is still declared is what is still undecided or unbuilt — the          */
+/* reference-overlay and chart-level composition props. Each is marked, and    */
+/* each becomes an import when its phase lands, under the same rule.           */
 /* ------------------------------------------------------------------------- */
 
-/** ADR-0008 §3. `M` defaults to `unknown` so an unsupplied metadata type
- *  cannot be read off by accident. */
-export interface SeriesDatum<M = unknown> {
-  t: Date;
-  /** `null` is a declared absence, governed by `nullPolicy`. Never coerced to 0. */
-  y: number | null;
-  /** Never plotted, never interpreted, returned verbatim. */
-  meta?: M;
-}
+// ADR-0008 §1, §3, §4 — implemented. `SeriesDatum`, `Series`, `SeriesStyle`
+// and `NullPolicy` are the shipped types, re-exported so the examples below
+// read the same as they did when these were local declarations.
+export type {
+  Series,
+  SeriesDatum,
+  SeriesStyle,
+  NullPolicy,
+} from "@silkplot/core";
+import type { Series, SeriesDatum, SeriesStyle } from "@silkplot/core";
 
-/** ADR-0008 §4. Per series, not per chart. */
-export type NullPolicy = "break" | "connect";
+// ADR-0008 §2 — implemented.
+export { fromRows } from "@silkplot/core";
+import { fromRows } from "@silkplot/core";
 
-export interface SeriesStyle {
-  stroke?: string;
-  strokeWidth?: number;
-  /** Area fill under the line. Absent means no fill. */
-  fill?: string;
-  /** A non-colour channel, so series stay distinguishable in monochrome. */
-  dash?: readonly number[];
-}
-
-/** ADR-0008 §1. */
-export interface Series<M = unknown> {
-  id: string;
-  label: string;
-  data: readonly SeriesDatum<M>[];
-  nullPolicy?: NullPolicy;
-  style?: SeriesStyle;
-}
-
-/** ADR-0008 §10. `includeInDomain` defaults to true. */
+/** ADR-0008 §10 — NOT YET IMPLEMENTED. `includeInDomain` defaults to true. */
 export interface ReferenceValue {
   id: string;
   value: number;
@@ -86,12 +87,6 @@ export interface MultiSeriesProps<M = unknown>
   series: readonly Series<M>[];
   references?: readonly ReferenceValue[];
 }
-
-/** ADR-0008 §2 — the adapter seam for row-oriented input. */
-export declare function fromRows<R extends Record<string, unknown>>(
-  rows: readonly R[],
-  spec: { t: keyof R & string; values: readonly (keyof R & string)[] },
-): readonly Series<R>[];
 
 /* ------------------------------------------------------------------------- */
 /* Part 2 — the shapes the contract must support.                             */

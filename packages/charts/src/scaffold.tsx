@@ -17,6 +17,7 @@
 import { createMemo, mergeProps, Show, type Accessor, type Component, type JSX } from "solid-js";
 import {
   extentOf,
+  isDevelopmentBuild,
   timeScale,
   type EffectiveDomain,
   type ScaleTime,
@@ -222,16 +223,46 @@ export const StrokedLine: Component<{
   d: string;
   stroke?: string;
   strokeWidth?: number;
+  /**
+   * `stroke-dasharray`. The redundant non-colour channel for a multi-series
+   * chart (ADR-0005 §5) — two series a reader cannot separate by hue are still
+   * separable by dash. Omitted, and on a single-series chart, the line is solid.
+   */
+  dash?: string;
 }> = (props) => (
   <path
     d={props.d}
     fill="none"
     stroke={props.stroke ?? "currentColor"}
     stroke-width={props.strokeWidth ?? 1.5}
+    stroke-dasharray={props.dash}
     stroke-linejoin="round"
-    stroke-linecap="round"
+    // `butt`, not `round`, when dashed: a round cap extends each dash by half a
+    // stroke width at both ends, so a fine pattern closes up into a solid line
+    // and the channel silently stops distinguishing anything.
+    stroke-linecap={props.dash === undefined || props.dash === "none" ? "round" : "butt"}
   />
 );
+
+/**
+ * ADR-0008 §12's runtime backstop: `data` and `series` are mutually exclusive.
+ *
+ * The typed props already make both-at-once unrepresentable, so this exists for
+ * callers who arrive untyped — plain JavaScript, a cast, or props spread from a
+ * config object. Development throws; production prefers `series` and diagnoses,
+ * because silently merging them renders a chart with a phantom extra series and
+ * nothing to indicate it.
+ */
+export function assertOneInput(props: { data?: unknown; series?: unknown }): void {
+  if (props.data === undefined || props.series === undefined) return;
+  const message =
+    "SilkPlot: a chart was given both `data` and `series`. They are two spellings of " +
+    "the same input and cannot both apply — `data` is sugar for a one-element `series` " +
+    "array. Merging them would draw a series the caller never passed. `series` is used " +
+    "and `data` is ignored.";
+  if (isDevelopmentBuild()) throw new Error(message);
+  console.warn(message);
+}
 
 /**
  * The mark-level finite check, AND-ed with the caller's own `defined`.

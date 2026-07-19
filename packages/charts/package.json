@@ -38,6 +38,7 @@
     "@silkplot/solid": "0.2.0-next.1"
   },
   "devDependencies": {
+    "@silkplot/theme": "0.2.0-next.1",
     "solid-js": "^1.9.14",
     "typescript": "^7.0.2"
   }
