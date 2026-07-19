@@ -124,6 +124,36 @@ function createRangeDraft(time: DashboardTime) {
   };
 }
 
+/**
+ * One end of the range.
+ *
+ * The two inputs are not merely similar — they must change TOGETHER. Both carry
+ * the same `aria-invalid` and `aria-describedby` wiring pointing at the same
+ * error, because the range is invalid as a pair rather than at one end. Two
+ * copies would drift the moment one gained an attribute the other did not, and
+ * the symptom would be a screen reader announcing the problem on one field and
+ * not the other. That is the test the reuse priority sets for when duplication
+ * is really one thing.
+ */
+const RangeInput: Component<{
+  label: string;
+  value: string;
+  invalid: boolean;
+  errorId: string;
+  onValue: (value: string) => void;
+}> = (props) => (
+  <label>
+    <span>{props.label}</span>
+    <input
+      type="datetime-local"
+      value={props.value}
+      aria-invalid={props.invalid ? "true" : undefined}
+      aria-describedby={props.invalid ? props.errorId : undefined}
+      onInput={(event) => props.onValue(event.currentTarget.value)}
+    />
+  </label>
+);
+
 export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props) => {
   const dashboard = useDashboardTime();
   if (!dashboard) {
@@ -148,33 +178,27 @@ export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props
     <fieldset class={props.class} data-silkplot-time-control="">
       <legend>{props.legend ?? "Time range"}</legend>
 
-      <label>
-        <span>{props.startLabel ?? "From"}</span>
-        <input
-          type="datetime-local"
-          value={startValue()}
-          aria-invalid={invalid() ? "true" : undefined}
-          aria-describedby={invalid() ? errorId : undefined}
-          onInput={(event) => {
-            draft.setDraftStart(event.currentTarget.value);
-            commit({ start: fromLocalInputValue(event.currentTarget.value) });
-          }}
-        />
-      </label>
+      <RangeInput
+        label={props.startLabel ?? "From"}
+        value={startValue()}
+        invalid={invalid()}
+        errorId={errorId}
+        onValue={(value) => {
+          draft.setDraftStart(value);
+          commit({ start: fromLocalInputValue(value) });
+        }}
+      />
 
-      <label>
-        <span>{props.endLabel ?? "To"}</span>
-        <input
-          type="datetime-local"
-          value={endValue()}
-          aria-invalid={invalid() ? "true" : undefined}
-          aria-describedby={invalid() ? errorId : undefined}
-          onInput={(event) => {
-            draft.setDraftEnd(event.currentTarget.value);
-            commit({ end: fromLocalInputValue(event.currentTarget.value) });
-          }}
-        />
-      </label>
+      <RangeInput
+        label={props.endLabel ?? "To"}
+        value={endValue()}
+        invalid={invalid()}
+        errorId={errorId}
+        onValue={(value) => {
+          draft.setDraftEnd(value);
+          commit({ end: fromLocalInputValue(value) });
+        }}
+      />
 
       {/*
         `role="alert"` rather than a plain element: the message appears in
