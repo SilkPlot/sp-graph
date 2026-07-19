@@ -63,6 +63,14 @@ export interface MultiSeriesBodyProps<M = unknown> {
   area?: boolean;
   fillOpacity?: number;
   emptyMessage?: string;
+  /**
+   * Axis tick formatters (ADR-0008 §9). Only the two axis props reach here —
+   * the table formatters are applied where the table is DERIVED, in the scope,
+   * so the rows this body never touches are already formatted by the time a
+   * data alternative or a CSV export reads them.
+   */
+  xTickFormat?: (value: Date) => string;
+  yTickFormat?: (value: number) => string;
   /** Draw one series. Called once per visible series, in paint order. */
   renderSeries: (context: SeriesRenderContext<M>) => JSX.Element;
 }
@@ -116,7 +124,13 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
 
   return (
     <>
-      <CartesianFrame model={model} layout={props.layout} semantics={props.semantics}>
+      <CartesianFrame
+        model={model}
+        layout={props.layout}
+        semantics={props.semantics}
+        xFormat={props.xTickFormat}
+        yFormat={props.yTickFormat}
+      >
         {/*
           `For`, not `Index`: series are keyed by identity, and `For` re-uses a
           row's DOM when the item is the same reference while `Index` re-uses it

@@ -22,6 +22,7 @@ import {
   type AxisScale,
   type CartesianModel,
   type ChartSemantics,
+  type TickFormat,
 } from "@silkplot/solid";
 import type { CartesianChartProps } from "./scaffold";
 
@@ -40,6 +41,18 @@ export interface CartesianFrameProps<X extends AxisScale> {
   layout: CartesianChartProps;
   /** Resolved chart semantics — name, description, and the id relationships. */
   semantics: ChartSemantics;
+  /**
+   * Tick-label formatters, per axis (ADR-0008 §9).
+   *
+   * These are safe to offer one-sidedly in a way the tick COUNT hints above are
+   * not, and the distinction is the reason this frame accepts them while still
+   * passing no tick hints. A formatter changes only a tick's LABEL; a count hint
+   * changes its POSITION, so giving one to an axis and not to its gridlines
+   * lands the lines off the labels. Formatting cannot desynchronise anything,
+   * because the gridlines carry no text.
+   */
+  xFormat?: TickFormat;
+  yFormat?: TickFormat;
   children?: JSX.Element;
 }
 
@@ -76,8 +89,8 @@ export const CartesianFrame = <X extends AxisScale>(
           <Gridlines scale={props.model.y()} axis="y" />
           <Gridlines scale={props.model.x()} axis="x" />
         </Show>
-        <Axis scale={props.model.y()} orientation="left" />
-        <Axis scale={props.model.x()} orientation="bottom" />
+        <Axis scale={props.model.y()} orientation="left" format={props.yFormat} />
+        <Axis scale={props.model.x()} orientation="bottom" format={props.xFormat} />
         {props.children}
       </Show>
     </SvgLayer>

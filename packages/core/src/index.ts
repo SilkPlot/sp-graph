@@ -98,6 +98,7 @@ export type {
   SeriesIssueCode,
   SeriesGeometry,
   SeriesTable,
+  SeriesTableOptions,
   SeriesTableRow,
   SeriesSummary,
   NormalizeOptions,

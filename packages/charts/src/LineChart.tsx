@@ -45,6 +45,7 @@ import {
   type TimeSeriesScope,
 } from "./scaffold";
 import type { TimePoint } from "./types";
+import { tableOptions, type MultiSeriesFormatProps } from "./formatters";
 
 export interface LineChartBaseProps extends TimeSeriesChartProps {
   /** Line curve preset. Default: "monotoneX". */
@@ -123,6 +124,20 @@ export interface SingleSeriesInput {
   data: readonly TimePoint[];
   series?: never;
   visibleSeries?: never;
+  /**
+   * The §9 formatters are multi-series only, and these `never`s say so at
+   * COMPILE time rather than ignoring the prop at runtime. The single-series
+   * path has its own wording contract in `pointLabel`, wired to a keyboard
+   * announcement this path does not have; silently accepting `yTickFormat` here
+   * would produce a chart whose axis is unchanged and no error anywhere.
+   *
+   * Extending the formatters to the single-series axes is legitimate work and
+   * is not this phase's — the surface below is what ADR-0008 §9 promised.
+   */
+  xTickFormat?: never;
+  yTickFormat?: never;
+  tableTimeFormat?: never;
+  tableValueFormat?: never;
 }
 
 export interface MultiSeriesInput {
@@ -152,12 +167,21 @@ export interface MultiSeriesInput {
 }
 
 /**
+ * The multi-series input, plus the caller formatting ADR-0008 §9 promised.
+ *
+ * Intersected rather than declared inline so `MultiSeriesFormatProps` stays one
+ * definition with one set of doc comments, reachable from both charts and from
+ * whatever consumes the surface next.
+ */
+export type MultiSeriesInputWithFormat = MultiSeriesInput & MultiSeriesFormatProps;
+
+/**
  * A line chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out; there is no
  * implicit one.
  */
 export type LineChartProps = LineChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInput) &
+  (SingleSeriesInput | MultiSeriesInputWithFormat) &
   ChartSemanticsProps;
 
 type LineChartBodyProps = LineChartBaseProps & {
@@ -355,11 +379,14 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 
 /** The multi-series path: one stroked path per visible series. */
 const LineChartMulti: Component<
-  LineChartBaseProps & MultiSeriesInput & { semantics: ChartSemantics }
+  LineChartBaseProps & MultiSeriesInputWithFormat & { semantics: ChartSemantics }
 > = (props) => {
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
+    // Read through a thunk, not spread once: a formatter closing over a signal
+    // must re-run the table when that signal changes.
+    tableOptions: () => tableOptions(props),
   });
 
   return (
@@ -374,6 +401,8 @@ const LineChartMulti: Component<
         scope={scope}
         layout={props}
         semantics={props.semantics}
+        xTickFormat={props.xTickFormat}
+        yTickFormat={props.yTickFormat}
         // A line has no baseline to honour, so zero is only the floor. Area
         // deliberately differs; an all-negative series is the only input where
         // you can see it.
@@ -412,7 +441,7 @@ export const LineChart: Component<LineChartProps> = (props) => {
       when={props.series !== undefined}
       fallback={<LineChartSingle {...(props as LineChartBaseProps & SingleSeriesInput)} semantics={semantics} />}
     >
-      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInput)} semantics={semantics} />
+      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInputWithFormat)} semantics={semantics} />
     </Show>
   );
 };

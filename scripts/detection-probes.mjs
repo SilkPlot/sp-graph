@@ -354,6 +354,55 @@ const PROBES = [
     observed: "the union-domain test reads a different pixel for the same value",
     messagePattern: /to be close to|expected/,
   },
+  {
+    id: "table-format-ignored",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "the caller's value formatter is applied to the table cell — drop it and every cell falls " +
+      "back to the generic default, which is the ONE failure mode a formatter has: the chart " +
+      "renders perfectly, with the library's wording where the application's should be",
+    anchor: "      return formatValue === undefined ? d.y : formatValue(d.y, label);",
+    mutation: "      return d.y;",
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 1,
+    observed: "formatted cells read as bare numbers",
+    messagePattern: /expected|toEqual/,
+  },
+  {
+    id: "table-format-fills-gaps",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a gap short-circuits BEFORE the value formatter. Reorder it and the formatter is handed " +
+      "a missing reading, which prints a unit against a measurement nobody took — the same " +
+      "class of failure as a gap becoming zero, one layer up",
+    anchor: '      if (d === undefined || d.y === null) return "";\n      return formatValue',
+    mutation:
+      '      if (d === undefined) return "";\n      if (d.y === null) return formatValue === undefined ? "" : formatValue(0, label);\n      return formatValue',
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 1,
+    observed: "a gap cell carries a formatted zero instead of staying empty",
+    messagePattern: /expected|toEqual/,
+  },
+  {
+    id: "axis-format-crossed",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "each axis gets its OWN formatter. Wire the x formatter to both and a chart formatting " +
+      "only one axis silently formats the other with a function written for a different value " +
+      "kind — a `Date` formatter handed a number, which does not throw, it just reads wrong",
+    anchor: "        yFormat={props.yTickFormat}",
+    mutation: "        yFormat={props.xTickFormat as never}",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed: "the y axis carries the x axis' wording",
+    messagePattern: /expected|to be/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
