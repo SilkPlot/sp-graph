@@ -307,6 +307,51 @@ const PROBES = [
     observed: "domains go non-finite — “expected [ NaN, NaN ] to deeply equal [ +0, 1 ]”",
     messagePattern: /to deeply equal|to be/,
   },
+  {
+    id: "multi-series-stale-identity",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "series are rendered keyed by IDENTITY — key them by position instead and a reorder " +
+      "hands series 0's rendered path series 1's data, silently, in the DOM",
+    anchor: "        <For each={props.scope.visible()}>",
+    mutation: "        <Index each={props.scope.visible()}>",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed: "the reorder test sees both paths keep their old `d`",
+    messagePattern: /to be|expected/,
+  },
+  {
+    id: "multi-series-ignored-gap",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a `connect` series drops its gaps before the path generator sees them — keep them and " +
+      "the generator scales a null, which coerces to ZERO and draws a spike to the baseline",
+    anchor: '                  points: series.data.filter((d) => d.state === "present"),',
+    mutation: "                  points: series.data,",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed: "connect no longer yields one subpath; a gap reaches the baseline",
+    messagePattern: /expected|to be/,
+  },
+  {
+    id: "multi-series-signed-domain",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the multi-series line keeps its own y-domain policy — swap it for the area's and an " +
+      "all-negative series is padded to zero at the wrong end, which only signed data reveals",
+    anchor: '        yDomain="zero-floor"',
+    mutation: '        yDomain="extent"',
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed: "the union-domain test reads a different pixel for the same value",
+    messagePattern: /to be close to|expected/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
