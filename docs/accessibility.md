@@ -375,6 +375,15 @@ The assistive-technology matrix is recorded as an explicitly pending item in
 [the release checklist](release-checklist.md). It is unchecked because it has
 not been run.
 
+**If you have a screen reader, you can close this gap in about fifteen minutes.**
+[`screen-reader-protocol.md`](screen-reader-protocol.md) is a step-by-step check
+written for exactly that — no build, no install, run against the public
+documentation site. Results are wanted whether they are good or bad; a report
+saying a step announced nothing is worth more to this project than any number of
+passing automated tests. The protocol opens with a control test, because a
+non-functioning reader and a chart with no semantics produce identical evidence
+and the maintainers have already been caught by that once.
+
 ### Four open evidence gaps
 
 These are open questions, not settled ones, and the library's own behaviour is

@@ -31,6 +31,12 @@ body:
         I arrowed, I could not work out why" is useful. Do not hold a report back
         because you could not diagnose it.
 
+        **Testing with a screen reader?** There is a step-by-step protocol at
+        [`docs/screen-reader-protocol.md`](https://github.com/SilkPlot/sp-graph/blob/main/docs/screen-reader-protocol.md)
+        — about fifteen minutes, no build required, and it starts with a control
+        test so a silent reader is never mistaken for a silent chart. Partial
+        results are welcome.
+
   - type: input
     id: at-name
     attributes:
