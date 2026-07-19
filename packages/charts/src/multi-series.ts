@@ -15,12 +15,9 @@
 import { createMemo, type Accessor } from "solid-js";
 import {
   normalizeSeries,
-  seriesGeometry,
   seriesTable,
   timeDomainOf,
   timeScale,
-  valueDomainOf,
-  type Domain,
   type EffectiveDomain,
   type NormalizedSeries,
   type ScaleTime,
@@ -37,15 +34,12 @@ export interface MultiSeriesScope<M = unknown> {
   all: Accessor<readonly NormalizedSeries<M>[]>;
   /** Build the x scale for a pixel range, over the scoped time domain. */
   xScale: (range: [number, number]) => ScaleTime<number, number>;
-  /** Value extent over the narrowed VISIBLE series — what the y axis describes. */
-  valueDomain: Accessor<Domain>;
   /** True when a scope is in force and nothing falls inside it. */
   isEmpty: Accessor<boolean>;
   /** True when the chart is showing a single most-recent reading. */
   isLatest: Accessor<boolean>;
   /** The accessible data alternative, from this same narrowed model. */
   table: Accessor<SeriesTable>;
-  issues: Accessor<readonly SeriesIssue[]>;
 }
 
 /**
@@ -118,7 +112,6 @@ export function createMultiSeriesScope<M = unknown>(
   return {
     all,
     visible,
-    valueDomain: () => valueDomainOf(visible()),
     xScale: (range) => {
       const scope = domain();
       // Standalone, or an empty scope with no interval of its own to show: fall
@@ -137,13 +130,6 @@ export function createMultiSeriesScope<M = unknown>(
     // Built from the NARROWED model, so the table describes the range on screen
     // rather than the dataset behind it.
     table: () => seriesTable({ ...model(), visible: visible(), series: all() }),
-    issues: () => model().issues,
   };
 }
 
-/** Geometry inputs for every visible series, in paint order. */
-export function scopeGeometry<M>(
-  scope: MultiSeriesScope<M>,
-): readonly { series: NormalizedSeries<M>; geometry: ReturnType<typeof seriesGeometry<M>> }[] {
-  return scope.visible().map((series) => ({ series, geometry: seriesGeometry(series) }));
-}

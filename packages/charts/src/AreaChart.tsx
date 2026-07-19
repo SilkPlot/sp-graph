@@ -13,7 +13,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component, type JSX } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
 import { areaPath, linePath, type CurveName } from "@silkplot/core";
 import {
   ChartEmptyMark,
@@ -70,8 +70,8 @@ export interface AreaChartBaseProps extends TimeSeriesChartProps {
  * An area chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
  */
-export type AreaChartProps<M = unknown> = AreaChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInput<M>) &
+export type AreaChartProps = AreaChartBaseProps &
+  (SingleSeriesInput | MultiSeriesInput) &
   ChartSemanticsProps;
 
 type AreaChartBodyProps = AreaChartBaseProps & {
@@ -142,10 +142,10 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 };
 
 /** The multi-series path: one fill plus its top stroke, per visible series. */
-const AreaChartMulti = <M,>(
-  props: AreaChartBaseProps & MultiSeriesInput<M> & { semantics: ChartSemantics },
-): JSX.Element => {
-  const scope = createMultiSeriesScope<M>({
+const AreaChartMulti: Component<
+  AreaChartBaseProps & MultiSeriesInput & { semantics: ChartSemantics }
+> = (props) => {
+  const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
   });
@@ -158,7 +158,7 @@ const AreaChartMulti = <M,>(
       columns={scope.table().columns}
       latest={scope.isLatest}
     >
-      <MultiSeriesBody<M>
+      <MultiSeriesBody
         scope={scope}
         layout={props}
         semantics={props.semantics}
@@ -203,7 +203,7 @@ const AreaChartMulti = <M,>(
   );
 };
 
-export const AreaChart = <M,>(props: AreaChartProps<M>): JSX.Element => {
+export const AreaChart: Component<AreaChartProps> = (props) => {
   const semantics = createInspectableSemantics(props);
   assertOneInput(props);
 
@@ -214,7 +214,7 @@ export const AreaChart = <M,>(props: AreaChartProps<M>): JSX.Element => {
         <AreaChartSingle {...(props as AreaChartBaseProps & SingleSeriesInput)} semantics={semantics} />
       }
     >
-      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInput<M>)} semantics={semantics} />
+      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInput)} semantics={semantics} />
     </Show>
   );
 };

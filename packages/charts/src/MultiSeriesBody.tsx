@@ -18,6 +18,7 @@
  * Collapsing them now would bury a deliberate difference behind a shared name.
  */
 import { createMemo, For, Show, type JSX } from "solid-js";
+import { seriesGeometry } from "@silkplot/core";
 import type { NormalizedDatum, NormalizedSeries, ScaleTime } from "@silkplot/core";
 import {
   ChartEmptyMark,
@@ -131,21 +132,13 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
                 fillOpacity: props.fillOpacity,
               }),
             );
-            // Gap policy applied here, from the series' own setting. `connect`
-            // yields a shorter array; `break` yields every point with the gaps
-            // marked undrawn. See `seriesGeometry`.
-            const geometry = createMemo(() => {
-              if (series.nullPolicy === "connect") {
-                return {
-                  points: series.data.filter((d) => d.state === "present"),
-                  defined: () => true,
-                };
-              }
-              return {
-                points: series.data,
-                defined: (d: NormalizedDatum<M>) => d.state === "present",
-              };
-            });
+            // Gap policy comes from `core`, not from a copy of it here. An
+            // earlier draft inlined the same two branches, which is precisely
+            // the duplication that disagrees silently: the model's table and
+            // the chart's marks would each have had their own idea of which
+            // points are drawn, and no test would have gone red when they
+            // parted. One function, one answer.
+            const geometry = createMemo(() => seriesGeometry(series));
 
             return (
               <Show when={series.data.length > 0}>

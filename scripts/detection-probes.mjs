@@ -324,14 +324,16 @@ const PROBES = [
   },
   {
     id: "multi-series-ignored-gap",
-    file: "packages/charts/src/MultiSeriesBody.tsx",
+    file: "packages/core/src/series.ts",
     project: "charts",
     browser: true,
     breaks:
       "a `connect` series drops its gaps before the path generator sees them — keep them and " +
-      "the generator scales a null, which coerces to ZERO and draws a spike to the baseline",
-    anchor: '                  points: series.data.filter((d) => d.state === "present"),',
-    mutation: "                  points: series.data,",
+      "the generator scales a null, which coerces to ZERO and draws a spike to the baseline. " +
+      "Mutating CORE and asserting CHARTS reddens is the point: it proves the composed chart " +
+      "consumes the shared gap policy rather than carrying a copy of it",
+    anchor: '      points: series.data.filter((d) => d.state === "present"),',
+    mutation: "      points: series.data,",
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed: "connect no longer yields one subpath; a gap reaches the baseline",

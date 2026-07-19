@@ -13,10 +13,12 @@
  * against a chart drawing one series out of twenty-two.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal } from "solid-js";
+import { createSignal, type JSX } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import type { Series } from "@silkplot/core";
+import { Dashboard, DashboardSection } from "@silkplot/solid";
 import { AreaChart, LineChart } from "../src/index";
+import { assertOneInput } from "../src/scaffold";
 import {
   HEIGHT,
   NO_MARGINS,
@@ -406,5 +408,229 @@ describe("the single-series path is untouched", () => {
     // The generic headings, not a series label — the single-series contract.
     const headers = [...container.querySelectorAll("thead th")].map((th) => th.textContent);
     expect(headers).toEqual(["Time", "Value"]);
+  });
+});
+
+/**
+ * Inside a `<Dashboard>` the scope narrows what each chart draws (ADR-0007).
+ *
+ * These are here rather than in the composed-dashboard suite because the thing
+ * under test is the MULTI-SERIES scope's resolution — that narrowing applies per
+ * series, that latest-value picks one present datum per series, and that an
+ * empty intersection renders the empty state instead of silently widening.
+ */
+describe("dashboard scope narrows the multi-series model", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const T0 = Date.UTC(2026, 2, 1);
+  const daily = (id: string, values: readonly (number | null)[]): Series => ({
+    id,
+    label: id.toUpperCase(),
+    data: values.map((y, i) => ({ t: new Date(T0 + i * DAY), y })),
+  });
+  const TEN: readonly Series[] = [daily("a", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])];
+
+  /**
+   * The chart is passed as a THUNK, not as created JSX.
+   *
+   * This is not style. `<LineChart .../>` compiles to `createComponent(...)`,
+   * which runs the component immediately where the expression appears — so
+   * handing it to a wrapper as an argument executes it OUTSIDE the provider the
+   * wrapper is about to install, and `useDashboardTime()` returns undefined.
+   * The chart then renders perfectly, unnarrowed, and the only symptom is a
+   * table with too many rows. This cost a debugging pass: the scope was correct
+   * the whole time and the fixture was mounting it in the wrong place.
+   */
+  function mountIn(node: (chart: () => JSX.Element) => JSX.Element) {
+    return render(() =>
+      node(() => (
+        <LineChart
+          title="Scoped"
+          desc="d"
+          width={WIDTH}
+          height={HEIGHT}
+          margins={NO_MARGINS}
+          curve="linear"
+          series={TEN}
+        />
+      )),
+    );
+  }
+
+  it("draws only the points inside the global range", () => {
+    const { container } = mountIn((chart) => (
+      <Dashboard defaultRange={{ start: T0, end: T0 + 3 * DAY }}>{chart()}</Dashboard>
+    ));
+    // Four instants in range, so four table rows — the table follows the
+    // effective domain, which is what makes it a description of the picture.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(4);
+    expectNoNaN(container, "path", ["d"]);
+  });
+
+  it("narrows further inside a section window", () => {
+    const { container } = mountIn((chart) => (
+      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
+        <DashboardSection label="Recent" window={{ start: T0 + 7 * DAY, end: T0 + 9 * DAY }}>
+          {chart()}
+        </DashboardSection>
+      </Dashboard>
+    ));
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
+  });
+
+  it("shows exactly one reading per series in latest mode", () => {
+    const { container } = mountIn((chart) => (
+      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
+        <DashboardSection label="Current" latest>
+          {chart()}
+        </DashboardSection>
+      </Dashboard>
+    ));
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(1);
+  });
+
+  it("picks a PRESENT datum as the latest, never a gap", () => {
+    const withTrailingGap: readonly Series[] = [daily("a", [1, 2, 3, null])];
+    const { container } = render(() => (
+      <Dashboard defaultRange={{ start: T0, end: T0 + 3 * DAY }}>
+        <DashboardSection label="Current" latest>
+          <LineChart
+            title="Scoped"
+            desc="d"
+            width={WIDTH}
+            height={HEIGHT}
+            margins={NO_MARGINS}
+            curve="linear"
+            series={withTrailingGap}
+          />
+        </DashboardSection>
+      </Dashboard>
+    ));
+    // The newest instant carries no reading. A latest-value tile that showed it
+    // would announce "no value" as though it were the current measurement, so
+    // the newest PRESENT datum is the answer.
+    const cells = [...container.querySelectorAll("tbody td")].map((td) => td.textContent);
+    expect(cells).toContain("3");
+    expect(cells).not.toContain("");
+  });
+
+  it("renders the empty state when the range contains nothing", () => {
+    const { container } = mountIn((chart) => (
+      <Dashboard defaultRange={{ start: T0 + 100 * DAY, end: T0 + 101 * DAY }}>{chart()}</Dashboard>
+    ));
+    // Empty, not silently widened to the next scope out — that would show a
+    // reader data they had excluded, in a chart that looks like it is working.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(0);
+    expect(container.textContent).toContain("No data");
+    expectNoNaN(container, "path", ["d"]);
+  });
+});
+
+describe("`data` and `series` are mutually exclusive (ADR-0008 §12)", () => {
+  it("throws in development when both are given", () => {
+    // The typed props already make this unrepresentable; this is the runtime
+    // backstop for a caller arriving untyped — plain JS, a cast, or props spread
+    // from a config object. Merging them would draw a series nobody passed.
+    expect(() =>
+      render(() => {
+        const props = {
+          title: "Both",
+          desc: "d",
+          width: WIDTH,
+          height: HEIGHT,
+          data: [{ t: at(0), y: 1 }],
+          series: TWO,
+        } as unknown as Parameters<typeof LineChart>[0];
+        return <LineChart {...props} />;
+      }),
+    ).toThrow(/both `data` and `series`/);
+  });
+
+  it("does not throw for either one alone", () => {
+    expect(() => mountLine()).not.toThrow();
+    expect(() =>
+      render(() => (
+        <LineChart title="Single" desc="d" width={WIDTH} height={HEIGHT} data={[{ t: at(0), y: 1 }]} />
+      )),
+    ).not.toThrow();
+  });
+});
+
+describe("the default curve", () => {
+  it("renders without an explicit curve on both chart kinds", () => {
+    // Exercises the `?? "monotoneX"` default. Worth its own case rather than
+    // being folded into another: monotoneX emits bezier `C` commands, so a test
+    // that parsed points from this `d` would be reading control points as data —
+    // which is why every other case here pins `curve="linear"`.
+    const line = render(() => (
+      <LineChart title="Default curve" desc="d" width={WIDTH} height={HEIGHT} series={TWO} />
+    ));
+    expect(markPaths(line.container)).toHaveLength(2);
+    expect(markPaths(line.container)[0]?.getAttribute("d")).toContain("C");
+
+    const area = render(() => (
+      <AreaChart title="Default curve" desc="d" width={WIDTH} height={HEIGHT} series={TWO} />
+    ));
+    expect(markPaths(area.container)).toHaveLength(4);
+  });
+});
+
+describe("the production posture of the both-inputs guard", () => {
+  it("warns and prefers `series` rather than throwing", () => {
+    // The same three-part posture the rest of the estate uses: development
+    // throws, production reports and degrades. Exercised directly rather than
+    // through a render, because forcing a production build inside a browser test
+    // would mean faking the bundler substitution `isDevelopmentBuild` reads.
+    const seen: string[] = [];
+    expect(() =>
+      assertOneInput({ data: [], series: [] }, { strict: false, onIssue: (m) => seen.push(m) }),
+    ).not.toThrow();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("`series` is used and `data` is ignored");
+  });
+
+  it("falls back to console.warn when no sink is supplied", () => {
+    // The DEFAULT sink, not an injected one. A contract whose default reporting
+    // path is never exercised can be broken without any test noticing — the
+    // injected-spy cases above would all still pass.
+    const original = console.warn;
+    const seen: unknown[] = [];
+    console.warn = (...args: unknown[]) => void seen.push(args[0]);
+    try {
+      assertOneInput({ data: [], series: [] }, { strict: false });
+    } finally {
+      console.warn = original;
+    }
+    expect(seen).toHaveLength(1);
+    expect(String(seen[0])).toContain("both `data` and `series`");
+  });
+
+  it("stays silent when only one input is present", () => {
+    const seen: string[] = [];
+    assertOneInput({ series: [] }, { strict: false, onIssue: (m) => seen.push(m) });
+    assertOneInput({ data: [] }, { strict: false, onIssue: (m) => seen.push(m) });
+    expect(seen).toHaveLength(0);
+  });
+});
+
+describe("an area chart's empty state", () => {
+  it("renders the caller's wording when a dashboard range excludes everything", () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const T0 = Date.UTC(2026, 2, 1);
+    const { container } = render(() => (
+      <Dashboard defaultRange={{ start: T0 + 500 * DAY, end: T0 + 501 * DAY }}>
+        <AreaChart
+          title="Empty area"
+          desc="d"
+          width={WIDTH}
+          height={HEIGHT}
+          margins={NO_MARGINS}
+          curve="linear"
+          emptyMessage="Nothing recorded in this window"
+          series={[{ id: "a", label: "A", data: [{ t: new Date(T0), y: 1 }] }]}
+        />
+      </Dashboard>
+    ));
+    expect(container.textContent).toContain("Nothing recorded in this window");
+    expectNoNaN(container, "path", ["d"]);
   });
 });
