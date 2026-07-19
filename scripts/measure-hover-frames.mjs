@@ -30,6 +30,7 @@ const arg = (name, fallback) => {
 };
 
 const URL = arg("url", "http://localhost:5173");
+const SELECTOR = arg("selector", "[data-silkplot-keyboard-surface]");
 const RATE = Number(arg("rate", "4"));
 const BUDGET_MS = 16.7;
 const TIMER_TOLERANCE_MS = 1.0;
@@ -92,9 +93,31 @@ await page.goto(URL, { waitUntil: "networkidle" });
 const cdp = await page.context().newCDPSession(page);
 await cdp.send("Emulation.setCPUThrottlingRate", { rate: RATE });
 
-const surface = page.locator('[role="application"]').first();
+// `[data-silkplot-keyboard-surface]`, not `[role="application"]`.
+//
+// This harness located the chart by `role="application"` until 2026-07-19. That
+// role was REMOVED from the library on 2026-07-18 when the keyboard model became
+// a single-entry composite, and the suites that assert its absence were updated
+// in the same change — but this script was not. It has been unable to find a
+// chart ever since, and because it runs off the per-push path nothing reported
+// it: `npm run perf:hover` failed with a Playwright timeout rather than a result,
+// and the last recorded frame numbers pre-date the break.
+//
+// The lesson is the one the detection probes exist for. A measurement that
+// cannot run does not look like a failure; it looks like a number nobody has
+// refreshed.
+//
+// The selector is an argument so this harness can be pointed at a COMPOSED
+// surface as well as a single chart. What it measures is whatever box it is
+// given; the caveats belong with the number, not with the script.
+const surface = page.locator(SELECTOR).first();
 const box = await surface.boundingBox();
-if (!box) throw new Error("no interaction surface found — is the playground built?");
+if (!box) {
+  throw new Error(
+    `no interaction surface found at ${SELECTOR} — is the dev server ` +
+      "running, and does the page render a chart with its keyboard composite enabled?",
+  );
+}
 
 // --- idle baseline: what the frame timer reads with nothing happening ---
 await startRecording(page);
@@ -128,7 +151,7 @@ const row = (name, s) =>
   `${name.padEnd(22)} frames=${String(s.frames).padStart(4)}  p50=${String(s.p50).padStart(6)}ms  p95=${String(s.p95).padStart(6)}ms  max=${String(s.max).padStart(7)}ms  over-budget=${s.pctOver}%`;
 
 console.log(
-  `\nCPU throttle: ${RATE}x · nominal budget: ${BUDGET_MS}ms · harness tolerance: ${TIMER_TOLERANCE_MS.toFixed(1)}ms · acceptance: ${ACCEPTANCE_MS.toFixed(1)}ms · url: ${URL}`,
+  `\nCPU throttle: ${RATE}x · nominal budget: ${BUDGET_MS}ms · harness tolerance: ${TIMER_TOLERANCE_MS.toFixed(1)}ms · acceptance: ${ACCEPTANCE_MS.toFixed(1)}ms · url: ${URL} · selector: ${SELECTOR}`,
 );
 console.log(row("idle (no pointer)", idle));
 console.log(row("hover (sweeping)", hover));
