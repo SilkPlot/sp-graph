@@ -28,6 +28,9 @@ import {
   ChartRoot,
   SvgLayer,
   Axis,
+  Dashboard,
+  DashboardSection,
+  DashboardTimeControl,
   Gridlines,
   Crosshair,
   TooltipAnchor,
@@ -651,6 +654,41 @@ export const App: Component = () => {
             fillOpacity={0.7}
           />
         </Panel>
+      </div>
+
+      {/*
+        A composed dashboard: one selection, two isolated sections, one
+        latest-value reading. It is here because the playground is the library's
+        reference surface and this is the composition consumers build — and
+        because the frame-budget harness needs a served composed page to measure
+        rather than a single chart. Point it here with
+        `--selector "[data-perf-dashboard] [data-silkplot-keyboard-surface]"`.
+      */}
+      <div data-perf-dashboard="" style={{ "margin-top": cssVar("space-lg") }}>
+        <Dashboard
+          defaultRange={{
+            start: series()[0]?.t.getTime() ?? 0,
+            end: series()[series().length - 1]?.t.getTime() ?? 1,
+          }}
+        >
+          <Panel title="Dashboard" note="One global range drives every member below.">
+            <DashboardTimeControl />
+          </Panel>
+
+          <DashboardSection
+            label="Whole range"
+            window={{
+              start: series()[0]?.t.getTime() ?? 0,
+              end: series()[series().length - 1]?.t.getTime() ?? 1,
+            }}
+          >
+            <LineChart data={series()} title="Samples over the selected range" />
+          </DashboardSection>
+
+          <DashboardSection label="Most recent" latest>
+            <LineChart data={series()} title="Current reading" />
+          </DashboardSection>
+        </Dashboard>
       </div>
 
       <p style={{ "margin-top": cssVar("space-lg"), color: cssVar("color-muted") }}>

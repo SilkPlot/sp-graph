@@ -88,6 +88,13 @@ const SUITES = [
       "the export control is a real, named button, withheld from a decorative chart, and its file carries what the chart is showing",
   },
   {
+    file: "packages/charts/test/composed-dashboard.test.tsx",
+    project: "charts",
+    browser: true,
+    covers:
+      "the contract across a composed dashboard: four members each named, each with its own table relationship and export control, one tab stop apiece",
+  },
+  {
     file: "packages/charts/test/sections.test.tsx",
     project: "charts",
     browser: true,

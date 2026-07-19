@@ -214,6 +214,22 @@ const PROBES = [
     messagePattern: /to deeply equal/,
   },
   {
+    id: "time-scope-isolation",
+    file: "packages/core/src/time-scope.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a section that declared its own scope is isolated from the dynamic selection — invert the " +
+      "precedence and a drag on one chart silently retargets a section that opted out of following it",
+    anchor: "  const narrowing = section ?? scopes.dynamic;",
+    mutation: "  const narrowing = scopes.dynamic ?? section;",
+    failingIn: ["packages/core/test/time-scope.test.ts"],
+    minFailures: 2,
+    observed:
+      "2 failures carrying the defect's own instants, e.g. “expected { start: 300 } to deeply equal { start: 600 }”",
+    messagePattern: /to deeply equal/,
+  },
+  {
     id: "overlap-duplicate-key",
     file: "packages/core/src/overlap.ts",
     project: "core",
