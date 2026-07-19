@@ -14,7 +14,7 @@ fights Solid for ownership of the DOM.
 
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
-- **Docs & live examples:** **[silkplot.pages.dev](https://silkplot.pages.dev)** —
+- **Docs & live examples:** **[silkplot.com](https://silkplot.com)** —
   the quickstart, four live charts with their real source, theming, and what this
   alpha deliberately does not do
 - **Source:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)

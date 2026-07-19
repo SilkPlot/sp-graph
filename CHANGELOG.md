@@ -15,7 +15,13 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The documentation site is now <https://silkplot.com>.** `homepage` in all
+  six manifests, the README, and the screen-reader protocol point there. The
+  `*.pages.dev` URL still resolves and earlier entries in this file that name it
+  are left alone — they record what was true when they were written, and
+  rewriting a shipped entry to look tidier is not a changelog.
 
 ## [0.2.0-next.1] — 2026-07-19
 
