@@ -4,7 +4,7 @@
   "private": true,
   "description": "SilkPlot — an open-source Solid + D3 visualization library. D3 computes, Solid renders.",
   "license": "Apache-2.0",
-  "homepage": "https://silkplot.pages.dev",
+  "homepage": "https://silkplot.com",
   "type": "module",
   "engines": {
     "node": ">=24.0.0",

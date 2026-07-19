@@ -3,7 +3,7 @@
   "version": "0.2.0-next.1",
   "description": "SilkPlot Solid primitives — ChartRoot, SvgLayer, Axis, createResize. D3 computes, Solid renders.",
   "license": "Apache-2.0",
-  "homepage": "https://silkplot.pages.dev",
+  "homepage": "https://silkplot.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SilkPlot/sp-graph.git",

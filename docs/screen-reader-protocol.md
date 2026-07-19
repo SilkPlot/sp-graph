@@ -21,7 +21,7 @@ Report via the
 
 ## Before you start
 
-**Test against <https://silkplot.pages.dev>.** It renders all four chart types
+**Test against <https://silkplot.com>.** It renders all four chart types
 with the library's real accessibility surface. You do not need to install
 anything or build the project.
 
