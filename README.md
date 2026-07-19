@@ -18,7 +18,7 @@ fights Solid for ownership of the DOM.
   the quickstart, four live charts with their real source, theming, and what this
   alpha deliberately does not do
 - **Source:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
-- **Status:** early but real, and **not yet on npm** — see [Install](#install).
+- **Status:** alpha, **published under the `next` tag** — see [Install](#install).
   `LineChart`, `AreaChart`, `BarChart` and `ScatterChart` render end to end over a
   unit-tested core, with gridlines and the interaction primitives built. The
   calendar layer remains an honest, typed stub with roadmap-mapped TODOs.
@@ -81,13 +81,31 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 
 ## Install
 
-**SilkPlot is not published to npm yet.** `npm install @silkplot/charts` will not
-work, and saying otherwise would waste your afternoon. The packages are wired for
-a workspace, not for a registry: `exports` point at `src`, and the
-`@silkplot/*` cross-dependencies pin `"*"`, which resolves to anything once it
-leaves this repo. Making them publishable is real work and it is on the roadmap.
+SilkPlot is on npm under the **`next`** dist-tag:
 
-To try it today, clone and run the playground:
+```sh
+npm install @silkplot/charts@next @silkplot/solid@next @silkplot/core@next @silkplot/theme@next solid-js
+```
+
+**Use the `@next` tag explicitly, and pin an exact version.** npm assigns
+`latest` on a package's first-ever publish whatever tag you ask for, so a bare
+`npm install @silkplot/charts` currently resolves to this same prerelease — but
+that stops being true the moment a stable version exists, and a lockfile written
+today would then mean something different. This is 0.x: a minor bump may contain
+breaking changes.
+
+Your app needs a Solid-aware bundler — with Vite, that is
+[`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid). The `"solid"`
+export condition serves the shipped `.tsx` source so your bundler applies the JSX
+transform itself, which is what keeps Solid's fine-grained reactivity intact
+through to your application. A pre-compiled bundle cannot do that, which is why
+the condition exists.
+
+Every published package carries
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements): the
+tarball on the registry is signed with the commit and workflow run that built it.
+
+To run the examples locally instead:
 
 ```sh
 git clone https://github.com/SilkPlot/sp-graph.git
@@ -95,10 +113,6 @@ cd sp-graph
 npm install
 npm run dev
 ```
-
-When it is published, your app will need
-[`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid) so the shipped
-`.tsx` source is compiled with the correct JSX transform.
 
 ## Usage — a LineChart
 

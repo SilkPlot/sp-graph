@@ -21,8 +21,12 @@ export const REPO_URL = "https://github.com/SilkPlot/sp-graph";
  * FLIPPING THIS IS A PUBLICATION STEP, not an editorial one. It belongs to the
  * release checklist in the repository, alongside the other manual checks, and
  * must not be flipped in advance of an actual publish.
+ *
+ * Flipped to true when 0.2.0-next.0 went to the registry, and only after a
+ * fresh project outside any clone installed it by `@next`, typechecked against
+ * the published declarations, production-built, and rendered a chart.
  */
-export const ON_REGISTRY = false;
+export const ON_REGISTRY = true;
 
 /** A file in the public repository, on the default branch. */
 export function repoFile(path: string): string {
