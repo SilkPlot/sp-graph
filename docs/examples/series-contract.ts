@@ -54,6 +54,16 @@ import type { Series, SeriesDatum, SeriesStyle } from "@silkplot/core";
 export { fromRows } from "@silkplot/core";
 import { fromRows } from "@silkplot/core";
 
+// ADR-0008 §9's axis and table formatters — implemented, under ADR-0010's
+// surface-named shape. `formatTooltip` is not here; see `FormatterProps` below.
+//
+// From `core` rather than `charts` although `charts` is the package whose
+// components take it: this file's `lib` is deliberately DOM-free, and the
+// `charts` barrel would pull the Solid and DOM chain in behind four pure
+// function types. `charts` re-exports it for consumers.
+export type { MultiSeriesFormatProps } from "@silkplot/core";
+import type { MultiSeriesFormatProps } from "@silkplot/core";
+
 /** ADR-0008 §10 — NOT YET IMPLEMENTED. `includeInDomain` defaults to true. */
 export interface ReferenceValue {
   id: string;
@@ -73,10 +83,26 @@ export interface CompositionStateProps<M = unknown> {
   onActivate?: (active: { seriesId: string; index: number; datum: SeriesDatum<M> }) => void;
 }
 
-/** ADR-0008 §9. Caller-owned wording; library defaults stay generic. */
-export interface FormatterProps<M = unknown> {
-  formatTick?: (value: Date) => string;
-  formatValue?: (value: number) => string;
+/**
+ * ADR-0008 §9's principle, with the prop shape from
+ * [ADR-0010](../decisions/adr-0010-formatter-props-by-surface.md).
+ *
+ * THE SUBSTITUTION FOR THIS HALF HAS HAPPENED: the axis and table formatters are
+ * built, so they are imported rather than declared. What §9 declared as
+ * `formatTick` and `formatValue` is now four props named for the SURFACE each
+ * reaches — a `Date` reaches both a cramped axis tick and a read-aloud table
+ * cell, and one formatter cannot serve both.
+ *
+ * That divergence is why ADR-0010 exists. Under the rule at the top of this
+ * file the example does not bend to the code, so the decision was superseded
+ * and this declaration follows the NEW decision — which is a different act from
+ * editing an example to make broken code compile.
+ *
+ * `formatTooltip` stays DECLARED, because the multi-series path still exposes no
+ * tooltip and no active datum. When that model is decided and built, this
+ * declaration becomes an import too and Part 2 must again compile unchanged.
+ */
+export interface FormatterProps<M = unknown> extends MultiSeriesFormatProps {
   formatTooltip?: (datum: SeriesDatum<M>, series: Series<M>) => string;
 }
 
@@ -248,6 +274,45 @@ export const noneVisible: MultiSeriesProps = {
 export const staleVisibilityId: MultiSeriesProps = {
   series: fourSeries.series,
   visibleSeries: ["total", "decommissioned-sensor"],
+};
+
+/**
+ * CALLER FORMATTING under §9's principle and ADR-0010's shape.
+ *
+ * ADDED after the formatter substitution, not carried through it. The
+ * byte-identity check at substitution proved no EXISTING example had to change;
+ * it could not prove these props are usable, because no existing example
+ * exercised them. This is that evidence, and it is the weaker-but-necessary
+ * second half.
+ *
+ * It exercises the split the ADR turns on: `xTickFormat` and `tableTimeFormat`
+ * both receive a `Date` and deliberately produce different text, which is the
+ * thing §9's single `formatTick` could not express.
+ */
+export const withFormatting: MultiSeriesProps = {
+  series: fourSeries.series,
+  // A cramped axis label — day and month, no year.
+  xTickFormat: (value) =>
+    new Intl.DateTimeFormat("en-ZA", { day: "2-digit", month: "short" }).format(value),
+  yTickFormat: (value) => `${value} kW`,
+  // The same instant, read aloud one row at a time, so it carries the year.
+  tableTimeFormat: (t) =>
+    new Intl.DateTimeFormat("en-ZA", { dateStyle: "medium", timeStyle: "short" }).format(t),
+  // Rounds for display and stays NUMERIC, so the CSV export is not committed to
+  // text. Returning a string here would be the caller's explicit choice.
+  tableValueFormat: (y) => Math.round(y * 10) / 10,
+};
+
+/**
+ * The same contract with a UNIT PER SERIES, which is why the value formatter
+ * receives the series' label rather than only the number.
+ */
+export const withPerSeriesUnits: MultiSeriesProps = {
+  series: [
+    { id: "load", label: "Load", data: [{ t: t("2026-03-01T00:00:00Z"), y: 812.5 }] },
+    { id: "utilisation", label: "Utilisation", data: [{ t: t("2026-03-01T00:00:00Z"), y: 61.2 }] },
+  ],
+  tableValueFormat: (y, label) => (label === "Utilisation" ? `${y}%` : `${y} kW`),
 };
 
 /** ROW-ORIENTED INPUT crossing the adapter seam of §2. */

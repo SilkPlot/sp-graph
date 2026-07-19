@@ -82,6 +82,15 @@ arrived at.
   purity, and how a caller pins a colour without losing the dash channel.
   Clarifies ADR-0008 §1 and §5 rather than superseding them.
 
+- [ADR-0010 — Formatter props are named by surface, not by value kind](adr-0010-formatter-props-by-surface.md):
+  why `xTickFormat`, `yTickFormat`, `tableTimeFormat` and `tableValueFormat`
+  replace the `formatTick`/`formatValue` pair ADR-0008 §9 declared, why a `Date`
+  reaching an axis tick and a read-aloud table cell cannot share one formatter,
+  why a value formatter receives its series' label, why the return type is
+  `string | number` and what that means for the CSV export, and why a gap never
+  reaches a formatter. Supersedes §9's prop shape only — §9's principle stands,
+  and `formatTooltip` stays declared and unbuilt.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

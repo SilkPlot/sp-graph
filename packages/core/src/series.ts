@@ -468,6 +468,81 @@ export interface SeriesTableOptions {
 }
 
 /**
+ * The caller's formatting contract for the multi-series surface — ADR-0008 §9's
+ * principle under [ADR-0010]'s shape.
+ *
+ * ## Why this lives in `core` and not in `charts`
+ *
+ * It is a chart's prop surface, so `charts` is the obvious home, and that is
+ * where it started. It moved here for one concrete reason: ADR-0008's typed
+ * examples typecheck under a DELIBERATELY DOM-free `lib`, on the stated ground
+ * that a contract example reaching for `document` would be describing the
+ * contract in terms the contract does not have. Importing this from `charts`
+ * pulls that package's barrel, and with it the whole Solid and DOM chain, which
+ * would have forced `dom` into that tsconfig to satisfy an import of four pure
+ * function types.
+ *
+ * The precedent is already here rather than being set by this: `SeriesStyle`
+ * carries `stroke` and `dash`, and `SeriesTableOptions` directly above is half
+ * of this interface. `core` owns the caller-facing contracts over the series
+ * model's own outputs; what it does not own is the components that read them.
+ *
+ * Every member is a pure `(value) => text` mapping over values this package
+ * already computes — tick values and table cells — so nothing DOM-shaped
+ * crosses the boundary. `charts` re-exports it, so a consumer still imports it
+ * from the package whose components take it.
+ */
+export interface MultiSeriesFormatProps {
+  /**
+   * Bottom-axis tick labels. Default: the time scale's own tick format.
+   *
+   * Changes the LABEL only, never a tick's position, so it cannot move the
+   * ticks away from the gridlines drawn behind them.
+   */
+  xTickFormat?: (value: Date) => string;
+  /**
+   * Left-axis tick labels. Default: the linear scale's own tick format.
+   *
+   * This is where a unit belongs on the AXIS — "R 1.2k", "42°" — rather than in
+   * the series label, which is the legend's and the table heading's wording.
+   */
+  yTickFormat?: (value: number) => string;
+  /**
+   * The data table's instant column. Default: ISO 8601.
+   *
+   * Separate from `xTickFormat` although both receive a `Date`, and that is the
+   * whole point of naming these by surface: an axis tick has a few characters
+   * and wants "04 Mar", while a table cell is read aloud one row at a time and
+   * wants the year. A caller who genuinely wants one wording passes the same
+   * function twice.
+   *
+   * Reaches the CSV export too, because the export is the table serialised
+   * rather than a second derivation of the data — see `tableValueFormat`.
+   */
+  tableTimeFormat?: (t: Date) => string;
+  /**
+   * A data-table value cell. Default: the raw number, unadorned. Called only
+   * for a present reading; a gap stays an empty cell and never reaches here.
+   *
+   * `label` is the series' own label, so one formatter serves a chart whose
+   * series carry different units — the cumulative total and the instantaneous
+   * rate that §5's per-series null policy exists for.
+   *
+   * **This reaches the CSV export.** The export is defined as the table
+   * serialised — same rows, same headings — so a formatter that returns
+   * `"R 1 234,56"` puts that string in the downloaded file, where a spreadsheet
+   * will treat it as text rather than a number. That is the correct consequence
+   * of one stated rule rather than a bug: the alternative is a table and an
+   * export that disagree about what a cell says, which is worse and silent.
+   *
+   * Return a NUMBER to change nothing about the export — the return type is
+   * `string | number` precisely so a caller can format for display without
+   * committing the export to text.
+   */
+  tableValueFormat?: (y: number, label: string) => string | number;
+}
+
+/**
  * The data alternative, derived from the SAME model the marks are drawn from.
  *
  * This is the whole reason it lives here rather than in a component: a table
