@@ -7,8 +7,8 @@
   "homepage": "https://silkplot.pages.dev",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0",
-    "npm": ">=10.9.0"
+    "node": ">=24.0.0",
+    "npm": ">=11.5.1"
   },
   "workspaces": [
     "packages/*",
@@ -54,7 +54,7 @@
     "tsup": "^8.5.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
-    "vite-plugin-solid": "^2.11.12",
+    "vite-plugin-solid": "^2.11.13",
     "vitest": "^4.1.10"
   }
 }

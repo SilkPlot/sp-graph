@@ -171,25 +171,36 @@ jobs:
       # depends on `core`; `charts` depends on both. Publishing a dependent
       # before its dependency leaves a window in which an install resolves a
       # version the registry does not have yet.
-      # Trusted publishing needs npm 11.5.1 or newer, and `.nvmrc` pins Node 22,
-      # which bundles npm 10.9. Without this step npm has no OIDC support at all:
-      # it would fall back to looking for a token, find none, and fail — or worse,
-      # on a future runner image, publish WITHOUT provenance and report success.
+      # Trusted publishing needs npm 11.5.1 or newer. `.nvmrc` now pins Node 24,
+      # which ships npm 11.x, so this is normally a no-op assertion rather than
+      # an upgrade — it was an unconditional `npm install -g npm@latest` while
+      # the repository pinned Node 22 and its bundled npm 10.9.
       #
-      # Upgraded here rather than at the top of the job so every preceding step —
-      # `npm ci`, the release gate, the packing — runs on the npm the repository
-      # actually pins. This step changes the publisher, not the build.
+      # The check REMAINS, and is not ceremony. Without a new enough npm there is
+      # no OIDC support at all: the publish would fall back to looking for a
+      # token, find none, and fail — or, on some future runner image, publish
+      # WITHOUT provenance and report success. That second failure is silent and
+      # ships an unverifiable package, which is the one worth a guard.
       #
-      # The version floor is asserted rather than assumed. `npm@latest` resolving
-      # to something older is not a plausible failure today, but a publish that
-      # silently loses its authentication mechanism is expensive enough to be
-      # worth one comparison.
-      - name: Upgrade npm for trusted publishing
+      # Any upgrade happens here rather than at the top of the job so `npm ci`,
+      # the release gate, and the packing all run on the npm this repository
+      # actually pins. This step may change the publisher; it must not change
+      # the build.
+      - name: Verify npm supports trusted publishing
         run: |
           set -euo pipefail
-          npm install -g npm@latest
           have=$(npm --version)
-          echo "npm is now $have"
+          echo "npm bundled with the pinned Node: $have"
+          if ! node -e '
+            const [h,w] = [process.argv[1], "11.5.1"].map(v => v.split(".").map(Number));
+            const ok = h[0]>w[0] || (h[0]===w[0] && (h[1]>w[1] || (h[1]===w[1] && h[2]>=w[2])));
+            process.exit(ok ? 0 : 1);
+          ' "$have"; then
+            echo "npm $have is below 11.5.1 — upgrading for the publish only."
+            npm install -g npm@latest
+            have=$(npm --version)
+            echo "npm is now $have"
+          fi
           node -e '
             const [h,w] = [process.argv[1], "11.5.1"].map(v => v.split(".").map(Number));
             const ok = h[0]>w[0] || (h[0]===w[0] && (h[1]>w[1] || (h[1]===w[1] && h[2]>=w[2])));
