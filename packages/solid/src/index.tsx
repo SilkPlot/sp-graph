@@ -85,6 +85,11 @@ export type {
   YDomainPolicy,
 } from "./createCartesianModel";
 
+// The reactive face of ADR-0008's series normalisation. One memo, so every
+// consumer reads the same model rather than an independent normalisation.
+export { createSeriesModel } from "./createSeriesModel";
+export type { SeriesModelSpec, ReactiveSeriesModel } from "./createSeriesModel";
+
 export { createResize } from "./createResize";
 export type { Size, CreateResizeReturn } from "./createResize";
 
