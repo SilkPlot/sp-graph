@@ -55,6 +55,14 @@ arrived at.
   the declarations tsup cannot, and why internal `@silkplot/*` dependencies pin
   an exact version. Supersedes the source-only emit strategy.
 
+- [ADR-0007 — The layered time selection model](adr-0007-layered-time-selection.md):
+  the three time scopes a dashboard composes, why the effective domain is the
+  only value a component may read, the total precedence table and what "isolated
+  section" actually isolates from, why an empty intersection never falls back
+  outward, why latest-value is type-distinct from a zero-width range, why an
+  inverted range is a caller bug rather than something to normalise, and why the
+  model never reads the clock.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

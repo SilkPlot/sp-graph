@@ -13,9 +13,12 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, type Component } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
 import { areaPath, linePath, type CurveName } from "@silkplot/core";
 import {
+  ChartEmptyMark,
+  ChartEmptyState,
+  DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
   createChartSemantics,
   type ChartSemantics,
@@ -24,15 +27,16 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import {
   ChartShell,
+  createTimeSeriesScope,
   StrokedLine,
   finiteDefined,
-  timeExtentScale,
   timePointRows,
-  type CartesianChartProps,
+  type TimeSeriesChartProps,
+  type TimeSeriesScope,
 } from "./scaffold";
 import type { TimePoint } from "./types";
 
-export interface AreaChartBaseProps extends CartesianChartProps {
+export interface AreaChartBaseProps extends TimeSeriesChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
   data: readonly TimePoint[];
   /** Area/line curve preset. Default: "monotoneX". */
@@ -65,16 +69,23 @@ export interface AreaChartBaseProps extends CartesianChartProps {
  */
 export type AreaChartProps = AreaChartBaseProps & ChartSemanticsProps;
 
-type AreaChartBodyProps = AreaChartBaseProps & { semantics: ChartSemantics };
+type AreaChartBodyProps = AreaChartBaseProps & {
+  semantics: ChartSemantics;
+  scope: TimeSeriesScope;
+};
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All
  * scales and paths are memos that recompute only when data or size change.
  */
 const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
+  // Standalone this is the identity; inside a `<Dashboard>` it narrows to the
+  // shared range. See `createTimeSeriesScope`.
+  const scope = props.scope;
+
   const model = createCartesianModel({
-    data: () => props.data,
-    x: (range) => timeExtentScale(props.data, range),
+    data: scope.visible,
+    x: scope.xScale,
     // The area is drawn FROM the zero baseline, so 0 must be inside the domain
     // or the fill's flat edge lands on a pixel the axis labels as some other
     // value. "zero-baseline" keeps that honest for all-negative and
@@ -102,28 +113,41 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 
   const areaD = createMemo(() => {
     const { x, defined, curve } = marks();
-    return areaPath(props.data, { x, y0: baselineY(), y1: marks().y, defined, curve });
+    return areaPath(scope.visible(), { x, y0: baselineY(), y1: marks().y, defined, curve });
   });
 
   const lineD = createMemo(() => {
     const { x, y, defined, curve } = marks();
-    return linePath(props.data, { x, y, defined, curve });
+    return linePath(scope.visible(), { x, y, defined, curve });
   });
 
   return (
-    <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-      <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
-      <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
-    </CartesianFrame>
+    <>
+      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
+        <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
+        <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+        <Show when={scope.isEmpty()}>
+          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
+        </Show>
+      </CartesianFrame>
+      <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
+    </>
   );
 };
 
 export const AreaChart: Component<AreaChartProps> = (props) => {
   const semantics = createChartSemantics(props);
+  // Outside ChartRoot: the table is a sibling of the measured box, so the scope
+  // must be readable from both sides of it, and the table takes the VISIBLE rows.
+  const scope = createTimeSeriesScope(() => props.data);
 
   return (
-    <ChartShell layout={props} semantics={semantics} rows={() => timePointRows(props.data)}>
-      <AreaChartBody {...props} semantics={semantics} />
+    <ChartShell
+      layout={props}
+      semantics={semantics}
+      rows={() => timePointRows(scope.visible())}
+    >
+      <AreaChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>
   );
 };

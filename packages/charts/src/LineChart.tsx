@@ -16,8 +16,11 @@ import { createMemo, Show, type Component } from "solid-js";
 import { linePath, type CurveName } from "@silkplot/core";
 import {
   ChartAnnouncer,
+  ChartEmptyMark,
+  ChartEmptyState,
   ChartKeyboardSurface,
   Crosshair,
+  DEFAULT_EMPTY_MESSAGE,
   createActiveDatum,
   createCartesianModel,
   createChartKeyboard,
@@ -31,14 +34,15 @@ import { CartesianFrame } from "./CartesianFrame";
 import {
   ChartShell,
   StrokedLine,
+  createTimeSeriesScope,
   finiteDefined,
-  timeExtentScale,
   timePointRows,
-  type CartesianChartProps,
+  type TimeSeriesChartProps,
+  type TimeSeriesScope,
 } from "./scaffold";
 import type { TimePoint } from "./types";
 
-export interface LineChartBaseProps extends CartesianChartProps {
+export interface LineChartBaseProps extends TimeSeriesChartProps {
   /** The series to plot, as `{ t: Date, y: number }[]`. */
   data: readonly TimePoint[];
   /** Line curve preset. Default: "monotoneX". */
@@ -106,7 +110,10 @@ export interface LineChartBaseProps extends CartesianChartProps {
  */
 export type LineChartProps = LineChartBaseProps & ChartSemanticsProps;
 
-type LineChartBodyProps = LineChartBaseProps & { semantics: ChartSemantics };
+type LineChartBodyProps = LineChartBaseProps & {
+  semantics: ChartSemantics;
+  scope: TimeSeriesScope;
+};
 
 /**
  * The visual mark for the active point.
@@ -196,8 +203,14 @@ const KeyboardLayer: Component<KeyboardLayerProps> = (props) => {
  * announcement ever describing different points (ADR-0002 §1, §4).
  */
 function createLineKeyboard(props: LineChartBodyProps) {
+  // Every read below is of the VISIBLE series, not the caller's whole array.
+  // Stepping through points that are not drawn would announce values with no
+  // mark on screen and move the active-point cursor to coordinates outside the
+  // plotting box — one state, describing one picture (ADR-0002 §1).
+  const visible = (): readonly TimePoint[] => props.scope.visible();
+
   const active = createActiveDatum({
-    count: () => props.data.length,
+    count: () => visible().length,
     pageSize: props.pageSize,
   });
   const keyboard = createChartKeyboard({ active });
@@ -212,10 +225,10 @@ function createLineKeyboard(props: LineChartBodyProps) {
     live: (): boolean => (props.announce ?? "live") === "live",
     datum: (): TimePoint | undefined => {
       const i = active.index();
-      return i === undefined ? undefined : props.data[i];
+      return i === undefined ? undefined : visible()[i];
     },
     pointLabel: (index: number): string => {
-      const d = props.data[index];
+      const d = visible()[index];
       if (d === undefined) return "";
       if (props.pointLabel) return props.pointLabel(d, index);
       // ISO 8601 for the same reason the derived table rows use it: it is
@@ -233,9 +246,13 @@ function createLineKeyboard(props: LineChartBodyProps) {
  * and the path are memos that recompute only when data or size change.
  */
 const LineChartBody: Component<LineChartBodyProps> = (props) => {
+  // Standalone this is the identity — all the data, the data's own extent. Inside
+  // a `<Dashboard>` it narrows to the shared range. See `createTimeSeriesScope`.
+  const scope = props.scope;
+
   const model = createCartesianModel({
-    data: () => props.data,
-    x: (range) => timeExtentScale(props.data, range),
+    data: scope.visible,
+    x: scope.xScale,
     // A line has no baseline to honour, so zero is only the floor — the top
     // stays the data's own maximum. Area and Bar deliberately differ, and an
     // all-negative series is the only input where you can see it.
@@ -247,7 +264,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     const ys = model.y();
     const px = (d: TimePoint): number => xs(d.t);
     const py = (d: TimePoint): number => ys(d.y);
-    return linePath(props.data, {
+    return linePath(scope.visible(), {
       x: px,
       y: py,
       defined: finiteDefined(px, py, props.defined),
@@ -265,7 +282,12 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
         <Show when={kb.datum()}>
           {(d) => <ActivePoint cx={model.x()(d().t)} cy={model.y()(d().y)} />}
         </Show>
+        <Show when={scope.isEmpty()}>
+          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
+        </Show>
       </CartesianFrame>
+
+      <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
 
       <Show when={kb.enabled()}>
         <KeyboardLayer
@@ -285,9 +307,19 @@ export const LineChart: Component<LineChartProps> = (props) => {
   // lives now that all four charts share the arrangement.
   const semantics = createChartSemantics(props);
 
+  // Also outside ChartRoot, and for a second reason: the table is a sibling of
+  // the measured box, so the scope has to be readable from both sides of it. The
+  // table takes the VISIBLE rows — a table describing rows the picture does not
+  // draw is the exact disagreement `ChartDataAlternative` exists to prevent.
+  const scope = createTimeSeriesScope(() => props.data);
+
   return (
-    <ChartShell layout={props} semantics={semantics} rows={() => timePointRows(props.data)}>
-      <LineChartBody {...props} semantics={semantics} />
+    <ChartShell
+      layout={props}
+      semantics={semantics}
+      rows={() => timePointRows(scope.visible())}
+    >
+      <LineChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>
   );
 };
