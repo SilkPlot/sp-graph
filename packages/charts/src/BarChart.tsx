@@ -19,13 +19,17 @@ import { For, Show, type Component } from "solid-js";
 import { bandScale } from "@silkplot/core";
 import {
   createCartesianModel,
-  createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
   type ChartTableRow,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { ChartShell, type CartesianChartProps } from "./scaffold";
+import {
+  ChartShell,
+  CATEGORY_COLUMNS,
+  createInspectableSemantics,
+  type CartesianChartProps,
+} from "./scaffold";
 import type { CategoryPoint } from "./types";
 
 export interface BarChartBaseProps extends CartesianChartProps {
@@ -96,7 +100,7 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
 };
 
 export const BarChart: Component<BarChartProps> = (props) => {
-  const semantics = createChartSemantics(props);
+  const semantics = createInspectableSemantics(props);
 
   return (
     <ChartShell
@@ -105,6 +109,7 @@ export const BarChart: Component<BarChartProps> = (props) => {
       // The band labels are already text, so the derived table needs no
       // formatting decision — unlike the time series, which must choose one.
       rows={(): readonly ChartTableRow[] => props.data.map((d) => [d.label, d.y] as const)}
+      columns={CATEGORY_COLUMNS}
     >
       <BarChartBody {...props} semantics={semantics} />
     </ChartShell>

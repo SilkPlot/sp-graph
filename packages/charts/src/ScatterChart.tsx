@@ -24,13 +24,17 @@ import { For, type Component } from "solid-js";
 import { extentOf, linearScale } from "@silkplot/core";
 import {
   createCartesianModel,
-  createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
   type ChartTableRow,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { ChartShell, type CartesianChartProps } from "./scaffold";
+import {
+  ChartShell,
+  XY_COLUMNS,
+  createInspectableSemantics,
+  type CartesianChartProps,
+} from "./scaffold";
 import type { XYPoint } from "./types";
 
 export interface ScatterChartBaseProps extends CartesianChartProps {
@@ -88,13 +92,14 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
 };
 
 export const ScatterChart: Component<ScatterChartProps> = (props) => {
-  const semantics = createChartSemantics(props);
+  const semantics = createInspectableSemantics(props);
 
   return (
     <ChartShell
       layout={props}
       semantics={semantics}
       rows={(): readonly ChartTableRow[] => props.data.map((d) => [d.x, d.y] as const)}
+      columns={XY_COLUMNS}
     >
       <ScatterChartBody {...props} semantics={semantics} />
     </ChartShell>

@@ -37,16 +37,29 @@ export { isDevelopmentBuild };
 /**
  * The semantic data alternative — a real HTML table, per ADR-0005 §2.
  *
- * The library owns the renderer; the application owns the wording. Column
- * headers carry units and domain language the library cannot know honestly
- * ("Bookings", not "y"), which is why `columns` has no default.
+ * The library owns the renderer; the application owns the wording.
+ *
+ * `columns` was REQUIRED until 2026-07-19, on the reasoning that column headers
+ * carry units and domain language the library cannot know honestly ("Bookings",
+ * not "y"). That reasoning was half right and produced the wrong outcome: a
+ * table nobody configured did not render at all, and a missing table is a worse
+ * result for a non-visual reader than a generically-headed one. A composed chart
+ * now supplies headings from its own known shape, so a table renders with no
+ * configuration.
+ *
+ * The original concern still binds the library: a generic heading must never be
+ * presented as though it were domain language. Domain wording stays the
+ * application's, through this field, the caption, and the accessible name.
  */
 export interface ChartDataTable {
   /**
-   * Column headers, in order. The application's wording and units — this is the
-   * part of the table the library must not invent.
+   * Column headers, in order. The application's wording and units.
+   *
+   * Omit and a composed chart supplies generic headings from its own shape
+   * ("Time", "Value"). Supply them whenever the data has real units — the
+   * default is honest, not good.
    */
-  columns: readonly string[];
+  columns?: readonly string[];
   /**
    * Table rows. Omit and the chart derives them from the same data its marks
    * draw, so the two cannot disagree. Supply them to control formatting.
@@ -173,6 +186,19 @@ export interface ChartSemanticsInput {
   describedBy?: string;
   summary?: string;
   table?: ChartDataTable;
+  /**
+   * A table the LIBRARY supplies because the caller supplied none — a composed
+   * chart's own derived rows under generic headings.
+   *
+   * It renders exactly like `table`, and it deliberately does NOT count as a
+   * description channel. The distinction is the whole point: a defaulted table
+   * carries the VALUES a hidden axis would have shown, but not its units or its
+   * domain language, so a chart with nothing but a defaulted table still has a
+   * missing description and must still say so. Letting it satisfy the check
+   * would silence the diagnostic for every chart at once, which is how a
+   * contract stops being one.
+   */
+  defaultTable?: ChartDataTable;
   tableHidden?: boolean;
   onSemanticsIssue?: (issue: ChartSemanticsIssue) => void;
 }
@@ -329,7 +355,8 @@ export function createChartSemantics(props: ChartSemanticsInput): ChartSemantics
   const decorative = (): boolean => resolved().decorative;
   const hasSummary = (): boolean => !decorative() && (props.summary?.trim().length ?? 0) > 0;
   const hasDesc = (): boolean => !decorative() && (props.desc?.trim().length ?? 0) > 0;
-  const table = (): ChartDataTable | undefined => (decorative() ? undefined : props.table);
+  const table = (): ChartDataTable | undefined =>
+    decorative() ? undefined : (props.table ?? props.defaultTable);
 
   return {
     decorative,

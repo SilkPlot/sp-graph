@@ -18,9 +18,31 @@
  * would overflow or overlap the drawing. Final placement is the application's —
  * this component only guarantees the structure exists and is correctly related
  * to the graphic.
+ *
+ * ## The disclosure, and why collapsing does not hide anything from AT
+ *
+ * The table is a first-class inspection surface, not only an assistive-technology
+ * fallback: people want the numbers behind a chart to take into a spreadsheet.
+ * So it ships with a control that reveals it, rather than waiting for an
+ * application to build one.
+ *
+ * Collapsing uses the visually-hidden CLIP technique, never `display: none`.
+ * That is the load-bearing decision here. `display: none` and `hidden` remove
+ * content from the accessibility tree as well as the page, so a collapsed table
+ * would take the data alternative away from exactly the users ADR-0005 built it
+ * for, and the "reachable data alternative" guarantee would quietly become
+ * "reachable after you find and press a button". The table is therefore ALWAYS
+ * in the accessibility tree; the control governs visual presentation only.
+ *
+ * The honest consequence: `aria-expanded` on that control describes what a
+ * sighted reader can see, not what a screen reader can reach. A screen-reader
+ * user meets the table whether it reads "collapsed" or not. That is the right
+ * way round — the alternative is a button whose state is accurate and whose
+ * content is missing.
  */
-import { For, Show, type Component, type JSX } from "solid-js";
+import { createSignal, createUniqueId, For, Show, type Component, type JSX } from "solid-js";
 import type { ChartSemantics } from "./semantics";
+import { SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 
 /** One row of the derived table: the same values the marks were drawn from. */
 export type ChartTableRow = readonly (string | number)[];
@@ -34,6 +56,23 @@ export interface ChartDataAlternativeProps {
    * track — the table and the picture must never describe different datasets.
    */
   defaultRows?: () => readonly ChartTableRow[];
+  /**
+   * Headings a composed chart derives from its own shape, used when the caller's
+   * spec omits `columns`. Generic by nature; the application's wording wins.
+   */
+  defaultColumns?: () => readonly string[];
+  /**
+   * Offer the reveal control. Default true.
+   *
+   * False keeps the table in the accessibility tree and permanently out of
+   * sight, which is what `tableHidden` already means — a chart that opts into
+   * that has said it will present the data itself.
+   */
+  disclosure?: boolean;
+  /** Accessible name for the reveal control. Default: "Show data table". */
+  showLabel?: string;
+  /** Accessible name for the control once open. Default: "Hide data table". */
+  hideLabel?: string;
   class?: string;
 }
 
@@ -56,15 +95,60 @@ const VISUALLY_HIDDEN: JSX.CSSProperties = {
   "border-width": "0",
 };
 
+/**
+ * The scroll box around the table.
+ *
+ * `max-width: 100%` with `overflow: auto` is what stops a wide table forcing the
+ * whole PAGE to scroll sideways — the failure the documentation site already
+ * paid for once, where a generic `table` min-width reached into library output.
+ * The table scrolls inside its own box; the document does not move.
+ *
+ * `max-height` bounds the vertical case for the same reason. A ten-thousand-row
+ * series is a legitimate input, and a table that renders all of it inline turns
+ * every chart into a page of numbers. The value is an engineering policy, not a
+ * standard — see the row-count note in the tests.
+ */
+const SCROLL_BOX: JSX.CSSProperties = {
+  "max-width": "100%",
+  "max-height": "20rem",
+  "overflow-x": "auto",
+  "overflow-y": "auto",
+};
+
 export const ChartDataAlternative: Component<ChartDataAlternativeProps> = (props) => {
   const sem = (): ChartSemantics => props.semantics;
+  const [open, setOpen] = createSignal(false);
+  const regionId = createUniqueId();
+
   const rows = (): readonly ChartTableRow[] => {
     const spec = sem().table();
     if (spec === undefined) return [];
     return spec.rows ?? props.defaultRows?.() ?? [];
   };
+  const columns = (): readonly string[] => {
+    const spec = sem().table();
+    if (spec === undefined) return [];
+    return spec.columns ?? props.defaultColumns?.() ?? [];
+  };
   const hasContent = (): boolean =>
     sem().summary() !== undefined || sem().table() !== undefined;
+
+  /** The reveal control is offered only when there is a table to reveal. */
+  const offersDisclosure = (): boolean =>
+    (props.disclosure ?? true) && !sem().tableHidden() && sem().table() !== undefined;
+
+  /** Visible only when a disclosure exists AND it is open. */
+  const visible = (): boolean => offersDisclosure() && open();
+
+  /**
+   * Clip the table region for the COLLAPSED case only.
+   *
+   * `tableHidden` clips the whole alternative on the wrapper below — its
+   * documented meaning is that the application will present this content
+   * itself — so clipping again here would nest one clip inside another for no
+   * gain.
+   */
+  const clipRegion = (): boolean => !sem().tableHidden() && !visible();
 
   return (
     <Show when={hasContent()}>
@@ -76,39 +160,81 @@ export const ChartDataAlternative: Component<ChartDataAlternativeProps> = (props
         <Show when={sem().summary()}>
           {(summary) => <p id={sem().ids.summary}>{summary()}</p>}
         </Show>
+
+        <Show when={offersDisclosure()}>
+          <button
+            type="button"
+            class={SP_FOCUSABLE_CLASS}
+            aria-expanded={visible()}
+            aria-controls={regionId}
+            onClick={() => setOpen(!open())}
+            data-silkplot-table-toggle=""
+          >
+            {visible() ? (props.hideLabel ?? "Hide data table") : (props.showLabel ?? "Show data table")}
+          </button>
+        </Show>
+
         <Show when={sem().table()}>
           {(spec) => (
-            <table id={sem().ids.table}>
+            <div id={regionId} style={clipRegion() ? VISUALLY_HIDDEN : undefined}>
               {/*
-                The caption falls back to the chart's own name so the table is
-                never an orphan list of numbers — a user who lands on it by
-                table navigation, having never touched the graphic, still learns
-                what it is a table OF.
+                The scroll box is focusable ONLY while visible. A focusable
+                element inside a clip-hidden container is a tab stop that lands
+                on nothing a sighted keyboard user can see, which fails visible
+                focus rather than helping anyone. `role="group"` plus a name is
+                what makes a scrollable region announce itself instead of being a
+                bare focus stop.
               */}
-              <caption>{spec().caption ?? sem().name()}</caption>
-              <thead>
-                <tr>
-                  <For each={spec().columns}>{(column) => <th scope="col">{column}</th>}</For>
-                </tr>
-              </thead>
-              <tbody>
-                <For each={rows()}>
-                  {(row) => (
+              <section
+                style={SCROLL_BOX}
+                class={visible() ? SP_FOCUSABLE_CLASS : undefined}
+                // A named `<section>` — a region landmark — rather than a `div`
+                // with a role, which is the established pattern for a
+                // horizontally scrollable table: the name is what stops it being
+                // an unlabelled focus stop, and the landmark is what makes it
+                // findable rather than something you fall into.
+                //
+                // Only the tab stop is conditional. The element and its name are
+                // not: a stable structure is easier to reason about than one
+                // that changes shape when a button is pressed, and a bare
+                // element carrying an `aria-label` is invalid anyway.
+                tabindex={visible() ? 0 : undefined}
+                aria-label={spec().caption ?? sem().name()}
+                data-silkplot-table-scroll=""
+              >
+                <table id={sem().ids.table}>
+                  {/*
+                    The caption falls back to the chart's own name so the table is
+                    never an orphan list of numbers — a user who lands on it by
+                    table navigation, having never touched the graphic, still learns
+                    what it is a table OF.
+                  */}
+                  <caption>{spec().caption ?? sem().name()}</caption>
+                  <thead>
                     <tr>
-                      <For each={row}>
-                        {(cell, index) =>
-                          // The first cell labels its row; the rest are data.
-                          // `scope="row"` is what lets a screen reader announce
-                          // "March, 42" instead of a bare "42" as the user moves
-                          // across the row.
-                          index() === 0 ? <th scope="row">{cell}</th> : <td>{cell}</td>
-                        }
-                      </For>
+                      <For each={columns()}>{(column) => <th scope="col">{column}</th>}</For>
                     </tr>
-                  )}
-                </For>
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    <For each={rows()}>
+                      {(row) => (
+                        <tr>
+                          <For each={row}>
+                            {(cell, index) =>
+                              // The first cell labels its row; the rest are data.
+                              // `scope="row"` is what lets a screen reader announce
+                              // "March, 42" instead of a bare "42" as the user moves
+                              // across the row.
+                              index() === 0 ? <th scope="row">{cell}</th> : <td>{cell}</td>
+                            }
+                          </For>
+                        </tr>
+                      )}
+                    </For>
+                  </tbody>
+                </table>
+              </section>
+            </div>
           )}
         </Show>
       </div>

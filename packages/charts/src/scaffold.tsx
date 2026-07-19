@@ -14,7 +14,7 @@
  * scaffolding is the point; unifying the policies would be a bug wearing the
  * same clothes, and one an all-positive fixture cannot see.
  */
-import { createMemo, type Accessor, type Component, type JSX } from "solid-js";
+import { createMemo, mergeProps, type Accessor, type Component, type JSX } from "solid-js";
 import {
   extentOf,
   timeScale,
@@ -24,7 +24,10 @@ import {
 import {
   ChartRoot,
   ChartDataAlternative,
+  createChartSemantics,
   useDashboardTime,
+  type ChartDataTable,
+  type ChartSemanticsInput,
   type ChartSemantics,
   type ChartTableRow,
   type Margins,
@@ -65,6 +68,50 @@ export interface TimeSeriesChartProps extends CartesianChartProps {
   emptyMessage?: string;
 }
 
+/**
+ * Generic column headings, by chart shape.
+ *
+ * Deliberately generic, and deliberately not presented as domain language. The
+ * library knows this axis carries instants and that one carries a number; it
+ * does not know they are bookings, or rands, or degrees. Supplying `table.columns`
+ * replaces these, and any chart with real units should.
+ *
+ * They exist because the alternative was worse: `columns` used to be required,
+ * so a table nobody configured did not render at all — and a missing table is a
+ * worse outcome for a non-visual reader than a generically-headed one.
+ */
+export const TIME_SERIES_COLUMNS: readonly string[] = ["Time", "Value"];
+export const CATEGORY_COLUMNS: readonly string[] = ["Category", "Value"];
+export const XY_COLUMNS: readonly string[] = ["X", "Y"];
+
+/**
+ * Resolve chart semantics with a table present by default.
+ *
+ * An informative chart that was given no `table` spec gets an empty one, so the
+ * data alternative renders from the chart's own derived rows and headings. A
+ * decorative chart gets nothing — it is out of the accessibility tree, so a
+ * table would be a surface with no reader.
+ *
+ * `mergeProps`, not a spread: `props` is Solid's reactive proxy, and spreading
+ * it reads every field once, in the component body, outside any tracking scope.
+ * The chart would then hold the semantics it had at first render while its marks
+ * followed the live props — the same class of bug ADR-0003 exists to prevent.
+ */
+export function createInspectableSemantics(props: ChartSemanticsInput): ChartSemantics {
+  return createChartSemantics(
+    mergeProps(props, {
+      get defaultTable(): ChartDataTable | undefined {
+        // `defaultTable`, not `table`: a library-supplied table renders, but
+        // deliberately does not satisfy the missing-description check. It
+        // carries the values a hidden axis would have shown and none of its
+        // units, so a chart with nothing else must still report the gap.
+        if (props.decorative === true) return undefined;
+        return {};
+      },
+    }),
+  );
+}
+
 export interface ChartShellProps {
   /**
    * The chart's own props, read through for width/height/margins. Passed as the
@@ -80,6 +127,8 @@ export interface ChartShellProps {
    * describing different datasets is the failure this shape prevents.
    */
   rows: () => readonly ChartTableRow[];
+  /** Generic headings for this chart's shape, used when the caller supplies none. */
+  columns: readonly string[];
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */
   children?: JSX.Element;
 }
@@ -102,7 +151,11 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
     >
       {props.children}
     </ChartRoot>
-    <ChartDataAlternative semantics={props.semantics} defaultRows={props.rows} />
+    <ChartDataAlternative
+      semantics={props.semantics}
+      defaultRows={props.rows}
+      defaultColumns={() => props.columns}
+    />
   </>
 );
 

@@ -97,16 +97,25 @@ const xyData = (kase: Case) =>
  * informative chart with no name throws in a development build, and this page
  * is served by a dev server.
  *
- * No `table` prop is passed, so no HTML data alternative renders. The table's
- * markup and ARIA relationships are asserted by the accessibility suite; its
- * pixels would put a page of text in every frame, where a screenshot gate is at
- * its most brittle and least informative. That exclusion is recorded in
- * `acceptance-set.ts` rather than left to be inferred from an empty frame.
+ * Every chart passes `tableHidden`, which keeps the data alternative in the
+ * accessibility tree and out of the picture. Charts began rendering a table by
+ * default on 2026-07-19; before that, passing no `table` prop was enough to keep
+ * it out of frame, and this comment said so.
+ *
+ * The reason for keeping it out is unchanged and is the point: the table's
+ * markup and ARIA relationships are asserted by the accessibility suite, while
+ * its pixels would put a page of text in every frame — text layout is where a
+ * screenshot gate is least informative and most brittle. `tableHidden` is the
+ * right opt-out rather than a test-only flag because it is exactly what it
+ * claims: the application presents this content itself. That exclusion is
+ * recorded in `acceptance-set.ts` rather than left to be inferred from a frame
+ * that happens to look empty.
  */
 const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
   <>
     <Show when={props.chart === "line"}>
       <LineChart
+        tableHidden
         data={timeData(props.case)}
         title="Daily samples"
         desc="A deterministic daily series in units, rendered for a visual baseline."
@@ -116,6 +125,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
     </Show>
     <Show when={props.chart === "area"}>
       <AreaChart
+        tableHidden
         data={timeData(props.case)}
         title="Daily samples, filled"
         desc="The same deterministic daily series, filled from the zero baseline."
@@ -125,6 +135,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
     </Show>
     <Show when={props.chart === "bar"}>
       <BarChart
+        tableHidden
         data={categoryData(props.case)}
         title="Totals by category"
         desc="Deterministic categorical totals, drawn from the zero baseline."
@@ -133,6 +144,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
     </Show>
     <Show when={props.chart === "scatter"}>
       <ScatterChart
+        tableHidden
         data={xyData(props.case)}
         title="Two-dimensional cloud"
         desc="A deterministic point cloud over two linear scales, domain taken from the data extent."
