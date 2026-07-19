@@ -247,6 +247,66 @@ const PROBES = [
     observed: "2 failures, “expected [Function] to throw an error”",
     messagePattern: /to throw an error/,
   },
+  {
+    id: "series-identity-by-id",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a series is identified by its id — key the lookup by position instead and a reorder " +
+      "reassigns every series' data, colour, and legend toggle without anything throwing",
+    anchor: "  const byId = new Map(series.map((s) => [s.id, s]));",
+    mutation: "  const byId = new Map(series.map((s) => [String(s.sourceIndex), s]));",
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 4,
+    observed: "identity, gap-policy and metadata lookups all miss — “expected undefined to …”",
+    messagePattern: /undefined/,
+  },
+  {
+    id: "series-metadata-preserved",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "raw datum metadata survives normalisation — drop it and a tooltip loses the unplotted " +
+      "fields it exists to show, forcing every application back to a parallel join",
+    anchor: "        meta: d.meta,",
+    mutation: "        meta: undefined,",
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 2,
+    observed: "2 failures, “expected undefined to deeply equal { serial: 'PA-99120' }”",
+    messagePattern: /to deeply equal/,
+  },
+  {
+    id: "series-no-zero-fill",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a gap stays null — fill it with zero and a missing reading becomes indistinguishable " +
+      "from a real measurement of zero, inverting the meaning of any signed series",
+    anchor: '        y: state === "present" ? (d.y as number) : null,',
+    mutation: '        y: state === "present" ? (d.y as number) : 0,',
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 3,
+    observed: "gaps read as 0 — “expected 0 to be null” and a domain floored at zero",
+    messagePattern: /to be null|to deeply equal/,
+  },
+  {
+    id: "series-finite-domain",
+    file: "packages/core/src/series.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a non-finite value is classified invalid and kept out of the domain — admit it as " +
+      "present and one NaN poisons the extent every scale downstream inherits",
+    anchor: '  return Number.isFinite(y) ? "present" : "invalid";',
+    mutation: '  return "present";',
+    failingIn: ["packages/core/test/series.test.ts"],
+    minFailures: 3,
+    observed: "domains go non-finite — “expected [ NaN, NaN ] to deeply equal [ +0, 1 ]”",
+    messagePattern: /to deeply equal|to be/,
+  },
 ];
 
 // ---------------------------------------------------------------------------

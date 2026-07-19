@@ -74,6 +74,37 @@ export type {
   ResolveOptions,
 } from "./time-scope";
 
+// The shared series model — ADR-0008's normalisation, domains, gap policy, and
+// the derived table every consumer reads instead of re-deriving.
+export {
+  normalizeSeries,
+  seriesGeometry,
+  seriesTable,
+  seriesSummary,
+  valueDomainOf,
+  timeDomainOf,
+  fromRows,
+} from "./series";
+export type {
+  Series,
+  SeriesDatum,
+  SeriesStyle,
+  NullPolicy,
+  DatumState,
+  NormalizedDatum,
+  NormalizedSeries,
+  SeriesModel,
+  SeriesIssue,
+  SeriesIssueCode,
+  SeriesGeometry,
+  SeriesTable,
+  SeriesTableRow,
+  SeriesSummary,
+  NormalizeOptions,
+  FromRowsSpec,
+  Domain,
+} from "./series";
+
 // CSV serialisation — the chart's own table as a file (RFC 4180, injection-safe).
 export { toCsv, csvField, UTF8_BOM } from "./csv";
 export type { CsvTable, CsvOptions } from "./csv";
