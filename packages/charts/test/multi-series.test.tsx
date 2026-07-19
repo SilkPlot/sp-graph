@@ -634,3 +634,139 @@ describe("an area chart's empty state", () => {
     expectNoNaN(container, "path", ["d"]);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Caller formatting (ADR-0008 §9)                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `core`'s suite already proves `seriesTable` applies the options; this file is
+ * about the part only a rendered chart can show — that the props REACH the
+ * surfaces they name, and reach the right one each.
+ *
+ * The organising caution here is the mirror of the path-count one above: a chart
+ * that ignores a formatter renders perfectly, with the library's generic default
+ * in place. So each test asserts the formatted text is PRESENT and, where the
+ * two surfaces could be crossed, that the other one is unchanged.
+ */
+describe("caller formatting reaches the surface it names", () => {
+  /** Tick labels for one axis. `data-silkplot-axis` carries the orientation. */
+  const tickText = (container: HTMLElement, orientation: "bottom" | "left"): string[] =>
+    [...container.querySelectorAll(`[data-silkplot-axis="${orientation}"] text`)].map(
+      (t) => t.textContent ?? "",
+    );
+
+  const cellText = (container: HTMLElement): string[] =>
+    [...container.querySelectorAll("tbody td")].map((td) => td.textContent ?? "");
+
+  /**
+   * The instant column, which is a `<th scope="row">` and NOT a `td` — that is
+   * what makes each row announce its own time to a screen reader. Querying `td`
+   * for it silently returns the value cells instead, which reads as the time
+   * formatter having been ignored.
+   */
+  const rowHeaderText = (container: HTMLElement): string[] =>
+    [...container.querySelectorAll("tbody th")].map((th) => th.textContent ?? "");
+
+  it("formats x tick labels without touching the y axis", () => {
+    const { container } = mountLine({ xTickFormat: (d: Date) => `H${d.getUTCHours()}` });
+
+    expect(tickText(container, "bottom").some((t) => /^H\d+$/.test(t))).toBe(true);
+    // The other axis must be untouched — one formatter reaching both axes is
+    // the failure a single shared `format` prop would have produced.
+    expect(tickText(container, "left").some((t) => /^H\d+$/.test(t))).toBe(false);
+  });
+
+  it("formats y tick labels without touching the x axis", () => {
+    const { container } = mountLine({ yTickFormat: (n: number) => `${n} u` });
+
+    expect(tickText(container, "left").some((t) => t.endsWith(" u"))).toBe(true);
+    expect(tickText(container, "bottom").some((t) => t.endsWith(" u"))).toBe(false);
+  });
+
+  it("leaves the axes generic when no formatter is given", () => {
+    // The default half of the contract. Without this, a test asserting the
+    // formatted text would also pass against a chart that formatted ALWAYS.
+    const { container } = mountLine();
+    expect(tickText(container, "left").some((t) => t.endsWith(" u"))).toBe(false);
+    expect(tickText(container, "bottom").some((t) => /^H\d+$/.test(t))).toBe(false);
+  });
+
+  it("formats table cells without touching the axis", () => {
+    const { container } = mountLine({ tableValueFormat: (y: number) => `${y} kg` });
+
+    expect(cellText(container).some((c) => c.endsWith(" kg"))).toBe(true);
+    expect(tickText(container, "left").some((t) => t.endsWith(" kg"))).toBe(false);
+  });
+
+  it("formats the table's instant column independently of the x axis", () => {
+    const { container } = mountLine({
+      xTickFormat: (d: Date) => `H${d.getUTCHours()}`,
+      tableTimeFormat: (d: Date) => `row ${d.getUTCHours()}`,
+    });
+
+    // The two surfaces carry the same Date and deliberately different text —
+    // the whole reason they are separate props.
+    expect(rowHeaderText(container).some((c) => c.startsWith("row "))).toBe(true);
+    expect(rowHeaderText(container).some((c) => c.startsWith("H"))).toBe(false);
+    expect(tickText(container, "bottom").some((t) => /^H\d+$/.test(t))).toBe(true);
+  });
+
+  it("gives each series' cells its own label", () => {
+    const { container } = mountLine({
+      tableValueFormat: (y: number, label: string) => `${y}${label}`,
+    });
+    const cells = cellText(container);
+
+    // TWO is [a, b] with labels A and B, so every row must carry one of each.
+    expect(cells.some((c) => c.endsWith("A"))).toBe(true);
+    expect(cells.some((c) => c.endsWith("B"))).toBe(true);
+  });
+
+  it("re-renders the table when a formatter's own signal changes", () => {
+    // The reason `tableOptions` is an accessor rather than a value read once. An
+    // application that lets a user switch unit or locale gets a stale table if
+    // this is spread at mount, and nothing about the chart looks wrong.
+    const [unit, setUnit] = createSignal("kg");
+    const { container } = render(() => (
+      <LineChart
+        title="Reactive format"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={TWO}
+        tableValueFormat={(y: number) => `${y} ${unit()}`}
+      />
+    ));
+
+    expect(cellText(container).some((c) => c.endsWith(" kg"))).toBe(true);
+
+    setUnit("lb");
+    expect(cellText(container).some((c) => c.endsWith(" lb"))).toBe(true);
+    expect(cellText(container).some((c) => c.endsWith(" kg"))).toBe(false);
+  });
+
+  it("applies to the area chart on the same props", () => {
+    // Both charts share `MultiSeriesInputWithFormat`, so this guards the wiring
+    // rather than the contract — AreaChart threading only half of it would
+    // otherwise be invisible until a consumer hit it.
+    const { container } = render(() => (
+      <AreaChart
+        title="Formatted area"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={TWO}
+        yTickFormat={(n: number) => `${n} u`}
+        tableValueFormat={(y: number) => `${y} kg`}
+      />
+    ));
+
+    expect(tickText(container, "left").some((t) => t.endsWith(" u"))).toBe(true);
+    expect(cellText(container).some((c) => c.endsWith(" kg"))).toBe(true);
+  });
+});

@@ -11,7 +11,12 @@ export type { LineChartProps, LineChartBaseProps } from "./LineChart";
 // so a consumer can name them in its own wrapper props; `data` and `series` are
 // mutually exclusive, which these types make a compile error rather than only a
 // runtime one.
-export type { SingleSeriesInput, MultiSeriesInput } from "./LineChart";
+export type {
+  SingleSeriesInput,
+  MultiSeriesInput,
+  MultiSeriesInputWithFormat,
+} from "./LineChart";
+export type { MultiSeriesFormatProps } from "./formatters";
 
 // Per-series presentation. Exported for a consumer building its own legend, so
 // the swatch beside a label resolves the SAME token the line does rather than

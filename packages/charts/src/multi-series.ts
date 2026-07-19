@@ -24,6 +24,7 @@ import {
   type Series,
   type SeriesIssue,
   type SeriesTable,
+  type SeriesTableOptions,
 } from "@silkplot/core";
 import { useDashboardSection, useDashboardTime } from "@silkplot/solid";
 
@@ -80,6 +81,13 @@ export interface MultiSeriesScopeSpec<M = unknown> {
   series: Accessor<readonly Series<M>[]>;
   visibleSeries?: Accessor<readonly string[] | undefined>;
   onIssue?: (issue: SeriesIssue) => void;
+  /**
+   * Caller formatting for the derived table (ADR-0008 §9). An accessor, so a
+   * formatter that closes over a signal — a locale or unit the application lets
+   * the user change — re-renders the table instead of freezing the wording it
+   * had at mount.
+   */
+  tableOptions?: Accessor<SeriesTableOptions>;
 }
 
 export function createMultiSeriesScope<M = unknown>(
@@ -129,7 +137,8 @@ export function createMultiSeriesScope<M = unknown>(
     isLatest: () => domain()?.kind === "latest",
     // Built from the NARROWED model, so the table describes the range on screen
     // rather than the dataset behind it.
-    table: () => seriesTable({ ...model(), visible: visible(), series: all() }),
+    table: () =>
+      seriesTable({ ...model(), visible: visible(), series: all() }, spec.tableOptions?.()),
   };
 }
 

@@ -487,6 +487,101 @@ describe("the table describes the same model the marks are drawn from", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* Caller formatting (ADR-0008 §9)                                             */
+/* -------------------------------------------------------------------------- */
+
+describe("seriesTable formatting", () => {
+  it("defaults to ISO 8601 instants and unadorned numbers", () => {
+    const table = seriesTable(normalizeSeries([series("s", [1])], LENIENT));
+    // The generic default §9 promises, asserted so a formatter landing on the
+    // no-options path would be caught rather than silently becoming the default.
+    expect(table.rows[0]?.[0]).toBe(T0);
+    expect(table.rows[0]?.[1]).toBe(1);
+  });
+
+  it("applies a caller time format to the instant column", () => {
+    const table = seriesTable(normalizeSeries([series("s", [1])], LENIENT), {
+      time: (t) => `hour ${t.getUTCHours()}`,
+    });
+    expect(table.rows[0]?.[0]).toBe("hour 0");
+  });
+
+  it("hands the time formatter a Date, never the library's own ISO string", () => {
+    // The whole reason the option takes a `Date`: a caller reformatting must not
+    // have to parse the string this function would otherwise have produced.
+    const seen: unknown[] = [];
+    seriesTable(normalizeSeries([series("s", [1])], LENIENT), {
+      time: (t) => {
+        seen.push(t);
+        return "x";
+      },
+    });
+    expect(seen[0]).toBeInstanceOf(Date);
+    expect((seen[0] as Date).toISOString()).toBe(T0);
+  });
+
+  it("applies a caller value format to a present reading", () => {
+    const table = seriesTable(normalizeSeries([series("s", [1, 2])], LENIENT), {
+      value: (y) => `${y} u`,
+    });
+    expect(table.rows.map((r) => r[1])).toEqual(["1 u", "2 u"]);
+  });
+
+  it("never calls the value formatter for a gap, and leaves the cell empty", () => {
+    // The failure this prevents is a unit printed against a reading nobody took
+    // — "0 u", or " u", in a cell that means "no value".
+    const calls: number[] = [];
+    const table = seriesTable(normalizeSeries([series("s", [1, null, 3])], LENIENT), {
+      value: (y) => {
+        calls.push(y);
+        return `${y} u`;
+      },
+    });
+    expect(table.rows.map((r) => r[1])).toEqual(["1 u", "", "3 u"]);
+    expect(calls).toEqual([1, 3]);
+  });
+
+  it("gives each cell ITS OWN series label, not the first one's", () => {
+    // A chart carrying a rate and a total needs one formatter to tell them
+    // apart. Indexing back into the series array is how that silently goes
+    // wrong, so the pairing is asserted across a row rather than assumed.
+    const a: Series = { id: "a", label: "Celsius", data: [{ t: at(T0), y: 20 }] };
+    const b: Series = { id: "b", label: "Percent", data: [{ t: at(T0), y: 60 }] };
+    const table = seriesTable(normalizeSeries([a, b], LENIENT), {
+      value: (y, label) => `${y} ${label}`,
+    });
+    expect(table.rows[0]).toEqual([T0, "20 Celsius", "60 Percent"]);
+  });
+
+  it("keeps a returned number a number, so an export stays numeric", () => {
+    // `string | number` exists precisely so display formatting need not commit
+    // the CSV to text. A formatter that rounds must still yield a number.
+    const table = seriesTable(normalizeSeries([series("s", [1.234])], LENIENT), {
+      value: (y) => Math.round(y * 10) / 10,
+    });
+    expect(table.rows[0]?.[1]).toBe(1.2);
+    expect(typeof table.rows[0]?.[1]).toBe("number");
+  });
+
+  it("formats only visible series' cells", () => {
+    const calls: string[] = [];
+    seriesTable(
+      normalizeSeries([series("a", [1]), series("b", [2])], {
+        ...LENIENT,
+        visibleSeries: ["a"],
+      }),
+      {
+        value: (y, label) => {
+          calls.push(label);
+          return y;
+        },
+      },
+    );
+    expect(calls).toEqual(["A"]);
+  });
+});
+
 describe("summary counts what is on screen", () => {
   it("counts present, missing, and invalid separately over visible series", () => {
     const model = normalizeSeries(

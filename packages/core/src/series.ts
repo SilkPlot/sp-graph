@@ -433,6 +433,41 @@ export interface SeriesTable {
 }
 
 /**
+ * Caller formatting for the derived table (ADR-0008 §9).
+ *
+ * These override the generic defaults BELOW, at the seam that already owns
+ * them. That is the reason they live here rather than in a component: the
+ * ISO 8601 instant and the unadorned number are produced in this function, so
+ * overriding them anywhere else would mean formatting a value that had already
+ * been stringified — re-parsing the library's own output to undo it.
+ *
+ * Both are optional and independent. Supplying neither is the documented
+ * generic default, not a degraded mode.
+ */
+export interface SeriesTableOptions {
+  /**
+   * The instant cell. Default: ISO 8601 (`toISOString`).
+   *
+   * Receives a `Date` rather than the formatted string precisely so a caller
+   * never has to parse to reformat. Zoned civil time is NOT addressed here —
+   * per ADR-0008 §9 the value is an absolute instant, and a caller wanting a
+   * display zone applies it in this function.
+   */
+  time?: (t: Date) => string;
+  /**
+   * A value cell. Default: the raw number, unadorned.
+   *
+   * Called ONLY for a present reading. A gap stays an empty cell and never
+   * reaches this function — formatting "no value" is how a unit suffix ends up
+   * printed against a measurement that was never taken.
+   *
+   * `label` is the series' own label, so one formatter can serve a chart whose
+   * series carry different units.
+   */
+  value?: (y: number, label: string) => string | number;
+}
+
+/**
  * The data alternative, derived from the SAME model the marks are drawn from.
  *
  * This is the whole reason it lives here rather than in a component: a table
@@ -448,7 +483,10 @@ export interface SeriesTable {
  * reader and a screen-reader user both interpret an empty cell as "no value",
  * which is what it is.
  */
-export function seriesTable<M>(model: SeriesModel<M>): SeriesTable {
+export function seriesTable<M>(
+  model: SeriesModel<M>,
+  options: SeriesTableOptions = {},
+): SeriesTable {
   const series = model.visible;
   const columns = ["Time", ...series.map((s) => s.label)];
 
@@ -463,6 +501,10 @@ export function seriesTable<M>(model: SeriesModel<M>): SeriesTable {
   }
   const ordered = [...instants].sort((a, b) => a - b);
 
+  // The label travels WITH its map rather than being looked up by index later.
+  // Re-indexing `series` inside the row loop would be a second way to reach the
+  // same series, and the two could disagree — which is how a value formatter
+  // ends up applying one series' unit to another's reading.
   const byTime = series.map((s) => {
     const map = new Map<number, NormalizedDatum<M>>();
     // Later duplicates at one instant overwrite earlier ones, so a grid cell
@@ -470,14 +512,20 @@ export function seriesTable<M>(model: SeriesModel<M>): SeriesTable {
     // available. The marks still draw both; the table is a lossy view and this
     // is where it loses, deliberately and in one stated place.
     for (const d of s.data) if (d.state !== "invalid") map.set(d.time, d);
-    return map;
+    return { map, label: s.label };
   });
 
+  const formatTime = options.time ?? ((t: Date): string => t.toISOString());
+  const formatValue = options.value;
+
   const rows = ordered.map((time): SeriesTableRow => [
-    new Date(time).toISOString(),
-    ...byTime.map((map) => {
+    formatTime(new Date(time)),
+    ...byTime.map(({ map, label }) => {
       const d = map.get(time);
-      return d === undefined || d.y === null ? "" : d.y;
+      // The gap short-circuit comes FIRST, so a caller's value formatter is
+      // never handed a missing reading to put a unit on.
+      if (d === undefined || d.y === null) return "";
+      return formatValue === undefined ? d.y : formatValue(d.y, label);
     }),
   ]);
 

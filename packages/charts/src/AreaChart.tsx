@@ -26,7 +26,7 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
 import { MultiSeriesBody } from "./MultiSeriesBody";
-import type { MultiSeriesInput, SingleSeriesInput } from "./LineChart";
+import type { MultiSeriesInputWithFormat, SingleSeriesInput } from "./LineChart";
 import {
   ChartShell,
   StrokedLine,
@@ -40,6 +40,7 @@ import {
   type TimeSeriesScope,
 } from "./scaffold";
 import type { TimePoint } from "./types";
+import { tableOptions } from "./formatters";
 
 export interface AreaChartBaseProps extends TimeSeriesChartProps {
   /** Area/line curve preset. Default: "monotoneX". */
@@ -71,7 +72,7 @@ export interface AreaChartBaseProps extends TimeSeriesChartProps {
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
  */
 export type AreaChartProps = AreaChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInput) &
+  (SingleSeriesInput | MultiSeriesInputWithFormat) &
   ChartSemanticsProps;
 
 type AreaChartBodyProps = AreaChartBaseProps & {
@@ -143,11 +144,13 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 
 /** The multi-series path: one fill plus its top stroke, per visible series. */
 const AreaChartMulti: Component<
-  AreaChartBaseProps & MultiSeriesInput & { semantics: ChartSemantics }
+  AreaChartBaseProps & MultiSeriesInputWithFormat & { semantics: ChartSemantics }
 > = (props) => {
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
+    // A thunk, so a formatter closing over a signal re-runs the table.
+    tableOptions: () => tableOptions(props),
   });
 
   return (
@@ -162,6 +165,8 @@ const AreaChartMulti: Component<
         scope={scope}
         layout={props}
         semantics={props.semantics}
+        xTickFormat={props.xTickFormat}
+        yTickFormat={props.yTickFormat}
         area
         fillOpacity={props.fillOpacity}
         // The fill is drawn FROM zero, so zero must be inside the domain or the
@@ -214,7 +219,7 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
         <AreaChartSingle {...(props as AreaChartBaseProps & SingleSeriesInput)} semantics={semantics} />
       }
     >
-      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInput)} semantics={semantics} />
+      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInputWithFormat)} semantics={semantics} />
     </Show>
   );
 };
