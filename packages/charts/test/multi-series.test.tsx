@@ -267,6 +267,20 @@ describe("the redundant non-colour channel (ADR-0005 §5)", () => {
     expect(strokes[1]).toContain("--sp-cat-1");
   });
 
+  it("does NOT reshuffle colours when a series is hidden", () => {
+    // The common operational case, and the one ADR-0008 §1 is about: hiding a
+    // series must not recolour the ones that remain. A reader who has learned
+    // "the orange line is the inlet" keeps that after toggling something else
+    // off. Keying the palette on VISIBLE position instead of the caller's array
+    // position would silently promote series 1 into series 0's colour.
+    const { container } = mountLine({ visibleSeries: ["b"] });
+    const stroke = markPaths(container)[0]?.getAttribute("stroke");
+
+    // `b` is second in the caller's array, so it keeps slot 1 while alone.
+    expect(stroke).toContain("--sp-cat-1");
+    expect(stroke).not.toContain("--sp-cat-0");
+  });
+
   it("keeps the dash when the caller overrides only the stroke", () => {
     const { container } = mountLine({
       series: [series("s", [1, 2], { style: { stroke: "#ff0000" } })],
