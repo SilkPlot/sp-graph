@@ -7,6 +7,17 @@
 export { LineChart } from "./LineChart";
 export type { LineChartProps, LineChartBaseProps } from "./LineChart";
 
+// The two input shapes every time-series chart accepts (ADR-0008 §12). Exported
+// so a consumer can name them in its own wrapper props; `data` and `series` are
+// mutually exclusive, which these types make a compile error rather than only a
+// runtime one.
+export type { SingleSeriesInput, MultiSeriesInput } from "./LineChart";
+
+// Per-series presentation. Exported for a consumer building its own legend, so
+// the swatch beside a label resolves the SAME token the line does rather than
+// re-deriving one that can drift from it.
+export { seriesColorToken, seriesDashToken, SERIES_PALETTE_SIZE } from "./series-style";
+
 export { BarChart } from "./BarChart";
 export type { BarChartProps, BarChartBaseProps } from "./BarChart";
 

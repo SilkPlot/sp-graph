@@ -12,8 +12,8 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
-import { linePath, type CurveName } from "@silkplot/core";
+import { createMemo, Show, type Component, type JSX } from "solid-js";
+import { linePath, type CurveName, type Series } from "@silkplot/core";
 import {
   ChartAnnouncer,
   ChartEmptyMark,
@@ -30,9 +30,12 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { createMultiSeriesScope } from "./multi-series";
+import { MultiSeriesBody } from "./MultiSeriesBody";
 import {
   ChartShell,
   StrokedLine,
+  assertOneInput,
   TIME_SERIES_COLUMNS,
   createInspectableSemantics,
   createTimeSeriesScope,
@@ -44,8 +47,6 @@ import {
 import type { TimePoint } from "./types";
 
 export interface LineChartBaseProps extends TimeSeriesChartProps {
-  /** The series to plot, as `{ t: Date, y: number }[]`. */
-  data: readonly TimePoint[];
   /** Line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -105,13 +106,48 @@ export interface LineChartBaseProps extends TimeSeriesChartProps {
 }
 
 /**
+ * The two input shapes, as a discriminated pair.
+ *
+ * `series?: never` and `data?: never` are what make "both at once" a COMPILE
+ * error rather than only a runtime one — the same technique ADR-0005 uses to
+ * make "informative and unnamed" unrepresentable. The runtime backstop in the
+ * component remains, for callers who reach this untyped.
+ *
+ * The single-series `data` prop is NOT deprecated. A one-series chart is a
+ * permanent, legitimate use rather than a transitional one, and churning every
+ * existing consumer to express it as a one-element array would buy nothing
+ * (ADR-0008 §12).
+ */
+export interface SingleSeriesInput {
+  /** The series to plot, as `{ t: Date, y: number }[]`. */
+  data: readonly TimePoint[];
+  series?: never;
+  visibleSeries?: never;
+}
+
+export interface MultiSeriesInput<M = unknown> {
+  /** Stable series, each with its own id, label, gap policy, and style. */
+  series: readonly Series<M>[];
+  /**
+   * Controlled visibility by series id (ADR-0008 §6). Omit for uncontrolled —
+   * every series visible. An EMPTY array means nothing is visible, and is a
+   * real state rather than "no filter".
+   */
+  visibleSeries?: readonly string[];
+  data?: never;
+}
+
+/**
  * A line chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out; there is no
  * implicit one.
  */
-export type LineChartProps = LineChartBaseProps & ChartSemanticsProps;
+export type LineChartProps<M = unknown> = LineChartBaseProps &
+  (SingleSeriesInput | MultiSeriesInput<M>) &
+  ChartSemanticsProps;
 
 type LineChartBodyProps = LineChartBaseProps & {
+  data: readonly TimePoint[];
   semantics: ChartSemantics;
   scope: TimeSeriesScope;
 };
@@ -303,13 +339,76 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
   );
 };
 
-export const LineChart: Component<LineChartProps> = (props) => {
+/** The multi-series path: one stroked path per visible series. */
+const LineChartMulti = <M,>(
+  props: LineChartBaseProps & MultiSeriesInput<M> & { semantics: ChartSemantics },
+): JSX.Element => {
+  const scope = createMultiSeriesScope<M>({
+    series: () => props.series,
+    visibleSeries: () => props.visibleSeries,
+  });
+
+  return (
+    <ChartShell
+      layout={props}
+      semantics={props.semantics}
+      rows={() => scope.table().rows}
+      columns={scope.table().columns}
+      latest={scope.isLatest}
+    >
+      <MultiSeriesBody<M>
+        scope={scope}
+        layout={props}
+        semantics={props.semantics}
+        // A line has no baseline to honour, so zero is only the floor. Area
+        // deliberately differs; an all-negative series is the only input where
+        // you can see it.
+        yDomain="zero-floor"
+        emptyMessage={props.emptyMessage}
+        renderSeries={(ctx) => (
+          <StrokedLine
+            d={linePath(ctx.points, {
+              x: ctx.x,
+              y: ctx.y,
+              defined: finiteDefined(ctx.x, ctx.y, ctx.defined),
+              curve: props.curve ?? "monotoneX",
+            })}
+            stroke={ctx.style.stroke}
+            strokeWidth={ctx.style.strokeWidth}
+            dash={ctx.style.dash}
+          />
+        )}
+      />
+    </ChartShell>
+  );
+};
+
+export const LineChart = <M,>(props: LineChartProps<M>): JSX.Element => {
   // Resolved OUTSIDE ChartRoot — see `ChartShell`, which is where the reason
   // lives now that all four charts share the arrangement.
   const semantics = createInspectableSemantics(props);
 
-  // Also outside ChartRoot, and for a second reason: the table is a sibling of
-  // the measured box, so the scope has to be readable from both sides of it. The
+  // The runtime backstop for the compile-time pair above. Untyped callers reach
+  // here too, and a chart drawing a phantom extra series is worse than a throw:
+  // ADR-0008 §12 makes `series` win and diagnoses rather than merging.
+  assertOneInput(props);
+
+  return (
+    <Show
+      when={props.series !== undefined}
+      fallback={<LineChartSingle {...(props as LineChartBaseProps & SingleSeriesInput)} semantics={semantics} />}
+    >
+      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInput<M>)} semantics={semantics} />
+    </Show>
+  );
+};
+
+/** The original single-series surface, unchanged — keyboard model and all. */
+const LineChartSingle: Component<
+  LineChartBaseProps & SingleSeriesInput & { semantics: ChartSemantics }
+> = (props) => {
+  // Outside ChartRoot for a second reason: the table is a sibling of the
+  // measured box, so the scope has to be readable from both sides of it. The
   // table takes the VISIBLE rows — a table describing rows the picture does not
   // draw is the exact disagreement `ChartDataAlternative` exists to prevent.
   const scope = createTimeSeriesScope(() => props.data);
@@ -317,12 +416,12 @@ export const LineChart: Component<LineChartProps> = (props) => {
   return (
     <ChartShell
       layout={props}
-      semantics={semantics}
+      semantics={props.semantics}
       rows={() => timePointRows(scope.visible())}
       columns={TIME_SERIES_COLUMNS}
       latest={scope.isLatest}
     >
-      <LineChartBody {...props} semantics={semantics} scope={scope} />
+      <LineChartBody {...props} semantics={props.semantics} scope={scope} />
     </ChartShell>
   );
 };
