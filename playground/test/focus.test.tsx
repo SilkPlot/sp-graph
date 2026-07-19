@@ -100,14 +100,34 @@ function ringOf(el: Element): Ring {
   };
 }
 
-/** Tab until `el` is the active element, or fail loudly. */
+/**
+ * Tab until `el` is the active element, or fail loudly.
+ *
+ * The bound is DERIVED, not a constant. It used to be 25, which was comfortably
+ * more tab stops than the playground had until every chart gained a "Show data
+ * table" control and the last button stopped being reachable inside the budget.
+ * A magic number here fails as though the control were unreachable, when the
+ * walk had simply run out — and the tempting fix is to raise the number again
+ * next time.
+ *
+ * One full cycle of every focusable in the document, plus slack for the browser
+ * chrome the walk passes through, is the honest bound: anything not reached in a
+ * complete cycle genuinely cannot be tabbed to.
+ */
 async function tabTo(el: HTMLElement): Promise<void> {
-  for (let i = 0; i < 25; i++) {
+  const budget = document.querySelectorAll(FOCUSABLE_SELECTOR).length + 5;
+  for (let i = 0; i < budget; i++) {
     if (document.activeElement === el) return;
     await userEvent.tab();
   }
-  throw new Error(`could not reach ${el.tagName}.${el.className} by tabbing`);
+  throw new Error(
+    `could not reach ${el.tagName}.${el.className} by tabbing within ${budget} stops`,
+  );
 }
+
+/** Everything the browser will stop on, for the purpose of sizing a tab walk. */
+const FOCUSABLE_SELECTOR =
+  'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 let sheet: HTMLStyleElement;
 

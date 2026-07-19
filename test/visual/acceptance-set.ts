@@ -223,7 +223,7 @@ export const EXCLUSIONS: ReadonlyArray<{ surface: string; reason: string }> = [
   {
     surface: "The HTML data alternative (`<table>`)",
     reason:
-      "structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels would re-test text layout, which is where a screenshot gate is least informative and most brittle. Fixtures render without a `table` prop so no table is in frame",
+      "structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels would re-test text layout, which is where a screenshot gate is least informative and most brittle. Fixtures pass `tableHidden` so no table is in frame — before 2026-07-19 passing no `table` prop was enough, but charts now render one by default",
   },
   {
     surface: "Cross-platform pixel identity",

@@ -20,13 +20,14 @@ import {
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
-  createChartSemantics,
   type ChartSemantics,
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import {
   ChartShell,
+  TIME_SERIES_COLUMNS,
+  createInspectableSemantics,
   createTimeSeriesScope,
   StrokedLine,
   finiteDefined,
@@ -136,7 +137,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 };
 
 export const AreaChart: Component<AreaChartProps> = (props) => {
-  const semantics = createChartSemantics(props);
+  const semantics = createInspectableSemantics(props);
   // Outside ChartRoot: the table is a sibling of the measured box, so the scope
   // must be readable from both sides of it, and the table takes the VISIBLE rows.
   const scope = createTimeSeriesScope(() => props.data);
@@ -146,6 +147,7 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
       layout={props}
       semantics={semantics}
       rows={() => timePointRows(scope.visible())}
+      columns={TIME_SERIES_COLUMNS}
     >
       <AreaChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>

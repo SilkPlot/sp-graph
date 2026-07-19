@@ -74,6 +74,13 @@ const SUITES = [
     covers: "name, description, decorative mode, and the data alternative, per chart family",
   },
   {
+    file: "packages/charts/test/data-table.test.tsx",
+    project: "charts",
+    browser: true,
+    covers:
+      "the inspection surface: a table by default, a disclosure that never removes it from the accessibility tree, and a defaulted table that does not silence the missing-description diagnostic",
+  },
+  {
     file: "packages/charts/test/LineChart-keyboard.test.tsx",
     project: "charts",
     browser: true,

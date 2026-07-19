@@ -24,7 +24,6 @@ import {
   createActiveDatum,
   createCartesianModel,
   createChartKeyboard,
-  createChartSemantics,
   type ActiveDatum,
   type ChartKeyboard,
   type ChartSemantics,
@@ -34,6 +33,8 @@ import { CartesianFrame } from "./CartesianFrame";
 import {
   ChartShell,
   StrokedLine,
+  TIME_SERIES_COLUMNS,
+  createInspectableSemantics,
   createTimeSeriesScope,
   finiteDefined,
   timePointRows,
@@ -305,7 +306,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 export const LineChart: Component<LineChartProps> = (props) => {
   // Resolved OUTSIDE ChartRoot — see `ChartShell`, which is where the reason
   // lives now that all four charts share the arrangement.
-  const semantics = createChartSemantics(props);
+  const semantics = createInspectableSemantics(props);
 
   // Also outside ChartRoot, and for a second reason: the table is a sibling of
   // the measured box, so the scope has to be readable from both sides of it. The
@@ -318,6 +319,7 @@ export const LineChart: Component<LineChartProps> = (props) => {
       layout={props}
       semantics={semantics}
       rows={() => timePointRows(scope.visible())}
+      columns={TIME_SERIES_COLUMNS}
     >
       <LineChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>
