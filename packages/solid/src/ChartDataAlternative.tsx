@@ -41,6 +41,7 @@
  * content is missing.
  */
 import { createSignal, createUniqueId, For, Show, type Component, type JSX } from "solid-js";
+import { toCsv } from "@silkplot/core";
 import type { ChartSemantics } from "./semantics";
 import { SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 
@@ -73,7 +74,55 @@ export interface ChartDataAlternativeProps {
   showLabel?: string;
   /** Accessible name for the control once open. Default: "Hide data table". */
   hideLabel?: string;
+  /**
+   * Offer the CSV download. Default true, and only ever alongside a table.
+   *
+   * The export IS the table — the same derived rows under the same headings —
+   * so a chart with no table has nothing to export and shows no control.
+   */
+  exportable?: boolean;
+  /** Visible label for the download control. Default: "Download CSV". */
+  exportLabel?: string;
+  /**
+   * File name, without extension. Defaults to the chart's accessible name
+   * slugged, plus the moment of download.
+   */
+  fileName?: string;
   class?: string;
+}
+
+/**
+ * Turn a chart name into something a file system will accept.
+ *
+ * Deliberately lossy and ASCII-only: a download name travels across operating
+ * systems with different ideas about legal characters, and a mangled name is a
+ * worse outcome than a plain one.
+ */
+function slug(name: string): string {
+  const cleaned = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return cleaned === "" ? "chart" : cleaned;
+}
+
+/**
+ * Hand the browser a file without a network round trip.
+ *
+ * The object URL is revoked on a later task rather than immediately after
+ * `click()`. Revoking synchronously races the browser's own read of the blob in
+ * some engines and produces an empty or failed download; never revoking leaks
+ * the blob for the lifetime of the document. A deferred revoke is the one that
+ * is neither.
+ */
+function downloadCsv(csv: string, fileName: string): void {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${fileName}.csv`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**
@@ -133,6 +182,32 @@ export const ChartDataAlternative: Component<ChartDataAlternativeProps> = (props
   const hasContent = (): boolean =>
     sem().summary() !== undefined || sem().table() !== undefined;
 
+  /**
+   * The download, built from exactly what the table renders.
+   *
+   * Not from `props.defaultRows` and not from the chart's raw series: the file a
+   * reader takes away must be the numbers they were looking at, including any
+   * narrowing a dashboard range applied. Reading a different source here is how
+   * an export and its chart start disagreeing while both look right.
+   */
+  const exportCsv = (): void => {
+    const name = sem().name() || "chart";
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(
+      toCsv({ columns: columns(), rows: rows() }),
+      props.fileName ?? `${slug(name)}-${stamp}`,
+    );
+  };
+
+  /**
+   * Withheld under `tableHidden` for the same reason the reveal control is: the
+   * whole alternative is clipped there, so a button rendered inside it would be
+   * a focusable tab stop landing on nothing a sighted keyboard user can see.
+   * An application presenting the data itself presents its own export with it.
+   */
+  const offersExport = (): boolean =>
+    (props.exportable ?? true) && !sem().tableHidden() && sem().table() !== undefined;
+
   /** The reveal control is offered only when there is a table to reveal. */
   const offersDisclosure = (): boolean =>
     (props.disclosure ?? true) && !sem().tableHidden() && sem().table() !== undefined;
@@ -171,6 +246,22 @@ export const ChartDataAlternative: Component<ChartDataAlternativeProps> = (props
             data-silkplot-table-toggle=""
           >
             {visible() ? (props.hideLabel ?? "Hide data table") : (props.showLabel ?? "Show data table")}
+          </button>
+        </Show>
+
+        <Show when={offersExport()}>
+          <button
+            type="button"
+            class={SP_FOCUSABLE_CLASS}
+            onClick={exportCsv}
+            // The visible label is short because it sits beside the reveal
+            // control; the accessible name carries the chart's own name, so a
+            // reader listing the buttons on a dashboard of eight charts can tell
+            // which one they are about to download.
+            aria-label={`Download ${sem().name() || "chart"} data as CSV`}
+            data-silkplot-csv-export=""
+          >
+            {props.exportLabel ?? "Download CSV"}
           </button>
         </Show>
 

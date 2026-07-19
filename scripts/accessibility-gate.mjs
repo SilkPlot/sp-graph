@@ -81,6 +81,13 @@ const SUITES = [
       "the inspection surface: a table by default, a disclosure that never removes it from the accessibility tree, and a defaulted table that does not silence the missing-description diagnostic",
   },
   {
+    file: "packages/charts/test/csv-export.test.tsx",
+    project: "charts",
+    browser: true,
+    covers:
+      "the export control is a real, named button, withheld from a decorative chart, and its file carries what the chart is showing",
+  },
+  {
     file: "packages/charts/test/LineChart-keyboard.test.tsx",
     project: "charts",
     browser: true,

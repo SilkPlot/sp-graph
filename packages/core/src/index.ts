@@ -74,5 +74,9 @@ export type {
   ResolveOptions,
 } from "./time-scope";
 
+// CSV serialisation — the chart's own table as a file (RFC 4180, injection-safe).
+export { toCsv, csvField, UTF8_BOM } from "./csv";
+export type { CsvTable, CsvOptions } from "./csv";
+
 // Build-environment detection, shared by the contracts that fail loud in dev.
 export { isDevelopmentBuild } from "./build-env";
