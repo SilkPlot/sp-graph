@@ -14,7 +14,10 @@ fights Solid for ownership of the DOM.
 
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
-- **Home:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
+- **Docs & live examples:** **[silkplot.pages.dev](https://silkplot.pages.dev)** —
+  the quickstart, four live charts with their real source, theming, and what this
+  alpha deliberately does not do
+- **Source:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
 - **Status:** early but real, and **not yet on npm** — see [Install](#install).
   `LineChart`, `AreaChart`, `BarChart` and `ScatterChart` render end to end over a
   unit-tested core, with gridlines and the interaction primitives built. The

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "SilkPlot core — pure D3-backed math for visualization. No Solid, no DOM.",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/SilkPlot/sp-graph#readme",
+  "homepage": "https://silkplot.pages.dev",
   "repository": {
     "type": "git",
     "url": "https://github.com/silkplot/sp-graph.git",
