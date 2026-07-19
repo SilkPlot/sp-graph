@@ -27,7 +27,7 @@
  * supplies its own control and calls `setRange` with instants.
  */
 import { createMemo, createSignal, createUniqueId, Show, type Component } from "solid-js";
-import { useDashboardTime, type TimeInterval } from "./dashboard-time";
+import { useDashboardTime, type DashboardTime, type TimeInterval } from "./dashboard-time";
 
 export interface DashboardTimeControlProps {
   /** Group label. Default: "Time range". */
@@ -77,16 +77,16 @@ export function fromLocalInputValue(value: string): number | undefined {
   return Number.isNaN(ms) ? undefined : ms;
 }
 
-export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props) => {
-  const dashboard = useDashboardTime();
-  if (!dashboard) {
-    throw new Error(
-      "[@silkplot/solid] <DashboardTimeControl> must be rendered inside a <Dashboard>. " +
-        "A control with nothing to drive is a form that silently does nothing.",
-    );
-  }
-  const time = dashboard;
-
+/**
+ * The draft-versus-committed state behind the two inputs.
+ *
+ * Pulled out of the component for the same reason `createLineKeyboard` is
+ * pulled out of the line chart's body: what the user has typed, whether it is
+ * valid, and when it becomes the dashboard's range is one self-contained
+ * concern, and the component that remains is about the form's markup — which is
+ * what a reader opens it for.
+ */
+function createRangeDraft(time: DashboardTime) {
   // The draft is what the user has typed; the committed range is what the
   // dashboard holds. They differ exactly while the draft is invalid, which is
   // the state this control exists to make visible instead of resolving.
@@ -96,27 +96,45 @@ export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props
   const startValue = (): string => draftStart() ?? toLocalInputValue(time.global().start);
   const endValue = (): string => draftEnd() ?? toLocalInputValue(time.global().end);
 
-  const invalid = createMemo(() => {
-    const start = fromLocalInputValue(startValue());
-    const end = fromLocalInputValue(endValue());
-    if (start === undefined || end === undefined) return false;
-    return end < start;
-  });
-
-  /**
-   * Commit when the pair is valid, and hold the draft when it is not.
-   *
-   * Note what is NOT here: a swap, a clamp, or a nudge of the other input to
-   * keep the pair ordered. Each would move a value the user did not touch.
-   */
-  const commit = (next: Partial<TimeInterval>): void => {
-    const start = next.start ?? fromLocalInputValue(startValue());
-    const end = next.end ?? fromLocalInputValue(endValue());
-    if (start === undefined || end === undefined || end < start) return;
-    time.setRange({ start, end });
-    setDraftStart(undefined);
-    setDraftEnd(undefined);
+  return {
+    startValue,
+    endValue,
+    setDraftStart,
+    setDraftEnd,
+    invalid: createMemo(() => {
+      const start = fromLocalInputValue(startValue());
+      const end = fromLocalInputValue(endValue());
+      if (start === undefined || end === undefined) return false;
+      return end < start;
+    }),
+    /**
+     * Commit when the pair is valid, and hold the draft when it is not.
+     *
+     * Note what is NOT here: a swap, a clamp, or a nudge of the other input to
+     * keep the pair ordered. Each would move a value the user did not touch.
+     */
+    commit: (next: Partial<TimeInterval>): void => {
+      const start = next.start ?? fromLocalInputValue(startValue());
+      const end = next.end ?? fromLocalInputValue(endValue());
+      if (start === undefined || end === undefined || end < start) return;
+      time.setRange({ start, end });
+      setDraftStart(undefined);
+      setDraftEnd(undefined);
+    },
   };
+}
+
+export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props) => {
+  const dashboard = useDashboardTime();
+  if (!dashboard) {
+    throw new Error(
+      "[@silkplot/solid] <DashboardTimeControl> must be rendered inside a <Dashboard>. " +
+        "A control with nothing to drive is a form that silently does nothing.",
+    );
+  }
+
+  const draft = createRangeDraft(dashboard);
+  const { startValue, endValue, invalid, commit } = draft;
 
   // `createUniqueId`, not a random string: two controls on one page must not
   // collide, and `aria-describedby` is an id reference where a duplicate points
@@ -138,7 +156,7 @@ export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props
           aria-invalid={invalid() ? "true" : undefined}
           aria-describedby={invalid() ? errorId : undefined}
           onInput={(event) => {
-            setDraftStart(event.currentTarget.value);
+            draft.setDraftStart(event.currentTarget.value);
             commit({ start: fromLocalInputValue(event.currentTarget.value) });
           }}
         />
@@ -152,7 +170,7 @@ export const DashboardTimeControl: Component<DashboardTimeControlProps> = (props
           aria-invalid={invalid() ? "true" : undefined}
           aria-describedby={invalid() ? errorId : undefined}
           onInput={(event) => {
-            setDraftEnd(event.currentTarget.value);
+            draft.setDraftEnd(event.currentTarget.value);
             commit({ end: fromLocalInputValue(event.currentTarget.value) });
           }}
         />
