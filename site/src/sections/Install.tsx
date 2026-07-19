@@ -3,8 +3,13 @@ import { CodeBlock } from "../components/CodeBlock";
 import { DataTable } from "../components/DataTable";
 import { ON_REGISTRY, PACKAGES, REPO_URL } from "../content";
 
+// `@next` on every package, not a bare install. The alpha is published under
+// the `next` dist-tag, and a reader who copies a bare `npm install` today gets
+// the same thing only because npm assigned `latest` to the first-ever publish —
+// which stops being true the moment a stable version exists. The explicit tag is
+// correct now and stays correct then.
 const INSTALL_REGISTRY =
-  "npm install @silkplot/charts @silkplot/solid @silkplot/core @silkplot/theme solid-js";
+  "npm install @silkplot/charts@next @silkplot/solid@next @silkplot/core@next @silkplot/theme@next solid-js";
 
 const INSTALL_TARBALL = `# Not on the public registry yet. Build the packages and install
 # the tarballs the release gate produces:
