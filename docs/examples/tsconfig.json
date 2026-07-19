@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Typechecks the documentation examples.
+  //
+  // These are NOT compiled into any package and are not shipped. They exist so
+  // that the shapes an ADR describes are proven to be expressible and coherent,
+  // rather than being prose nobody ever fed to a compiler. A published contract
+  // whose own examples do not compile is a defect that no test suite in this
+  // repository would otherwise catch — the suites test the implementation, and
+  // documentation is not implementation.
+  //
+  // DOM-free `lib`, matching the computation package: none of these examples
+  // renders anything, and one that reached for `document` would be describing a
+  // contract in terms the contract does not have.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}

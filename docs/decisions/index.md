@@ -63,6 +63,17 @@ arrived at.
   inverted range is a caller bug rather than something to normalise, and why the
   model never reads the clock.
 
+- [ADR-0008 — The multi-series and composition state contract](adr-0008-series-and-state-contract.md):
+  why a series is identified by a caller-supplied `id` and never by array index
+  or label, why series-oriented input is the one public shape and row-oriented
+  input crosses an adapter seam, the generic metadata channel that is never
+  plotted, why a declared `null` and a broken non-finite value are different
+  things and neither becomes zero, why null policy is per series rather than per
+  chart, controlled-with-uncontrolled-default visibility and the empty visible
+  set that means empty, why hidden series do not shape the axis, why reference
+  overlays participate in the domain by default, and where this contract stops
+  so the viewport contract can begin.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.
