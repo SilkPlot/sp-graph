@@ -53,6 +53,22 @@ export type {
   ResolvedChartSemantics,
 } from "./semantics";
 
+export { Dashboard } from "./Dashboard";
+export type { DashboardProps } from "./Dashboard";
+
+export { DashboardTimeControl, toLocalInputValue, fromLocalInputValue } from "./DashboardTimeControl";
+export type { DashboardTimeControlProps } from "./DashboardTimeControl";
+
+export {
+  DashboardTimeContext,
+  createDashboardTime,
+  useDashboardTime,
+} from "./dashboard-time";
+export type { DashboardTime, DashboardTimeSpec, TimeInterval } from "./dashboard-time";
+
+export { ChartEmptyState, ChartEmptyMark, DEFAULT_EMPTY_MESSAGE } from "./ChartEmptyState";
+export type { ChartEmptyStateProps } from "./ChartEmptyState";
+
 export { ChartDataAlternative } from "./ChartDataAlternative";
 export type { ChartDataAlternativeProps, ChartTableRow } from "./ChartDataAlternative";
 
