@@ -74,6 +74,14 @@ arrived at.
   overlays participate in the domain by default, and where this contract stops
   so the viewport contract can begin.
 
+- [ADR-0009 — Default series colour follows array position](adr-0009-default-series-colour.md):
+  why a series' default palette slot is its array index while everything
+  ADR-0008 calls identity stays keyed on `id`, why hiding a series never
+  recolours the others but re-sorting does, why a hash of the id was rejected
+  for collisions and a retained first-seen map for forfeiting the model's
+  purity, and how a caller pins a colour without losing the dash channel.
+  Clarifies ADR-0008 §1 and §5 rather than superseding them.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.
