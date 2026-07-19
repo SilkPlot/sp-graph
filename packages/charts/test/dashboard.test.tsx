@@ -18,7 +18,16 @@
 import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { Dashboard, DashboardTimeControl } from "@silkplot/solid";
+import {
+  ChartEmptyMark,
+  ChartEmptyState,
+  ChartRoot,
+  Dashboard,
+  DashboardTimeContext,
+  DashboardTimeControl,
+} from "@silkplot/solid";
+import type { DashboardTime } from "@silkplot/solid";
+import type { EffectiveDomain } from "@silkplot/core";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
 
@@ -206,6 +215,110 @@ describe("Dashboard — a chart outside one is unaffected", () => {
     // All ten points, whatever any dashboard elsewhere might have selected.
     expect(tableTimestamps(container)[0]).toHaveLength(10);
     expect(container.querySelectorAll("[data-silkplot-empty]")).toHaveLength(0);
+  });
+});
+
+/**
+ * The two resolutions nothing produces YET.
+ *
+ * `latest` and `empty` are reachable from the precedence table the moment a
+ * section supplies a scope, which is the next phase's work. Rather than ship the
+ * chart's handling of them untested until then, the dashboard context is
+ * provided directly with the resolution under test. That is a legitimate way to
+ * test a consumer against a contract: the chart's job is to render what it is
+ * handed, and what hands it over is a separate question.
+ */
+describe("A chart handed a resolution nothing supplies yet", () => {
+  const provide = (domain: EffectiveDomain, data: TimePoint[]) => {
+    const time: DashboardTime = {
+      global: () => ({ scope: "global", start: T0, end: T0 + 30 * DAY }),
+      resolve: () => domain,
+      setRange: () => {},
+    };
+    return render(() => (
+      <DashboardTimeContext.Provider value={time}>
+        <LineChart
+          title="Member"
+          data={data}
+          width={400}
+          height={200}
+          table={{ columns: ["Time", "Value"] }}
+        />
+      </DashboardTimeContext.Provider>
+    ));
+  };
+
+  it("shows exactly the newest in-bounds datum for a latest-value resolution", () => {
+    const { container } = provide(
+      { kind: "latest", bounds: { start: T0 + 2 * DAY, end: T0 + 6 * DAY } },
+      // Deliberately out of chronological order: the newest IN BOUNDS is day 6,
+      // and picking "the last element" instead would wrongly return day 3.
+      [
+        { t: new Date(T0 + 4 * DAY), y: 1 },
+        { t: new Date(T0 + 6 * DAY), y: 2 },
+        { t: new Date(T0 + 9 * DAY), y: 3 },
+        { t: new Date(T0 + 3 * DAY), y: 4 },
+      ],
+    );
+
+    expect(tableTimestamps(container)[0]).toEqual([new Date(T0 + 6 * DAY).toISOString()]);
+    // Day 9 is newer but out of bounds, so it is not shown — the bound is what
+    // answers "what if the newest reading is outside the selection?".
+    expect(container.querySelectorAll("[data-silkplot-empty]")).toHaveLength(0);
+  });
+
+  it("renders the empty state when latest-value finds nothing in bounds", () => {
+    const { container } = provide(
+      { kind: "latest", bounds: { start: T0 + 40 * DAY, end: T0 + 50 * DAY } },
+      [{ t: new Date(T0), y: 1 }],
+    );
+
+    expect(tableTimestamps(container)[0]).toEqual([]);
+    expect(container.querySelectorAll("[data-silkplot-empty]")).toHaveLength(1);
+  });
+
+  it("renders the empty state for an empty resolution, drawing no marks", () => {
+    const { container } = provide({ kind: "empty", reason: "disjoint" }, [
+      { t: new Date(T0), y: 1 },
+      { t: new Date(T0 + DAY), y: 2 },
+    ]);
+
+    expect(tableTimestamps(container)[0]).toEqual([]);
+    expect(container.querySelectorAll("[data-silkplot-empty]")).toHaveLength(1);
+    // An `empty` resolution carries no interval of its own, so the x scale has
+    // nothing to span. It must still produce a drawable chart rather than a
+    // NaN-strewn one.
+    for (const path of container.querySelectorAll("path")) {
+      expect(path.getAttribute("d") ?? "").not.toContain("NaN");
+    }
+  });
+
+  it("can suppress the announcement without suppressing the drawn message", () => {
+    const time: DashboardTime = {
+      global: () => ({ scope: "global", start: T0, end: T0 + DAY }),
+      resolve: () => ({ kind: "empty", reason: "disjoint" }),
+      setRange: () => {},
+    };
+    const { container } = render(() => (
+      <DashboardTimeContext.Provider value={time}>
+        <ChartRoot width={400} height={200}>
+          {/*
+            Named, even as a fixture. An unnamed `role="img"` is the exact
+            failure ADR-0005 exists to prevent, and a test file is not a
+            carve-out from it — the linter caught this and was right to.
+          */}
+          <svg role="img" aria-label="Empty state fixture">
+            <ChartEmptyState when={true} announce={false} />
+            <ChartEmptyMark message="Nothing here" />
+          </svg>
+        </ChartRoot>
+      </DashboardTimeContext.Provider>
+    ));
+
+    // The drawn half stays; the live region does not, so a group that announces
+    // once for several members is not forced to repeat itself per chart.
+    expect(container.querySelector("[data-silkplot-empty]")?.textContent).toBe("Nothing here");
+    expect(container.querySelectorAll('[aria-live="polite"]')).toHaveLength(0);
   });
 });
 
