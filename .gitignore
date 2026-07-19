@@ -48,3 +48,13 @@ npm-debug.log*
 # Env
 .env
 .env.local
+
+# Codacy CLI local state. `.codacy/codacy.yaml` IS tracked — it pins the tool
+# versions so a local run and a CI run compare like for like. Everything else
+# here is generated on `codacy-cli init`/`install`: per-tool configs derived
+# from the server settings, the installed-runtime manifest, and logs. Machine
+# state, not decisions.
+.codacy/tools-configs/
+.codacy/cli-config.yaml
+.codacy/logs/
+.codacy/.gitignore

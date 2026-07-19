@@ -86,26 +86,27 @@
 #     that matrix behind abstraction to lower a branch count would make the suite
 #     harder to read, not easier to change.
 #
-# OPEN FINDING — the `metric` exclusion does not appear to reach Lizard.
-# `site/test/site.test.tsx` is listed in BOTH lists below, and Lizard still
-# reported `Lizard_nloc-medium` against it ("86 lines of code, limit is 50") on
-# the pull request that added it. So `engines.metric.exclude_paths` and the
-# Lizard tool are evidently not the same scope, and the exclusion that covers
-# every other test file in this repository is not covering this one.
+# OPEN FINDING — the `metric` exclusion does not reach Lizard. Now DIAGNOSED,
+# and a fix is under test.
 #
-# It is recorded here rather than worked around, and NOTHING has been guessed at
-# in this file to make it go away. The warning at the top of this file is the
-# reason: a key Codacy does not recognise is ignored silently, so inventing a
-# `lizard:` block would look like a fix in review, change nothing, and leave a
-# false explanation behind for the next reader. That is a worse outcome than an
-# open finding.
+# `site/test/site.test.tsx` was in both lists below and Lizard still reported
+# `Lizard_nloc-medium` against it ("86 lines of code, limit is 50"). Installing
+# the Codacy CLI locally explained why: Lizard is its own TOOL, with its own
+# generated configuration at `.codacy/tools-configs/lizard.yaml`, and is not part
+# of the `metric` engine at all. The metric scope was never going to reach it.
 #
-# What would actually resolve it, in preference order: confirm against Codacy's
-# tool/engine documentation which scope Lizard reads and add the correct key; or,
-# if Lizard has no path scoping, take the disposition to the Code patterns page
-# where per-pattern decisions actually apply, and record the justification here.
-# Until one of those happens the finding stays visible and the file stays listed
-# below, because the listing is correct for the engines it does reach.
+# A local run reproduces the underlying measurement — an 88-NLOC anonymous
+# function at line 34, which is the `describe` block — while NOT flagging it,
+# because the CLI applies Lizard's own defaults (nloc > 1000000) rather than
+# Codacy's configured threshold of 50. So the local tool confirms the fact and
+# cannot confirm the disposition; only Codacy's own analysis can.
+#
+# An `engines.lizard.exclude_paths` block is therefore added below AS A TEST, not
+# as an assertion. This file's opening warning still stands — an unrecognised key
+# is ignored silently — so the block is written to be falsified: the next pull
+# request's Codacy analysis either clears the finding or does not, and whichever
+# happens gets recorded there. That is the difference between a guess and a
+# hypothesis with a stated verification.
 #
 # OPEN FINDING — Stylelint `scss_function-disallowed-list` is a malformed
 # pattern on Codacy's side, not a defect in this repository's CSS. It reports
@@ -205,6 +206,72 @@ engines:
   # fails the same silent way, so both sections are enumerated and both are
   # covered by the gate.
   metric:
+    exclude_paths:
+      - "packages/charts/test/AreaChart-reactive.test.tsx"
+      - "packages/charts/test/AreaChart.test.tsx"
+      - "packages/charts/test/BarChart-reactive.test.tsx"
+      - "packages/charts/test/BarChart.test.tsx"
+      - "packages/charts/test/chart-semantics.test.tsx"
+      - "packages/charts/test/LineChart-keyboard.test.tsx"
+      - "packages/charts/test/LineChart-reactive.test.tsx"
+      - "packages/charts/test/LineChart.test.tsx"
+      - "packages/charts/test/ScatterChart.test.tsx"
+      - "packages/charts/test/support.ts"
+      - "packages/core/test/extent.test.ts"
+      - "packages/core/test/hit-test.test.ts"
+      - "packages/core/test/overlap-identity.test.ts"
+      - "packages/core/test/overlap-support.ts"
+      - "packages/core/test/overlap.test.ts"
+      - "packages/core/test/scales.test.ts"
+      - "packages/core/test/shape.test.ts"
+      - "packages/core/test/ticks.test.ts"
+      - "packages/solid/test/announcer.test.tsx"
+      - "packages/solid/test/Axis.test.tsx"
+      - "packages/solid/test/Axis-theme.test.tsx"
+      - "packages/solid/test/context.test.tsx"
+      - "packages/solid/test/createCartesianModel.test.tsx"
+      - "packages/solid/test/createResize.test.tsx"
+      - "packages/solid/test/Crosshair.test.tsx"
+      - "packages/solid/test/Gridlines.test.tsx"
+      - "packages/solid/test/interaction.test.tsx"
+      - "packages/solid/test/keyboard.test.tsx"
+      - "packages/solid/test/semantics.test.tsx"
+      - "packages/solid/test/SvgLayer.test.tsx"
+      - "packages/solid/test/theme-cascade.test.tsx"
+      - "packages/solid/test/TooltipAnchor.test.tsx"
+      - "packages/theme/test/channels.test.ts"
+      - "packages/theme/test/contrast.test.ts"
+      - "packages/theme/test/tokens.test.ts"
+      - "playground/test/focus.test.tsx"
+      - "playground/test/keyboard.test.tsx"
+      - "site/test/site.test.tsx"
+      - "test/visual/acceptance-set.spec.ts"
+      - "test/visual/acceptance-set.ts"
+      - "test/visual/app/App.tsx"
+      - "test/visual/app/fixtures.ts"
+      - "test/visual/app/main.tsx"
+      - "test/visual/charts.spec.ts"
+      - "test/visual/vite.config.ts"
+  # Lizard, added 2026-07-19 as a TESTABLE hypothesis rather than a guess.
+  #
+  # `engines.metric.exclude_paths` demonstrably does NOT suppress Lizard: every
+  # path below is already in that list, and Lizard still reported
+  # `Lizard_nloc-medium` against `site/test/site.test.tsx`. Running the Codacy
+  # CLI locally showed why — Lizard is its own TOOL with its own configuration
+  # (`.codacy/tools-configs/lizard.yaml`), not part of the `metric` engine, so
+  # the metric scope was never going to reach it.
+  #
+  # This block therefore names the tool directly. Whether Codacy honours a
+  # tool-named key here is the open question, and it is answered EMPIRICALLY by
+  # the next pull request's analysis rather than by assertion: if the finding on
+  # `site/test/site.test.tsx` clears, the key is honoured; if it persists, the
+  # key is being ignored silently and the disposition moves to the Code patterns
+  # page instead. Do not delete this block without recording which of those two
+  # happened.
+  #
+  # The list is identical to `metric` above and for the same reason — see
+  # "Analysis scope". Nothing here excludes production code.
+  lizard:
     exclude_paths:
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"

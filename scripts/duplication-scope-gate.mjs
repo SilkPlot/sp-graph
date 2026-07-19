@@ -61,6 +61,14 @@ const CODE_EXTENSION = /\.(?:[cm]?tsx?|[cm]?jsx?)$/;
 const SCOPED_LISTS = [
   { engine: "duplication", metric: "duplication analysis" },
   { engine: "metric", metric: "cyclomatic complexity analysis" },
+  // Lizard is a TOOL, not part of the `metric` engine, and scopes itself —
+  // which is why a file listed under `metric` was still being measured by it.
+  // Covered here for the same reason the other two are: an explicit list goes
+  // stale the moment a test file is added, and Codacy reports nothing when it
+  // does. If the lizard key turns out to be ignored by Codacy and the block is
+  // removed from `.codacy.yml`, remove this entry in the same change — a gate
+  // demanding entries for a list nothing reads is worse than no gate.
+  { engine: "lizard", metric: "Lizard complexity analysis" },
 ];
 
 /** The npm script CI has to keep calling for this gate to mean anything. */
@@ -207,5 +215,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Duplication scope gate: ${onDisk.length} test files, all present in both the duplication and metric exclusion lists.`,
+  `Duplication scope gate: ${onDisk.length} test files, all present in every scoped exclusion list (${SCOPED_LISTS.map((l) => l.engine).join(", ")}).`,
 );
