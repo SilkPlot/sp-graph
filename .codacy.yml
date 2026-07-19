@@ -37,13 +37,10 @@
 #      typechecks both `src/` and `test/`. ESLint is redundant where it happens
 #      to be right and wrong where it is not.
 #
-#   2. Agentlinter `clarity/escape-hatch-missing` — INTENDED to be disabled,
-#      and AS OF 2026-07-19 IT IS NOT. Queried directly: the pattern is enabled
-#      for this repository and six of its findings are live on `AGENTS.md` and
-#      `CLAUDE.md`, including the exact rules named below. The disable described
-#      here was never applied on the Code patterns page. The reasoning still
-#      stands and the action is outstanding — this entry describes an intent,
-#      not a state, until someone toggles it and the findings clear.
+#   2. Agentlinter `clarity/escape-hatch-missing` — DISABLED, applied and
+#      VERIFIED on 2026-07-19 by watching its six findings clear from the
+#      repository's issue list (14 open to 7). It had been documented as
+#      disabled for days while still enabled; the disable is now real.
 #      It flags absolute rules that carry no escape hatch, on `AGENTS.md`
 #      (lines 6, 9, 12, 18, 19) and `CLAUDE.md` (line 6) — including the heading
 #      "The rules that never bend" and "Never use `d3-selection`,
@@ -123,7 +120,10 @@
 # like a number. The scope decision had been correct in `.codacy.yml` and wrong
 # in effect for as long as Lizard has been enabled.
 #
-# RESOLVED, 2026-07-19 — and the answer was that THIS FILE was wrong.
+# CLOSED, 2026-07-19. Both dispositions above are now applied and verified.
+#
+# The episode is kept because the failure mode is subtle. THIS FILE was wrong:
+# it recorded a disable as done that had never been applied.
 #
 # The contradiction was: `clarity/escape-hatch-missing` documented as disabled,
 # six of its findings live. Querying the repository's pattern settings directly
@@ -136,14 +136,14 @@
 # match the dashboard, and until one of its patterns happened to fire on a new
 # file, nothing would have.
 #
-# OPEN FINDING — Stylelint `scss_function-disallowed-list` is a malformed
-# pattern on Codacy's side, not a defect in this repository's CSS. It reports
-# "Unknown rule scss_function-disallowed-list. Did you mean
-# function-disallowed-list?" against line 1 of `site/src/styles.css` — a comment.
-# The message is Stylelint saying the configured rule name does not exist, so the
-# finding is about the configuration and cannot be fixed by changing any CSS.
-# It surfaced now only because that is the first stylesheet in the repository.
-# Left open and unsuppressed; the fix is on the Code patterns page.
+#   3. Stylelint `scss_function-disallowed-list` — DISABLED, applied and
+#      verified the same way. It was malformed on Codacy's side, reporting
+#      "Unknown rule scss_function-disallowed-list. Did you mean
+#      function-disallowed-list?" against a comment on line 1 of
+#      `site/src/styles.css`. The message was Stylelint saying the configured
+#      rule name does not exist, so it was a configuration defect that no change
+#      to any CSS could satisfy. It surfaced only because that is the first
+#      stylesheet in the repository.
 #
 # Codacy provides these as separate, scoped exclusions precisely so this
 # distinction can be made — `engines.duplication.exclude_paths` and
