@@ -88,6 +88,13 @@ const SUITES = [
       "the export control is a real, named button, withheld from a decorative chart, and its file carries what the chart is showing",
   },
   {
+    file: "packages/charts/test/sections.test.tsx",
+    project: "charts",
+    browser: true,
+    covers:
+      "a section states its scope visibly and in its accessible name, and a latest-value reading is announced when it changes",
+  },
+  {
     file: "packages/charts/test/LineChart-keyboard.test.tsx",
     project: "charts",
     browser: true,

@@ -14,7 +14,7 @@
  * scaffolding is the point; unifying the policies would be a bug wearing the
  * same clothes, and one an all-positive fixture cannot see.
  */
-import { createMemo, mergeProps, type Accessor, type Component, type JSX } from "solid-js";
+import { createMemo, mergeProps, Show, type Accessor, type Component, type JSX } from "solid-js";
 import {
   extentOf,
   timeScale,
@@ -22,9 +22,11 @@ import {
   type ScaleTime,
 } from "@silkplot/core";
 import {
+  ChartAnnouncer,
   ChartRoot,
   ChartDataAlternative,
   createChartSemantics,
+  useDashboardSection,
   useDashboardTime,
   type ChartDataTable,
   type ChartSemanticsInput,
@@ -129,6 +131,12 @@ export interface ChartShellProps {
   rows: () => readonly ChartTableRow[];
   /** Generic headings for this chart's shape, used when the caller supplies none. */
   columns: readonly string[];
+  /**
+   * True while the chart is showing a single most-recent reading. Drives the
+   * announcement below; a chart showing a range does not need one, because a
+   * range is explored rather than watched.
+   */
+  latest?: Accessor<boolean>;
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */
   children?: JSX.Element;
 }
@@ -156,8 +164,54 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
       defaultRows={props.rows}
       defaultColumns={() => props.columns}
     />
+    {/*
+      A latest-value chart is a READING, and a reading that changes without
+      being announced is invisible to a screen reader — the datum is redrawn,
+      the table row is replaced, and nothing tells anyone. `ChartAnnouncer`
+      throttles and de-duplicates, so a section that re-renders without its
+      value changing stays silent.
+
+      Only in latest mode, and MOUNTED only in latest mode. A live region that
+      exists with an empty message is still an element, and LineChart's
+      `announce="option"` path asserts there is no live region at all — two
+      announcement channels running at once say everything twice.
+
+      A chart CAN carry both this and the keyboard channel, and that is not the
+      double-announcing ADR-0005 warns about: a keyboard region is silent until
+      the user steps, and this one speaks only when the reading changes. They are
+      different events. The `channel` name is what keeps them distinguishable.
+    */}
+    <Show when={props.latest?.()}>
+      <ChartAnnouncer channel="latest" message={latestReading(props)} />
+    </Show>
   </>
 );
+
+/**
+ * The current reading, as a sentence, or empty when there is nothing to say.
+ *
+ * Built from the chart's own name and its single row, which is honest but
+ * generic — the units and the phrasing are the application's, supplied through
+ * the table's own columns. ADR-0005 §4 asks for "Bookings, Tuesday 4 March, 42
+ * appointments"; this is the part of that the library can know.
+ */
+function latestReading(props: ChartShellProps): string {
+  if (props.latest?.() !== true) return "";
+
+  // Resolved exactly as `ChartDataAlternative` resolves it: the caller's spec
+  // wins, the chart's derivation is the fallback. Reading `props.rows()`
+  // directly looked equivalent and was not — a caller who supplied their own
+  // `table.rows` got a table showing one thing and an announcement saying
+  // another, which is the disagreement the shared derivation exists to prevent.
+  const spec = props.semantics.table();
+  const row = (spec?.rows ?? props.rows())[0];
+  if (row === undefined) return "";
+  const columns = spec?.columns ?? props.columns;
+
+  const name = props.semantics.name();
+  const cells = columns.map((column, i) => `${column} ${row[i] ?? ""}`).join(", ");
+  return name ? `${name}: ${cells}` : cells;
+}
 
 /**
  * A stroked series path — the mark LineChart draws alone and AreaChart draws
@@ -243,6 +297,12 @@ export interface TimeSeriesScope {
   xScale: (range: [number, number]) => ScaleTime<number, number>;
   /** True when the scope is real and nothing falls inside it. */
   isEmpty: Accessor<boolean>;
+  /**
+   * True when this chart is showing a single most-recent reading rather than a
+   * range. A reading is a value, and a value that changes without being
+   * announced is invisible to a screen reader.
+   */
+  isLatest: Accessor<boolean>;
 }
 
 /**
@@ -269,9 +329,13 @@ export interface TimeSeriesScope {
  */
 export function createTimeSeriesScope(data: Accessor<readonly TimePoint[]>): TimeSeriesScope {
   const dashboard = useDashboardTime();
+  const section = useDashboardSection();
 
-  // `undefined` when standalone. Read inside the memo so a range change tracks.
-  const domain = createMemo<EffectiveDomain | undefined>(() => dashboard?.resolve());
+  // `undefined` when standalone. Read inside the memo so a range change — or a
+  // section whose own window moves — re-resolves. The section is passed THROUGH
+  // the resolver rather than applied here, so the precedence rule keeps exactly
+  // one definition (ADR-0007 §3).
+  const domain = createMemo<EffectiveDomain | undefined>(() => dashboard?.resolve(section?.()));
 
   const visible = createMemo<readonly TimePoint[]>(() => {
     const scope = domain();
@@ -315,5 +379,6 @@ export function createTimeSeriesScope(data: Accessor<readonly TimePoint[]>): Tim
       });
     },
     isEmpty: () => domain() !== undefined && visible().length === 0,
+    isLatest: () => domain()?.kind === "latest",
   };
 }

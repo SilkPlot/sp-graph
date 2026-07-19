@@ -320,6 +320,7 @@ export const LineChart: Component<LineChartProps> = (props) => {
       semantics={semantics}
       rows={() => timePointRows(scope.visible())}
       columns={TIME_SERIES_COLUMNS}
+      latest={scope.isLatest}
     >
       <LineChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>

@@ -148,6 +148,7 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
       semantics={semantics}
       rows={() => timePointRows(scope.visible())}
       columns={TIME_SERIES_COLUMNS}
+      latest={scope.isLatest}
     >
       <AreaChartBody {...props} semantics={semantics} scope={scope} />
     </ChartShell>

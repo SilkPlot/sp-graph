@@ -54,6 +54,9 @@ export type {
 } from "./semantics";
 
 export { Dashboard } from "./Dashboard";
+export { DashboardSection } from "./DashboardSection";
+export type { DashboardSectionProps } from "./DashboardSection";
+export { DashboardSectionContext, useDashboardSection, rollingWindow } from "./dashboard-section";
 export type { DashboardProps } from "./Dashboard";
 
 export { DashboardTimeControl, toLocalInputValue, fromLocalInputValue } from "./DashboardTimeControl";
