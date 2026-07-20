@@ -13,7 +13,7 @@
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
 import { createMemo, Show, type Component } from "solid-js";
-import { linePath, type CurveName, type Series } from "@silkplot/core";
+import { linePath, type CurveName, type ReferenceValue, type Series } from "@silkplot/core";
 import {
   ChartAnnouncer,
   ChartEmptyMark,
@@ -32,6 +32,7 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
 import { MultiSeriesBody } from "./MultiSeriesBody";
+import { ReferenceList } from "./ReferenceList";
 import {
   ChartShell,
   StrokedLine,
@@ -138,6 +139,8 @@ export interface SingleSeriesInput {
   yTickFormat?: never;
   tableTimeFormat?: never;
   tableValueFormat?: never;
+  /** Reference overlays are multi-series surface too — same reasoning as above. */
+  references?: never;
 }
 
 export interface MultiSeriesInput {
@@ -163,6 +166,24 @@ export interface MultiSeriesInput {
    * real state rather than "no filter".
    */
   visibleSeries?: readonly string[];
+  /**
+   * Labelled reference lines (ADR-0008 §10) — an SLA floor at 95, a deployment
+   * at 14:20. Each carries a `value` (horizontal, on the y axis) or a `time`
+   * (vertical, on the x axis).
+   *
+   * `includeInDomain` defaults to **true**, so the axis expands to contain the
+   * line: one drawn nowhere is a silent failure that looks exactly like a
+   * working chart. Opt out for a target far outside the data, which would
+   * otherwise compress every series into a band.
+   *
+   * **On the time axis that default governs the STANDALONE domain only.** Inside
+   * a `<Dashboard>`, ADR-0007 §3's precedence over the visible interval is
+   * total: the scope wins and an out-of-scope reference is clipped rather than
+   * widening it, because a tile showing a different interval from the
+   * dashboard's own range control would be unmarked and indistinguishable from
+   * a bug.
+   */
+  references?: readonly ReferenceValue[];
   data?: never;
 }
 
@@ -384,6 +405,7 @@ const LineChartMulti: Component<
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
+    references: () => props.references,
     // Read through a thunk, not spread once: a formatter closing over a signal
     // must re-run the table when that signal changes.
     tableOptions: () => tableOptions(props),
@@ -396,6 +418,13 @@ const LineChartMulti: Component<
       rows={() => scope.table().rows}
       columns={scope.table().columns}
       latest={scope.isLatest}
+      referenceList={
+        <ReferenceList
+          references={scope.references()}
+          xTickFormat={props.xTickFormat}
+          yTickFormat={props.yTickFormat}
+        />
+      }
     >
       <MultiSeriesBody
         scope={scope}

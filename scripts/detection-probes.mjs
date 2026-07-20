@@ -490,6 +490,89 @@ const PROBES = [
     observed: "every swatch is solid; colour becomes the only channel",
     messagePattern: /expected|to be/,
   },
+  {
+    id: "reference-scale-drift",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a reference line is positioned by the SAME scale the marks are. Flip it about the " +
+      "plot's mid-line — the shape of a genuine SVG-origin 'fix', since y grows downward — " +
+      "and the threshold is drawn at a plausible height that is simply the wrong one. " +
+      "Nothing errors, no geometry is NaN, the axis is untouched, and the chart is beautiful; " +
+      "an operator reads the series as crossing a limit it never crossed.\n" +
+      "      This is why the suite's oracle is the RENDERED series path rather than a " +
+      "recomputed scale: the reference's y must equal the y the marks put that same value at, " +
+      "so a drifted overlay cannot satisfy both halves.",
+    anchor: "              ? model.y()(reference.at)",
+    mutation: "              ? model.bounds().innerHeight - model.y()(reference.at)",
+    failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
+    minFailures: 1,
+    observed: "reference lines sit at the wrong height while everything still renders",
+    messagePattern: /expected|close to/,
+  },
+  {
+    id: "reference-stale-value",
+    file: "packages/charts/src/multi-series.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "references are re-normalised inside a memo, so a threshold that moves is re-read. " +
+      "Resolve them ONCE at setup instead — the plausible simplification, since 'a threshold " +
+      "does not change' is exactly what it looks like — and the line freezes at its mount-time " +
+      "value while the data keeps updating. The chart renders perfectly and the reference is " +
+      "quietly describing a limit that was replaced hours ago.",
+    anchor:
+      "  const references = createMemo(\n" +
+      "    () => normalizeReferences(spec.references?.(), { onIssue: spec.onIssue }).references,\n" +
+      "  );",
+    mutation:
+      "  const resolvedOnce = normalizeReferences(spec.references?.(), {\n" +
+      "    onIssue: spec.onIssue,\n" +
+      "  }).references;\n" +
+      "  const references = () => resolvedOnce;",
+    failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
+    minFailures: 1,
+    observed: "a replaced threshold never moves, and never re-scales the axis",
+    messagePattern: /expected|close to|toEqual/,
+  },
+  {
+    id: "reference-colour-only",
+    file: "packages/charts/src/ReferenceOverlay.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a reference carries its dash channel as well as its colour. Drop it and the line " +
+      "becomes solid — visually identical to a series stroke and to the crosshair, so the one " +
+      "thing separating a threshold from the data is a hue. That is the failure ADR-0005 §5 " +
+      "forbids, and it is invisible to every structural assertion about the overlay: the line " +
+      "is still there, still positioned correctly, still labelled.",
+    anchor: '                  stroke-dasharray={p.reference.style.dash?.join(" ") ?? REFERENCE_DASH}',
+    mutation: "                  stroke-dasharray={undefined}",
+    failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
+    minFailures: 1,
+    observed: "reference lines render solid; colour becomes the only channel",
+    messagePattern: /expected|to be/,
+  },
+  {
+    id: "reference-list-removed",
+    file: "packages/charts/src/scaffold.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the accessible reference list is what makes the overlay's collision fallback " +
+      "acceptable: a label that cannot be placed is DROPPED rather than truncated or spilled " +
+      "over an axis, and that is only survivable because the threshold's meaning also lives " +
+      "in a real list. Remove the slot and the drawn label becomes the sole carrier — so on a " +
+      "narrow container a threshold silently ceases to exist for every reader, and for a " +
+      "screen-reader user it never existed at all.",
+    anchor: "    {props.referenceList}",
+    mutation: "    {null}",
+    failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
+    minFailures: 1,
+    observed: "no reference list renders; the drawn label is the only carrier",
+    messagePattern: /expected|toEqual|length/,
+  },
 ];
 
 // ---------------------------------------------------------------------------

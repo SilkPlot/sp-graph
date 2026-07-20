@@ -18,9 +18,10 @@
  * Collapsing them now would bury a deliberate difference behind a shared name.
  */
 import { createMemo, For, Show, type JSX } from "solid-js";
-import { resolveSeriesStyle, seriesGeometry } from "@silkplot/core";
+import { referenceDomainOf, resolveSeriesStyle, seriesGeometry } from "@silkplot/core";
 import type {
   NormalizedDatum,
+  NormalizedReference,
   NormalizedSeries,
   ResolvedSeriesStyle,
   ScaleTime,
@@ -37,6 +38,7 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import type { CartesianChartProps } from "./scaffold";
 import type { MultiSeriesScope } from "./multi-series";
+import { ReferenceOverlay } from "./ReferenceOverlay";
 
 
 /** What a chart needs to draw one series' marks. */
@@ -81,32 +83,45 @@ export interface MultiSeriesBodyProps<M = unknown> {
 }
 
 /**
- * Every visible datum, flattened.
+ * Every number the y domain must contain.
  *
- * This is what the cartesian model reads to build the y domain, and flattening
- * is correct rather than lazy: the y axis of a multi-series chart describes ALL
- * the visible series at once, so its extent is the extent of their union. The
- * per-series structure is preserved everywhere it matters — identity, gap
- * policy, paint order — and is genuinely irrelevant to a min/max.
+ * Flattening across series is correct rather than lazy: the y axis of a
+ * multi-series chart describes ALL the visible series at once, so its extent is
+ * the extent of their union. The per-series structure is preserved everywhere it
+ * matters — identity, gap policy, paint order — and is genuinely irrelevant to a
+ * min/max.
+ *
+ * Two things are folded in here rather than downstream, so the domain has one
+ * source and cannot disagree with itself:
+ *
+ *   - **A gap contributes `NaN`, not a skip.** That is how `extentOf` already
+ *     excludes a value, so routing it through one policy means the domain and
+ *     the marks cannot disagree about which values exist.
+ *   - **Domain-participating VALUE references contribute their position**
+ *     (ADR-0008 §10), because a threshold outside the domain has nowhere to be
+ *     drawn and a line silently absent looks exactly like a working chart. A
+ *     reference opting out with `includeInDomain: false` is filtered out by
+ *     `referenceDomainOf` and never reaches here.
  */
-function flatten<M>(series: readonly NormalizedSeries<M>[]): readonly NormalizedDatum<M>[] {
-  const out: NormalizedDatum<M>[] = [];
-  for (const s of series) out.push(...s.data);
+function yContributions<M>(
+  series: readonly NormalizedSeries<M>[],
+  references: readonly NormalizedReference[],
+): readonly number[] {
+  const out: number[] = [];
+  for (const s of series) {
+    for (const d of s.data) out.push(d.state === "present" ? (d.y as number) : Number.NaN);
+  }
+  out.push(...referenceDomainOf(references, "value"));
   return out;
 }
 
 export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JSX.Element {
   const model: CartesianModel<ScaleTime<number, number>> = createCartesianModel({
-    data: () => flatten(props.scope.visible()),
+    data: () => yContributions(props.scope.visible(), props.scope.references()),
+    // Already numbers by the time they arrive — see `yContributions`, which is
+    // where the gap policy and the reference contribution are applied together.
     x: props.scope.xScale,
-    y: {
-      // A gap contributes nothing to the domain. `NaN` rather than a skip,
-      // because that is how `extentOf` already excludes a value — routing it
-      // through one policy means the domain and the marks cannot disagree about
-      // which values exist.
-      accessor: (d) => (d.state === "present" ? (d.y as number) : Number.NaN),
-      domain: props.yDomain,
-    },
+    y: { accessor: (v) => v, domain: props.yDomain },
   });
 
   /** Pixel position of zero. Only meaningful under a policy that contains zero. */
@@ -187,6 +202,23 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
             );
           }}
         </For>
+
+        {/*
+          AFTER the series, so a threshold stays legible on a dense chart. The
+          full reasoning — including why "above the marks" is achieved by paint
+          order while "never over the axes" is achieved by clipping — is on
+          `ReferenceOverlay` itself.
+        */}
+        <ReferenceOverlay
+          references={props.scope.references()}
+          position={(reference) =>
+            reference.axis === "value"
+              ? model.y()(reference.at)
+              : model.x()(new Date(reference.at))
+          }
+          innerWidth={model.bounds().innerWidth}
+          innerHeight={model.bounds().innerHeight}
+        />
 
         <Show when={props.scope.isEmpty()}>
           <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />

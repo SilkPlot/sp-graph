@@ -101,13 +101,29 @@ export interface NormalizedSeries<M = unknown> {
   sourceIndex: number;
 }
 
-export type SeriesIssueCode = "duplicate-id" | "invalid-value" | "invalid-time";
+/**
+ * Every way input can violate the contract.
+ *
+ * The reference codes live in this union rather than in a parallel
+ * `ReferenceIssueCode` because a chart has exactly ONE diagnostic channel: a
+ * caller wiring `onIssue` to their logger must not have to wire a second hook to
+ * hear that a threshold was dropped. Two channels is how one of them ends up
+ * unwired.
+ */
+export type SeriesIssueCode =
+  | "duplicate-id"
+  | "invalid-value"
+  | "invalid-time"
+  | "duplicate-reference-id"
+  | "invalid-reference";
 
 export interface SeriesIssue {
   code: SeriesIssueCode;
   message: string;
   /** The series the issue belongs to, where one is identifiable. */
   seriesId?: string;
+  /** The reference the issue belongs to, for the two reference codes. */
+  referenceId?: string;
 }
 
 /** A finite `[min, max]` pair. See `domainOf` for the empty and all-invalid case. */

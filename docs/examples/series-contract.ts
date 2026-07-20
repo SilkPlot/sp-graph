@@ -48,7 +48,7 @@ export type {
   SeriesStyle,
   NullPolicy,
 } from "@silkplot/core";
-import type { Series, SeriesDatum, SeriesStyle } from "@silkplot/core";
+import type { Series, SeriesDatum } from "@silkplot/core";
 
 // ADR-0008 §2 — implemented.
 export { fromRows } from "@silkplot/core";
@@ -64,14 +64,22 @@ import { fromRows } from "@silkplot/core";
 export type { MultiSeriesFormatProps } from "@silkplot/core";
 import type { MultiSeriesFormatProps } from "@silkplot/core";
 
-/** ADR-0008 §10 — NOT YET IMPLEMENTED. `includeInDomain` defaults to true. */
-export interface ReferenceValue {
-  id: string;
-  value: number;
-  label: string;
-  includeInDomain?: boolean;
-  style?: Pick<SeriesStyle, "stroke" | "strokeWidth" | "dash">;
-}
+// ADR-0008 §10 — implemented. THE SUBSTITUTION FOR THIS HALF HAS HAPPENED: what
+// was declared here as a five-field interface is now the shipped type, imported.
+//
+// The shipped type is WIDER than the declaration was, and that widening is a
+// decision rather than a drift. The declaration described a horizontal, numeric
+// reference only; `ReferenceValue` is now a union over the AXIS the reference
+// sits on — `{ value: number }` on the y axis, `{ time: Date }` on the x — so a
+// deployment marker is expressible alongside an SLA floor. Every example below
+// names `value` and therefore matches the numeric member unchanged.
+//
+// Widening a declared shape is the one substitution that CANNOT be checked by
+// byte-identity alone: identity proves nothing had to change, and a superset
+// would satisfy that even if the new half were unusable. `referencesOnBothAxes`
+// at the end of Part 2 is the other half of that evidence.
+export type { ReferenceValue } from "@silkplot/core";
+import type { ReferenceValue } from "@silkplot/core";
 
 /** ADR-0008 §6 and §8: controlled state, with an uncontrolled default. */
 export interface CompositionStateProps<M = unknown> {
@@ -348,6 +356,44 @@ export interface RankedBarsProps {
   formatValue?: (value: number) => string;
   onActivate?: (category: RankedCategory) => void;
 }
+
+/**
+ * REFERENCES ON BOTH AXES — ADR-0008 §10 under the widened shape.
+ *
+ * ADDED after the reference substitution, not carried through it, and it exists
+ * because byte-identity could not have proved this. `denseOperational` above
+ * compiled unchanged, which establishes that no existing example HAD to be
+ * edited — a real result, and a narrow one: every reference it names is
+ * numeric, so a `{ time: Date }` member could have been unusable and the
+ * identity check would still have passed. This is the weaker-but-necessary
+ * second half, exactly as `withFormatting` is for ADR-0010.
+ *
+ * It exercises the split the union turns on: a threshold read against the y
+ * axis and an event read against the x axis, in ONE array, with per-record
+ * domain participation and a non-colour style override on each.
+ */
+export const referencesOnBothAxes: MultiSeriesProps = {
+  series: fourSeries.series,
+  references: [
+    // Horizontal: a limit the values are read against.
+    { id: "sla", value: 95, label: "SLA floor" },
+    // Vertical: an instant the series are read across. Same array, same
+    // ordering rules, same collision solver.
+    { id: "deploy", time: t("2026-03-01T00:20:00Z"), label: "Deploy 4.2.0" },
+    // Out of the data's range AND opting out of the domain, which is the one
+    // combination that must not silently widen the x axis: inside a
+    // <Dashboard> the resolved scope wins regardless, and the line is clipped.
+    {
+      id: "window-close",
+      time: t("2026-03-04T00:00:00Z"),
+      label: "Change window closes",
+      includeInDomain: false,
+      // Dash is a number array, as on a series style — the redundant
+      // non-colour channel, not a second colour.
+      style: { dash: [2, 2], strokeWidth: 2 },
+    },
+  ],
+};
 
 export const rankedWithLongLabels: RankedBarsProps = {
   orientation: "horizontal",

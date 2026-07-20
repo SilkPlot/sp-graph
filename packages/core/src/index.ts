@@ -107,6 +107,20 @@ export type {
   Domain,
 } from "./series";
 
+// Reference overlays — ADR-0008 §10. Kept beside the series model rather than
+// inside it: a reference is not a series, and one that reached the legend, the
+// derived table, or the visible-series domain would be a measurement nobody took.
+export { normalizeReferences, referenceDomainOf } from "./reference";
+export type {
+  ReferenceValue,
+  ReferenceBase,
+  ReferenceStyle,
+  ReferenceAxis,
+  NormalizedReference,
+  NormalizeReferencesOptions,
+  ReferenceModel,
+} from "./reference";
+
 // Per-series presentation — which colour and dash token series `i` gets.
 //
 // Moved here from `charts`, because the Legend lives in `solid` and `solid`
