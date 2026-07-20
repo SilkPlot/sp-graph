@@ -51,6 +51,24 @@ export interface ChartKeyboardSpec {
   active: ActiveDatum;
   /** Widget role. Default: `listbox`. */
   role?: ChartKeyboardRole;
+  /**
+   * Commit the active datum — Enter and Space.
+   *
+   * Here rather than in the chart because it is keyboard BEHAVIOUR, not chart
+   * behaviour: committing the active option with Enter or Space is what a
+   * `listbox` does, and a chart re-implementing it would be a second opinion
+   * about a standard interaction. The chart supplies what committing MEANS.
+   *
+   * Absent by default, and when absent the keys are not claimed — the composite
+   * returns false and the event goes on to the page, exactly as every other
+   * unhandled key does. A surface that swallowed Space without acting on it
+   * would break the page scroll for no benefit.
+   *
+   * Not called when nothing is active: there is no datum to commit, and firing
+   * with a fabricated index would hand the caller a category the user never
+   * moved to.
+   */
+  onActivate?: (index: number) => void;
 }
 
 export interface ChartKeyboard {
@@ -113,6 +131,17 @@ export function createChartKeyboard(spec: ChartKeyboardSpec): ChartKeyboard {
         // the only way out" (ADR-0005 §3) cuts both ways.
         if (active.index() === undefined) return false;
         active.clear();
+        break;
+      }
+      case "Enter":
+      case " ": {
+        // Both guards matter and neither is redundant. Without a handler the
+        // keys are not ours to claim; without an active index there is nothing
+        // to commit, and firing with a fabricated one would hand the caller a
+        // datum the user never moved to.
+        const index = active.index();
+        if (spec.onActivate === undefined || index === undefined) return false;
+        spec.onActivate(index);
         break;
       }
       // Everything else — Tab and Shift+Tab above all — is deliberately absent.
