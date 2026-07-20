@@ -55,7 +55,7 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**176 baselines**: 156 geometry, 8 focus, 12 reduced-motion.
+**180 baselines**: 156 geometry, 8 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
