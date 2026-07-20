@@ -138,6 +138,13 @@ export interface ChartShellProps {
    * range is explored rather than watched.
    */
   latest?: Accessor<boolean>;
+  /**
+   * The accessible reference list (ADR-0008 §10), as an element rather than as
+   * data. A slot, because the wording comes from the chart's own axis formatters
+   * and threading those through here would give this shell a second opinion
+   * about how a value reads — see `ReferenceList`.
+   */
+  referenceList?: JSX.Element;
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */
   children?: JSX.Element;
 }
@@ -160,6 +167,13 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
     >
       {props.children}
     </ChartRoot>
+    {/*
+      Before the data table, and outside its disclosure. A chart typically
+      carries three thresholds and hundreds of rows, so the list is short enough
+      to sit open, and putting it behind the same toggle would hide the ONE
+      surface that makes the overlay's dropped-label fallback acceptable.
+    */}
+    {props.referenceList}
     <ChartDataAlternative
       semantics={props.semantics}
       defaultRows={props.rows}

@@ -14,12 +14,16 @@
  */
 import { createMemo, type Accessor } from "solid-js";
 import {
+  normalizeReferences,
   normalizeSeries,
+  referenceDomainOf,
   seriesTable,
   timeDomainOf,
   timeScale,
   type EffectiveDomain,
+  type NormalizedReference,
   type NormalizedSeries,
+  type ReferenceValue,
   type ScaleTime,
   type Series,
   type SeriesIssue,
@@ -41,6 +45,8 @@ export interface MultiSeriesScope<M = unknown> {
   isLatest: Accessor<boolean>;
   /** The accessible data alternative, from this same narrowed model. */
   table: Accessor<SeriesTable>;
+  /** Normalised reference overlays (ADR-0008 §10), in the caller's order. */
+  references: Accessor<readonly NormalizedReference[]>;
 }
 
 /**
@@ -88,6 +94,8 @@ export interface MultiSeriesScopeSpec<M = unknown> {
    * had at mount.
    */
   tableOptions?: Accessor<SeriesTableOptions>;
+  /** Reference overlays (ADR-0008 §10). An accessor — a threshold is dynamic. */
+  references?: Accessor<readonly ReferenceValue[] | undefined>;
 }
 
 export function createMultiSeriesScope<M = unknown>(
@@ -117,9 +125,18 @@ export function createMultiSeriesScope<M = unknown>(
 
   const visible = createMemo(() => all().filter((s) => s.visible));
 
+  // ONE normalisation for references too, and deliberately NOT routed through
+  // `normalizeSeries`: a reference is not a series. Through that path it would
+  // acquire a legend entry, rows in the derived table, and a vote in the
+  // visible-series y domain — three places asserting a measurement nobody took.
+  const references = createMemo(
+    () => normalizeReferences(spec.references?.(), { onIssue: spec.onIssue }).references,
+  );
+
   return {
     all,
     visible,
+    references,
     xScale: (range) => {
       const scope = domain();
       // Standalone, or an empty scope with no interval of its own to show: fall
@@ -127,7 +144,22 @@ export function createMultiSeriesScope<M = unknown>(
       // the only domain available when the scope resolved to nothing.
       if (scope === undefined || scope.kind === "empty") {
         const [lo, hi] = timeDomainOf(visible());
-        return timeScale({ domain: [new Date(lo), new Date(hi)], range });
+        // Domain-participating TIME references widen the standalone domain, and
+        // ONLY the standalone one. Below, a resolved dashboard scope is returned
+        // untouched: ADR-0007 §3's precedence over the visible interval is total,
+        // and a reference is not a scope. A tile silently showing a wider
+        // interval than the dashboard's own range control would be the single
+        // element on the page telling a different story, with nothing marking it
+        // as such — which is the reasoning `narrow()` above already applies to
+        // data. The out-of-scope reference is clipped by the overlay instead.
+        const times = referenceDomainOf(references(), "time");
+        return timeScale({
+          domain: [
+            new Date(Math.min(lo, ...times)),
+            new Date(Math.max(hi, ...times)),
+          ],
+          range,
+        });
       }
       const bounds = scope.kind === "range" ? scope : scope.bounds;
       return timeScale({ domain: [new Date(bounds.start), new Date(bounds.end)], range });

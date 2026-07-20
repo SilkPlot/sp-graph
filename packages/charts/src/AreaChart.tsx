@@ -26,6 +26,7 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
 import { MultiSeriesBody } from "./MultiSeriesBody";
+import { ReferenceList } from "./ReferenceList";
 import type { MultiSeriesInputWithFormat, SingleSeriesInput } from "./LineChart";
 import {
   ChartShell,
@@ -149,6 +150,7 @@ const AreaChartMulti: Component<
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
+    references: () => props.references,
     // A thunk, so a formatter closing over a signal re-runs the table.
     tableOptions: () => tableOptions(props),
   });
@@ -160,6 +162,13 @@ const AreaChartMulti: Component<
       rows={() => scope.table().rows}
       columns={scope.table().columns}
       latest={scope.isLatest}
+      referenceList={
+        <ReferenceList
+          references={scope.references()}
+          xTickFormat={props.xTickFormat}
+          yTickFormat={props.yTickFormat}
+        />
+      }
     >
       <MultiSeriesBody
         scope={scope}

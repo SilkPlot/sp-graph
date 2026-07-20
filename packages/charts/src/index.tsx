@@ -18,6 +18,17 @@ export type {
 } from "./LineChart";
 export type { MultiSeriesFormatProps } from "./formatters";
 
+// Reference overlays (ADR-0008 §10). Re-exported from `core` for the same
+// reason the series types are: this is the package whose components take them,
+// and a consumer naming the prop's type should not have to reach past it.
+export type {
+  ReferenceValue,
+  ReferenceBase,
+  ReferenceStyle,
+  ReferenceAxis,
+  NormalizedReference,
+} from "@silkplot/core";
+
 // Per-series presentation. Exported for a consumer building its own legend, so
 // the swatch beside a label resolves the SAME token the line does rather than
 // re-deriving one that can drift from it.

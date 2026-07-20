@@ -236,6 +236,20 @@ export interface Tokens {
     axis: string;
     focusRing: string;
     cursor: string;
+    /**
+     * Reference-overlay lines (ADR-0008 §10) — a labelled threshold drawn across
+     * the plot.
+     *
+     * It is CHROME, not data, so it is a neutral rather than a hue. That is
+     * forced rather than chosen: the categorical palette is Okabe-Ito and
+     * already spends orange, blue, green, yellow, vermillion, purple and a
+     * neutral grey, so any hue picked here would collide with a series on some
+     * chart. A reference is therefore separated from the marks by WEIGHT, and
+     * from the other neutral chrome by two non-colour channels — it is dashed
+     * where the cursor is solid, and it always carries a text label where the
+     * cursor never does (ADR-0005 §5: colour may encode, never uniquely encode).
+     */
+    reference: string;
   };
   categorical: readonly string[];
 }
@@ -253,6 +267,10 @@ export const tokens: Tokens = {
     axis: "#98a2b3",
     focusRing: "#2563eb",
     cursor: "#475467",
+    // 10.46:1 on #ffffff — above `cursor` (7.69:1) and well clear of the 3:1
+    // non-text floor. A threshold is read AGAINST the marks, so it must not be
+    // fainter than they are.
+    reference: "#344054",
   },
   categorical: categoricalPalette,
 };
@@ -280,6 +298,10 @@ const DARK_COLORS: ColorOverrides = {
   grid: "#2a2f3a",
   axis: "#667085",
   cursor: "#cbd2dd",
+  // 11.90:1 on #14161a. The dark-surface neutrals compress at the top, so this
+  // lands at the same rung as `cursor` rather than above it; dash and label are
+  // what separate the two, exactly as documented on the token.
+  reference: "#cbd2dd",
 };
 
 /**
@@ -301,6 +323,11 @@ const HIGH_CONTRAST_COLORS: ColorOverrides = {
   grid: "#000000",
   axis: "#000000",
   focusRing: "#0033cc",
+  // 21:1. Joins text/grid/axis at maximum contrast, which is this palette's
+  // whole approach on a light surface: when the user asks for more contrast,
+  // every meaningful line goes to black and the non-colour channels carry the
+  // distinctions colour no longer can.
+  reference: "#000000",
 };
 
 /**
@@ -322,8 +349,11 @@ const HIGH_CONTRAST_COLORS: ColorOverrides = {
  * that differ, and lets everything else fall through the cascade to dark-normal.
  * `muted` is not listed — the dark-normal `#98a2b3` (7.03:1) already sits exactly
  * one step below primary text, so re-declaring it would be a second place
- * deciding one value; it inherits, the same way `surface` (#14161a) and `cursor`
- * (#cbd2dd, 11.9:1) do. `grid` is promoted from near-invisible decoration to a
+ * deciding one value; it inherits, the same way `surface` (#14161a), `cursor`
+ * (#cbd2dd, 11.9:1) and `reference` (#cbd2dd, 11.9:1) do. `reference` in
+ * particular is already the second rung of this ladder on dark-normal — above
+ * `axis` (5.20:1) and `grid` (3.33:1) — which is exactly where a labelled
+ * threshold belongs, so raising it would only crowd primary text. `grid` is promoted from near-invisible decoration to a
  * legible line — a request for MORE contrast is not honoured by a faint gridline
  * — but kept the faintest meaningful rung so it does not fight the axis. `focus`
  * replaces `#0033cc`, only 2.02:1 on dark, below the 3:1 non-text floor exactly
