@@ -114,7 +114,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(176);
+    expect(EXPECTED_TOTALS.all).toBe(180);
   });
 
   test("never lists a surface as excluded AND captures it", () => {

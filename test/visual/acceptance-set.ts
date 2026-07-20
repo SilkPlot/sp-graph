@@ -365,18 +365,18 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  * 2 multi-capable charts x 7 multi cases x 4 combinations =  56
  * 5 legend cases x 4 combinations                          =  20
  *                                              geometry    = 156
- * 1 focusable chart x 4 scheme/contrast combinations       =   4
+ * 2 focusable charts x 4 scheme/contrast combinations      =   8
  * the legend, focused, x 4 combinations                    =   4
- *                                                 focus    =   8
+ *                                                 focus    =  12
  * 4 charts x 2 schemes, reduced motion                     =   8
  * 2 multi-capable charts x 2 schemes, reduced motion       =   4
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
   geometry: 156,
-  focus: 8,
+  focus: 12,
   "reduced-motion": 12,
-  all: 176,
+  all: 180,
 } as const;
 
 /**
