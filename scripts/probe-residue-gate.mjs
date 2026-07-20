@@ -46,7 +46,15 @@
  * before. The sentinel carries the original bytes, so recovery is exact and does
  * not depend on the change never having been committed.
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  ftruncateSync,
+  openSync,
+  readFileSync,
+  rmSync,
+  writeSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -80,15 +88,34 @@ try {
 const { file, sha256: originalHash, original } = record;
 const target = join(repoRoot, file);
 
-if (!existsSync(target)) {
-  console.error(
-    `\nProbe residue gate FAILED — the sentinel names a file that no longer exists.\n\n  ${file}\n\n` +
-      "  remedy: restore it from the sentinel with `npm run gate:probe-residue -- --restore`.\n",
-  );
-  process.exit(1);
+/**
+ * Read the target, or explain why not — WITHOUT checking existence first.
+ *
+ * The obvious shape here is `if (!existsSync(target)) { … }` and then read. That
+ * is a time-of-check/time-of-use race, and CodeQL flagged it as one: between the
+ * check and the read, the path can be replaced — with a symlink, most usefully
+ * to an attacker — and the later write would follow it. The window is tiny and
+ * this script runs on a developer's own machine, which is exactly the reasoning
+ * that makes TOCTOU bugs ship.
+ *
+ * Attempting the operation and handling `ENOENT` closes the window entirely:
+ * there is one filesystem call, so there is no interval to race. The error
+ * message is just as specific.
+ */
+function readTarget() {
+  try {
+    return readFileSync(target, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    console.error(
+      `\nProbe residue gate FAILED — the sentinel names a file that no longer exists.\n\n  ${file}\n\n` +
+        "  remedy: restore it from the sentinel with `npm run gate:probe-residue -- --restore`.\n",
+    );
+    process.exit(1);
+  }
 }
 
-const current = readFileSync(target, "utf8");
+const current = readTarget();
 
 if (sha256(current) === originalHash) {
   // Interrupted before the write landed, or already put back by other means.
@@ -101,8 +128,17 @@ if (sha256(current) === originalHash) {
 }
 
 if (shouldRestore) {
-  writeFileSync(target, original, "utf8");
-  const after = readFileSync(target, "utf8");
+  // `wx` would refuse an existing file and `w` follows a symlink, so the handle
+  // is opened once and both the write and the read-back go through it. Resolving
+  // the path twice is the same TOCTOU window in a different coat.
+  const handle = openSync(target, "r+");
+  try {
+    ftruncateSync(handle, 0);
+    writeSync(handle, original, 0, "utf8");
+  } finally {
+    closeSync(handle);
+  }
+  const after = readTarget();
   if (sha256(after) !== originalHash) {
     console.error(
       `\nProbe residue gate FAILED — could not restore ${file} from the sentinel.\n\n` +
