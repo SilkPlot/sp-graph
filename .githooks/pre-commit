@@ -1,0 +1,15 @@
+#!/bin/sh
+# Refuse a commit while a detection-probe mutation may be live.
+#
+# The sentinel this checks is gitignored, so CI can never see it — a probe
+# mutation left by an interrupted run is a purely LOCAL hazard, and this is the
+# only place it can be caught before it reaches a commit. That is not
+# theoretical: on 2026-07-20 a killed probe run left a plausible one-line
+# mutation in packages/core/src/series.ts, and it was staged-but-not-committed
+# work that saved it from shipping.
+#
+# No test and no type check will find one: a probe mutation is designed to keep
+# the code compiling, so it fails a suite, not the compiler.
+#
+# Bypass with `git commit --no-verify` if you are certain.
+exec node scripts/probe-residue-gate.mjs

@@ -18,6 +18,7 @@ import {
   ACCEPTANCE_SET,
   CASES,
   CHARTS,
+  EXCLUSIONS,
   EXPECTED_TOTALS,
   FOCUSABLE,
   LEGEND_CASES,
@@ -110,6 +111,28 @@ test.describe("the acceptance set is explicit", () => {
       all: EXPECTED_TOTALS.all,
     });
     expect(EXPECTED_TOTALS.all).toBe(160);
+  });
+
+  test("never lists a surface as excluded AND captures it", () => {
+    /**
+     * The check that would have caught a real defect the day it appeared.
+     *
+     * `EXCLUSIONS` is the stated authority for "there is no baseline for X" —
+     * it exists so a reviewer can tell an excluded surface from a forgotten
+     * one. When the Legend shipped, its baselines were added to this same file
+     * and the exclusion below them was not revisited, so the file asserted
+     * both "24 legend baselines" and "the legend has no baselines" at once.
+     *
+     * An entry left here after a surface ships is worse than no entry: it is a
+     * confident wrong answer to the exact question the list exists to answer.
+     */
+    const captured = new Set(ACCEPTANCE_SET.map((b) => b.chart.toLowerCase()));
+    const contradictions = EXCLUSIONS.filter((e) => captured.has(e.surface.toLowerCase()));
+
+    expect(
+      contradictions.map((e) => e.surface),
+      "a surface cannot be both deliberately uncaptured and captured; remove the exclusion when the surface ships",
+    ).toEqual([]);
   });
 
   test("gives every baseline a unique id", () => {

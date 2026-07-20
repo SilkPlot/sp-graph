@@ -497,6 +497,43 @@ const PROBES = [
 // ---------------------------------------------------------------------------
 
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
+
+/* -------------------------------------------------------------------------- */
+/* The residue sentinel                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Where an in-flight mutation records itself.
+ *
+ * `try/finally` restores a mutated file on every path this script controls —
+ * and controls none of the ones that matter most. **A SIGKILL runs no `finally`
+ * block**, and on 2026-07-20 a run wrapped in an external timeout was killed
+ * mid-probe and left the ignored-gap mutation in `packages/core/src/series.ts`
+ * with nothing anywhere announcing it. The mutation is a plausible one-line
+ * simplification; the suites cannot catch it, because a probe mutation is
+ * designed to keep the code COMPILING — it fails a suite, not the compiler.
+ *
+ * So the intent is written to disk BEFORE the mutation and removed only after a
+ * restore has been verified byte-identical. If the file exists at any later
+ * moment, a mutation may still be live, and `gate:probe-residue` can both say
+ * so and put the file back from the recorded original.
+ *
+ * Gitignored: it is machine state, not a tracked artifact.
+ */
+const SENTINEL = join(repoRoot, ".probe-residue.json");
+
+function writeSentinel(file, original) {
+  writeFileSync(
+    SENTINEL,
+    JSON.stringify({ file, sha256: sha256(original), original }, null, 2),
+    "utf8",
+  );
+}
+
+/** Cleared ONLY after `restore` has verified the file byte-identical. */
+function clearSentinel() {
+  rmSync(SENTINEL, { force: true });
+}
 const abs = (relative) => join(repoRoot, relative);
 const readSource = (relative) => readFileSync(abs(relative), "utf8");
 
@@ -591,6 +628,7 @@ function runProject(project, browser) {
  */
 function applyMutation(probe) {
   const before = readSource(probe.file);
+  writeSentinel(probe.file, before);
 
   const occurrences = before.split(probe.anchor).length - 1;
   if (occurrences === 0) {
@@ -645,10 +683,16 @@ function restore(probe, backup) {
       "\nFATAL — could not restore a mutated source file.\n\n" +
         `  ${probe.file} does not match its backup after restoration.\n` +
         "  This file is CURRENTLY MUTATED in your working tree. Recover it with\n" +
-        `  \`git checkout -- ${probe.file}\` before doing anything else.\n`,
+        `  \`git checkout -- ${probe.file}\` before doing anything else.\n` +
+        "  The residue sentinel is deliberately LEFT IN PLACE — `npm run\n" +
+        "  gate:probe-residue` can restore from the original it recorded.\n",
     );
     process.exit(2);
   }
+
+  // Only now, with the restoration proved byte-identical, is it honest to say
+  // no mutation is outstanding.
+  clearSentinel();
 }
 
 /**
