@@ -13,7 +13,7 @@
  * against a chart drawing one series out of twenty-two.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, type JSX } from "solid-js";
+import { createSignal, Show, type JSX } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import type { Series } from "@silkplot/core";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
@@ -26,6 +26,7 @@ import {
   expectNoNaN,
   markPaths,
   moveCount,
+  pathXs,
   pathYs,
 } from "./support";
 
@@ -768,5 +769,180 @@ describe("caller formatting reaches the surface it names", () => {
 
     expect(tickText(container, "left").some((t) => t.endsWith(" u"))).toBe(true);
     expect(cellText(container).some((c) => c.endsWith(" kg"))).toBe(true);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Sizing — zero-size mount, reveal, and repeated resize                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The failure this block exists for is silent in a specific way: a chart that
+ * never got a real measurement, or kept a stale one, renders a perfectly valid
+ * `<svg>` with marks that are empty, clipped, or drawn to the previous size.
+ * None of that throws and none of it looks like a defect in a screenshot taken
+ * at the wrong moment — it looks like an empty dataset, or like the data really
+ * did stop there.
+ *
+ * Multi-series raises the stake: with several paths, a resize that updates some
+ * and not others produces a chart that is internally inconsistent, which is
+ * harder to spot than one that is uniformly wrong. So these assert across ALL
+ * paths rather than the first, and compare paths to each other where the model
+ * says they must agree.
+ */
+describe("sizing", () => {
+  /** A container the test controls, so width is a fact rather than a default. */
+  function mountSized(width: string, props: Record<string, unknown> = {}) {
+    const host = document.createElement("div");
+    host.style.width = width;
+    document.body.appendChild(host);
+
+    const result = render(
+      () => (
+        <LineChart
+          title="Sized chart"
+          desc="A multi-series sizing fixture"
+          height={200}
+          margins={NO_MARGINS}
+          curve="linear"
+          series={TWO}
+          {...props}
+        />
+      ),
+      { container: host },
+    );
+
+    return { ...result, host };
+  }
+
+  it("draws nothing rather than NaN geometry at zero width", () => {
+    const { host, container } = mountSized("0px");
+
+    // The contract is not "renders marks" — it is that an unmeasurable chart
+    // emits no coordinate it cannot compute. A single NaN in a path `d` makes
+    // the whole path silently invisible, which is why this is asserted rather
+    // than assumed from the absence of a crash.
+    expectNoNaN(container, "path", ["d"]);
+    for (const p of markPaths(container)) {
+      expect(p.getAttribute("d") ?? "").not.toContain("Infinity");
+    }
+    host.remove();
+  });
+
+  it("draws every series once the container becomes measurable", async () => {
+    const { host, container } = mountSized("0px");
+
+    host.style.width = "480px";
+
+    // BOTH paths, not just the first: a chart that recovered one series and
+    // left the other empty is exactly the internally-inconsistent state a
+    // single-path assertion would report as a pass.
+    await expect
+      .poll(() => markPaths(container).filter((p) => (p.getAttribute("d") ?? "") !== "").length)
+      .toBe(2);
+    expectNoNaN(container, "path", ["d"]);
+    host.remove();
+  });
+
+  it("reveals a hidden multi-series chart with real geometry, not a zero-width one", async () => {
+    const [shown, setShown] = createSignal(false);
+    const host = document.createElement("div");
+    host.style.width = "480px";
+    document.body.appendChild(host);
+
+    const { container } = render(
+      () => (
+        <Show when={shown()}>
+          <LineChart
+            title="Revealed multi-series"
+            desc="d"
+            height={200}
+            margins={NO_MARGINS}
+            curve="linear"
+            series={TWO}
+          />
+        </Show>
+      ),
+      { container: host },
+    );
+
+    expect(markPaths(container)).toHaveLength(0);
+
+    setShown(true);
+
+    // A chart mounted into an already-sized container still measures
+    // asynchronously, so the meaningful assertion is that it ARRIVES at real
+    // geometry — a mark whose `d` stayed empty is the zero-width failure.
+    await expect
+      .poll(() => markPaths(container).filter((p) => (p.getAttribute("d") ?? "") !== "").length)
+      .toBe(2);
+    expectNoNaN(container, "path", ["d"]);
+    host.remove();
+  });
+
+  it("keeps no stale geometry across repeated resizes", async () => {
+    const { host, container } = mountSized("200px");
+
+    const widthsSeen: number[][] = [];
+
+    for (const width of ["200px", "600px", "320px", "600px"]) {
+      host.style.width = width;
+      const px = Number.parseInt(width, 10);
+
+      // Wait for BOTH paths to reach the new width. `x` of the last point is
+      // the right probe: under NO_MARGINS the final point sits at the right
+      // edge, so it tracks the container exactly.
+      await expect
+        .poll(() => {
+          const ends = markPaths(container).map((p) => {
+            const xs = pathXs(p.getAttribute("d") ?? "");
+            return xs.length > 0 ? Math.round(xs[xs.length - 1] as number) : -1;
+          });
+          return ends.length === 2 && ends.every((x) => x === px);
+        })
+        .toBe(true);
+
+      widthsSeen.push(
+        markPaths(container).map((p) => {
+          const xs = pathXs(p.getAttribute("d") ?? "");
+          return Math.round(xs[xs.length - 1] as number);
+        }),
+      );
+    }
+
+    // Returning to a width already visited must reproduce that width's
+    // geometry. A cached scale would make the second 600px render differ from
+    // the first, and nothing else in the chart would report it.
+    expect(widthsSeen[1]).toEqual(widthsSeen[3]);
+    // And the intermediate narrow pass must genuinely have been narrower —
+    // otherwise the loop proved only that nothing changed at all.
+    expect(widthsSeen[2]?.[0]).toBeLessThan(widthsSeen[1]?.[0] as number);
+    expectNoNaN(container, "path", ["d"]);
+    host.remove();
+  });
+
+  it("keeps the series in step with each other through a resize", async () => {
+    const { host, container } = mountSized("240px");
+
+    host.style.width = "560px";
+
+    // Both series share one x scale, so their x coordinates must be IDENTICAL
+    // at every index. A resize that updated one path's scale and not the other
+    // produces two charts in one frame, each individually plausible.
+    //
+    // The width check is NOT redundant with the agreement check, and leaving it
+    // out made this test worthless: if the resize never lands, both paths keep
+    // their old geometry and still agree perfectly. Mutating `createResize` to
+    // drop its updates left this passing until the width assertion was added —
+    // agreement is only meaningful once the resize is known to have happened.
+    await expect
+      .poll(() => {
+        const [a, b] = markPaths(container).map((p) => pathXs(p.getAttribute("d") ?? ""));
+        if (a === undefined || b === undefined || a.length === 0) return false;
+        const lastA = Math.round(a[a.length - 1] as number);
+        return a.join() === b.join() && lastA === 560;
+      })
+      .toBe(true);
+    host.remove();
   });
 });
