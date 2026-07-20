@@ -137,7 +137,6 @@ is always answerable and an excluded surface can be told from a forgotten one:
 
 | Surface | Why |
 |---|---|
-| Legend | not built |
 | Calendar week grid | not built; deferred to the calendar layout work |
 | Canvas substrate | not built; SVG is the only substrate today |
 | The HTML data alternative (`<table>`) | structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels re-tests text layout, where a screenshot gate is most brittle and least informative. Fixtures render without a `table` prop, so no table is in frame |

@@ -15,7 +15,35 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-series line and area charts.** `LineChart` and `AreaChart` accept a
+  `series` array alongside the single-series `data` prop, as a discriminated
+  pair — passing both is a compile error. One path per visible series,
+  per-series gap policy, a y domain over the union of visible series, and a data
+  alternative with one column per visible series. Public ADR-0008 settles the
+  contract; ADR-0009 settles default series colour.
+- **Caller formatters on the multi-series surface** — `xTickFormat`,
+  `yTickFormat`, `tableTimeFormat`, `tableValueFormat`, named for the surface
+  each reaches. Public ADR-0010.
+- **`<Legend>` in `@silkplot/solid`** — a standalone primitive over controlled
+  visibility, as a roving-tabindex toolbar: one tab stop whatever the series
+  count, arrows to move, Space/Enter to toggle, Tab always leaves. Swatches
+  carry a dash pattern as well as a colour, so series stay distinguishable
+  without hue. Public ADR-0011, which also sets a 24px interactive target floor.
+
+  **This supersedes the "One series per chart" known limitation recorded under
+  `0.2.0-next.1` below.** That entry is left as the accurate record of what
+  shipped in that release; multi-series and the legend are unreleased until the
+  next publish.
+
 ### Changed
+
+- **`seriesColorToken`, `seriesDashToken` and `SERIES_PALETTE_SIZE` moved from
+  `@silkplot/charts` to `@silkplot/core`**, so the legend in `@silkplot/solid`
+  and the marks in `@silkplot/charts` resolve a series' presentation from one
+  function. **The names are re-exported from `@silkplot/charts` unchanged**, so
+  no import breaks.
 
 - **The documentation site is now <https://silkplot.com>.** `homepage` in all
   six manifests, the README, and the screen-reader protocol point there. The

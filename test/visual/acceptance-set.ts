@@ -364,10 +364,15 @@ export const EXPECTED_TOTALS = {
  * surface from a forgotten one.
  */
 export const EXCLUSIONS: ReadonlyArray<{ surface: string; reason: string }> = [
-  {
-    surface: "Legend",
-    reason: "not built — the legend surface is planned work, and there is nothing to pin",
-  },
+  // The Legend was listed here as "not built" until 2026-07-20 and is now
+  // captured as its own surface — see `LEGEND_CASES` and `legend()` above. It is
+  // deliberately NOT re-listed as an exclusion, because it is no longer one.
+  //
+  // Worth stating why this went stale: the legend baselines were added to this
+  // same file without anyone revisiting the list below it, so the file asserted
+  // both "24 legend baselines" and "the legend has no baselines" at once. This
+  // list is the authority for "there is no baseline for X" — an entry left here
+  // after a surface ships is a confident wrong answer, not a harmless leftover.
   {
     surface: "Calendar week grid",
     reason: "not built — the calendar layout engine is deferred to a backlog item",

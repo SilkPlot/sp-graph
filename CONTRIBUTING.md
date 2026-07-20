@@ -114,7 +114,7 @@ checks has gone wrong before:
 | `npm run gate:visual-baselines` | A pinned screenshot changed without a recorded rationale. Re-pinning is a decision about what "correct" means, not a fix |
 | `npm run release:verify` | The packed tarballs fail outside the workspace: a manifest carrying tests or stale files, an internal dependency off the coordinated version, or an export condition pointing at source |
 | `npm run test:coverage` | Per-package coverage floors, chosen from observed runs rather than a round number |
-| `npm run probe:detection` | **The test suites have stopped detecting.** It applies eighteen known defects, asserts each one is caught, and restores. A refactor that guts a suite still reports green everywhere else — this is what notices |
+| `npm run probe:detection` | **The test suites have stopped detecting.** It applies twenty known defects, asserts each one is caught, and restores. A refactor that guts a suite still reports green everywhere else — this is what notices |
 
 `probe:detection` runs several full suites and is deliberately not on the per-push path. Run
 it after any substantial refactor of tests or the code they cover.
