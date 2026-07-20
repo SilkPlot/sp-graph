@@ -18,6 +18,10 @@ playground/vite.config.js
 playground/vite.config.js.map
 playground/vite.config.d.ts
 playground/vite.config.d.ts.map
+site/vite.config.js
+site/vite.config.js.map
+site/vite.config.d.ts
+site/vite.config.d.ts.map
 vitest.config.js
 vitest.config.js.map
 vitest.config.d.ts

@@ -720,8 +720,13 @@ function runProject(project, browser) {
  */
 function applyMutation(probe) {
   const before = readSource(probe.file);
-  writeSentinel(probe.file, before);
 
+  // Anchor validation happens BEFORE the sentinel is written, and the ordering
+  // matters in both directions. A stale-anchor probe never writes, so recording
+  // a sentinel for it would make the next run announce "a run was interrupted"
+  // about a file nothing touched — training the reader to dismiss the one alarm
+  // that actually means a live mutation. The sentinel still precedes the WRITE
+  // below, so there is no window in which a mutation exists without a record.
   const occurrences = before.split(probe.anchor).length - 1;
   if (occurrences === 0) {
     throw new BrokenProbe(
@@ -742,13 +747,32 @@ function applyMutation(probe) {
     );
   }
 
+  writeSentinel(probe.file, before);
   writeFileSync(abs(probe.file), before.replace(probe.anchor, probe.mutation), "utf8");
 
   // Re-read from disk. Trusting the write is exactly the assumption that made
   // three hand-run probes silently prove nothing.
   const after = readSource(probe.file);
+
+  /*
+    A `BrokenProbe` thrown from here used to LEAVE THE MUTATION LIVE.
+
+    The caller catches it, reports "BROKEN PROBE" and moves on — but it has no
+    backup to restore from, because `applyMutation` throws instead of returning
+    one. So the file stayed mutated for the rest of the run and past the end of
+    it, contradicting this file's own contract that every mutation is restored
+    from an in-memory backup.
+
+    `restore` verifies byte-identity and clears the sentinel, so routing these
+    two paths through it makes the contract true rather than merely documented.
+  */
+  const restoreAndThrow = (message) => {
+    restore(probe, before);
+    throw new BrokenProbe(message);
+  };
+
   if (after === before) {
-    throw new BrokenProbe(
+    restoreAndThrow(
       `mutation did not change ${probe.file}\n` +
         "    the file on disk is byte-identical after the write — the anchor and the\n" +
         "    replacement may be the same text, or something restored the file underneath.\n" +
@@ -756,7 +780,7 @@ function applyMutation(probe) {
     );
   }
   if (!after.includes(probe.mutation) && probe.mutation !== "") {
-    throw new BrokenProbe(
+    restoreAndThrow(
       `mutation text is absent from ${probe.file} after the write\n` +
         "    the file changed but not in the way the probe intended.\n" +
         "    remedy: check the probe's `mutation` for whitespace that the anchor does not carry",
@@ -899,6 +923,22 @@ const dirty = spawnSync("git", ["status", "--porcelain", "--", ...selected.map((
   cwd: repoRoot,
   encoding: "utf8",
 });
+// `git` failing is not "the tree is clean". Before 2026-07-20 only `stdout` was
+// inspected, so a missing binary, a non-repo cwd, or any spawn error left
+// `stdout` undefined, the check read as clean, and the harness went on to mutate
+// sources on top of whatever uncommitted work was there. This check is one of
+// the two things that caught a real live mutation; it must fail loud, not open.
+if (dirty.error !== undefined || dirty.status !== 0) {
+  console.error(
+    "Detection probes REFUSED to start — could not determine whether the tree is clean.\n\n" +
+      `  \`git status --porcelain\` ${dirty.error ? `failed: ${dirty.error.message}` : `exited ${dirty.status}`}\n` +
+      `  ${(dirty.stderr ?? "").trim()}\n\n` +
+      "  This harness mutates source files and restores them from an in-memory backup.\n" +
+      "  Starting without knowing the tree is clean risks backing up — and then\n" +
+      "  'restoring' — modified work into something it never was.\n",
+  );
+  process.exit(1);
+}
 if ((dirty.stdout ?? "").trim() !== "") {
   console.error(
     "Detection probes REFUSED to start — a source file a probe mutates is already modified:\n",

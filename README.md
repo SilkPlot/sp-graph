@@ -70,12 +70,13 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
 
-> **"Publish target" means intended, not done — nothing is on npm yet.** Packages
-> ship **TypeScript/TSX source** with a `"solid"` export condition, so `exports`
-> still point at `src` and cross-package deps pin `"*"`. Both have to change
-> before a tarball would work outside this workspace. Pre-publication manifests
-> also list permitted D3 modules that the package does not yet import; release
-> cleanup will trim each package to its actual dependencies.
+> **Published, as an alpha prerelease.** Each package serves two consumers from one
+> `exports` map: `source`/`solid` point at TypeScript source, so a Solid-aware
+> bundler compiles the JSX itself and fine-grained reactivity survives into your
+> app, while `default` serves compiled output with declarations alongside
+> (ADR-0006). Internal `@silkplot/*` dependencies are pinned to the exact
+> coordinated version, never a range — the release workflow refuses to publish if
+> any is off the candidate version. See **Install** below.
 
 ---
 
@@ -153,11 +154,13 @@ a later product slice.
 - **Phase 1 — Foundations.** `ChartRoot`, responsive measurement,
   Cartesian/time scales, continuous and band axes, line/area/bar/scatter marks,
   gridlines, presentation primitives, theming, and the current test harness are
-  built. The composed charts do not yet expose the demonstrated interaction
-  primitives.
+  built. The composed charts expose the keyboard model and the active-point
+  cursor; what they do not yet expose is POINTER hit-testing, which is listed as
+  outstanding below.
 - **Phase 2 — Operational Cartesian MVP and interaction.** Multi-series
   line/area composition, controlled legends, and installable packages are
-  **built**. Still outstanding: reference overlays, ranked bars, public
+  **built**, as are labelled reference overlays on either axis (ADR-0012). Still
+  outstanding: ranked bars, public
   hit-testing, shared tooltip/cursor state, pan, zoom, visible-range control,
   reset, responsive recovery, and representative workload qualification.
   Grouped and stacked bars remain a later evidence-gated extension.

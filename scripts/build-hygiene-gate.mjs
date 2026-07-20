@@ -37,6 +37,12 @@ const failures = [];
 /** Config roots where a source config must not be shadowed by generated output. */
 const configRoots = [
   { root: "playground", expected: "playground/vite.config.ts" },
+  // `site` was absent here until 2026-07-20 while being a first-class referenced
+  // project with its own `vite.config.ts`. A generated `site/vite.config.js`
+  // would have shadowed it and changed what the published documentation site is
+  // built from, with this gate reporting a clean pass — it only ever looked at
+  // the playground.
+  { root: "site", expected: "site/vite.config.ts" },
 ];
 
 for (const { root, expected } of configRoots) {
@@ -94,13 +100,32 @@ const filesUnder = (dir, base = dir) => {
 };
 
 const packagesDir = join(repoRoot, "packages");
+/**
+ * How many build artifacts this run actually inspected.
+ *
+ * Counted because the loop below `continue`s past a package with no `.tsbuild`
+ * directory, and a run where EVERY package is skipped used to print
+ * "every package .tsbuild artifact traces to existing source" over zero
+ * artifacts. That is a pass reporting a check that never happened — the exact
+ * shape this repository treats as worse than a failure, because it is
+ * indistinguishable from a real one.
+ *
+ * It is not hypothetical: `outDir` is set per package in
+ * `packages/*&#47;tsconfig.json`, so moving it off `.tsbuild` would silently
+ * exempt all five packages and leave this gate green forever.
+ */
+let inspected = 0;
+let packagesWithOutput = 0;
+
 for (const pkg of readdirSync(packagesDir, { withFileTypes: true })) {
   if (!pkg.isDirectory()) continue;
   const buildDir = join(packagesDir, pkg.name, ".tsbuild");
   const srcDir = join(packagesDir, pkg.name, "src");
   if (!existsSync(buildDir)) continue;
+  packagesWithOutput++;
 
   for (const emitted of filesUnder(buildDir)) {
+    inspected++;
     const suffix = emittedSuffixes.find((s) => emitted.endsWith(s));
     if (suffix === undefined) {
       failures.push(
@@ -131,5 +156,22 @@ if (failures.length > 0) {
 }
 
 console.log("Build hygiene gate passed:");
-console.log("  ✓ config-shadow — Vite resolves playground/vite.config.ts and nothing else");
-console.log("  ✓ stale-output  — every package .tsbuild artifact traces to existing source");
+console.log(
+  `  ✓ config-shadow — Vite resolves the TypeScript source and nothing else in ` +
+    `${configRoots.map((c) => c.root).join(", ")}`,
+);
+if (inspected === 0) {
+  // Reported rather than failed, because "no build output yet" is a legitimate
+  // state — a clean checkout, or a run before `npm run build`. What must never
+  // happen is this run CLAIMING the stale-output check passed. It did not run.
+  console.log(
+    "  – stale-output  — SKIPPED: no package .tsbuild output exists. This gate\n" +
+      "                    checked nothing here. Run `npm run build` first if you\n" +
+      "                    need that claim.",
+  );
+} else {
+  console.log(
+    `  ✓ stale-output  — ${inspected} artifact(s) across ${packagesWithOutput} package(s) ` +
+      "trace to existing source",
+  );
+}

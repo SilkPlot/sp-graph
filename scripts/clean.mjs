@@ -29,7 +29,12 @@ const packageDirs = readdirSync(join(repoRoot, "packages"), { withFileTypes: tru
   .map((entry) => `packages/${entry.name}`);
 
 /** Every workspace root that can hold build metadata or release staging. */
-const workspaceDirs = [".", ...packageDirs, "playground"];
+// `site` was MISSING here until 2026-07-20, which made this file's own header
+// claim ("remove every build-produced artifact in the repository") false for the
+// repository's public front door: `site/dist`, `site/.tsbuild` and
+// `site/tsconfig.tsbuildinfo` all survived a clean, so `npm run build:site` was
+// never a from-scratch build.
+const workspaceDirs = [".", ...packageDirs, "playground", "site"];
 
 /** Directories that are entirely build output. */
 const outputDirs = [
@@ -59,6 +64,10 @@ const sweeps = [
   // any other `vite.config.*` is emitted, and Vite's config search prefers the
   // JavaScript one, so leaving it here silently changes what the build does.
   { dir: "playground", match: (n) => /^vite\.config\.(?!ts$).+$/.test(n) },
+  // Same rule for the site. A generated `site/vite.config.js` would win Vite's
+  // config search and silently decide what the PUBLISHED documentation site is
+  // built from — the highest-consequence version of this defect in the repo.
+  { dir: "site", match: (n) => /^vite\.config\.(?!ts$).+$/.test(n) },
   { dir: ".", match: (n) => /^vitest\.config\.(?!ts$).+$/.test(n) },
 ];
 
