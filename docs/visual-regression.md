@@ -55,7 +55,14 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**136 baselines**: 120 geometry, 4 focus, 12 reduced-motion.
+**160 baselines**: 140 geometry, 8 focus, 12 reduced-motion.
+
+The **Legend** is captured as its own surface rather than as a fifth chart
+family. It has no data, no axes, and no y-domain policy, so the cases that
+distinguish it are density, layout, and which entries are hidden — plus a
+focused state, because the acceptance bar for a 22-entry legend is that it stays
+operable *without clipping focused items*, and a focus ring is a computed style
+no structural assertion reaches.
 
 The multi-series cases break the otherwise-uniform chart × case product, and
 that is a property of the library rather than an inconvenience: Bar and Scatter
@@ -312,6 +319,24 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-07-20 — legend--legend-four--light, legend--legend-four--dark, legend--legend-four--light-high-contrast, legend--legend-four--dark-high-contrast, legend--legend-22--light, legend--legend-22--dark, legend--legend-22--light-high-contrast, legend--legend-22--dark-high-contrast, legend--legend-22-narrow--light, legend--legend-22-narrow--dark, legend--legend-22-narrow--light-high-contrast, legend--legend-22-narrow--dark-high-contrast, legend--legend-stack-scroll--light, legend--legend-stack-scroll--dark, legend--legend-stack-scroll--light-high-contrast, legend--legend-stack-scroll--dark-high-contrast, legend--legend-some-hidden--light, legend--legend-some-hidden--dark, legend--legend-some-hidden--light-high-contrast, legend--legend-some-hidden--dark-high-contrast, legend--focus--light, legend--focus--dark, legend--focus--light-high-contrast, legend--focus--dark-high-contrast
+- **Why:** first pins for the Legend primitive — five cases across all four
+  scheme/contrast combinations, plus a focused state. ADDITIONS, not re-pins: no
+  existing baseline changed, verified with `git diff --cached --name-status`
+  (24 added, 0 modified) rather than inferred from this guard, which reports
+  added and changed together.
+- **Accepted by:** Adam Claassens. Scope of the visual check is stated rather
+  than implied: `legend--legend-22--light`, `legend--focus--dark`,
+  `legend--legend-some-hidden--light`, and `legend--legend-stack-scroll--light`
+  were opened and read as images — chosen because they carry the claims most
+  likely to be wrong (22 entries staying readable and dash-distinguishable at
+  density, a focus ring that is present and not clipped, a hidden entry that
+  dims AND hollows its swatch rather than encoding state by colour alone, and a
+  capped legend that scrolls rather than clipping). The remaining 20 are the
+  same four cases in the other theme combinations and were not opened
+  individually.
+
 
 ### 2026-07-20 — area--multi-22--dark, area--multi-22--dark-high-contrast, area--multi-22--light, area--multi-22--light-high-contrast, area--multi-22-narrow--dark, area--multi-22-narrow--dark-high-contrast, area--multi-22-narrow--light, area--multi-22-narrow--light-high-contrast, area--multi-four--dark, area--multi-four--dark-high-contrast, area--multi-four--light, area--multi-four--light-high-contrast, area--multi-four-reduced-motion--dark, area--multi-four-reduced-motion--light, area--multi-gaps--dark, area--multi-gaps--dark-high-contrast, area--multi-gaps--light, area--multi-gaps--light-high-contrast, area--multi-one--dark, area--multi-one--dark-high-contrast, area--multi-one--light, area--multi-one--light-high-contrast, line--multi-22--dark, line--multi-22--dark-high-contrast, line--multi-22--light, line--multi-22--light-high-contrast, line--multi-22-narrow--dark, line--multi-22-narrow--dark-high-contrast, line--multi-22-narrow--light, line--multi-22-narrow--light-high-contrast, line--multi-four--dark, line--multi-four--dark-high-contrast, line--multi-four--light, line--multi-four--light-high-contrast, line--multi-four-reduced-motion--dark, line--multi-four-reduced-motion--light, line--multi-gaps--dark, line--multi-gaps--dark-high-contrast, line--multi-gaps--light, line--multi-gaps--light-high-contrast, line--multi-one--dark, line--multi-one--dark-high-contrast, line--multi-one--light, line--multi-one--light-high-contrast
 - **Why:** first pins for the multi-series surface — five new cases on Line and

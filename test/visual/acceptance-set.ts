@@ -84,6 +84,28 @@ export const MULTI_CASES = [
 ] as const satisfies readonly Case[];
 export type MultiCase = (typeof MULTI_CASES)[number];
 
+/**
+ * The legend is a PRIMITIVE, not a chart family, and it gets its own axis here
+ * rather than being forced into the chart x case product.
+ *
+ * Adding it to `CHARTS` was the obvious move and is wrong: `CHARTS` means "the
+ * chart families the alpha ships", the focus map is keyed on it, and a legend
+ * has no data, no axes, and no y-domain policy. A separate surface keeps the
+ * chart product honest and lets the legend carry the cases that actually
+ * distinguish it — wrap versus stack, and the density where clipping starts.
+ */
+export const LEGEND_CASES = [
+  "legend-four",
+  "legend-22",
+  "legend-22-narrow",
+  "legend-stack-scroll",
+  "legend-some-hidden",
+] as const;
+export type LegendCase = (typeof LEGEND_CASES)[number];
+
+/** Everything a baseline can be captured of: the four charts, plus the legend. */
+export type Surface = Chart | "legend";
+
 /** Only these two compose the multi-series surface today. */
 export const MULTI_CHARTS = ["line", "area"] as const satisfies readonly Chart[];
 
@@ -132,8 +154,8 @@ export interface Viewport {
 export const DESKTOP_VIEWPORT: Viewport = { width: 1024, height: 768 };
 export const MOBILE_VIEWPORT: Viewport = { width: 390, height: 844 };
 
-export const viewportFor = (kase: Case): Viewport =>
-  kase === "responsive-mobile" || kase === "multi-22-narrow"
+export const viewportFor = (kase: Case | LegendCase): Viewport =>
+  kase === "responsive-mobile" || kase === "multi-22-narrow" || kase === "legend-22-narrow"
     ? MOBILE_VIEWPORT
     : DESKTOP_VIEWPORT;
 
@@ -169,9 +191,10 @@ export interface Baseline {
   /** Stable id; also the baseline file name (`<id>.png`). */
   id: string;
   kind: BaselineKind;
-  chart: Chart;
+  /** The chart family, or `legend` for the standalone primitive. */
+  chart: Surface;
   /** Focus and reduced-motion baselines are captured on the `default` case. */
-  case: Case;
+  case: Case | LegendCase;
   theme: ThemeState;
   reducedMotion: boolean;
   focus: boolean;
@@ -239,6 +262,41 @@ const multiReducedMotion = (): Baseline[] =>
     })),
   );
 
+/**
+ * The legend's own baselines.
+ *
+ * Its focus family exists for a reason the acceptance criteria name directly:
+ * a 22-entry legend must stay operable "without clipping focused items", and a
+ * focus ring drawn on the entry nearest a scroll edge is exactly where clipping
+ * shows up. That is a computed style under `:focus-visible`, so no structural
+ * assertion reaches it.
+ */
+const legend = (): Baseline[] =>
+  LEGEND_CASES.flatMap((kase) =>
+    THEME_STATES.map((theme) => ({
+      id: `legend--${kase}--${theme}`,
+      kind: "geometry" as const,
+      chart: "legend" as const,
+      case: kase,
+      theme,
+      reducedMotion: false,
+      focus: false,
+      viewport: viewportFor(kase),
+    })),
+  );
+
+const legendFocus = (): Baseline[] =>
+  THEME_STATES.map((theme) => ({
+    id: `legend--focus--${theme}`,
+    kind: "focus" as const,
+    chart: "legend" as const,
+    case: "legend-22" as const,
+    theme,
+    reducedMotion: false,
+    focus: true,
+    viewport: DESKTOP_VIEWPORT,
+  }));
+
 const focus = (): Baseline[] =>
   CHARTS.filter((chart) => FOCUSABLE[chart]).flatMap((chart) =>
     THEME_STATES.map((theme) => ({
@@ -270,7 +328,9 @@ const reducedMotion = (): Baseline[] =>
 export const ACCEPTANCE_SET: readonly Baseline[] = [
   ...geometry(),
   ...multiSeries(),
+  ...legend(),
   ...focus(),
+  ...legendFocus(),
   ...reducedMotion(),
   ...multiReducedMotion(),
 ];
@@ -282,17 +342,20 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  *
  * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
  * 2 multi-capable charts x 5 multi cases x 4 combinations =  40
- *                                              geometry   = 120
+ * 5 legend cases x 4 combinations                          =  20
+ *                                              geometry    = 140
  * 1 focusable chart x 4 scheme/contrast combinations       =   4
+ * the legend, focused, x 4 combinations                    =   4
+ *                                                 focus    =   8
  * 4 charts x 2 schemes, reduced motion                     =   8
  * 2 multi-capable charts x 2 schemes, reduced motion       =   4
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 120,
-  focus: 4,
+  geometry: 140,
+  focus: 8,
   "reduced-motion": 12,
-  all: 136,
+  all: 160,
 } as const;
 
 /**

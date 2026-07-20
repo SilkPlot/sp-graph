@@ -46,6 +46,19 @@ const openFixture = async (browser: Browser, baseline: Baseline): Promise<Page> 
   return page;
 };
 
+/**
+ * What receives focus on the first Tab, per surface.
+ *
+ * A chart's is its keyboard composite; the legend's is its first toolbar entry,
+ * because the legend IS a roving-tabindex toolbar and has no composite element
+ * of its own. Selecting the wrong one would report "not focused" and read as a
+ * broken focus model rather than a wrong selector.
+ */
+const focusTarget = (baseline: Baseline): string =>
+  baseline.chart === "legend"
+    ? "button[data-sp-legend-item][tabindex='0']"
+    : "[data-silkplot-keyboard-surface]";
+
 for (const baseline of ACCEPTANCE_SET) {
   test(baseline.id, async ({ browser }) => {
     const page = await openFixture(browser, baseline);
@@ -58,7 +71,7 @@ for (const baseline of ACCEPTANCE_SET) {
       // pinned as though it were correct.
       await page.keyboard.press("Tab");
 
-      await expect(page.locator("[data-silkplot-keyboard-surface]")).toBeFocused();
+      await expect(page.locator(focusTarget(baseline))).toBeFocused();
     }
 
     if (baseline.reducedMotion) {
@@ -89,7 +102,7 @@ for (const baseline of ACCEPTANCE_SET) {
       // without this check a ringless baseline could be pinned as correct and
       // every later run would agree with it.
       const outlineWidth = await page
-        .locator("[data-silkplot-keyboard-surface]")
+        .locator(focusTarget(baseline))
         .evaluate((el) => getComputedStyle(el).outlineWidth);
       expect(Number.parseFloat(outlineWidth)).toBeGreaterThanOrEqual(2);
     }
