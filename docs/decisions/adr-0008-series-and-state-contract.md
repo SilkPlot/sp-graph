@@ -264,6 +264,18 @@ instant question that resembles one.
 
 ### 10. Reference overlays participate in the domain by default
 
+> **The DEFAULT below stands. The PROP SHAPE this section declares, and its
+> behaviour under a dashboard scope, are superseded by
+> [ADR-0012](adr-0012-reference-overlays-on-both-axes.md).** `ReferenceValue` is
+> now a union over the axis a reference sits on — `{ value: number }` drawing
+> horizontally, `{ time: Date }` drawing vertically — because the same dashboard
+> that carries thresholds also marks deployments and incidents, which are
+> instants rather than values. And on the TIME axis the default below governs
+> the standalone domain only: inside a `<Dashboard>`, ADR-0007 §3's precedence
+> over the visible interval is total, so the scope wins and an out-of-scope
+> reference is clipped. The reasoning for the default itself, on the value axis,
+> is unchanged.
+
 ```ts
 references={[
   { id: "sla", value: 95, label: "SLA floor", includeInDomain: true },

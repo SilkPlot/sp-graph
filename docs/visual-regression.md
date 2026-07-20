@@ -50,12 +50,12 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 |---|---|
 | Charts | Line, Area, Bar, Scatter |
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
-| Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps` — **Line and Area only** |
+| Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps`, `multi-ref-one`, `multi-ref-three` — **Line and Area only** |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**160 baselines**: 140 geometry, 8 focus, 12 reduced-motion.
+**176 baselines**: 156 geometry, 8 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -318,6 +318,37 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-07-20 — line--multi-ref-one--light, line--multi-ref-one--dark, line--multi-ref-one--light-high-contrast, line--multi-ref-one--dark-high-contrast, line--multi-ref-three--light, line--multi-ref-three--dark, line--multi-ref-three--light-high-contrast, line--multi-ref-three--dark-high-contrast, area--multi-ref-one--light, area--multi-ref-one--dark, area--multi-ref-one--light-high-contrast, area--multi-ref-one--dark-high-contrast, area--multi-ref-three--light, area--multi-ref-three--dark, area--multi-ref-three--light-high-contrast, area--multi-ref-three--dark-high-contrast
+- **Why:** first pins for reference overlays (ADR-0008 §10) — two new cases on
+  Line and Area across all four scheme/contrast combinations. `multi-ref-one`
+  pins the `--sp-color-reference` token and the dash channel; `multi-ref-three`
+  pins LABEL COLLISION, which is the property no geometry assertion can see.
+  These are ADDITIONS, not re-pins: no existing baseline changed, verified with
+  `git diff --cached --name-status` (16 added, 0 modified) rather than inferred
+  from this guard, which reports added and changed together. That the overlay
+  disturbed nothing already pinned is itself the result worth recording — it is
+  what "additive at 0.x" (§12) looks like in pixels.
+- **Opened and read as images:** `line--multi-ref-three--light`,
+  `line--multi-ref-three--dark-high-contrast`,
+  `area--multi-ref-one--light-high-contrast`, and `area--multi-ref-three--dark`
+  — chosen because they carry the claims most likely to be wrong: that two
+  thresholds one unit apart separate their labels instead of overprinting, that
+  a temporal reference draws vertically with a top-anchored label, that the
+  reference stays legible and dash-distinguishable over dense area fills, and
+  that light-high-contrast does not lose the line among the black gridlines it
+  shares a colour with (it does not — the gridlines are solid and the reference
+  is dashed, which is the distinction the token comment predicts). The
+  remaining 12 are the same two cases in the other theme combinations and were
+  **not** opened individually.
+- **Accepted by:** Adam Claassens, on merge.
+
+  Stated plainly, because the previous two entries did not and it was raised
+  both times: this line records the MERGE decision, not an image review. The
+  four images named above were opened by the executing session, not by Adam.
+  Whether that is the right convention is an open question the P04 close put to
+  him and which he merged without changing — so it stands, and this is the
+  third time it has been written down.
 
 ### 2026-07-20 — legend--legend-four--light, legend--legend-four--dark, legend--legend-four--light-high-contrast, legend--legend-four--dark-high-contrast, legend--legend-22--light, legend--legend-22--dark, legend--legend-22--light-high-contrast, legend--legend-22--dark-high-contrast, legend--legend-22-narrow--light, legend--legend-22-narrow--dark, legend--legend-22-narrow--light-high-contrast, legend--legend-22-narrow--dark-high-contrast, legend--legend-stack-scroll--light, legend--legend-stack-scroll--dark, legend--legend-stack-scroll--light-high-contrast, legend--legend-stack-scroll--dark-high-contrast, legend--legend-some-hidden--light, legend--legend-some-hidden--dark, legend--legend-some-hidden--light-high-contrast, legend--legend-some-hidden--dark-high-contrast, legend--focus--light, legend--focus--dark, legend--focus--light-high-contrast, legend--focus--dark-high-contrast
 - **Why:** first pins for the Legend primitive — five cases across all four
