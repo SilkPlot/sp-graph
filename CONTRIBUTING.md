@@ -43,8 +43,9 @@ npm run perf:hover  # frame-budget measurement; needs `npm run dev` running
 - **Peer vs dep.** `solid-js` is a **peer dependency** of any package that exports Solid
   components. The chosen `d3-*` modules are **regular dependencies** of the package that
   imports them — mostly `@silkplot/core`, but `d3-scale-chromatic` belongs to
-  `@silkplot/theme`, where the palettes are. Existing pre-publication manifests
-  are intentionally broader until release cleanup narrows them to actual imports.
+  `@silkplot/theme`, where the palettes are. Each manifest declares exactly the modules its
+  package imports — verified, not assumed — so a new `d3-*` import means adding a real
+  dependency rather than finding it already permitted.
 - **Tokens, not imports.** A primitive reads `var(--sp-…)` with a fallback and never
   imports `@silkplot/theme`. See [ADR-0001](docs/decisions/adr-0001-theming-contract.md).
 - **ESM-first.** Coarse subpath `exports`; no umbrella `d3` import.

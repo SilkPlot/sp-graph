@@ -2,7 +2,7 @@
 /**
  * The visual-baseline guard.
  *
- * `test/visual/baselines/` holds 92 pinned PNGs, and one command re-pins all of
+ * `test/visual/baselines/` holds the pinned PNGs, and one command re-pins all of
  * them. `docs/visual-regression.md` already says the right thing — that
  * `--update-snapshots` is a decision about what "correct" means and not a fix,
  * and that a green suite afterwards is a tautology rather than evidence. Nothing

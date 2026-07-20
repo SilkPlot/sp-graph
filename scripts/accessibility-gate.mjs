@@ -167,9 +167,46 @@ const vitestConfig = read("vitest.config.ts");
 if (vitestConfig === undefined) {
   fail("vitest.config.ts not found — cannot verify the accessibility suites are reachable");
 } else {
-  for (const project of new Set(SUITES.map((s) => s.project))) {
-    if (!vitestConfig.includes(`"${project}"`)) {
-      fail(`Vitest project "${project}" is not defined in vitest.config.ts`);
+  /*
+    Scoped to the `projects: [...]` block, not the whole file.
+
+    A bare `vitestConfig.includes('"solid"')` is very nearly a tautology: the
+    string `"solid"` also appears in `resolve.conditions`, so the `solid`
+    project could be deleted from `projects: []` outright and this check would
+    still pass — reporting the accessibility suites reachable when Vitest would
+    never run them.
+  */
+  const projectsAt = vitestConfig.indexOf("projects: [");
+  if (projectsAt === -1) {
+    fail(
+      "could not find `projects: [` in vitest.config.ts — the reachability of every " +
+        "accessibility suite is unverifiable, and an unverifiable check must not pass",
+    );
+  } else {
+    const projectsBlock = vitestConfig.slice(projectsAt);
+
+    /*
+      Project NAMES, read from the two positions that actually declare one:
+      an inline `name: "x"`, and the first argument of the `browserProject`
+      helpers. Substring matching is not good enough here, and the reason is
+      concrete: `browserProject("solid", "solid")` repeats the string as the
+      DIRECTORY argument, so a search for `"solid"` anywhere in the block still
+      succeeds after the project has been renamed out of existence. Scoping to
+      the block removed the `resolve.conditions` false match; this removes the
+      one the helper's own second argument creates.
+    */
+    const declaredNames = new Set([
+      ...[...projectsBlock.matchAll(/name:\s*"([^"]+)"/g)].map((m) => m[1]),
+      ...[...projectsBlock.matchAll(/browserProject(?:In)?\(\s*"([^"]+)"/g)].map((m) => m[1]),
+    ]);
+
+    for (const project of new Set(SUITES.map((s) => s.project))) {
+      if (!declaredNames.has(project)) {
+        fail(
+          `Vitest project "${project}" is not defined in vitest.config.ts — ` +
+            `declared projects are: ${[...declaredNames].join(", ") || "(none)"}`,
+        );
+      }
     }
   }
   // Anything rendering Solid, resolving a computed style, or dispatching a real

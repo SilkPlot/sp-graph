@@ -189,12 +189,22 @@ cannot invent. `rows` is optional — omit it and rows are derived from the same
 unambiguous and locale-independent; anything friendlier is domain wording, so
 pass `rows` for it.
 
-The table renders **visible by default**, as a following sibling of the chart's
-measured box in normal document flow. That is deliberate. Sighted users
-frequently prefer rows and columns, and a screen-reader-only table is a
-last-resort progressive enhancement rather than the ideal. Position it with your
-own CSS; find it at `[data-silkplot-alternative]`. `tableHidden` clips it to
-assistive technology only — reach for that last.
+The table ships **collapsed behind a "Show data table" disclosure**, as a
+following sibling of the chart's measured box in normal document flow, together
+with a "Download CSV" control. Both are on by default and are turned off with
+`disclosure={false}` and `exportable={false}`.
+
+Collapsed is not hidden, and the distinction is the whole point: the table is
+clipped rather than `display: none`, so it never leaves the accessibility tree —
+a screen-reader user reaches the same rows whether or not the disclosure has
+been operated. Sighted users frequently prefer rows and columns too, which is
+why the control is offered to everyone rather than the table being
+screen-reader-only; a screen-reader-only table is a last-resort progressive
+enhancement rather than the ideal.
+
+Position it with your own CSS; find it at `[data-silkplot-alternative]`.
+`tableHidden` clips the whole thing to assistive technology only — reach for
+that last.
 
 ---
 

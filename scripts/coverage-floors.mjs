@@ -46,7 +46,20 @@
  * that nobody "fixes" them with a test that asserts a stub.
  */
 
-/** Uncovered on purpose, with the reason. Printed by the gate; never quietly ignored. */
+/**
+ * Uncovered on purpose, with the reason.
+ *
+ * This said "Printed by the gate; never quietly ignored" while being imported by
+ * nothing — the record existed and no path surfaced it, which is the condition
+ * the sentence claimed to prevent. Rather than delete a genuinely useful record
+ * or leave a false claim attached to it, the file is now runnable:
+ *
+ *   node scripts/coverage-floors.mjs
+ *
+ * prints the floors and every documented exclusion. `vitest.config.ts` imports
+ * `COVERAGE_FLOORS` from here as before, so there is still one source of truth
+ * for the numbers themselves.
+ */
 export const DOCUMENTED_EXCLUSIONS = [
   {
     file: "packages/solid/src/createResize.ts",
@@ -82,3 +95,28 @@ export const COVERAGE_FLOORS = {
   // rest, and until then a zero here is a true statement.
   "packages/calendar/src/**": { statements: 0, branches: 0, functions: 0, lines: 0 },
 };
+
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Run directly to print what is floored and what is deliberately uncovered.
+ *
+ * Guarded on `process.argv[1]` so importing this module — which
+ * `vitest.config.ts` does on every run — stays silent. A config import that
+ * printed a report would put this text in front of every test run until
+ * somebody removed it to quiet the noise, taking the record with it.
+ */
+if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop())) {
+  console.log("Coverage floors (scripts/coverage-floors.mjs):\n");
+  for (const [glob, floor] of Object.entries(COVERAGE_FLOORS)) {
+    const parts = Object.entries(floor)
+      .map(([metric, value]) => `${metric} ${value}%`)
+      .join(", ");
+    console.log(`  ${glob}\n      ${parts}`);
+  }
+  console.log("\nDocumented exclusions — uncovered on purpose:\n");
+  for (const exclusion of DOCUMENTED_EXCLUSIONS) {
+    console.log(`  ${exclusion.file}:${exclusion.lines}`);
+    console.log(`      ${exclusion.reason}\n`);
+  }
+}
