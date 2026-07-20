@@ -107,6 +107,20 @@ export type {
   Domain,
 } from "./series";
 
+// The ranked categorical model — the categorical analogue of the series model.
+// Separate from `series.ts` because a category has no instant and a ranked chart
+// has no gap policy, so folding them together would mean one model carrying two
+// sets of fields half of which are always absent. It deliberately shares the
+// DIAGNOSTIC channel (`SeriesIssue`) and the `DatumState` vocabulary, so a caller
+// wires one `onIssue` and reads one set of state names across both surfaces.
+export { normalizeCategories, rankedDomainOf } from "./ranked";
+export type {
+  RankedCategory,
+  NormalizedCategory,
+  RankedModel,
+  NormalizeCategoriesOptions,
+} from "./ranked";
+
 // Reference overlays — ADR-0008 §10. Kept beside the series model rather than
 // inside it: a reference is not a series, and one that reached the legend, the
 // derived table, or the visible-series domain would be a measurement nobody took.

@@ -96,15 +96,32 @@ export interface CartesianModelSpec<T, X extends AxisScale> {
   };
 }
 
-export interface CartesianModel<X extends AxisScale> {
+/**
+ * A resolved pair of axis scales plus the bounds they were built for.
+ *
+ * Split out from `CartesianModel` so a frame can accept a model whose Y is NOT
+ * linear. That is not hypothetical: horizontal ranked bars put the BAND scale on
+ * y and the linear value scale on x, which the old fixed-`ScaleLinear` y made
+ * unrepresentable. Nothing about the axis POSITIONS changes — the frame still
+ * draws y on the left and x on the bottom — only which kind of scale each one
+ * receives.
+ *
+ * `CartesianModel<X>` remains exactly what it was, as the y-is-linear
+ * instantiation, so every existing caller and every existing inference site is
+ * unaffected.
+ */
+export interface AxisPairModel<XS extends AxisScale, YS extends AxisScale> {
   bounds: Accessor<ChartBounds>;
-  x: Accessor<X>;
-  // `ScaleLinear` is d3's own generic; the pixel-mapping instantiation is what
-  // `linearScale` returns.
-  y: Accessor<ScaleLinear<number, number>>;
+  x: Accessor<XS>;
+  y: Accessor<YS>;
   /** False when the drawing area has collapsed — nothing can be drawn. */
   hasArea: Accessor<boolean>;
 }
+
+// `ScaleLinear` is d3's own generic; the pixel-mapping instantiation is what
+// `linearScale` returns.
+export interface CartesianModel<X extends AxisScale>
+  extends AxisPairModel<X, ScaleLinear<number, number>> {}
 
 /**
  * Resolve bounds and scales for a cartesian chart. Must be called inside a

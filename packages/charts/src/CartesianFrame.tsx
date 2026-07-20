@@ -15,25 +15,34 @@
  * chart could ever reach — the chain was broken here and nowhere else.
  */
 import { Show, type JSX } from "solid-js";
+import type { ScaleLinear } from "@silkplot/core";
 import {
   SvgLayer,
   Axis,
   Gridlines,
+  type AxisPairModel,
   type AxisScale,
-  type CartesianModel,
   type ChartSemantics,
   type TickFormat,
 } from "@silkplot/solid";
 import type { CartesianChartProps } from "./scaffold";
 
-export interface CartesianFrameProps<X extends AxisScale> {
+export interface CartesianFrameProps<
+  XS extends AxisScale,
+  YS extends AxisScale = ScaleLinear<number, number>,
+> {
   /**
    * The resolved model. Taken whole rather than as unpacked `x`/`y`/`hasArea`
    * props because all three come from the same object at every call site, and
    * three separate props are three chances to hand one chart's scale to another
    * chart's axis. The frame reads them through accessors, so it stays reactive.
+   *
+   * Typed on the axis PAIR rather than on `CartesianModel`, so a model whose y
+   * is a band scale — horizontal ranked bars — is expressible. `YS` defaults to
+   * linear, which is what `CartesianModel<X>` instantiates, so every existing
+   * call site infers exactly as it did before.
    */
-  model: CartesianModel<X>;
+  model: AxisPairModel<XS, YS>;
   /**
    * The chart's own props, read through for `gridlines` and `class`. The live
    * props object, not copied values, so each read stays tracked.
@@ -56,8 +65,11 @@ export interface CartesianFrameProps<X extends AxisScale> {
   children?: JSX.Element;
 }
 
-export const CartesianFrame = <X extends AxisScale>(
-  props: CartesianFrameProps<X>,
+export const CartesianFrame = <
+  XS extends AxisScale,
+  YS extends AxisScale = ScaleLinear<number, number>,
+>(
+  props: CartesianFrameProps<XS, YS>,
 ): JSX.Element => {
   const sem = (): ChartSemantics => props.semantics;
 

@@ -82,10 +82,21 @@ export type { AxisScale, TickRequest, TickFormat } from "./scale-ticks";
 
 export { createCartesianModel, applyYDomainPolicy } from "./createCartesianModel";
 export type {
+  AxisPairModel,
   CartesianModel,
   CartesianModelSpec,
   YDomainPolicy,
 } from "./createCartesianModel";
+
+// The ranked categorical model. A sibling of `createCartesianModel` rather than
+// an orientation flag inside it — three charts compose that one, and none of
+// them has an axis to swap. See the module note for the two vocabularies.
+export { createRankedModel } from "./createRankedModel";
+export type {
+  RankedModel,
+  RankedModelSpec,
+  RankedOrientation,
+} from "./createRankedModel";
 
 // The reactive face of ADR-0008's series normalisation. One memo, so every
 // consumer reads the same model rather than an independent normalisation.
