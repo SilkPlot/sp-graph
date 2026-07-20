@@ -207,8 +207,8 @@ const PROBES = [
     breaks:
       "a bar's height is a magnitude — take the raw difference instead and every bar below the " +
       "baseline gets a negative height, which SVG discards without complaint",
-    anchor: "height={Math.abs(yVal() - y0())}",
-    mutation: "height={yVal() - y0()}",
+    anchor: "height={Math.abs(at() - zero())}",
+    mutation: "height={at() - zero()}",
     failingIn: [
       "packages/charts/test/BarChart.test.tsx",
       "packages/charts/test/BarChart-reactive.test.tsx",
@@ -216,6 +216,54 @@ const PROBES = [
     minFailures: 7,
     observed: "7 failures, e.g. “expected -103.08 to be greater than or equal to 0”",
     messagePattern: /to be greater than or equal to 0/,
+  },
+  {
+    id: "bar-horizontal-baseline",
+    file: "packages/charts/src/BarChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the HORIZONTAL mirror of the negative-bar defect. A bar's width is a magnitude too - take " +
+      "the raw difference and every bar left of the baseline gets a negative width, which SVG " +
+      "discards silently. Separate from bar-negative-height because the two orientations are " +
+      "separate branches: fixing one has never fixed the other",
+    anchor: "width={Math.abs(at() - zero())}",
+    mutation: "width={at() - zero()}",
+    failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
+    minFailures: 1,
+    observed: "pending first full run",
+    messagePattern: /to be greater than 0/,
+  },
+  {
+    id: "bar-label-truncation",
+    file: "packages/charts/src/BarChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "returning every label untruncated. The axis then renders the full text, which on a crowded " +
+      "categorical axis collides into an unreadable smear - the picture this default exists to bound",
+    anchor: "return label.length > DEFAULT_LABEL_MAX_CHARS",
+    mutation: "return false && label.length > DEFAULT_LABEL_MAX_CHARS",
+    failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
+    minFailures: 1,
+    observed: "pending first full run",
+    messagePattern: /to contain/,
+  },
+  {
+    id: "ranked-identity-by-label",
+    file: "packages/core/src/ranked.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "building the band domain from LABELS instead of ids. Two categories sharing display text " +
+      "then collapse into one band slot and stack their bars - precisely the failure that " +
+      "caller-supplied identity exists to prevent, and it renders without error",
+    anchor: "bandDomain: categories.map((c) => c.id),",
+    mutation: "bandDomain: categories.map((c) => c.label),",
+    failingIn: ["packages/core/test/ranked.test.ts"],
+    minFailures: 1,
+    observed: "pending first full run",
+    messagePattern: /to equal|to be 2/,
   },
   {
     id: "extent-finite-guard",
