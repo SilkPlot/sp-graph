@@ -246,48 +246,27 @@ function filesIn(project) {
   );
 }
 
-function main() {
+/** Refuse rather than pass over files `git ls-files` cannot see. */
+function refuseOnUntracked() {
   // Same blind spot as gate:public-surface, gate:duplication-scope and
-  // gate:stated-facts, handled the same way: refuse rather than pass over what
-  // cannot be seen.
+  // gate:stated-facts, handled the same way.
   const untracked = sh("git", ["ls-files", "--others", "--exclude-standard"])
     .split("\n")
     .filter((f) => /\.tsx?$/.test(f));
+  if (untracked.length === 0) return;
 
-  if (untracked.length > 0) {
-    console.error(
-      "Typecheck-coverage gate REFUSED to run — untracked TypeScript files:\n\n" +
-        untracked.map((f) => `  ?? ${f}`).join("\n") +
-        "\n\n  This gate reads `git ls-files`, so it cannot see these. Reporting a clean\n" +
-        "  pass over files it never opened is exactly the failure it exists to prevent.\n" +
-        "  remedy: `git add` these files, then re-run.",
-    );
-    process.exit(1);
-  }
+  console.error(
+    "Typecheck-coverage gate REFUSED to run — untracked TypeScript files:\n\n" +
+      untracked.map((f) => `  ?? ${f}`).join("\n") +
+      "\n\n  This gate reads `git ls-files`, so it cannot see these. Reporting a clean\n" +
+      "  pass over files it never opened is exactly the failure it exists to prevent.\n" +
+      "  remedy: `git add` these files, then re-run.",
+  );
+  process.exit(1);
+}
 
-  const tracked = sh("git", ["ls-files"])
-    .split("\n")
-    .filter((f) => /\.tsx?$/.test(f) && !f.includes("node_modules"));
-
-  const projects = declaredProjects().flatMap((p) => expand(p));
-  const covered = new Set();
-  for (const project of projects) for (const f of filesIn(project)) covered.add(f);
-
-  const uncovered = tracked.filter((f) => !covered.has(f) && !EXEMPT.has(f));
-
-  // An exemption for a file that no longer exists is a stale justification, and
-  // stale justifications are how an allowlist becomes a place things hide.
-  const staleExemptions = [...EXEMPT.keys()].filter((f) => !tracked.includes(f));
-
-  if (uncovered.length === 0 && staleExemptions.length === 0) {
-    console.log(
-      `Typecheck coverage: ${tracked.length} tracked TS files, ` +
-        `all covered by ${projects.length} project(s)` +
-        (EXEMPT.size > 0 ? `, ${EXEMPT.size} exempt by name.` : "."),
-    );
-    return;
-  }
-
+/** Report files in no project, and exemptions whose file is gone. */
+function report(uncovered, staleExemptions) {
   if (uncovered.length > 0) {
     console.error(
       `Typecheck-coverage gate FAILED — ${uncovered.length} file(s) are in no project:\n`,
@@ -314,7 +293,35 @@ function main() {
         "  is where a real gap eventually goes unnoticed.",
     );
   }
+}
 
+function main() {
+  refuseOnUntracked();
+
+  const tracked = sh("git", ["ls-files"])
+    .split("\n")
+    .filter((f) => /\.tsx?$/.test(f) && !f.includes("node_modules"));
+
+  const projects = declaredProjects().flatMap((p) => expand(p));
+  const covered = new Set();
+  for (const project of projects) for (const f of filesIn(project)) covered.add(f);
+
+  const uncovered = tracked.filter((f) => !covered.has(f) && !EXEMPT.has(f));
+
+  // An exemption for a file that no longer exists is a stale justification, and
+  // stale justifications are how an allowlist becomes a place things hide.
+  const staleExemptions = [...EXEMPT.keys()].filter((f) => !tracked.includes(f));
+
+  if (uncovered.length === 0 && staleExemptions.length === 0) {
+    console.log(
+      `Typecheck coverage: ${tracked.length} tracked TS files, ` +
+        `all covered by ${projects.length} project(s)` +
+        (EXEMPT.size > 0 ? `, ${EXEMPT.size} exempt by name.` : "."),
+    );
+    return;
+  }
+
+  report(uncovered, staleExemptions);
   process.exit(1);
 }
 

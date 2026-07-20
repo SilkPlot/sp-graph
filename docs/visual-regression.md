@@ -173,16 +173,30 @@ tolerance would have to be picked without evidence, and a tolerance large enough
 to absorb real jitter is also large enough to absorb a one-pixel stroke
 regression — one of the two defects this harness exists to catch.
 
-### Known gap: the harness is not typechecked
+### Closed gap: the harness is now typechecked
 
-`npm run typecheck` does not cover `test/visual/`. Playwright transpiles
-TypeScript without typechecking it, and wiring a `tsconfig` here needs
-`@types/node` (the suite reads the baselines directory from disk) plus an entry
-in the root `typecheck:tests` script. Neither is in place.
+**This was a real gap until 2026-07-20 and is kept here as the record of what it
+cost.** `npm run typecheck` did not cover `test/visual/` at all — the Playwright
+specs, the acceptance set the whole harness answers to, and the Solid fixture
+page had never been typechecked. The entry that stood here reasoned that the
+exposure was small because every file runs on every run, so a type error would
+surface as a failing run.
 
-The practical exposure is small — every file in the suite is executed on every
-run, so a type error surfaces immediately as a failing run rather than shipping
-— but it is a real gap and it is recorded rather than left to be discovered.
+That reasoning was wrong in a specific way. A missing import in the fixture app
+did not surface as a type error; it surfaced as **sixteen consecutive
+30-second Playwright timeouts** during a baseline capture, which reads like a
+rendering regression rather than a one-line mistake. Wiring the directory up
+immediately found two more problems nobody suspected: two untyped node imports
+and three implicit-`any` parameters.
+
+`test/visual/tsconfig.json` now exists and `typecheck:tests` runs it.
+`@types/node` was NOT added — this workspace deliberately has none, so the three
+node builtins the harness uses are declared locally in `node-builtins.d.ts`, the
+same idiom `packages/core/src/build-env.ts` uses for `process`. `vite.config.ts`
+is excluded by name.
+
+`gate:typecheck-coverage` now fails if any tracked TypeScript file sits in no
+project, so a directory cannot go unchecked this way again.
 
 ### Baselines are pinned to one environment
 
