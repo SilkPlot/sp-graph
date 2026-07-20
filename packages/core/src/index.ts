@@ -109,11 +109,16 @@ export type {
 
 // Per-series presentation — which colour and dash token series `i` gets.
 //
-// Moved here from `charts` in S006-P04, because the Legend lives in `solid` and
-// `solid` cannot import from `charts`. A legend swatch that disagrees with its
-// own mark is the defect this move prevents structurally: one function, one
-// answer, and a standing probe mutates THIS file while asserting both packages
-// go red. `charts` re-exports the public names unchanged.
+// Moved here from `charts`, because the Legend lives in `solid` and `solid`
+// cannot import from `charts`. A legend swatch that disagrees with its own mark
+// is the defect this move prevents structurally: one function, one answer.
+// `charts` re-exports the public names unchanged.
+//
+// Note what that structure means for testing, because it is counter-intuitive
+// and was learned by getting it wrong: mutating THIS file cannot prove the two
+// consumers are coupled. A change here moves the swatch and the mark together,
+// so they stay equal and the seam test stays green — correctly. The standing
+// probe therefore breaks ONE consumer (the legend's own palette index) instead.
 export {
   SERIES_DASH_COUNT,
   SERIES_PALETTE_SIZE,
