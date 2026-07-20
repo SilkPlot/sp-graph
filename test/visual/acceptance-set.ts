@@ -43,8 +43,49 @@ export const CASES = [
   "negative",
   "dense-label",
   "responsive-mobile",
+  "multi-one",
+  "multi-four",
+  "multi-22",
+  "multi-22-narrow",
+  "multi-gaps",
 ] as const;
 export type Case = (typeof CASES)[number];
+
+/**
+ * The multi-series cases (ADR-0008), and the charts that can render them.
+ *
+ * These break the otherwise-uniform chart x case cross product, and that is a
+ * property of the library rather than an inconvenience: `bar` and `scatter`
+ * have no multi-series surface, so a bar+multi baseline would be a picture of
+ * nothing under a confident name. They are generated separately below and the
+ * frozen totals account for them separately.
+ *
+ * - `multi-one` — one series through the `series` API. NOT redundant with
+ *   `default`, which goes through the single-series `data` prop and a different
+ *   code path; §12 promises both stay supported, so both are pinned.
+ * - `multi-four` — four same-unit series, the ordinary operational shape.
+ * - `multi-22` — the density ADR-0008 names, and the case that exercises
+ *   palette WRAP. Colours repeat beyond the palette size by design (ADR-0009),
+ *   so this is where a wrap becoming a collision, or the dash channel being
+ *   dropped, would show.
+ * - `multi-22-narrow` — the same twenty-two in a fluid narrow box, where the
+ *   measured-bounds path runs at a size the desktop cases never reach.
+ * - `multi-gaps` — four series each carrying a null at a different index, under
+ *   both gap policies. A null coerced to zero draws a spike to the baseline,
+ *   which is a picture rather than an error and passes every path-counting
+ *   assertion.
+ */
+export const MULTI_CASES = [
+  "multi-one",
+  "multi-four",
+  "multi-22",
+  "multi-22-narrow",
+  "multi-gaps",
+] as const satisfies readonly Case[];
+export type MultiCase = (typeof MULTI_CASES)[number];
+
+/** Only these two compose the multi-series surface today. */
+export const MULTI_CHARTS = ["line", "area"] as const satisfies readonly Chart[];
 
 /**
  * The four scheme x contrast combinations.
@@ -92,7 +133,9 @@ export const DESKTOP_VIEWPORT: Viewport = { width: 1024, height: 768 };
 export const MOBILE_VIEWPORT: Viewport = { width: 390, height: 844 };
 
 export const viewportFor = (kase: Case): Viewport =>
-  kase === "responsive-mobile" ? MOBILE_VIEWPORT : DESKTOP_VIEWPORT;
+  kase === "responsive-mobile" || kase === "multi-22-narrow"
+    ? MOBILE_VIEWPORT
+    : DESKTOP_VIEWPORT;
 
 /**
  * Which charts own a focus stop, and why the others do not.
@@ -135,9 +178,13 @@ export interface Baseline {
   viewport: Viewport;
 }
 
+const isMultiCase = (kase: Case): kase is MultiCase =>
+  (MULTI_CASES as readonly Case[]).includes(kase);
+
+/** The uniform product: every chart x every NON-multi case x every theme. */
 const geometry = (): Baseline[] =>
   CHARTS.flatMap((chart) =>
-    CASES.flatMap((kase) =>
+    CASES.filter((kase) => !isMultiCase(kase)).flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -149,6 +196,47 @@ const geometry = (): Baseline[] =>
         viewport: viewportFor(kase),
       })),
     ),
+  );
+
+/**
+ * The multi-series product, kept apart because it is not uniform: only `line`
+ * and `area` compose the surface, so this is two charts rather than four.
+ */
+const multiSeries = (): Baseline[] =>
+  MULTI_CHARTS.flatMap((chart) =>
+    MULTI_CASES.flatMap((kase) =>
+      THEME_STATES.map((theme) => ({
+        id: `${chart}--${kase}--${theme}`,
+        kind: "geometry" as const,
+        chart,
+        case: kase,
+        theme,
+        reducedMotion: false,
+        focus: false,
+        viewport: viewportFor(kase),
+      })),
+    ),
+  );
+
+/**
+ * Reduced motion over the multi-series surface, on `multi-four` only.
+ *
+ * One case rather than all five: reduced motion is a global preference and the
+ * chart honours it identically whatever the series count, so capturing it five
+ * times would pin the same claim five ways. `multi-four` is the ordinary shape.
+ */
+const multiReducedMotion = (): Baseline[] =>
+  MULTI_CHARTS.flatMap((chart) =>
+    MOTION_THEME_STATES.map((theme) => ({
+      id: `${chart}--multi-four-reduced-motion--${theme}`,
+      kind: "reduced-motion" as const,
+      chart,
+      case: "multi-four" as const,
+      theme,
+      reducedMotion: true,
+      focus: false,
+      viewport: DESKTOP_VIEWPORT,
+    })),
   );
 
 const focus = (): Baseline[] =>
@@ -181,8 +269,10 @@ const reducedMotion = (): Baseline[] =>
 
 export const ACCEPTANCE_SET: readonly Baseline[] = [
   ...geometry(),
+  ...multiSeries(),
   ...focus(),
   ...reducedMotion(),
+  ...multiReducedMotion(),
 ];
 
 /**
@@ -190,15 +280,19 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  * time — deriving both sides of a check from the same source proves only that
  * the source is self-consistent, which it always is.
  *
- * 4 charts x 5 cases x 4 scheme/contrast combinations = 80
- * 1 focusable chart x 4 scheme/contrast combinations  =  4
- * 4 charts x 2 schemes, reduced motion                =  8
+ * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
+ * 2 multi-capable charts x 5 multi cases x 4 combinations =  40
+ *                                              geometry   = 120
+ * 1 focusable chart x 4 scheme/contrast combinations       =   4
+ * 4 charts x 2 schemes, reduced motion                     =   8
+ * 2 multi-capable charts x 2 schemes, reduced motion       =   4
+ *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 80,
+  geometry: 120,
   focus: 4,
-  "reduced-motion": 8,
-  all: 92,
+  "reduced-motion": 12,
+  all: 136,
 } as const;
 
 /**
