@@ -84,6 +84,29 @@ const REQUIRED_CI_SCRIPT = "npm run gate:visual-baselines";
 const ENTRY_HEADING = /^###\s+(\d{4}-\d{2}-\d{2})\s+[—-]\s+(.+?)\s*$/;
 const WHY_LINE = /^-\s+\*\*Why:\*\*\s*(.+?)\s*$/;
 const ACCEPTED_LINE = /^-\s+\*\*Accepted by:\*\*\s*(.+?)\s*$/;
+/**
+ * Who actually opened the images, and over what scope.
+ *
+ * A separate field from `Accepted by:` because the two are different acts, and
+ * merging them produced a false record four times across three phases: an agent
+ * generated and sampled the images, and the repository owner's name went on the
+ * inspection.
+ *
+ * The vocabulary is the Linux kernel's rather than invented. `Accepted by:` is
+ * semantically an **Acked-by** — "maintainers may use it to signify that they
+ * are OK with a patch landing, but they may not have reviewed it as thoroughly",
+ * and explicitly "does not necessarily indicate acknowledgement of the entire
+ * patch". `Inspected by:` is the **Tested-by** analogue, which attests to an
+ * empirical check while hedging its extent ("in some environment"). The `#`
+ * scope suffix is the kernel's own idiom, as in
+ * `Acked-by: A Stakeholder <a@example.org> # As primary user`.
+ *
+ * The kernel's rule for machine contributors is followed too: a tool may be
+ * NAMED for what it did (`Assisted-by: AGENT:MODEL_VERSION`) but may not sign
+ * off, because only a human can carry responsibility. So an agent can appear
+ * here, in `Inspected by:`, and never in `Accepted by:`.
+ */
+const INSPECTED_LINE = /^-\s+\*\*Inspected by:\*\*\s*(.+?)\s*$/;
 
 /** Rejected as an accepter: they attribute the decision to nobody. */
 const NOT_A_NAME = /^(?:tbd|n\/?a|me|self|us|team|someone|anyone|\?+|x+|-+)$/i;
@@ -312,6 +335,7 @@ function addedLedgerEntries() {
           .filter(Boolean),
         why: undefined,
         acceptedBy: undefined,
+        inspectedBy: undefined,
       };
       entries.push(current);
       continue;
@@ -321,6 +345,8 @@ function addedLedgerEntries() {
     if (why) current.why = why[1];
     const accepted = line.match(ACCEPTED_LINE);
     if (accepted) current.acceptedBy = accepted[1];
+    const inspected = line.match(INSPECTED_LINE);
+    if (inspected) current.inspectedBy = inspected[1];
   }
   return entries;
 }
@@ -383,6 +409,27 @@ for (const entry of entries) {
         "    a baseline change is accepted by a person who looked at the rendered\n" +
         "    before/after, not by the suite going green again — which it always does\n" +
         "    remedy: add `- **Accepted by:** <name>` under the heading",
+    );
+  }
+  if (entry.inspectedBy === undefined || NOT_A_NAME.test(entry.inspectedBy)) {
+    fail(
+      `change-log entry \`${label}\` has no named inspector\n` +
+        "    `Accepted by:` records who AUTHORISED the change to land; it does not record\n" +
+        "    who opened the images. Conflating them put a person's name on an inspection\n" +
+        "    they had not performed, four times across three phases, which is why this is\n" +
+        "    now two fields rather than a convention\n" +
+        "    remedy: add `- **Inspected by:** <name> # <scope>` under the heading. Name a\n" +
+        "    tool with its model version if a tool did it, and state the scope after `#` —\n" +
+        "    which ids were opened, and that the rest were not.",
+    );
+  }
+  if (entry.inspectedBy !== undefined && !entry.inspectedBy.includes("#")) {
+    fail(
+      `change-log entry \`${label}\` states an inspector with no scope\n` +
+        "    An inspection over 4 of 41 images and one over all 41 are different claims,\n" +
+        "    and an unqualified name reads as the second. The kernel's own idiom is a `#`\n" +
+        "    suffix on the trailer for exactly this.\n" +
+        "    remedy: append `# <what was actually opened, and what was not>`",
     );
   }
 }
