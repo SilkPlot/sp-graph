@@ -16,11 +16,21 @@
  * make it compile. That is evidence the implementation matches the decision
  * rather than a claim that it does.
  *
- * The rule stands for the parts still declared. When the reference-overlay and
- * composition props are built, their declarations become imports too, and Part 2
- * must again compile UNCHANGED. If an example has to be edited, the
- * implementation diverged from the decision — so edit the implementation, or
- * supersede the ADR. Do not edit the example to fit the code.
+ * The reference-overlay and ranked-bar halves have since been substituted too.
+ * What remains DECLARED is the chart-level composition state
+ * (`CompositionStateProps`) and `formatTooltip`, because no built surface exposes
+ * an active datum or a tooltip yet.
+ *
+ * The rule stands for those. When they are built, their declarations become
+ * imports too, and Part 2 must again compile UNCHANGED. If an example has to be
+ * edited, the implementation diverged from the decision — so edit the
+ * implementation, or supersede the ADR. Do not edit the example to fit the code.
+ *
+ * TWO examples HAVE been edited, both under an explicit supersession and neither
+ * to accommodate drifted code: `withFormatting` when ADR-0010 replaced §9's
+ * prop shape, and `rankedWithLongLabels` when ADR-0013 replaced `formatValue` on
+ * the ranked surface. A supersession is a decision changing; bending an example
+ * to fit code is the thing this rule forbids, and they are different acts.
  *
  * WHAT IT IS NOT. It is not a test of runtime behaviour: it type-checks shapes
  * and does not call the library. The suites do that.
@@ -343,17 +353,41 @@ export const fromWideInput: MultiSeriesProps<WideRow> = {
  * LONG CATEGORICAL LABELS with currency, on the ranked surface. Labels are
  * display text and stay long; the id is what identity is carried on, which is
  * why a label may be this unwieldy without consequence.
+ *
+ * IMPLEMENTED. `RankedCategory` and the formatter props are now
+ * imported rather than declared, from `core` for the same DOM-free-`lib` reason
+ * `MultiSeriesFormatProps` is.
+ *
+ * **`formatValue` IS SUPERSEDED, and this example was edited under that
+ * supersession rather than to fit the code.** The distinction is the whole point
+ * of the obligation: an example may change when a DECISION changes, and may
+ * never be quietly bent to match an implementation that drifted. ADR-0013
+ * records the decision; ADR-0010 records the reasoning it extends.
+ *
+ * The short version. ADR-0010 rejected a single `formatValue` on the
+ * time-series surface because one value reaches the axis (which wants `R1.28m`)
+ * and the read-aloud surfaces (which want `R1,284,500.00`), and one formatter
+ * serving both either forces the axis' brevity onto speech or forces the axis to
+ * carry text it has no room for. That argument is about the SURFACE, not the
+ * chart, and it transfers to ranked bars intact — this very example, ZAR at 1.28
+ * million, is the case where it bites hardest.
+ *
+ * The replacement is named for the CATEGORY and VALUE axes rather than for x
+ * and y, which is a refinement ADR-0010 could not have made: on an orientable
+ * chart, `xTickFormat` would mean the categories in one orientation and the
+ * values in the other, so flipping `orientation` would silently swap which
+ * formatter applied.
  */
-export interface RankedCategory {
-  id: string;
-  label: string;
-  value: number;
-}
+export type { RankedCategory, RankedFormatProps, RankedOrientation } from "@silkplot/core";
+import type {
+  RankedCategory,
+  RankedFormatProps,
+  RankedOrientation,
+} from "@silkplot/core";
 
-export interface RankedBarsProps {
+export interface RankedBarsProps extends RankedFormatProps {
   categories: readonly RankedCategory[];
-  orientation?: "vertical" | "horizontal";
-  formatValue?: (value: number) => string;
+  orientation?: RankedOrientation;
   onActivate?: (category: RankedCategory) => void;
 }
 
@@ -412,7 +446,20 @@ export const rankedWithLongLabels: RankedBarsProps = {
     // sign rather than being ranked on magnitude.
     { id: "disposal", label: "Asset disposal — written-down handling equipment", value: -84_750 },
   ],
-  formatValue: (value) =>
+  // Two formatters where the declaration had one, and the difference is the
+  // evidence for the supersession rather than an inconvenience of it: the axis
+  // carries an abbreviated figure because a tick has no room for the full one,
+  // and the table carries the exact amount because a reader auditing a ranking
+  // needs the cents. A single `formatValue` had to pick one of these and impose
+  // it on the other surface.
+  valueTickFormat: (value) =>
+    new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value),
+  tableValueFormat: (value) =>
     new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" }).format(value),
   onActivate: (category) => void category.id,
 };

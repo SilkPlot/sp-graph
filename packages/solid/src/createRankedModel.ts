@@ -36,6 +36,7 @@ import {
   linearScale,
   rankedDomainOf,
   type NormalizedCategory,
+  type RankedOrientation,
   type ScaleBand,
   type ScaleLinear,
 } from "@silkplot/core";
@@ -43,15 +44,9 @@ import { useChartBounds } from "./context";
 import { applyYDomainPolicy, type AxisPairModel } from "./createCartesianModel";
 import type { AxisScale } from "./scale-ticks";
 
-/**
- * Which axis the categories sit on.
- *
- * `"vertical"` describes the BARS, not the category axis — vertical bars grow
- * upward from a bottom category axis. That reading matches how every charting
- * vocabulary in the wild names it, and the alternative ("the axis the categories
- * are on") inverts the meaning of both words relative to what a caller expects.
- */
-export type RankedOrientation = "vertical" | "horizontal";
+// `RankedOrientation` is declared in `@silkplot/core` and re-exported here, so
+// the DOM-free contract examples can name it without pulling in Solid.
+export type { RankedOrientation };
 
 export interface RankedModelSpec {
   /**

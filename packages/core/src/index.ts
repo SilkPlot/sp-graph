@@ -116,6 +116,8 @@ export type {
 export { normalizeCategories, rankedDomainOf } from "./ranked";
 export type {
   RankedCategory,
+  RankedOrientation,
+  RankedFormatProps,
   NormalizedCategory,
   RankedModel,
   NormalizeCategoriesOptions,

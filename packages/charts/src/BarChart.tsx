@@ -41,6 +41,7 @@ import {
   normalizeCategories,
   type NormalizedCategory,
   type RankedCategory,
+  type RankedFormatProps,
 } from "@silkplot/core";
 import {
   ChartKeyboardSurface,
@@ -104,7 +105,7 @@ export interface SingleCategoryInput extends BarLayoutProps {
   pageSize?: never;
 }
 
-export interface RankedInput extends BarLayoutProps {
+export interface RankedInput extends BarLayoutProps, RankedFormatProps {
   /**
    * The ranked categories, in the caller's own order.
    *
@@ -115,16 +116,6 @@ export interface RankedInput extends BarLayoutProps {
   categories: readonly RankedCategory[];
   /** Which way the bars run. Default `"vertical"`. */
   orientation?: RankedOrientation;
-  /**
-   * Category-axis tick text. Receives the LABEL, not the id — the id is
-   * identity and is never displayed. Also the override for the default
-   * truncation.
-   */
-  categoryTickFormat?: (label: string) => string;
-  /** Value-axis tick text. */
-  valueTickFormat?: (value: number) => string;
-  /** Value text in the derived data table and the CSV export. */
-  tableValueFormat?: (value: number) => string;
   /**
    * Called when the reader commits a category — Enter or Space on the keyboard
    * composite.
