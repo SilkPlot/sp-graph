@@ -921,6 +921,79 @@ describe("sizing", () => {
     host.remove();
   });
 
+  it("resizes the area chart too, fill and stroke together", async () => {
+    // The acceptance criterion names BOTH charts, and the earlier cases here
+    // all mount a line. Area is not a formality: it draws TWO marks per series
+    // — a fill and a top stroke — from one shared mapping, so a resize that
+    // reached one and not the other would break the fill away from its own
+    // outline. That renders, and reads as a drawing bug rather than a wiring
+    // one.
+    const host = document.createElement("div");
+    host.style.width = "240px";
+    document.body.appendChild(host);
+
+    const { container } = render(
+      () => (
+        <AreaChart
+          title="Sized area"
+          desc="d"
+          height={200}
+          margins={NO_MARGINS}
+          curve="linear"
+          series={TWO}
+        />
+      ),
+      { container: host },
+    );
+
+    host.style.width = "560px";
+
+    // Every mark — 2 series x (fill + stroke) — must end at the new right edge.
+    await expect
+      .poll(() => {
+        const ends = markPaths(container).map((p) => {
+          const xs = pathXs(p.getAttribute("d") ?? "");
+          return xs.length > 0 ? Math.round(Math.max(...xs)) : -1;
+        });
+        return ends.length >= 2 && ends.every((x) => x === 560);
+      })
+      .toBe(true);
+    expectNoNaN(container, "path", ["d"]);
+    host.remove();
+  });
+
+  it("reveals a hidden area chart with real geometry", async () => {
+    const [shown, setShown] = createSignal(false);
+    const host = document.createElement("div");
+    host.style.width = "480px";
+    document.body.appendChild(host);
+
+    const { container } = render(
+      () => (
+        <Show when={shown()}>
+          <AreaChart
+            title="Revealed area"
+            desc="d"
+            height={200}
+            margins={NO_MARGINS}
+            curve="linear"
+            series={TWO}
+          />
+        </Show>
+      ),
+      { container: host },
+    );
+
+    expect(markPaths(container)).toHaveLength(0);
+    setShown(true);
+
+    await expect
+      .poll(() => markPaths(container).filter((p) => (p.getAttribute("d") ?? "") !== "").length)
+      .toBeGreaterThanOrEqual(2);
+    expectNoNaN(container, "path", ["d"]);
+    host.remove();
+  });
+
   it("keeps the series in step with each other through a resize", async () => {
     const { host, container } = mountSized("240px");
 
