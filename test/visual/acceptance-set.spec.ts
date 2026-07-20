@@ -20,6 +20,7 @@ import {
   CHARTS,
   EXPECTED_TOTALS,
   FOCUSABLE,
+  LEGEND_CASES,
   MULTI_CASES,
   MULTI_CHARTS,
   FOCUS_RATIONALE,
@@ -52,6 +53,20 @@ test.describe("the acceptance set is explicit", () => {
       "multi-22-narrow",
       "multi-gaps",
     ]);
+  });
+
+  test("declares the legend's own cases, separate from the chart product", () => {
+    // The legend is a primitive, not a chart family: no data, no axes, no
+    // y-domain policy. Written out here so that folding it into CHARTS — the
+    // obvious and wrong move — has to change this literal in a visible diff.
+    expect([...LEGEND_CASES]).toEqual([
+      "legend-four",
+      "legend-22",
+      "legend-22-narrow",
+      "legend-stack-scroll",
+      "legend-some-hidden",
+    ]);
+    expect([...CHARTS]).not.toContain("legend");
   });
 
   test("declares which charts compose the multi-series surface", () => {
@@ -94,7 +109,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(136);
+    expect(EXPECTED_TOTALS.all).toBe(160);
   });
 
   test("gives every baseline a unique id", () => {

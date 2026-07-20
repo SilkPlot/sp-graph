@@ -18,6 +18,7 @@
 import { type Component, Show } from "solid-js";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "@silkplot/charts";
 import { seriesChannel } from "@silkplot/theme";
+import { Legend } from "@silkplot/solid";
 import type { Series } from "@silkplot/core";
 import {
   CATEGORY_DEFAULT,
@@ -38,14 +39,15 @@ import {
   XY_NEGATIVE,
 } from "./fixtures";
 
-type Chart = "line" | "area" | "bar" | "scatter";
+type Chart = "line" | "area" | "bar" | "scatter" | "legend";
 type Case =
   | "default"
   | "empty"
   | "negative"
   | "dense-label"
   | "responsive-mobile"
-  | MultiCase;
+  | MultiCase
+  | LegendCase;
 
 /**
  * The multi-series cases (ADR-0008), which only `line` and `area` can render —
@@ -55,6 +57,25 @@ type Case =
  * caught by the declared-versus-on-disk inventory.
  */
 type MultiCase = "multi-one" | "multi-four" | "multi-22" | "multi-22-narrow" | "multi-gaps";
+
+/** The legend primitive's own cases — it has no data, axes, or domain policy. */
+type LegendCase =
+  | "legend-four"
+  | "legend-22"
+  | "legend-22-narrow"
+  | "legend-stack-scroll"
+  | "legend-some-hidden";
+
+const LEGEND_CASES: readonly LegendCase[] = [
+  "legend-four",
+  "legend-22",
+  "legend-22-narrow",
+  "legend-stack-scroll",
+  "legend-some-hidden",
+];
+
+const isLegend = (kase: Case): kase is LegendCase =>
+  (LEGEND_CASES as readonly string[]).includes(kase);
 
 const MULTI_CASES: readonly MultiCase[] = [
   "multi-one",
@@ -67,7 +88,7 @@ const MULTI_CASES: readonly MultiCase[] = [
 const isMulti = (kase: Case): kase is MultiCase =>
   (MULTI_CASES as readonly string[]).includes(kase);
 
-const CHARTS: readonly Chart[] = ["line", "area", "bar", "scatter"];
+const CHARTS: readonly Chart[] = ["line", "area", "bar", "scatter", "legend"];
 const CASES: readonly Case[] = [
   "default",
   "empty",
@@ -75,6 +96,7 @@ const CASES: readonly Case[] = [
   "dense-label",
   "responsive-mobile",
   ...MULTI_CASES,
+  ...LEGEND_CASES,
 ];
 
 /**
@@ -91,11 +113,17 @@ const parse = <T extends string>(value: string | null, allowed: readonly T[], wh
 
 /** Fixed pixel boxes, except the mobile case which is fluid on purpose. */
 const boxFor = (kase: Case): { width: string; height: string } =>
-  kase === "responsive-mobile" || kase === "multi-22-narrow"
+  isLegend(kase)
+    ? { width: kase === "legend-22-narrow" ? "100%" : "640px", height: "auto" }
+    : kase === "responsive-mobile" || kase === "multi-22-narrow"
     ? { width: "100%", height: "260px" }
     : kase === "dense-label"
       ? { width: "380px", height: "220px" }
       : { width: "640px", height: "360px" };
+
+/** Which series a legend case lists. */
+const legendSeries = (kase: LegendCase): readonly Series[] =>
+  kase === "legend-four" ? SERIES_FOUR : SERIES_22;
 
 /** Which series set a multi-series case draws. */
 const seriesData = (kase: MultiCase): readonly Series[] =>
@@ -155,6 +183,22 @@ const xyData = (kase: Case) =>
  */
 const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
   <>
+    {/*
+      The legend primitive. No data, no axes — the cases that distinguish it are
+      density, layout, and which entries are hidden. It passes NO visibleSeries
+      except in the `some-hidden` case, so what is pinned is the library's own
+      uncontrolled default and the dimmed / hollowed state of a hidden entry.
+    */}
+    <Show when={props.chart === "legend"}>
+      <Legend
+        series={legendSeries(props.case as LegendCase)}
+        layout={props.case === "legend-stack-scroll" ? "stack" : "wrap"}
+        maxHeight={props.case === "legend-stack-scroll" ? "140px" : undefined}
+        visibleSeries={
+          props.case === "legend-some-hidden" ? ["s0", "s2", "s5"] : undefined
+        }
+      />
+    </Show>
     <Show when={props.chart === "line" && !isMulti(props.case)}>
       <LineChart
         tableHidden
@@ -198,7 +242,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         desc="Deterministic multi-series daily readings, filled from the zero baseline."
       />
     </Show>
-    <Show when={props.chart === "bar" && !isMulti(props.case)}>
+    <Show when={props.chart === "bar" && !isMulti(props.case) && !isLegend(props.case)}>
       <BarChart
         tableHidden
         data={categoryData(props.case)}
@@ -207,7 +251,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         fill={seriesChannel(2).color}
       />
     </Show>
-    <Show when={props.chart === "scatter" && !isMulti(props.case)}>
+    <Show when={props.chart === "scatter" && !isMulti(props.case) && !isLegend(props.case)}>
       <ScatterChart
         tableHidden
         data={xyData(props.case)}
