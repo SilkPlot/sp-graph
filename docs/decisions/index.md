@@ -109,6 +109,19 @@ arrived at.
   also lives in an unconditional accessible list — which is what makes dropping
   an unplaceable label defensible — and why the reference colour has to be a
   neutral. Extends ADR-0008 §10; defers to ADR-0007 §3.
+- [ADR-0013 — Ranked categorical bars: input shape, orientation-stable formatters, and the activation seam](adr-0013-ranked-categorical-bars.md):
+  why `categories` arrives alongside `data` rather than replacing a surface
+  already on npm, and why the legacy shape is ADAPTED into the ranked one so
+  there is a single render path; why the formatters are named for the category
+  and value axes rather than for x and y — on a chart that can rotate, an axis
+  letter is not a surface, because flipping `orientation` would silently swap
+  which formatter applied; why `formatValue` is superseded on the same reasoning
+  ADR-0010 used for the time series; why `onActivate` hands back the caller's own
+  object, which is what makes it safe to ship ahead of Sprint 007's general
+  pointer contract; why Enter/Space activation belongs to the keyboard composite
+  rather than the chart; why bars become keyboard-reachable on BOTH input shapes;
+  and why axis labels truncate by character count rather than measured width.
+  Extends ADR-0010; supersedes the `RankedBarsProps` declaration.
 
 ## Migrations
 

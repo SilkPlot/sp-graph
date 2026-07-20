@@ -50,6 +50,50 @@ export interface RankedCategory {
   meta?: unknown;
 }
 
+/**
+ * Which way the bars run.
+ *
+ * `"vertical"` describes the BARS, not the category axis — vertical bars grow
+ * upward from a bottom category axis. That matches how every charting
+ * vocabulary in the wild names it; naming it for the axis inverts the meaning of
+ * both words relative to what a caller expects.
+ *
+ * In `core` rather than beside the model in `solid` for the reason ADR-0010 put
+ * `MultiSeriesFormatProps` here: the typed contract examples compile under a
+ * deliberately DOM-free `lib`, and importing from `solid` or `charts` would pull
+ * the Solid and DOM chain in behind a bare string union.
+ */
+export type RankedOrientation = "vertical" | "horizontal";
+
+/**
+ * Caller formatters for the ranked surface, named by SURFACE (ADR-0010).
+ *
+ * Named for the CATEGORY and VALUE axes rather than for x and y, which is
+ * ADR-0010's principle applied to a surface it did not have. On an orientable
+ * chart the axis letters are not a surface: `xTickFormat` would mean the
+ * categories in one orientation and the values in the other, so a caller
+ * flipping `orientation` would silently swap which formatter applied. Category
+ * and value are stable under orientation; x and y are not.
+ *
+ * This is also why a single `formatValue` is not offered here, exactly as
+ * ADR-0010 rejected it for the time-series surface: a ranked value reaches the
+ * value axis (which wants `R1.28m`), the data table (which wants
+ * `R1,284,500.00`), and later the tooltip and announcement, and one formatter
+ * serving all of them either forces the axis' brevity onto the read-aloud
+ * surfaces or forces the axis to carry text it has no room for.
+ */
+export interface RankedFormatProps {
+  /**
+   * Category-axis tick text. Receives the LABEL, never the id — the id is
+   * identity and is never displayed.
+   */
+  categoryTickFormat?: (label: string) => string;
+  /** Value-axis tick text. */
+  valueTickFormat?: (value: number) => string;
+  /** Value text in the derived data table and the CSV export. */
+  tableValueFormat?: (value: number) => string;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Normalised output                                                           */
 /* -------------------------------------------------------------------------- */
