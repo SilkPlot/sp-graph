@@ -131,6 +131,35 @@ keyboard composite announces. It is the same position the accessibility contract
 takes on hiding axes — permissible precisely because the information is
 recoverable somewhere else.
 
+**Truncation is a fallback, and HORIZONTAL ORIENTATION is the recommended answer
+for long category labels.** That is not this library's invention — it is the
+consistent guidance in the field, and it is why `orientation` and the truncation
+default are one decision rather than two:
+
+- [NN/g](https://www.nngroup.com/articles/choosing-chart-types/) — long labels
+  such as feature names or task descriptions are hard to read placed vertically
+  or diagonally.
+- [Storytelling with Data](https://www.storytellingwithdata.com/blog/2022/1/21/which-bar-orientation-should-i-use)
+  and [Atlassian](https://www.atlassian.com/data/charts/bar-chart-complete-guide)
+  — the vertical default should give way to horizontal exactly when labels would
+  otherwise need rotating or abbreviating.
+- [amCharts](https://www.amcharts.com/docs/v4/tutorials/wrapping-and-truncating-axis-labels/)
+  — truncation with the full text available on demand is the accepted fallback.
+
+A crowded VERTICAL axis therefore stays visibly cramped after truncation, and
+that is a documented position rather than an unnoticed defect. Label rotation —
+the second-ranked remedy — is deliberately unbuilt and tracked in the planning
+backlog, because it needs bottom-margin reservation that touches every chart's
+layout.
+
+**What was tried and rejected, so it is not rebuilt.** Thinning the labels —
+rendering every nth — was implemented and reverted. Dropping labels is valid on
+a CONTINUOUS axis, where a reader interpolates an unlabelled position between 0
+and 50, and invalid on a CATEGORICAL one, where an unlabelled bar is an
+unidentifiable bar. `computeTicks` negotiates a count while `computeBandTicks`
+returns one label per category: that is the difference between two kinds of
+axis, not an asymmetry to fix.
+
 ### 6. Nothing sorts
 
 `normalizeCategories` preserves the caller's order, and there is no sort prop. A
