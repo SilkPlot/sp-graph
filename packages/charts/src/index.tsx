@@ -21,7 +21,11 @@ export type { MultiSeriesFormatProps } from "./formatters";
 // Per-series presentation. Exported for a consumer building its own legend, so
 // the swatch beside a label resolves the SAME token the line does rather than
 // re-deriving one that can drift from it.
-export { seriesColorToken, seriesDashToken, SERIES_PALETTE_SIZE } from "./series-style";
+// Moved to `core` in S006-P04 so the Legend in `solid` and the marks in this
+// package resolve a series' colour and dash from ONE source — `solid` cannot
+// import from `charts`, and a second copy is precisely what diverges silently.
+// Re-exported here unchanged: nothing published breaks (ADR-0008 §12).
+export { seriesColorToken, seriesDashToken, SERIES_PALETTE_SIZE } from "@silkplot/core";
 
 export { BarChart } from "./BarChart";
 export type { BarChartProps, BarChartBaseProps } from "./BarChart";

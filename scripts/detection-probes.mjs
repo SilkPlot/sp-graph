@@ -427,6 +427,40 @@ const PROBES = [
     observed: "geometry stays frozen at the mount-time width across every resize",
     messagePattern: /expected|to be/,
   },
+  {
+    id: "legend-mark-identity",
+    file: "packages/core/src/series-style.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the legend swatch and the mark it describes come from ONE resolver. Offset the palette " +
+      "index and the legend shows series B's colour beside series A's label — a legend that " +
+      "still renders, toggles, and announces correctly while being wrong about every series. " +
+      "Mutating CORE and asserting the seam suite reddens is the point: it proves both halves " +
+      "consume the shared function rather than agreeing by coincidence",
+    anchor: "  const stroke = style?.stroke ?? seriesColorToken(index);",
+    mutation: "  const stroke = style?.stroke ?? seriesColorToken(index + 1);",
+    failingIn: ["packages/charts/test/legend-identity.test.tsx"],
+    minFailures: 1,
+    observed: "swatch colours no longer line up with their own marks",
+    messagePattern: /expected|toEqual/,
+  },
+  {
+    id: "legend-colour-only",
+    file: "packages/solid/src/Legend.tsx",
+    project: "solid",
+    browser: true,
+    breaks:
+      "a legend swatch carries the dash channel as well as the colour. Drop it and two series " +
+      "a colour-blind reader sees as one hue become genuinely indistinguishable — the failure " +
+      "ADR-0005 §5 forbids, and one that no structural assertion about the legend would catch",
+    anchor: "                  stroke-dasharray={style().dash}",
+    mutation: "                  stroke-dasharray={undefined}",
+    failingIn: ["packages/solid/test/legend.test.tsx"],
+    minFailures: 1,
+    observed: "every swatch is solid; colour becomes the only channel",
+    messagePattern: /expected|to be/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
