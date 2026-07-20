@@ -296,7 +296,9 @@ describe("purity", () => {
       { id: "b", label: "B", value: 2 },
       { id: "a", label: "A", value: 1 },
     ];
-    const snapshot = structuredClone(input);
+    // Hand-built rather than `structuredClone`: `core` typechecks under a
+    // deliberately DOM-free `lib`, which does not declare it.
+    const snapshot = input.map((c) => ({ ...c }));
 
     normalizeCategories(input, lenient);
 
