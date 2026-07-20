@@ -41,7 +41,9 @@
     "test:coverage": "vitest run --coverage",
     "perf:hover": "node scripts/measure-hover-frames.mjs",
     "probe:detection": "node scripts/detection-probes.mjs",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "gate:probe-residue": "node scripts/probe-residue-gate.mjs",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",

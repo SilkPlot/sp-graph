@@ -58,3 +58,4 @@ npm-debug.log*
 .codacy/cli-config.yaml
 .codacy/logs/
 .codacy/.gitignore
+.probe-residue.json

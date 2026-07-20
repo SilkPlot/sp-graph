@@ -27,6 +27,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
+import { hiddenInputs, hiddenInputsMessage } from "./lib/git-visibility.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -85,21 +86,30 @@ function read(relative) {
   }
 }
 
+/** Whether a path is a test file this gate is responsible for. */
+function isTestFile(path) {
+  return (
+    TEST_ROOTS.some((root) => root.test(path)) &&
+    !ALREADY_EXCLUDED.some((skip) => skip.test(path)) &&
+    CODE_EXTENSION.test(path)
+  );
+}
+
 /**
  * Every tracked test file on disk. `git ls-files` rather than a directory walk:
  * it agrees with what is actually committed, so an untracked scratch file does
  * not fail the build and a committed one cannot hide behind `.gitignore`.
+ *
+ * The cost of that choice is handled at the call site rather than here: an
+ * untracked test file is invisible to this function, and this gate reported
+ * "57 test files, all present in every exclusion list" while two new ones sat
+ * untracked beside them. See the `hiddenInputs` check below.
  */
 function testFilesOnDisk() {
   const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
     .split("\n")
     .filter(Boolean);
-  return tracked.filter(
-    (path) =>
-      TEST_ROOTS.some((root) => root.test(path)) &&
-      !ALREADY_EXCLUDED.some((skip) => skip.test(path)) &&
-      CODE_EXTENSION.test(path),
-  );
+  return tracked.filter(isTestFile);
 }
 
 /**
@@ -139,6 +149,14 @@ function parseExcludeList(yaml, engine) {
 }
 
 const codacyConfig = read(".codacy.yml");
+// A test file this gate cannot see is a test file measured by Codacy without
+// anybody knowing. Refuse rather than report a pass over an unknown.
+const hidden = hiddenInputs(repoRoot, isTestFile);
+if (hidden.length > 0) {
+  console.error(`\n${hiddenInputsMessage("Duplication scope gate", hidden)}\n`);
+  process.exit(1);
+}
+
 const onDisk = testFilesOnDisk();
 
 if (codacyConfig === undefined) {
