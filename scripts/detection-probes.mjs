@@ -220,7 +220,7 @@ const PROBES = [
       "packages/charts/test/ranked-bars.test.tsx",
     ],
     minFailures: 7,
-    observed: "7 failures, e.g. “expected -103.08 to be greater than or equal to 0”",
+    observed: "9 failures, e.g. “expected -103.08 to be greater than or equal to 0”",
     messagePattern: /to be greater than or equal to 0/,
   },
   {
@@ -237,7 +237,7 @@ const PROBES = [
     mutation: "width={at() - zero()}",
     failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
     minFailures: 1,
-    observed: "pending first full run",
+    observed: "1 failure: the horizontal negative bar renders a negative width",
     messagePattern: /to be greater than 0/,
   },
   {
@@ -252,7 +252,7 @@ const PROBES = [
     mutation: "return false && label.length > DEFAULT_LABEL_MAX_CHARS",
     failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
     minFailures: 1,
-    observed: "pending first full run",
+    observed: "1 failure: the axis renders the full label, so no ellipsis is present",
     messagePattern: /to contain/,
   },
   {
@@ -268,7 +268,7 @@ const PROBES = [
     mutation: "bandDomain: categories.map((c) => c.label),",
     failingIn: ["packages/core/test/ranked.test.ts"],
     minFailures: 1,
-    observed: "pending first full run",
+    observed: "3 failures: two categories collapse onto one band slot",
     messagePattern: /Regional total/,
   },
   {
