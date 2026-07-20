@@ -124,6 +124,15 @@ export interface SeriesIssue {
   seriesId?: string;
   /** The reference the issue belongs to, for the two reference codes. */
   referenceId?: string;
+  /**
+   * The category the issue belongs to, on the ranked surface (`ranked.ts`).
+   *
+   * Here rather than in a parallel `RankedIssue` for the same reason the
+   * reference codes are here: one chart, one diagnostic channel. A caller wiring
+   * `onIssue` to their logger hears about a dropped series, a dropped reference,
+   * and a dropped category through the same hook.
+   */
+  categoryId?: string;
 }
 
 /** A finite `[min, max]` pair. See `domainOf` for the empty and all-invalid case. */
