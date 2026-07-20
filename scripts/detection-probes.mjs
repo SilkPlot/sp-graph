@@ -317,7 +317,7 @@ const PROBES = [
       "visible position instead and hiding one series silently recolours the rest",
     anchor: "              resolveSeriesStyle(series.style, series.sourceIndex, {",
     mutation: "              resolveSeriesStyle(series.style, i(), {",
-    // Two suites, and the second joined in S006-P04. The legend/mark seam test
+    // Two suites, the second added with the legend. The legend/mark seam test
     // compares swatch colours to mark colours, so a palette shift on hiding
     // reddens it too — a genuinely wider blast radius rather than a mutation
     // touching something it should not.
