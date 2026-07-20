@@ -263,7 +263,7 @@ const PROBES = [
     failingIn: ["packages/core/test/ranked.test.ts"],
     minFailures: 1,
     observed: "pending first full run",
-    messagePattern: /to equal|to be 2/,
+    messagePattern: /Regional total/,
   },
   {
     id: "extent-finite-guard",
