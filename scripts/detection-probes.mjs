@@ -212,6 +212,12 @@ const PROBES = [
     failingIn: [
       "packages/charts/test/BarChart.test.tsx",
       "packages/charts/test/BarChart-reactive.test.tsx",
+      // Widened when ranked bars landed: the new suite legitimately reddens on
+      // this mutation because it asserts the vertical negative case too. The
+      // probe REFUSED rather than passing over a blast radius it no longer
+      // described, which is the behaviour that makes a declared radius worth
+      // anything - the suite was not loosened to keep the old claim true.
+      "packages/charts/test/ranked-bars.test.tsx",
     ],
     minFailures: 7,
     observed: "7 failures, e.g. “expected -103.08 to be greater than or equal to 0”",
