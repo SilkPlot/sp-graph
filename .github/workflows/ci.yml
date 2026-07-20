@@ -99,6 +99,16 @@ jobs:
       - name: Duplication scope gate (exclusion lists match the tests on disk)
         run: npm run gate:duplication-scope
 
+      # Prose states numbers, and numbers rot. A close-out audit on 2026-07-20
+      # found seven stale ones — three different wrong probe counts, a wrong
+      # project count, and a test count quoted long after the suite had moved —
+      # none of which any gate had noticed and each of which read as
+      # authoritative. This checks every derivable figure against its source and
+      # bans the one genuinely volatile figure from undated prose. See
+      # scripts/stated-facts-gate.mjs.
+      - name: Stated facts gate (documented numbers match their source)
+        run: npm run gate:stated-facts
+
       # The `solid`, `charts`, and `playground` Vitest projects run in real
       # headless chromium, not jsdom, so the runner needs a browser. Without this
       # step the test job cannot pass — which is exactly why every run before

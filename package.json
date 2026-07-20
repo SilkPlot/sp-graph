@@ -43,7 +43,8 @@
     "probe:detection": "node scripts/detection-probes.mjs",
     "test:watch": "vitest",
     "gate:probe-residue": "node scripts/probe-residue-gate.mjs",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks",
+    "gate:stated-facts": "node scripts/stated-facts-gate.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
