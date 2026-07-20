@@ -53,7 +53,7 @@
  * public-surface gate records for its own patterns. A phrasing this gate does
  * not recognise is a miss, and a miss is preferable to noise.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -86,7 +86,19 @@ const NUM = "(\\d+|[a-z]+(?:-[a-z]+)?)";
 /** `PROBES.length` — counted from the array literal's own entries. */
 function probeCount() {
   const src = read("scripts/detection-probes.mjs");
-  const body = src.slice(src.indexOf("const PROBES = ["));
+  // `indexOf` returning -1 makes `slice(-1)` one character, and the count then
+  // comes out 0 — which this gate would print as a PASS ("detection probes (0)")
+  // rather than as the broken anchor it is. `baselineTotal()` below already
+  // throws on a missing anchor; these two did not, and matching it is the point.
+  const at = src.indexOf("const PROBES = [");
+  if (at === -1) {
+    throw new Error(
+      "stated-facts: could not find `const PROBES = [` in scripts/detection-probes.mjs — " +
+        "the anchor moved, so the probe count cannot be derived. Fix the anchor rather " +
+        "than letting the gate report zero probes as agreement.",
+    );
+  }
+  const body = src.slice(at);
   // Each probe opens with an `id:` field; counting those is stabler than
   // brace-matching and cannot be fooled by a nested object.
   return (body.match(/^ {4}id: "/gm) ?? []).length;
@@ -103,7 +115,15 @@ function baselineTotal() {
 /** How many Vitest projects the config actually builds. */
 function vitestProjectCount() {
   const src = read("vitest.config.ts");
-  const projects = src.slice(src.indexOf("projects: ["));
+  const at = src.indexOf("projects: [");
+  if (at === -1) {
+    throw new Error(
+      "stated-facts: could not find `projects: [` in vitest.config.ts — the anchor moved, " +
+        "so the project count cannot be derived. A miss here would report zero projects " +
+        "as agreement with every document that names a number.",
+    );
+  }
+  const projects = src.slice(at);
   const named = (projects.match(/name: "[a-z]+"/g) ?? []).length;
   const helpers = (projects.match(/browserProject(?:In)?\("/g) ?? []).length;
   return named + helpers;
@@ -224,6 +244,83 @@ for (const rule of VOLATILE) {
     }
   }
 }
+
+/**
+ * A gate that exists but never runs is the failure this whole file is about,
+ * expressed in the workflow instead of in prose.
+ *
+ * `package.json` declaring `gate:foo` says nothing about whether anything ever
+ * executes it. Adding a gate and forgetting to wire it into CI produces exactly
+ * the symptom every entry above describes: a green run that checked less than
+ * the repository believes it did — and it is a SHORTER, greener run, so nothing
+ * about it invites suspicion.
+ *
+ * This is not hypothetical housekeeping. `gate:typecheck-coverage` was added on
+ * 2026-07-20 and had to be wired into `.github/workflows/ci.yml` by hand, with
+ * nothing anywhere that would have failed if that step had been forgotten.
+ *
+ * Two gates are deliberately NOT in CI and each states why, so "not in CI" stays
+ * a recorded decision rather than something a reader has to infer from a
+ * workflow file's silence.
+ */
+const CI_EXEMPT = new Map([
+  [
+    "gate:probe-residue",
+    "CI structurally CANNOT see what it checks: the sentinel it reads is " +
+      "gitignored, so a probe mutation left by a killed run is a purely local " +
+      "hazard. It runs as a pre-commit hook, wired by `npm prepare`.",
+  ],
+]);
+
+function ciCoverageFindings() {
+  const pkg = JSON.parse(read("package.json"));
+  const gates = Object.keys(pkg.scripts ?? {}).filter((s) => s.startsWith("gate:"));
+
+  // Every workflow, not just ci.yml: a gate may legitimately live on its own
+  // schedule, exactly as `probe:detection` does.
+  const workflowDir = join(repoRoot, ".github", "workflows");
+  const workflows = existsSync(workflowDir)
+    ? readdirSync(workflowDir)
+        .filter((f) => /\.ya?ml$/.test(f))
+        .map((f) => read(join(".github", "workflows", f)))
+        .join("\n")
+    : "";
+
+  const out = [];
+  for (const gate of gates) {
+    if (CI_EXEMPT.has(gate)) continue;
+    if (workflows.includes(gate)) continue;
+    out.push({
+      file: "package.json",
+      line: read("package.json").slice(0, read("package.json").indexOf(`"${gate}"`)).split("\n")
+        .length,
+      said: `"${gate}"`,
+      why:
+        "declared as a gate but never referenced by any workflow in .github/workflows — " +
+        "it does not run, and a gate nobody runs is indistinguishable from one that passes",
+      remedy:
+        `add a step running \`npm run ${gate}\` to a workflow, or — if it deliberately ` +
+        "does not belong in CI — add it to CI_EXEMPT in " +
+        `${SELF} with the reason, the way gate:probe-residue is.`,
+    });
+  }
+
+  // An exemption naming a gate that no longer exists is a stale justification,
+  // and a stale justification is where a real gap eventually hides.
+  for (const gate of CI_EXEMPT.keys()) {
+    if (gates.includes(gate)) continue;
+    out.push({
+      file: SELF,
+      line: 1,
+      said: gate,
+      why: "exempted from CI but no such script exists in package.json",
+      remedy: `remove the stale CI_EXEMPT entry for ${gate}`,
+    });
+  }
+  return out;
+}
+
+findings.push(...ciCoverageFindings());
 
 if (findings.length > 0) {
   console.error(`\nStated facts gate FAILED — ${findings.length} claim(s) disagree with reality:\n`);

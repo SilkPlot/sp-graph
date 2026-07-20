@@ -5,15 +5,22 @@
 
 | Version | Supported |
 |---|---|
-| `0.1.x` (`main`) | yes — fixes land on `main` |
-| anything else | does not exist |
+| `0.2.0-next.x` (current prerelease, npm `@next`) | yes — fixes land on `main` and ship in the next prerelease |
+| earlier `0.2.0-next` prereleases | no — upgrade to the current one |
+| `0.1.0` (source tag, never published) | no |
 
-There is only one line to support. SilkPlot is at `0.1.0`, **nothing has been published
-to npm**, and there are no tags, no branches, and no older releases to backport to. If you
-are running SilkPlot you are running a clone of `main`, so a fix is a pull, not an upgrade
-path. When packages are published this table will gain a real answer about which minor
-versions get patches; until then, saying "we support 0.x" would be dressing a single
-moving branch up as a support commitment.
+There is still only one line to support, and it is a **prerelease**. SilkPlot is alpha:
+there is no stable release, no patch stream, and no backporting. A fix lands on `main`
+and reaches you in the next `0.2.0-next.x` — not as a patch to the prerelease you have.
+
+Two things about installing it, because both can mislead:
+
+- **Install with `@next`.** `npm install @silkplot/charts@next` is the supported
+  instruction.
+- **`latest` also points at a prerelease, and that is a known deviation**, not a stable
+  release. npm assigns `latest` on a package's first-ever publish whatever tag is passed,
+  and removing it would make a bare `npm install` fail outright — trading a mislabelled
+  install for a broken one. It self-corrects when a stable release supersedes it.
 
 ## Reporting a vulnerability
 

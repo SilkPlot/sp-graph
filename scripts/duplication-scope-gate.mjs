@@ -200,7 +200,18 @@ if (codacyConfig === undefined) {
   // A test path in the repository-wide list would remove it from quality and
   // security analysis too, which is the thing the scope decision explicitly is
   // not. Cheap to check, and it is the way this decision would be misread.
-  const repoWide = codacyConfig.slice(codacyConfig.indexOf("\nexclude_paths:"));
+  // A missing anchor makes `slice(-1)` one character, so the loop below matches
+  // nothing and this check passes VACUOUSLY — reporting that tests are not
+  // excluded from quality and security analysis without having looked.
+  const repoWideAt = codacyConfig.indexOf("\nexclude_paths:");
+  if (repoWideAt === -1) {
+    fail(
+      "could not find a top-level `exclude_paths:` key in .codacy.yml.\n" +
+        "    This check cannot run, and a check that cannot run must not report a pass.\n" +
+        "    remedy: restore the key, or update this gate if the schema changed.",
+    );
+  }
+  const repoWide = repoWideAt === -1 ? "" : codacyConfig.slice(repoWideAt);
   for (const suspect of ["packages/*/test", "playground/test", "test/visual/*", '"test/**"']) {
     if (repoWide.includes(suspect)) {
       fail(
