@@ -317,7 +317,14 @@ const PROBES = [
       "visible position instead and hiding one series silently recolours the rest",
     anchor: "              resolveSeriesStyle(series.style, series.sourceIndex, {",
     mutation: "              resolveSeriesStyle(series.style, i(), {",
-    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    // Two suites, and the second joined in S006-P04. The legend/mark seam test
+    // compares swatch colours to mark colours, so a palette shift on hiding
+    // reddens it too — a genuinely wider blast radius rather than a mutation
+    // touching something it should not.
+    failingIn: [
+      "packages/charts/test/multi-series.test.tsx",
+      "packages/charts/test/legend-identity.test.tsx",
+    ],
     minFailures: 1,
     observed: "the hidden series' colour shifts from --sp-cat-1 to --sp-cat-0",
     messagePattern: /to be|expected/,
