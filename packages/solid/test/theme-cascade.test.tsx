@@ -97,7 +97,10 @@ const LIGHT_NORMAL = {
   surface: "#ffffff",
   focus: "#2563eb",
   grid: "#e4e7ec",
-  axis: "#98a2b3",
+  // 3.49:1 on white — raised from #98a2b3 (2.58:1) to clear the 3:1 non-text
+  // floor. Hardcoded here on purpose: this file is an independent oracle, so it
+  // must fail when the palette moves rather than following it.
+  axis: "#7d8aa1",
 };
 const DARK_NORMAL = {
   text: "#e7eaf0",

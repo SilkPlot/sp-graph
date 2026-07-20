@@ -264,7 +264,24 @@ export const tokens: Tokens = {
     text: "#16181d",
     muted: "#5b616e",
     grid: "#e4e7ec",
-    axis: "#98a2b3",
+    // 3.49:1 on #ffffff — clears the 3:1 non-text floor of WCAG 2.2 SC 1.4.11.
+    //
+    // This was #98a2b3 (2.58:1) until 2026-07-20, recorded as a deliberate
+    // position: the axis line is scaffolding, and W3C's own Understanding text
+    // exempts a graphic "with text embedded or overlaid [that] conveys the same
+    // information, such as labels and values on a chart". That exemption is
+    // real, but it is CONDITIONAL on the labels carrying the values — and this
+    // library already ships a case where they do not. The `dense-label`
+    // baseline has two y labels (0 and 500) for data peaking near 900, and
+    // `Axis` does no label thinning, so reading an intermediate value there
+    // requires the axis and its ticks as a spatial reference.
+    //
+    // Same hue and saturation as the old value, darkened only, so the change is
+    // the smallest one that clears the floor. It also moves off the weakest
+    // competitive rung: libraries either treat the axis as near-invisible chrome
+    // (Chart.js 1.25:1) or draw it visibly (Vega 3.54, ECharts 4.93, Recharts
+    // 5.74, Highcharts 12.63). 2.58 sat in neither camp.
+    axis: "#7d8aa1",
     focusRing: "#2563eb",
     cursor: "#475467",
     // 10.46:1 on #ffffff — above `cursor` (7.69:1) and well clear of the 3:1

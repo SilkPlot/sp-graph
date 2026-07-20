@@ -111,12 +111,58 @@ describe("light high-contrast palette — verified against white", () => {
   });
 });
 
-describe("the axis line is decorative low-contrast scaffolding, not a label", () => {
-  it("keeps the 2.58:1 evidence for why the axis token is not a text colour", () => {
-    // Wiring axis LABELS to this token would regress them below 4.5:1 — the
-    // reason labels stay currentColor and only the LINE reads the token.
-    expect(contrastRatio("#98a2b3", LIGHT_SURFACE)).toBeCloseTo(2.58, 1);
-    expect(contrastRatio("#98a2b3", LIGHT_SURFACE)).toBeLessThan(4.5);
+describe("the axis line clears the non-text contrast floor on every surface", () => {
+  /*
+    SUPERSEDES the previous position, which pinned the light axis at 2.58:1 under
+    the heading "decorative low-contrast scaffolding, not a label".
+
+    That rested on W3C's own exemption for a graphic "with text embedded or
+    overlaid [that] conveys the same information, such as labels and values on a
+    chart" — a real hook, but a CONDITIONAL one: it holds only while the labels
+    carry the values. This library already ships a case where they do not. The
+    `dense-label` visual baseline renders two y labels (0 and 500) for data
+    peaking near 900, and `Axis` performs no label thinning, so reading an
+    intermediate value there needs the axis and its ticks as spatial reference.
+
+    WCAG 2.2 SC 1.4.11 does not name axis lines and "graphical objects" has no
+    glossary definition, so this was a judgement call rather than a clear
+    failure. It was decided in favour of the floor because the exemption's
+    precondition is already violated here, and because 2.58:1 sat in the weakest
+    competitive position — below every library that draws a visible axis (Vega
+    3.54, ECharts 4.93, Recharts 5.74, Highcharts 12.63) and well above the one
+    that treats it as invisible chrome (Chart.js 1.25).
+  */
+  const AXIS = [
+    ["light", "#7d8aa1", LIGHT_SURFACE, 3.49],
+    ["dark", "#667085", DARK_SURFACE, 3.64],
+    ["light high-contrast", "#000000", LIGHT_SURFACE, 21],
+    ["dark high-contrast", "#808a9c", DARK_SURFACE, 5.2],
+  ] as const;
+
+  for (const [name, value, surface, expected] of AXIS) {
+    it(`${name} axis ${value} clears 3:1 (${expected}:1)`, () => {
+      const ratio = contrastRatio(value, surface);
+      expect(ratio).toBeCloseTo(expected, 1);
+      // The threshold is hard-edged: W3C states the computed value is not to be
+      // rounded, so 2.999:1 would not meet 3:1.
+      expect(ratio).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  it("keeps the axis BELOW muted, so it stays scaffolding rather than text", () => {
+    // The reason axis LABELS still use currentColor rather than this token:
+    // wiring text to a 3.49:1 colour would put it under the 4.5:1 text floor.
+    // Clearing the non-text floor is not the same as becoming a text colour.
+    expect(contrastRatio("#7d8aa1", LIGHT_SURFACE)).toBeLessThan(4.5);
+    expect(contrastRatio("#7d8aa1", LIGHT_SURFACE)).toBeLessThan(
+      contrastRatio("#5b616e", LIGHT_SURFACE),
+    );
+  });
+
+  it("keeps the axis ABOVE the gridline, which is the fainter rung", () => {
+    expect(contrastRatio("#7d8aa1", LIGHT_SURFACE)).toBeGreaterThan(
+      contrastRatio("#e4e7ec", LIGHT_SURFACE),
+    );
   });
 });
 

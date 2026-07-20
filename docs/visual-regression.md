@@ -319,6 +319,40 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 
 <!-- Entries below, newest first. -->
 
+### 2026-07-20 — area--default--light, area--dense-label--light, area--empty--light, area--multi-22--light, area--multi-22-narrow--light, area--multi-four--light, area--multi-four-reduced-motion--light, area--multi-gaps--light, area--multi-one--light, area--multi-ref-one--light, area--multi-ref-three--light, area--negative--light, area--reduced-motion--light, area--responsive-mobile--light, bar--default--light, bar--dense-label--light, bar--empty--light, bar--negative--light, bar--reduced-motion--light, bar--responsive-mobile--light, line--default--light, line--dense-label--light, line--empty--light, line--focus--light, line--multi-22--light, line--multi-22-narrow--light, line--multi-four--light, line--multi-four-reduced-motion--light, line--multi-gaps--light, line--multi-one--light, line--multi-ref-one--light, line--multi-ref-three--light, line--negative--light, line--reduced-motion--light, line--responsive-mobile--light, scatter--default--light, scatter--dense-label--light, scatter--empty--light, scatter--negative--light, scatter--reduced-motion--light, scatter--responsive-mobile--light
+- **Why:** the light-theme `--sp-color-axis` moved from `#98a2b3` (2.58:1 on
+  white) to `#7d8aa1` (3.49:1), clearing the 3:1 non-text contrast floor of
+  WCAG 2.2 SC 1.4.11. Same hue and saturation, darkened only, so this is the
+  smallest change that clears the floor. Every one of the 41 is a `light`
+  baseline and all 41 light baselines moved — no `dark`, `light-high-contrast`
+  or `dark-high-contrast` image changed, which is the expected blast radius for
+  a base-palette value the other three palettes override. Verified with `git
+  diff --cached --name-status`: 41 modified, 0 added, 0 deleted.
+- **The decision this reverses, and why:** the old value was deliberate, pinned
+  in `packages/theme/test/contrast.test.ts` as "decorative low-contrast
+  scaffolding, not a label". It rested on W3C's exemption for a graphic whose
+  embedded text "conveys the same information, such as labels and values on a
+  chart". That exemption is real but conditional on the labels carrying the
+  values, and this repository already ships a case where they do not: the
+  `dense-label` baseline has two y labels (0 and 500) for data peaking near 900,
+  and `Axis` does no label thinning. SC 1.4.11 does not name axis lines and
+  "graphical objects" has no glossary definition, so this was a judgement call,
+  not a conformance bug — decided toward the floor. Superseded in the test, not
+  silently dropped.
+- **Opened and read as images:** `line--dense-label--light` (the case that
+  motivated the change — axis and ticks now legible while gridlines stay faint,
+  so the rung hierarchy survives), `line--default--light`,
+  `area--multi-ref-three--light` (reference overlays still distinguishable from
+  the darker axis), and `bar--negative--light` (the zero baseline still reads as
+  a baseline rather than merging into the axis). The remaining 37 are the same
+  palette change across other cases and were **not** opened individually.
+- **Accepted by:** Adam Claassens, on merge.
+
+  As with the previous entry, this line records the MERGE decision, not an image
+  review; the four images above were opened by the executing session. Adam
+  authorised the colour change itself in advance, on a written recommendation —
+  that authorisation is what this re-pin implements.
+
 ### 2026-07-20 — line--multi-ref-one--light, line--multi-ref-one--dark, line--multi-ref-one--light-high-contrast, line--multi-ref-one--dark-high-contrast, line--multi-ref-three--light, line--multi-ref-three--dark, line--multi-ref-three--light-high-contrast, line--multi-ref-three--dark-high-contrast, area--multi-ref-one--light, area--multi-ref-one--dark, area--multi-ref-one--light-high-contrast, area--multi-ref-one--dark-high-contrast, area--multi-ref-three--light, area--multi-ref-three--dark, area--multi-ref-three--light-high-contrast, area--multi-ref-three--dark-high-contrast
 - **Why:** first pins for reference overlays (ADR-0008 §10) — two new cases on
   Line and Area across all four scheme/contrast combinations. `multi-ref-one`
