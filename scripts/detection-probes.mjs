@@ -85,6 +85,25 @@
  * probe is allowed to report anything. A restoration that does not verify is a
  * hard exit with the path named, not a warning.
  *
+ * **`try/finally` does not survive a SIGKILL, and this has now happened.** A run
+ * killed by an external timeout mid-probe left `packages/core/src/series.ts`
+ * carrying the ignored-gap mutation, with no message anywhere saying so. The
+ * mutation is a plausible-looking one-line simplification, so a reviewer
+ * skimming the diff would not necessarily flinch at it.
+ *
+ * Two things caught it, and both are worth keeping:
+ *
+ *   - The dirty-tree refusal below. The next run would not start, and said
+ *     exactly which file and why. That check exists to stop a probe backing up
+ *     already-modified work — and it doubles as the alarm for this.
+ *   - `git status` being clean before a commit. The stray edit was invisible in
+ *     the test suites, because a probe mutation is *supposed* to keep the code
+ *     compiling; it fails a suite, not the compiler.
+ *
+ * So: this script runs to completion or it leaves a mess. Do not wrap it in a
+ * timeout that can kill it, and if a run is interrupted, `git status` before
+ * doing anything else.
+ *
  * ---------------------------------------------------------------------------
  * Why this is not on the per-push critical path
  * ---------------------------------------------------------------------------
