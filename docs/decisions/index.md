@@ -91,6 +91,15 @@ arrived at.
   reaches a formatter. Supersedes §9's prop shape only — §9's principle stands,
   and `formatTooltip` stays declared and unbuilt.
 
+- [ADR-0011 — The legend is a standalone toolbar, and interactive targets have a floor](adr-0011-legend-toolbar-and-target-size.md):
+  why the legend ships as a primitive the application places rather than a prop
+  on the chart, why it is a roving-tabindex toolbar rather than one tab stop per
+  entry or a multi-select listbox, why a swatch is a line carrying a dash and not
+  a coloured block, why a hidden entry dims and hollows and reports
+  `aria-pressed` rather than relying on opacity, and where the 24px target floor
+  comes from — stated as an engineering floor, not a conformance claim. Extends
+  ADR-0005 and ADR-0008 §6.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.
