@@ -429,17 +429,20 @@ const PROBES = [
   },
   {
     id: "legend-mark-identity",
-    file: "packages/core/src/series-style.ts",
+    file: "packages/solid/src/Legend.tsx",
     project: "charts",
     browser: true,
     breaks:
-      "the legend swatch and the mark it describes come from ONE resolver. Offset the palette " +
-      "index and the legend shows series B's colour beside series A's label — a legend that " +
-      "still renders, toggles, and announces correctly while being wrong about every series. " +
-      "Mutating CORE and asserting the seam suite reddens is the point: it proves both halves " +
-      "consume the shared function rather than agreeing by coincidence",
-    anchor: "  const stroke = style?.stroke ?? seriesColorToken(index);",
-    mutation: "  const stroke = style?.stroke ?? seriesColorToken(index + 1);",
+      "the legend resolves each swatch from the series' OWN palette slot, the same index the " +
+      "mark uses. Pin it to slot 0 and every swatch shows series A's colour beside every other " +
+      "series' label — a legend that still renders, toggles, and announces correctly while " +
+      "being wrong about every series it describes.\n" +
+      "      Note what this probe deliberately does NOT do: mutating the SHARED resolver in " +
+      "`core` moves the swatch and the mark together, so they stay equal and the seam suite " +
+      "stays green. That is correct — a shared change should move both — and it is why the " +
+      "mutation has to break one consumer rather than the source they share.",
+    anchor: "            resolveSeriesStyle(series.style, i(), { area: false }),",
+    mutation: "            resolveSeriesStyle(series.style, 0, { area: false }),",
     failingIn: ["packages/charts/test/legend-identity.test.tsx"],
     minFailures: 1,
     observed: "swatch colours no longer line up with their own marks",
