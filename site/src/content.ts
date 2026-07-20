@@ -94,7 +94,7 @@ export const ENVIRONMENTS: readonly EnvironmentRow[] = [
   },
   {
     what: "Node",
-    requirement: ">=22.12",
+    requirement: ">=24",
     why: "For building. The published bundles run in the browser.",
   },
   {

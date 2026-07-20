@@ -22,17 +22,22 @@ export const Accessibility: Component = () => (
         assistive technology defensible.
       </li>
       <li>
-        <strong>One tab stop per chart.</strong> The container holds focus and
-        references the active point with <code>aria-activedescendant</code>.
-        Arrows, Home/End, and Page keys move within it. Pointer and keyboard
-        write one shared active-datum state, so the crosshair and the
-        announcement cannot disagree.
+        <strong>One tab stop, on the charts that have a keyboard model.</strong>{" "}
+        Today that is <code>LineChart</code> only — Area, Bar, and Scatter have
+        no keyboard composite yet and no focus stop. Where it exists, the
+        container holds focus, arrows and Home/End and Page keys move within it,
+        and each step is announced through a polite live region. The{" "}
+        <code>aria-activedescendant</code> mechanism is available instead, via{" "}
+        <code>announce="option"</code>; the two are mutually exclusive, because
+        running both says everything twice.
       </li>
       <li>
-        <strong>Colour is never the only channel.</strong> Series carry dash
-        patterns and marker shapes alongside colour, and the focus ring is a
-        token-driven <code>:focus-visible</code> treatment proven on computed
-        styles.
+        <strong>Colour is never the only channel.</strong> Series carry a stroke
+        dash pattern alongside colour, reference overlays are dashed and always
+        labelled, and the focus ring is a token-driven{" "}
+        <code>:focus-visible</code> treatment proven on computed styles. Marker
+        shapes exist in <code>@silkplot/theme</code> as a third channel but are
+        not yet wired into the shipped marks.
       </li>
     </ul>
     <p class="callout callout--warn">

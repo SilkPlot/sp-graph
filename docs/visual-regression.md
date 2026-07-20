@@ -119,7 +119,7 @@ therefore asserts, as tests in their own right:
 1. The chart, case, and theme lists equal literals written out a second time in
    the spec — so a deletion has to be made twice, in a diff a reviewer sees.
    (Comparing an array to itself proves only that it equals itself.)
-2. The frozen totals: 80 / 4 / 8 / 92.
+2. The frozen totals: 156 geometry / 8 focus / 12 reduced-motion / 176 all.
 3. That the committed baseline files are **exactly** the declared ids — a
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.
@@ -139,7 +139,7 @@ is always answerable and an excluded surface can be told from a forgotten one:
 |---|---|
 | Calendar week grid | not built; deferred to the calendar layout work |
 | Canvas substrate | not built; SVG is the only substrate today |
-| The HTML data alternative (`<table>`) | structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels re-tests text layout, where a screenshot gate is most brittle and least informative. Fixtures render without a `table` prop, so no table is in frame |
+| The HTML data alternative (`<table>`) | structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels re-tests text layout, where a screenshot gate is most brittle and least informative. Fixtures pass `tableHidden`, so no table is in frame — before 2026-07-19 passing no `table` prop was enough, but charts now render one by default |
 | Cross-platform pixel identity | out of scope by design — see below |
 
 ---
@@ -240,7 +240,7 @@ author's.**
 3. **Check the blast radius.** An intended change usually moves a predictable
    set of baselines. If a stroke-width change also moved the `empty` case, or
    moved dark but not light, the change is not what you think it is.
-4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 92.
+4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 176.
    A bulk update hides an unrelated regression inside an intended change, and
    that is the specific way a baseline starts tracking a bug.
 5. **Commit the images in their own commit**, with the rationale from step 2 in

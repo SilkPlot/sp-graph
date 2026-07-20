@@ -130,12 +130,19 @@ table={{
 Derived timestamps go out as ISO 8601. It is unambiguous and locale-independent;
 anything friendlier is domain wording, so pass `rows` for it.
 
-The table renders **visible by default**, as a following sibling of the chart's
-measured box, in normal document flow. That is deliberate: sighted users
-frequently prefer rows and columns, and a screen-reader-only table is a
-last-resort progressive enhancement rather than the ideal. Position it with your
-own CSS — the library guarantees the structure and the relationships, not the
-layout. Find it at `[data-silkplot-alternative]`.
+The table ships **collapsed behind a "Show data table" disclosure**, as a
+following sibling of the chart's measured box, in normal document flow, together
+with a "Download CSV" control. Both default on; turn them off with
+`disclosure={false}` and `exportable={false}`.
+
+Collapsed is not hidden. The table is clipped rather than `display: none`, so it
+never leaves the accessibility tree — a screen-reader user reaches the same rows
+whether or not the disclosure has been operated. The control is offered to
+everyone because sighted users frequently prefer rows and columns too, and a
+screen-reader-only table is a last-resort progressive enhancement rather than
+the ideal. Position it with your own CSS — the library guarantees the structure
+and the relationships, not the layout. Find it at
+`[data-silkplot-alternative]`.
 
 `tableHidden` clips it to assistive technology only. Reach for it last.
 
@@ -183,7 +190,11 @@ console is how an unnamed chart reaches production.
 import type { ChartSemanticsProps, ChartDataTable, ChartSemanticsIssue } from "@silkplot/charts";
 ```
 
-`LineChartProps` is now `LineChartBaseProps & ChartSemanticsProps`. The base
+`LineChartProps` is now `LineChartBaseProps & (SingleSeriesInput |
+MultiSeriesInputWithFormat) & ChartSemanticsProps`. The input union is what makes
+passing both `data` and `series` a compile error rather than only a runtime one
+(ADR-0008 §12); a wrapper typed against the older two-part intersection will not
+compile. The base
 interface holds the chart's own options (data, size, curve, colours); the
 semantics union holds the accessibility posture. Each chart exports both, so a
 wrapper component can extend either half.

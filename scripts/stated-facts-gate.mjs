@@ -187,7 +187,20 @@ const VOLATILE = [
 
 /* -------------------------------------------------------------------------- */
 
-const DOCS = /\.(?:md|mdx)$/;
+/**
+ * What this gate reads.
+ *
+ * `.mjs` joined on 2026-07-20, and the omission was pointed: the SCRIPTS were
+ * the one place a stale number was guaranteed to go unnoticed, because they are
+ * the files arguing that stale numbers are dangerous. Two were found the moment
+ * the scope widened — `visual-baseline-guard.mjs` claiming 92 pinned PNGs
+ * against an actual 176, and a run-count in `detection-probes.mjs` describing a
+ * harness a third its current size.
+ *
+ * A gate exempting itself from its own rule is the same shape as tooling
+ * exempting itself from review, which this repository has already paid for once.
+ */
+const DOCS = /\.(?:md|mdx|mjs)$/;
 const SKIP = [/^CHANGELOG\.md$/, /^docs\/decisions\//, /node_modules/];
 
 function trackedDocs() {

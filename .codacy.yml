@@ -51,13 +51,26 @@
 #
 # Lizard is deliberately NOT touched — not disabled, and its thresholds not
 # raised. Its complexity findings on production code are real signal and are left
-# open on purpose: `packages/charts/src/LineChart.tsx:117` (`LineChartBody`, 80
-# lines against a limit of 50) is the only one in shipped library code and is the
-# one that matters; `playground/src/App.tsx:558` and
-# `scripts/release-consumer.mjs:267` are the rest. Refactoring them is real work
-# with test implications and belongs in its own change. Until then they stay
-# visible, which is the point. What Lizard no longer measures is test code, for
-# the reasons set out under "Analysis scope" below.
+# open on purpose rather than configured away.
+#
+# THE SPECIFIC FINDINGS THIS PARAGRAPH USED TO NAME WERE STALE, and that is worth
+# recording because this file is the authority for "which findings are
+# deliberately open". It described `LineChart.tsx:117` — `LineChartBody`, "80
+# lines against a limit of 50" — as "the only one in shipped library code and the
+# one that matters". Measured on 2026-07-20: `LineChartBody` is at line 344 and
+# is 45 NLOC, i.e. UNDER the limit. It was resolved by the extraction of
+# `createLineKeyboard`, and nothing updated this paragraph, so the file went on
+# citing a resolved finding as the open one that mattered. The two other line
+# references it gave no longer point at function starts either.
+#
+# Deliberately NOT replaced with a fresh list of line numbers. Codacy's findings
+# live on Codacy, cannot be derived from this repository, and a hand-copied list
+# rots exactly the way the one above did — a stale record in the file that exists
+# to be the record is worse than no list. Read the current findings on the Codacy
+# dashboard; what belongs here is the DISPOSITION, which is unchanged: complexity
+# findings on production code stay visible and are fixed by refactoring, never by
+# raising a threshold. What Lizard no longer measures is test code, for the
+# reasons set out under "Analysis scope" below.
 #
 # ---------------------------------------------------------------------------
 # Analysis scope — which measurements apply to test code

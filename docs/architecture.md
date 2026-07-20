@@ -28,9 +28,10 @@ These are ordinary dependencies of the package that imports them — never peer
 dependencies — so consumers do not manage a `d3-*` peer set. Note that
 `d3-scale-chromatic` belongs to `@silkplot/theme`, not to `core`: palettes are a
 theming concern, and `core` should not drag a colour ramp into a consumer that
-only wanted a scale. This is the publication target; the pre-publication
-manifests still declare a broader permitted set and must be narrowed to actual
-imports before release.
+only wanted a scale. Each manifest now declares exactly what its
+package imports — `core` declares and imports the five modules listed above,
+`theme` declares and imports only `d3-scale-chromatic` — so there is nothing
+left to narrow.
 
 ### Banned modules (never in the render path)
 

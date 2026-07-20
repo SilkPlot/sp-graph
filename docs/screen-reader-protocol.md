@@ -72,8 +72,11 @@ significant finding.
 
 From the chart, press Tab again.
 
-- **Expected:** focus leaves the chart entirely and lands on the next thing on
-  the page — the "Show source" button.
+- **Expected:** focus leaves the chart entirely and lands on the next control on
+  the page. On the live site the next controls are the chart's own "Show data
+  table" and "Download CSV" buttons, then the example's "Show source" button.
+  What matters is that focus MOVES PAST the chart's plotting area, not which
+  button it reaches.
 - **Not expected:** Tab walking through individual data points. A chart with
   forty points should not be forty tab stops.
 - **Record:** how many Tab presses it took to get past the chart.
@@ -117,9 +120,17 @@ chart draws, associated with it via `aria-details`.
 Scroll to the scatter chart ("Response time against load"). Its table is visually
 hidden but is supposed to remain in the accessibility tree.
 
-- **Expected:** it behaves like the others — named, one tab stop, arrow-navigable,
-  table reachable.
-- **Record:** any way in which it behaves differently from the earlier charts.
+**Only `LineChart` has a keyboard model today.** Scatter, Area, and Bar have no
+keyboard composite and therefore **no tab stop and no arrow navigation** — that
+is the current state of the library, not a defect, and this step exists to check
+the parts that should work anyway.
+
+- **Expected:** the chart is named, its description is reachable, and its table
+  is reachable in the accessibility tree despite being visually hidden.
+- **NOT expected, and not a finding:** arrow keys doing nothing here, or Tab
+  skipping straight past the chart. Please do not log those — the gap is known
+  and recorded.
+- **Record:** whether the name, description, and table come through.
 
 ---
 
