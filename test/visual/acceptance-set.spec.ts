@@ -20,6 +20,8 @@ import {
   CHARTS,
   EXPECTED_TOTALS,
   FOCUSABLE,
+  MULTI_CASES,
+  MULTI_CHARTS,
   FOCUS_RATIONALE,
   THEME_STATES,
 } from "./acceptance-set";
@@ -37,13 +39,33 @@ test.describe("the acceptance set is explicit", () => {
     expect([...CHARTS]).toEqual(["line", "area", "bar", "scatter"]);
   });
 
-  test("covers exactly the five rendering cases", () => {
+  test("covers exactly the ten rendering cases", () => {
     expect([...CASES]).toEqual([
       "default",
       "empty",
       "negative",
       "dense-label",
       "responsive-mobile",
+      "multi-one",
+      "multi-four",
+      "multi-22",
+      "multi-22-narrow",
+      "multi-gaps",
+    ]);
+  });
+
+  test("declares which charts compose the multi-series surface", () => {
+    // Two, not four. `bar` and `scatter` have no `series` prop, so a baseline
+    // for them would be a picture of nothing under a confident name. Written
+    // out here so that the day one of them gains the surface, this literal has
+    // to change in a diff a reviewer sees.
+    expect([...MULTI_CHARTS]).toEqual(["line", "area"]);
+    expect([...MULTI_CASES]).toEqual([
+      "multi-one",
+      "multi-four",
+      "multi-22",
+      "multi-22-narrow",
+      "multi-gaps",
     ]);
   });
 
@@ -72,7 +94,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(92);
+    expect(EXPECTED_TOTALS.all).toBe(136);
   });
 
   test("gives every baseline a unique id", () => {

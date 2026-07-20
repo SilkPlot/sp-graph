@@ -13,6 +13,7 @@
  * rendering regression and is not one.
  */
 import type { CategoryPoint, TimePoint, XYPoint } from "@silkplot/charts";
+import type { Series } from "@silkplot/core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EPOCH = Date.UTC(2026, 0, 1);
@@ -107,3 +108,59 @@ export const XY_DENSE: readonly XYPoint[] = cloud(320, (i) => ({
 }));
 
 export const XY_EMPTY: readonly XYPoint[] = [];
+
+/* -------------------------------------------------------------------------- */
+/* Multi-series (ADR-0008)                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Multi-series fixtures, built by the same closed-form rule as the rest.
+ *
+ * Each series is offset and phase-shifted by its index so the lines are
+ * genuinely distinguishable rather than overlapping into one thick band — an
+ * overlap would hide exactly the palette and identity defects these baselines
+ * exist to catch.
+ *
+ * Labels are plain and short on purpose. The legend is not built, so a label
+ * reaches the picture only through the axis and the (hidden) table; long ones
+ * would pin text layout, which is where a screenshot gate is least informative.
+ */
+const multi = (count: number, points = 24): Series[] =>
+  Array.from({ length: count }, (_, s) => ({
+    id: `s${s}`,
+    label: `Series ${s + 1}`,
+    data: days(points, (i) => 20 + Math.sin(i / 3 + s / 2) * 6 + s * 4),
+  }));
+
+/**
+ * ONE series through the multi-series API.
+ *
+ * Not redundant with `default`: that case goes through the single-series `data`
+ * prop and a different code path. This pins what a one-series chart looks like
+ * when it arrives as `series`, which is the shape §12 promises stays supported.
+ */
+export const SERIES_ONE: readonly Series[] = multi(1);
+
+/** Four same-unit series — the ordinary operational shape ADR-0008 cites. */
+export const SERIES_FOUR: readonly Series[] = multi(4);
+
+/**
+ * Twenty-two series — the density ADR-0008 names, and the case that exercises
+ * palette WRAP. Beyond the palette size colours repeat by design (ADR-0009), so
+ * this is the baseline that would show a wrap becoming a collision or the dash
+ * channel being dropped.
+ */
+export const SERIES_22: readonly Series[] = multi(22);
+
+/**
+ * Four series carrying a gap each, at different indices.
+ *
+ * The gap is the one multi-series shape whose breakage is invisible to a
+ * geometry assertion that only counts paths: a null coerced to zero draws a
+ * spike to the baseline, which is a picture, not an error.
+ */
+export const SERIES_GAPS: readonly Series[] = multi(4).map((s, i) => ({
+  ...s,
+  nullPolicy: i % 2 === 0 ? "break" : "connect",
+  data: s.data.map((d, j) => (j === 6 + i * 3 ? { ...d, y: null } : d)),
+}));

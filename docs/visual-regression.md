@@ -50,11 +50,17 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 |---|---|
 | Charts | Line, Area, Bar, Scatter |
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
+| Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps` — **Line and Area only** |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
-| Motion | reduced motion, on both schemes |
+| Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**92 baselines**: 80 geometry, 4 focus, 8 reduced-motion.
+**136 baselines**: 120 geometry, 4 focus, 12 reduced-motion.
+
+The multi-series cases break the otherwise-uniform chart × case product, and
+that is a property of the library rather than an inconvenience: Bar and Scatter
+have no `series` prop, so a baseline for them would be a picture of nothing
+under a confident name. They are generated separately and counted separately.
 
 Each case earns its place by being a shape that has broken before, or one whose
 breakage is invisible to a structural assertion:
@@ -70,6 +76,19 @@ breakage is invisible to a structural assertion:
   through them.
 - **`responsive-mobile`** — a narrow viewport with a fluid container, so the
   measured-bounds path runs at a size the desktop cases never reach.
+- **`multi-one`** — one series through the `series` API. Not redundant with
+  `default`, which reaches a different code path through the single-series
+  `data` prop; both stay supported, so both are pinned.
+- **`multi-four`** — four same-unit series, the ordinary operational shape.
+- **`multi-22`** — the density the series contract names, and the case that
+  exercises palette **wrap**. Colours repeat beyond the palette size by design,
+  so this is where a wrap becoming a collision, or the dash channel being
+  dropped, would show.
+- **`multi-22-narrow`** — the same twenty-two in a fluid narrow box.
+- **`multi-gaps`** — four series each carrying a null at a different index,
+  under both gap policies. A null coerced to zero draws a spike to the baseline,
+  which is a *picture* rather than an error and passes every path-counting
+  assertion.
 
 All four scheme × contrast combinations are captured because
 `prefers-color-scheme` and `prefers-contrast` are **orthogonal** preferences,

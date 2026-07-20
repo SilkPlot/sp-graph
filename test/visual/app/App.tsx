@@ -18,11 +18,16 @@
 import { type Component, Show } from "solid-js";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "@silkplot/charts";
 import { seriesChannel } from "@silkplot/theme";
+import type { Series } from "@silkplot/core";
 import {
   CATEGORY_DEFAULT,
   CATEGORY_DENSE,
   CATEGORY_EMPTY,
   CATEGORY_NEGATIVE,
+  SERIES_22,
+  SERIES_FOUR,
+  SERIES_GAPS,
+  SERIES_ONE,
   TIME_DEFAULT,
   TIME_DENSE,
   TIME_EMPTY,
@@ -34,7 +39,33 @@ import {
 } from "./fixtures";
 
 type Chart = "line" | "area" | "bar" | "scatter";
-type Case = "default" | "empty" | "negative" | "dense-label" | "responsive-mobile";
+type Case =
+  | "default"
+  | "empty"
+  | "negative"
+  | "dense-label"
+  | "responsive-mobile"
+  | MultiCase;
+
+/**
+ * The multi-series cases (ADR-0008), which only `line` and `area` can render —
+ * `bar` and `scatter` have no multi-series surface. The acceptance set is what
+ * keeps a bar+multi request from ever being made; `ChartFor` renders nothing
+ * for that pair rather than inventing a fallback, and a blank baseline would be
+ * caught by the declared-versus-on-disk inventory.
+ */
+type MultiCase = "multi-one" | "multi-four" | "multi-22" | "multi-22-narrow" | "multi-gaps";
+
+const MULTI_CASES: readonly MultiCase[] = [
+  "multi-one",
+  "multi-four",
+  "multi-22",
+  "multi-22-narrow",
+  "multi-gaps",
+];
+
+const isMulti = (kase: Case): kase is MultiCase =>
+  (MULTI_CASES as readonly string[]).includes(kase);
 
 const CHARTS: readonly Chart[] = ["line", "area", "bar", "scatter"];
 const CASES: readonly Case[] = [
@@ -43,6 +74,7 @@ const CASES: readonly Case[] = [
   "negative",
   "dense-label",
   "responsive-mobile",
+  ...MULTI_CASES,
 ];
 
 /**
@@ -59,11 +91,21 @@ const parse = <T extends string>(value: string | null, allowed: readonly T[], wh
 
 /** Fixed pixel boxes, except the mobile case which is fluid on purpose. */
 const boxFor = (kase: Case): { width: string; height: string } =>
-  kase === "responsive-mobile"
+  kase === "responsive-mobile" || kase === "multi-22-narrow"
     ? { width: "100%", height: "260px" }
     : kase === "dense-label"
       ? { width: "380px", height: "220px" }
       : { width: "640px", height: "360px" };
+
+/** Which series set a multi-series case draws. */
+const seriesData = (kase: MultiCase): readonly Series[] =>
+  kase === "multi-one"
+    ? SERIES_ONE
+    : kase === "multi-four"
+      ? SERIES_FOUR
+      : kase === "multi-gaps"
+        ? SERIES_GAPS
+        : SERIES_22;
 
 const timeData = (kase: Case) =>
   kase === "empty"
@@ -113,7 +155,7 @@ const xyData = (kase: Case) =>
  */
 const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
   <>
-    <Show when={props.chart === "line"}>
+    <Show when={props.chart === "line" && !isMulti(props.case)}>
       <LineChart
         tableHidden
         data={timeData(props.case)}
@@ -123,7 +165,22 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         strokeWidth={2}
       />
     </Show>
-    <Show when={props.chart === "area"}>
+    {/*
+      The multi-series branches pass NO `stroke`, deliberately. The whole point
+      of these baselines is what the library assigns by default — the
+      array-position palette of ADR-0009 and the dash channel that keeps series
+      apart in monochrome. Pinning a caller-supplied colour here would pin the
+      fixture's choice and prove nothing about the palette.
+    */}
+    <Show when={props.chart === "line" && isMulti(props.case)}>
+      <LineChart
+        tableHidden
+        series={seriesData(props.case as MultiCase)}
+        title="Daily samples by sensor"
+        desc="Deterministic multi-series daily readings, rendered for a visual baseline."
+      />
+    </Show>
+    <Show when={props.chart === "area" && !isMulti(props.case)}>
       <AreaChart
         tableHidden
         data={timeData(props.case)}
@@ -133,7 +190,15 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         stroke={seriesChannel(1).color}
       />
     </Show>
-    <Show when={props.chart === "bar"}>
+    <Show when={props.chart === "area" && isMulti(props.case)}>
+      <AreaChart
+        tableHidden
+        series={seriesData(props.case as MultiCase)}
+        title="Daily samples by sensor, filled"
+        desc="Deterministic multi-series daily readings, filled from the zero baseline."
+      />
+    </Show>
+    <Show when={props.chart === "bar" && !isMulti(props.case)}>
       <BarChart
         tableHidden
         data={categoryData(props.case)}
@@ -142,7 +207,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         fill={seriesChannel(2).color}
       />
     </Show>
-    <Show when={props.chart === "scatter"}>
+    <Show when={props.chart === "scatter" && !isMulti(props.case)}>
       <ScatterChart
         tableHidden
         data={xyData(props.case)}
