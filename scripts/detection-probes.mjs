@@ -403,6 +403,30 @@ const PROBES = [
     observed: "the y axis carries the x axis' wording",
     messagePattern: /expected|to be/,
   },
+  {
+    id: "resize-updates-dropped",
+    file: "packages/solid/src/createResize.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the observer keeps REPORTING size after the initial seed. Drop its updates and a chart " +
+      "keeps whatever width it had when it mounted — every path stays self-consistent and " +
+      "agrees with every other path, so a test asserting only that the series agree passes " +
+      "against a chart frozen at the wrong size. That is the shape this probe guards",
+    anchor:
+      "      const box = entry.contentBoxSize?.[0];\n" +
+      "      if (box) {\n" +
+      "        setSize({ width: box.inlineSize, height: box.blockSize });\n" +
+      "      } else {\n" +
+      "        const rect = entry.contentRect;\n" +
+      "        setSize({ width: rect.width, height: rect.height });\n" +
+      "      }",
+    mutation: "      void entry;",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 3,
+    observed: "geometry stays frozen at the mount-time width across every resize",
+    messagePattern: /expected|to be/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
