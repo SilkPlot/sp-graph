@@ -632,6 +632,30 @@ const readSource = (relative) => readFileSync(abs(relative), "utf8");
 class BrokenProbe extends Error {}
 
 const jsonDir = mkdtempSync(join(tmpdir(), "silkplot-probes-"));
+
+/**
+ * Clean the temp directory on EVERY exit path, not only the happy one.
+ *
+ * The `finally` at the bottom of this file covers a normal fall-through, and
+ * covers nothing else: this script exits through `process.exit()` from a dozen
+ * places — a baseline that is not green, a restoration that cannot be verified,
+ * a broken probe — and `process.exit` does not run a pending `finally`. Every
+ * one of those paths leaked the directory plus up to one Vitest JSON report per
+ * probe.
+ *
+ * `process.on("exit")` fires for all of them, including the normal path, so the
+ * `finally` below becomes redundant rather than load-bearing. It is kept anyway:
+ * it removes the directory at the earliest correct moment on the common path,
+ * and defence in depth costs nothing here.
+ *
+ * Deliberately NOT wired to SIGINT/SIGTERM. A killed run is exactly the case
+ * where the residue sentinel must survive for `gate:probe-residue` to read, and
+ * this handler must not become a place where cleanup logic accretes on a path
+ * that has to stay minimal.
+ */
+process.on("exit", () => {
+  rmSync(jsonDir, { recursive: true, force: true });
+});
 let runCounter = 0;
 
 /**

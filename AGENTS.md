@@ -14,8 +14,9 @@ edited — supersede it.
 - **SSR-safe.** No `window` / `document` / DOM work at module top level.
 - `solid-js` is a **peer dependency** of Solid-exporting packages. Runtime
   `d3-*` use belongs in the importing package's regular dependencies
-  (`d3-scale-chromatic` belongs to `@silkplot/theme`); pre-publication manifests
-  are broader and must be narrowed before release.
+  (`d3-scale-chromatic` belongs to `@silkplot/theme`). Each manifest declares
+  exactly what its package imports — verified, not assumed — so a new `d3-*`
+  import means adding a real dependency, not finding it already permitted.
 - **Primitives read theme tokens as `var(--sp-…)` with a fallback, and never import
   `@silkplot/theme`.** See [ADR-0001](docs/decisions/adr-0001-theming-contract.md).
 
