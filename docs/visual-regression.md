@@ -366,6 +366,61 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 
 <!-- Entries below, newest first. -->
 
+### 2026-07-20 — bar--focus--light, bar--focus--dark, bar--focus--light-high-contrast, bar--focus--dark-high-contrast
+
+- **Why:** NEW baselines, not re-pins. `BarChart` now composes
+  `ChartKeyboardSurface`, so for the first time it has a `:focus-visible`
+  treatment to capture. Nothing existing moved — verified with `git diff
+  --cached --name-status`: 4 added, 0 modified, 0 deleted.
+- **Inspected by:** the executing agent # 1 of 4 — `light` opened as an image and
+  shows the focus ring around the chart with the bars and both axes intact. The
+  other three were NOT opened and differ only in palette.
+- **Accepted by:** Adam Claassens, on merge
+
+The declaration and the rendered DOM were checked against each other rather than
+assumed: `FOCUSABLE.bar` flipped to `true`, and the acceptance set's
+rendered-DOM assertion for `bar` passes, which is what distinguishes a flag that
+was edited from a surface that actually exists.
+
+### 2026-07-20 — bar--dense-label--light, bar--dense-label--dark, bar--dense-label--light-high-contrast, bar--dense-label--dark-high-contrast
+
+- **Why:** the bar chart's category axis now truncates a label longer than 20
+  characters to an ellipsis, so the eleven clinic names in the `dense-label`
+  fixture render shortened. Geometry is unchanged — only axis text moved.
+- **Inspected by:** the executing agent # 2 of 4 — `light` and `dark` opened as
+  images; the two high-contrast variants were NOT opened, and differ from their
+  inspected siblings only in palette.
+- **Accepted by:** Adam Claassens, on merge
+
+**These pictures are still cramped, and that is deliberate rather than
+unnoticed.** Eleven long labels on a 400px VERTICAL axis is the configuration
+the literature says to avoid rather than to engineer around: NN/g, Storytelling
+with Data and Atlassian all rank horizontal orientation above rotation,
+abbreviation, or thinning for long category labels, and this library now ships
+horizontal as a first-class option. The remedy for this fixture is to draw it
+horizontally, not to make the vertical case cleverer.
+
+Two mitigations were built and REVERTED before this entry, and both failures are
+worth keeping:
+
+1. A fixed pixel floor for label thinning. It cannot work at any value —
+   `"Mon"` needs about 20px while a twenty-character clinic name needs about
+   130px, so one constant either over-thins short labels or under-thins long
+   ones.
+2. Thinning at all. **Dropping labels is valid on a CONTINUOUS axis and invalid
+   on a CATEGORICAL one**: a reader interpolates an unlabelled position between
+   0 and 50, but an unlabelled bar is an unidentifiable bar. `computeTicks`
+   negotiates a count and `computeBandTicks` returns one label per category —
+   that asymmetry is the difference between two kinds of axis, not a defect.
+
+Label rotation stays unbuilt and is tracked in the planning backlog: it is the
+second-ranked remedy, and it needs bottom-margin reservation that touches every
+chart's layout.
+
+Truncation is retained because its precondition holds — the full text of every
+category survives in the derived data table, the CSV export, and the keyboard
+composite's announced option text.
+
 ### 2026-07-20 — area--default--light, area--dense-label--light, area--empty--light, area--multi-22--light, area--multi-22-narrow--light, area--multi-four--light, area--multi-four-reduced-motion--light, area--multi-gaps--light, area--multi-one--light, area--multi-ref-one--light, area--multi-ref-three--light, area--negative--light, area--reduced-motion--light, area--responsive-mobile--light, bar--default--light, bar--dense-label--light, bar--empty--light, bar--negative--light, bar--reduced-motion--light, bar--responsive-mobile--light, line--default--light, line--dense-label--light, line--empty--light, line--focus--light, line--multi-22--light, line--multi-22-narrow--light, line--multi-four--light, line--multi-four-reduced-motion--light, line--multi-gaps--light, line--multi-one--light, line--multi-ref-one--light, line--multi-ref-three--light, line--negative--light, line--reduced-motion--light, line--responsive-mobile--light, scatter--default--light, scatter--dense-label--light, scatter--empty--light, scatter--negative--light, scatter--reduced-motion--light, scatter--responsive-mobile--light
 - **Why:** the light-theme `--sp-color-axis` moved from `#98a2b3` (2.58:1 on
   white) to `#7d8aa1` (3.49:1), clearing the 3:1 non-text contrast floor of
