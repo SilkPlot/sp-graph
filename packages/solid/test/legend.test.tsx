@@ -351,3 +351,161 @@ describe("layout", () => {
     expect(toolbar.scrollHeight).toBeGreaterThan(toolbar.clientHeight);
   });
 });
+
+describe("announcement posture (ADR-0005 §4)", () => {
+  it("carries NO live region — aria-pressed is the announcement", async () => {
+    const { container } = render(() => <Legend series={THREE} />);
+
+    // Deliberate, and asserted so nobody adds one later "for accessibility".
+    // A toggle button's `aria-pressed` change is already announced by every
+    // screen reader; a live region alongside it announces the same state twice.
+    // This library has met that failure before — the chart's `live` and
+    // `option` announcement channels are mutually exclusive by construction for
+    // exactly this reason.
+    expect(container.querySelector("[aria-live]")).toBeNull();
+    expect(container.querySelector("[role='status']")).toBeNull();
+    expect(container.querySelector("[role='alert']")).toBeNull();
+
+    // And the state that IS announced changes on toggle.
+    await userEvent.click(items(container)[0] as HTMLButtonElement);
+    expect(items(container)[0]?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("keeps the accessible name stable across a toggle", async () => {
+    const { container } = render(() => <Legend series={THREE} />);
+    const before = items(container)[0]?.textContent?.trim();
+
+    await userEvent.click(items(container)[0] as HTMLButtonElement);
+
+    // The NAME must not change with the state — a button relabelled from
+    // "Series A" to "Show series A" announces as a different control, and a
+    // reader that had it in a list finds the list rewritten under them. The
+    // state travels on `aria-pressed`, which is what it is for.
+    expect(items(container)[0]?.textContent?.trim()).toBe(before);
+  });
+});
+
+describe("rapid toggling", () => {
+  it("settles on the correct state after a burst on one entry", async () => {
+    const seen: (readonly string[])[] = [];
+    const { container } = render(() => (
+      <Legend series={THREE} onVisibilityChange={(v) => seen.push(v)} />
+    ));
+    const first = items(container)[0] as HTMLButtonElement;
+
+    for (let i = 0; i < 6; i += 1) await userEvent.click(first);
+
+    // An even number of toggles returns to visible. A component that dropped or
+    // coalesced an event would land on the opposite state, and a single
+    // click-and-check test cannot tell the difference.
+    expect(seen).toHaveLength(6);
+    expect(pressed(container)).toEqual(["true", "true", "true"]);
+  });
+
+  it("keeps each entry's state independent under an interleaved burst", async () => {
+    const { container } = render(() => <Legend series={THREE} />);
+
+    await userEvent.click(items(container)[0] as HTMLButtonElement);
+    await userEvent.click(items(container)[1] as HTMLButtonElement);
+    await userEvent.click(items(container)[0] as HTMLButtonElement);
+    await userEvent.click(items(container)[2] as HTMLButtonElement);
+
+    // a toggled twice (visible), b and c once each (hidden). A shared cursor or
+    // a last-write-wins bug would collapse these into one state.
+    expect(pressed(container)).toEqual(["true", "false", "false"]);
+  });
+
+  it("survives a burst driven from the keyboard", async () => {
+    const { container } = render(() => <Legend series={THREE} />);
+    items(container)[0]?.focus();
+
+    await userEvent.keyboard(" {ArrowRight} {ArrowRight} ");
+
+    // Toggle, move, toggle, move, toggle — the pointer and keyboard paths write
+    // the same state, so a burst mixing navigation and activation must not
+    // leave the roving cursor and the pressed state disagreeing.
+    expect(pressed(container)).toEqual(["false", "false", "false"]);
+    expect(document.activeElement).toBe(items(container)[2]);
+  });
+});
+
+describe("theme", () => {
+  it("resolves swatch colour through a token, not a baked literal", () => {
+    const { container } = render(() => <Legend series={THREE} />);
+    const strokes = Array.from(container.querySelectorAll("svg line")).map((l) =>
+      l.getAttribute("stroke"),
+    );
+
+    // `var(--sp-cat-N, currentColor)` — the scheme x contrast cascade resolves
+    // it. A hex literal here would freeze one surface's palette into the markup
+    // and the legend would stop following the theme the chart follows.
+    for (const stroke of strokes) {
+      expect(stroke).toMatch(/^var\(--sp-cat-\d+, currentColor\)$/);
+    }
+  });
+
+  it("takes its text colour from a token with an inheriting fallback", () => {
+    const { container } = render(() => <Legend series={THREE} />);
+    const button = items(container)[0] as HTMLButtonElement;
+
+    // The fallback matters for a consumer shipping no theme at all: they get a
+    // legible legend in the inherited colour rather than an invisible one.
+    expect(button.style.color).toContain("--sp-color-text");
+    expect(button.style.color).toContain("currentColor");
+  });
+
+  it("respects a caller's own stroke while keeping the dash channel", () => {
+    const branded: readonly Series[] = [
+      { ...series("a"), style: { stroke: "#ff0000" } },
+      series("b"),
+    ];
+    const { container } = render(() => <Legend series={branded} />);
+    const lines = Array.from(container.querySelectorAll("svg line"));
+
+    // Per-property override: picking a brand colour must not silently discard
+    // the non-colour channel, which is the most likely thing a caller does.
+    expect(lines[0]?.getAttribute("stroke")).toBe("#ff0000");
+    expect(lines[0]?.getAttribute("stroke-dasharray")).toMatch(/--sp-cat-dash-/);
+  });
+});
+
+describe("several charts, one legend", () => {
+  it("drives every subscriber from one state", async () => {
+    // The case that motivated a standalone legend at all (ADR-0008 §6). Two
+    // consumers stand in for two charts, so this asserts the wiring rather than
+    // re-testing the charts, which the seam suite in `charts` already covers.
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c"]);
+    const { container } = render(() => (
+      <>
+        <Legend series={THREE} visibleSeries={visible()} onVisibilityChange={setVisible} />
+        <div data-first>{visible().join(",")}</div>
+        <div data-second>{visible().join(",")}</div>
+      </>
+    ));
+
+    await userEvent.click(items(container)[1] as HTMLButtonElement);
+
+    expect(container.querySelector("[data-first]")?.textContent).toBe("a,c");
+    expect(container.querySelector("[data-second]")?.textContent).toBe("a,c");
+  });
+
+  it("keeps two legends over one state in step with each other", async () => {
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c"]);
+    const { container } = render(() => (
+      <>
+        <Legend series={THREE} visibleSeries={visible()} onVisibilityChange={setVisible} label="A" />
+        <Legend series={THREE} visibleSeries={visible()} onVisibilityChange={setVisible} label="B" />
+      </>
+    ));
+
+    const all = items(container);
+    expect(all).toHaveLength(6);
+
+    await userEvent.click(all[1] as HTMLButtonElement);
+
+    // Both legends reflect the change, because neither owns the state. A legend
+    // that kept private state alongside the controlled prop would leave the two
+    // disagreeing, each individually plausible.
+    expect(pressed(container)).toEqual(["true", "false", "true", "true", "false", "true"]);
+  });
+});
