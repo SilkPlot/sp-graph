@@ -194,7 +194,7 @@ export const viewportFor = (kase: Case | LegendCase): Viewport =>
 export const FOCUSABLE: Record<Chart, boolean> = {
   line: true,
   area: false,
-  bar: false,
+  bar: true,
   scatter: false,
 };
 
@@ -202,7 +202,7 @@ export const FOCUSABLE: Record<Chart, boolean> = {
 export const FOCUS_RATIONALE: Record<Chart, string> = {
   line: "composes ChartKeyboardSurface, so it has one tab stop and a :focus-visible ring",
   area: "no keyboard composite yet — nothing in the chart can receive focus",
-  bar: "no keyboard composite yet — nothing in the chart can receive focus",
+  bar: "composes ChartKeyboardSurface since S006-P06, so it has one tab stop and a :focus-visible ring",
   scatter: "no keyboard composite yet — nothing in the chart can receive focus",
 };
 

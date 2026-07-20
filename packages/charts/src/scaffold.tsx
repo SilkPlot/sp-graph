@@ -274,14 +274,23 @@ export function assertOneInput(
     strict?: boolean;
     /** Diagnostic sink. Defaults to `console.warn`. */
     onIssue?: (message: string) => void;
+    /**
+     * What the second input is called on this chart. Defaults to `"series"`.
+     *
+     * A parameter rather than a hardcoded word because BarChart's second input
+     * is `categories`, and a diagnostic naming a prop the caller never wrote
+     * sends them looking for a `series` prop that does not exist on that chart.
+     * A misleading diagnostic costs more than no diagnostic.
+     */
+    inputName?: string;
   } = {},
 ): void {
   if (props.data === undefined || props.series === undefined) return;
+  const name = options.inputName ?? "series";
   const message =
-    "SilkPlot: a chart was given both `data` and `series`. They are two spellings of " +
-    "the same input and cannot both apply — `data` is sugar for a one-element `series` " +
-    "array. Merging them would draw a series the caller never passed. `series` is used " +
-    "and `data` is ignored.";
+    `SilkPlot: a chart was given both \`data\` and \`${name}\`. They are two spellings of ` +
+    `the same input and cannot both apply. Merging them would draw data the caller never ` +
+    `passed. \`${name}\` is used and \`data\` is ignored.`;
   if (options.strict ?? isDevelopmentBuild()) throw new Error(message);
   (options.onIssue ?? ((m: string) => console.warn(m)))(message);
 }
