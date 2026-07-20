@@ -109,6 +109,18 @@ jobs:
       - name: Stated facts gate (documented numbers match their source)
         run: npm run gate:stated-facts
 
+      # `npm run typecheck` is a hand-written list of `tsc -p` invocations with no
+      # relationship to the files that exist, so a directory nobody added to it is
+      # simply not typechecked — and the run is SHORTER and greener, which is the
+      # least suspicious way for coverage to vanish. `test/visual/` sat like that
+      # until 2026-07-20: the Playwright specs, the acceptance set the whole visual
+      # harness answers to, and the Solid fixture page had never been typechecked,
+      # and a missing import there surfaced as sixteen 30-second Playwright
+      # timeouts instead of one compiler error. See
+      # scripts/typecheck-coverage-gate.mjs.
+      - name: Typecheck-coverage gate (no source file escapes a project)
+        run: npm run gate:typecheck-coverage
+
       # The `solid`, `charts`, and `playground` Vitest projects run in real
       # headless chromium, not jsdom, so the runner needs a browser. Without this
       # step the test job cannot pass — which is exactly why every run before

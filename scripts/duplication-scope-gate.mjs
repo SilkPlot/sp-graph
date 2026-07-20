@@ -124,7 +124,7 @@ function testFilesOnDisk() {
  */
 function parseExcludeList(yaml, engine) {
   const lines = yaml.split("\n");
-  const enginesAt = lines.findIndex((line) => line === "engines:");
+  const enginesAt = lines.indexOf("engines:");
   if (enginesAt === -1) return undefined;
 
   const engineAt = lines.findIndex((line, i) => i > enginesAt && line === `  ${engine}:`);

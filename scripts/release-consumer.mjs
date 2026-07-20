@@ -29,7 +29,7 @@ import { createServer } from "node:http";
 import { cpSync, existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { createReadStream } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join } from "node:path";
 
 /**
  * The LineChart's series mark, as distinct from the axis domain lines.
