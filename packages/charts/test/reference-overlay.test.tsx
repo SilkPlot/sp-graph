@@ -19,7 +19,7 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import type { ReferenceValue, Series } from "@silkplot/core";
 import { Dashboard } from "@silkplot/solid";
-import { LineChart } from "../src/index";
+import { AreaChart, LineChart } from "../src/index";
 import {
   HEIGHT,
   NO_MARGINS,
@@ -199,7 +199,10 @@ describe("the dashboard scope beats a reference", () => {
     // the dashboard's own range control with nothing marking it as such.
     const outside = at(50);
     const { container } = render(() => (
-      <Dashboard range={{ start: at(0), end: at(2) }}>
+      <Dashboard
+        defaultRange={{ start: at(0).valueOf(), end: at(2).valueOf() }}
+        range={{ start: at(0).valueOf(), end: at(2).valueOf() }}
+      >
         <LineChart
           title="Scoped chart"
           desc="Reference outside the dashboard range"
@@ -476,6 +479,29 @@ describe("reactivity — references are dynamic", () => {
     expect(num(refLine(container, "sla"), "y1")).not.toBeCloseTo(before, 3);
   });
 
+  it("renders a reference against a CONSTANT series without collapsing", () => {
+    // A constant series has a zero-width extent, which is where a domain
+    // computation divides by its own span. Folding a reference in changes the
+    // extent from degenerate to real, so this is the case where a reference
+    // participating in the domain is the only thing making the scale sane —
+    // and where an implementation that special-cased the degenerate extent
+    // BEFORE adding references would put the line somewhere arbitrary.
+    const flat: readonly Series[] = [series("flat", [7, 7, 7])];
+    const { container } = mount({
+      series: flat,
+      references: [{ id: "sla", value: 20, label: "SLA" }],
+    });
+    expectNoNaN(container, "[data-silkplot-reference] line", ["x1", "y1", "x2", "y2"]);
+    // zero-floor over {7, 20} is [0, 20], so the reference takes the top edge
+    // and the flat series sits at 7/20 of the way up from the baseline.
+    const expected = expectedYScale([7, 7, 7, 20], "zero-floor", HEIGHT);
+    expect(num(refLine(container, "sla"), "y1")).toBeCloseTo(expected(20), 6);
+    expect(pathYs(markPaths(container)[0]?.getAttribute("d") ?? "")[0]).toBeCloseTo(
+      expected(7),
+      6,
+    );
+  });
+
   it("renders references on an empty chart without producing NaN geometry", () => {
     // Empty data is where a domain fallback shows up. `extentOf` returns [0,1]
     // on nothing finite; a reference folded in must not produce a NaN scale.
@@ -485,5 +511,67 @@ describe("reactivity — references are dynamic", () => {
     });
     expectNoNaN(container, "[data-silkplot-reference] line", ["x1", "y1", "x2", "y2"]);
     expect(listItems(container)).toEqual(["SLA: 20"]);
+  });
+});
+
+/**
+ * AreaChart carries the identical wiring, and "identical" is exactly why it
+ * needs its own test rather than an argument.
+ *
+ * Both charts route references through the same `createMultiSeriesScope` and the
+ * same `MultiSeriesBody`, so the behaviour is shared — but the WIRING is four
+ * hand-written props per chart, and a chart that forgot one renders perfectly
+ * with no references at all. The coverage floor caught this file testing only
+ * `LineChart`, which is what a floor is for: nothing about the suite looked
+ * incomplete.
+ *
+ * These deliberately do not re-test the overlay's behaviour. They test that
+ * this chart is CONNECTED to it.
+ */
+describe("AreaChart is wired to the same overlay", () => {
+  const mountArea = (props: Record<string, unknown> = {}) =>
+    render(() => (
+      <AreaChart
+        title="Area chart"
+        desc="A reference-overlay test fixture, filled"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={ONE}
+        {...props}
+      />
+    ));
+
+  it("draws its references and lists them", () => {
+    const { container } = mountArea({
+      references: [
+        { id: "sla", value: 34, label: "SLA floor" },
+        { id: "deploy", time: at(1), label: "Deploy" },
+      ],
+    });
+    expect(refLines(container)).toHaveLength(2);
+    expect(listItems(container)).toEqual([
+      "SLA floor: 34",
+      `Deploy: ${at(1).toISOString()}`,
+    ]);
+  });
+
+  it("lets a reference expand its zero-baseline domain", () => {
+    // Area is `zero-baseline`, not `zero-floor`. Asserting against Area's own
+    // policy rather than reusing Line's is the point: collapsing the two is a
+    // known, invisible mistake, and a reference folded into the wrong one would
+    // put the line in a plausible wrong place.
+    const { container } = mountArea({ references: [{ id: "sla", value: 95, label: "SLA" }] });
+    const expected = expectedYScale([10, 30, 20, 95], "zero-baseline", HEIGHT);
+    expect(num(refLine(container, "sla"), "y1")).toBeCloseTo(expected(95), 6);
+  });
+
+  it("words its list with its own axis formatter", () => {
+    const { container } = mountArea({
+      references: [{ id: "sla", value: 34, label: "SLA floor" }],
+      yTickFormat: (v: number) => `${v} kW`,
+    });
+    expect(listItems(container)).toEqual(["SLA floor: 34 kW"]);
   });
 });

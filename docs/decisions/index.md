@@ -100,6 +100,16 @@ arrived at.
   comes from — stated as an engineering floor, not a conformance claim. Extends
   ADR-0005 and ADR-0008 §6.
 
+- [ADR-0012 — Reference overlays on both axes, and their precedence against a dashboard scope](adr-0012-reference-overlays-on-both-axes.md):
+  why a reference is one union discriminated by the axis it sits on rather than
+  two props or a `kind` field, why a dashboard's resolved interval beats a
+  reference's domain participation on the time axis while the value axis keeps
+  ADR-0008 §10's default, why references paint above the marks but are kept off
+  the axes by clipping rather than by ordering, why a threshold's meaning always
+  also lives in an unconditional accessible list — which is what makes dropping
+  an unplaceable label defensible — and why the reference colour has to be a
+  neutral. Extends ADR-0008 §10; defers to ADR-0007 §3.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

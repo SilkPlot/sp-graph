@@ -41,7 +41,7 @@ test.describe("the acceptance set is explicit", () => {
     expect([...CHARTS]).toEqual(["line", "area", "bar", "scatter"]);
   });
 
-  test("covers exactly the ten rendering cases", () => {
+  test("covers exactly the twelve rendering cases", () => {
     expect([...CASES]).toEqual([
       "default",
       "empty",
@@ -53,6 +53,8 @@ test.describe("the acceptance set is explicit", () => {
       "multi-22",
       "multi-22-narrow",
       "multi-gaps",
+      "multi-ref-one",
+      "multi-ref-three",
     ]);
   });
 
@@ -82,6 +84,8 @@ test.describe("the acceptance set is explicit", () => {
       "multi-22",
       "multi-22-narrow",
       "multi-gaps",
+      "multi-ref-one",
+      "multi-ref-three",
     ]);
   });
 
@@ -110,7 +114,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(160);
+    expect(EXPECTED_TOTALS.all).toBe(176);
   });
 
   test("never lists a surface as excluded AND captures it", () => {

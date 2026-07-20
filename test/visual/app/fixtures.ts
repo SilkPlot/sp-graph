@@ -13,7 +13,7 @@
  * rendering regression and is not one.
  */
 import type { CategoryPoint, TimePoint, XYPoint } from "@silkplot/charts";
-import type { Series } from "@silkplot/core";
+import type { ReferenceValue, Series } from "@silkplot/core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EPOCH = Date.UTC(2026, 0, 1);
@@ -164,3 +164,40 @@ export const SERIES_GAPS: readonly Series[] = multi(4).map((s, i) => ({
   nullPolicy: i % 2 === 0 ? "break" : "connect",
   data: s.data.map((d, j) => (j === 6 + i * 3 ? { ...d, y: null } : d)),
 }));
+
+/* -------------------------------------------------------------------------- */
+/* Reference overlays (ADR-0008 §10)                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * ONE reference — the ordinary threshold, and the reference geometry for the
+ * overlay's colour token across all four scheme x contrast combinations.
+ *
+ * 34 sits just above `SERIES_FOUR`'s maximum (20 + 6 + 3*4 = 38 at its peak,
+ * so this crosses the upper band), which is what a threshold usually does:
+ * a line nobody ever approaches proves the renderer and nothing about legibility
+ * where it matters, which is against the marks.
+ */
+export const REFERENCES_ONE: readonly ReferenceValue[] = [
+  { id: "sla", value: 34, label: "SLA floor" },
+];
+
+/**
+ * THREE references, and the case carrying every property a screenshot is the
+ * only witness to.
+ *
+ * Two of them sit a hair apart on the same axis, which is the ordinary
+ * operational shape (a warning just under a limit) and the one that exercises
+ * LABEL COLLISION — overprinted labels are unreadable, are a pure rendering
+ * defect, and pass every geometry assertion in the browser suite. The third is
+ * temporal, so the vertical line, its top-anchored label, and the lane stacking
+ * on the other axis are all in frame at once.
+ */
+export const REFERENCES_THREE: readonly ReferenceValue[] = [
+  { id: "sla", value: 34, label: "SLA floor" },
+  { id: "warn", value: 33, label: "Warning" },
+    // Day 16 of the 24-day window, built from the same epoch as every series
+  // here rather than read back out of one — a fixture that derives its own
+  // constant from another fixture breaks silently when that one is re-tuned.
+  { id: "deploy", time: new Date(EPOCH + 16 * DAY_MS), label: "Deploy 4.2.0" },
+];

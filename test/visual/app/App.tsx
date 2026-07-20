@@ -19,12 +19,14 @@ import { type Component, Show } from "solid-js";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "@silkplot/charts";
 import { seriesChannel } from "@silkplot/theme";
 import { Legend } from "@silkplot/solid";
-import type { Series } from "@silkplot/core";
+import type { ReferenceValue, Series } from "@silkplot/core";
 import {
   CATEGORY_DEFAULT,
   CATEGORY_DENSE,
   CATEGORY_EMPTY,
   CATEGORY_NEGATIVE,
+  REFERENCES_ONE,
+  REFERENCES_THREE,
   SERIES_22,
   SERIES_FOUR,
   SERIES_GAPS,
@@ -56,7 +58,14 @@ type Case =
  * for that pair rather than inventing a fallback, and a blank baseline would be
  * caught by the declared-versus-on-disk inventory.
  */
-type MultiCase = "multi-one" | "multi-four" | "multi-22" | "multi-22-narrow" | "multi-gaps";
+type MultiCase =
+  | "multi-one"
+  | "multi-four"
+  | "multi-22"
+  | "multi-22-narrow"
+  | "multi-gaps"
+  | "multi-ref-one"
+  | "multi-ref-three";
 
 /** The legend primitive's own cases — it has no data, axes, or domain policy. */
 type LegendCase =
@@ -83,6 +92,8 @@ const MULTI_CASES: readonly MultiCase[] = [
   "multi-22",
   "multi-22-narrow",
   "multi-gaps",
+  "multi-ref-one",
+  "multi-ref-three",
 ];
 
 const isMulti = (kase: Case): kase is MultiCase =>
@@ -129,11 +140,25 @@ const legendSeries = (kase: LegendCase): readonly Series[] =>
 const seriesData = (kase: MultiCase): readonly Series[] =>
   kase === "multi-one"
     ? SERIES_ONE
-    : kase === "multi-four"
+    : kase === "multi-four" || kase === "multi-ref-one" || kase === "multi-ref-three"
       ? SERIES_FOUR
       : kase === "multi-gaps"
         ? SERIES_GAPS
         : SERIES_22;
+
+/**
+ * Which references a case draws, if any.
+ *
+ * The reference cases sit on `SERIES_FOUR` deliberately: the overlay has to be
+ * legible AGAINST marks, and pinning it over an empty frame would prove the
+ * renderer while proving nothing about the thing the token was chosen for.
+ */
+const referenceData = (kase: MultiCase): readonly ReferenceValue[] | undefined =>
+  kase === "multi-ref-one"
+    ? REFERENCES_ONE
+    : kase === "multi-ref-three"
+      ? REFERENCES_THREE
+      : undefined;
 
 const timeData = (kase: Case) =>
   kase === "empty"
@@ -220,6 +245,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
       <LineChart
         tableHidden
         series={seriesData(props.case as MultiCase)}
+        references={referenceData(props.case as MultiCase)}
         title="Daily samples by sensor"
         desc="Deterministic multi-series daily readings, rendered for a visual baseline."
       />
@@ -238,6 +264,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
       <AreaChart
         tableHidden
         series={seriesData(props.case as MultiCase)}
+        references={referenceData(props.case as MultiCase)}
         title="Daily samples by sensor, filled"
         desc="Deterministic multi-series daily readings, filled from the zero baseline."
       />

@@ -48,6 +48,8 @@ export const CASES = [
   "multi-22",
   "multi-22-narrow",
   "multi-gaps",
+  "multi-ref-one",
+  "multi-ref-three",
 ] as const;
 export type Case = (typeof CASES)[number];
 
@@ -74,6 +76,23 @@ export type Case = (typeof CASES)[number];
  *   both gap policies. A null coerced to zero draws a spike to the baseline,
  *   which is a picture rather than an error and passes every path-counting
  *   assertion.
+ * - `multi-ref-one` — one reference overlay (ADR-0008 §10). Pins the reference
+ *   colour token and its dash across all four scheme/contrast combinations,
+ *   which is the half of the overlay no geometry assertion can see: a token
+ *   that resolved to the surface colour, or a dash silently dropped, renders a
+ *   perfectly valid line nobody can distinguish from the marks.
+ * - `multi-ref-three` — three references, two of them a hair apart on the same
+ *   axis plus one temporal. This is the LABEL COLLISION case, and collision is
+ *   the property a screenshot is the only witness to: overprinted labels are
+ *   unreadable and pass every assertion the browser suite can make about them.
+ *
+ * Deliberately NOT given visual cases: signed, constant, empty, and
+ * out-of-domain references. Each is covered deterministically in
+ * `packages/charts/test/reference-overlay.test.tsx`, where the assertion is
+ * about a computed pixel rather than about how the picture looks — a screenshot
+ * of an out-of-domain reference is a screenshot of its absence, which pins
+ * nothing a diff could meaningfully catch. That scoping is a decision, recorded
+ * here rather than left to be inferred from which baselines exist.
  */
 export const MULTI_CASES = [
   "multi-one",
@@ -81,6 +100,8 @@ export const MULTI_CASES = [
   "multi-22",
   "multi-22-narrow",
   "multi-gaps",
+  "multi-ref-one",
+  "multi-ref-three",
 ] as const satisfies readonly Case[];
 export type MultiCase = (typeof MULTI_CASES)[number];
 
@@ -341,9 +362,9 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  * the source is self-consistent, which it always is.
  *
  * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
- * 2 multi-capable charts x 5 multi cases x 4 combinations =  40
+ * 2 multi-capable charts x 7 multi cases x 4 combinations =  56
  * 5 legend cases x 4 combinations                          =  20
- *                                              geometry    = 140
+ *                                              geometry    = 156
  * 1 focusable chart x 4 scheme/contrast combinations       =   4
  * the legend, focused, x 4 combinations                    =   4
  *                                                 focus    =   8
@@ -352,10 +373,10 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 140,
+  geometry: 156,
   focus: 8,
   "reduced-motion": 12,
-  all: 160,
+  all: 176,
 } as const;
 
 /**
