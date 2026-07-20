@@ -372,10 +372,19 @@ const PROBES = [
     browser: true,
     breaks:
       "the multi-series line keeps its own y-domain policy — swap it for the area's and an " +
-      "all-negative series is padded to zero at the wrong end, which only signed data reveals",
+      "all-negative series is padded to zero at the wrong end, which only signed data reveals.\n" +
+      "      The blast radius WIDENED when reference overlays landed, and this list was " +
+      "updated rather than the new suite loosened. `reference-overlay.test.tsx` rebuilds " +
+      "Line's expected scale under the named `zero-floor` policy — it has to, because a " +
+      "reference's whole contract is that it lands where the marks put the same value — so " +
+      "it legitimately goes red on this mutation too. A probe's `failingIn` is a claim about " +
+      "which suites cover a behaviour, so a second suite genuinely covering it belongs here.",
     anchor: '        yDomain="zero-floor"',
     mutation: '        yDomain="extent"',
-    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    failingIn: [
+      "packages/charts/test/multi-series.test.tsx",
+      "packages/charts/test/reference-overlay.test.tsx",
+    ],
     minFailures: 1,
     observed: "the union-domain test reads a different pixel for the same value",
     messagePattern: /to be close to|expected/,
