@@ -28,7 +28,7 @@ import {
   resolveSeriesStyle,
   seriesColorToken,
   seriesDashToken,
-} from "../src/series-style";
+} from "@silkplot/core";
 
 describe("the local palette constants match the theme", () => {
   it("pins the colour count", () => {

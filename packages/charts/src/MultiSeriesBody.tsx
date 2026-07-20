@@ -18,8 +18,13 @@
  * Collapsing them now would bury a deliberate difference behind a shared name.
  */
 import { createMemo, For, Show, type JSX } from "solid-js";
-import { seriesGeometry } from "@silkplot/core";
-import type { NormalizedDatum, NormalizedSeries, ScaleTime } from "@silkplot/core";
+import { resolveSeriesStyle, seriesGeometry } from "@silkplot/core";
+import type {
+  NormalizedDatum,
+  NormalizedSeries,
+  ResolvedSeriesStyle,
+  ScaleTime,
+} from "@silkplot/core";
 import {
   ChartEmptyMark,
   ChartEmptyState,
@@ -32,7 +37,7 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import type { CartesianChartProps } from "./scaffold";
 import type { MultiSeriesScope } from "./multi-series";
-import { resolveSeriesStyle, type ResolvedSeriesStyle } from "./series-style";
+
 
 /** What a chart needs to draw one series' marks. */
 export interface SeriesRenderContext<M = unknown> {

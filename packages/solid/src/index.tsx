@@ -34,6 +34,8 @@ export { createChartKeyboard } from "./createChartKeyboard";
 export type { ChartKeyboard, ChartKeyboardSpec, ChartKeyboardRole } from "./createChartKeyboard";
 
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
+export { Legend, MIN_TARGET_PX } from "./Legend";
+export type { LegendProps } from "./Legend";
 export type { ChartKeyboardSurfaceProps } from "./ChartKeyboardSurface";
 
 export {

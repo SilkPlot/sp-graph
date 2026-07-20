@@ -107,6 +107,22 @@ export type {
   Domain,
 } from "./series";
 
+// Per-series presentation — which colour and dash token series `i` gets.
+//
+// Moved here from `charts` in S006-P04, because the Legend lives in `solid` and
+// `solid` cannot import from `charts`. A legend swatch that disagrees with its
+// own mark is the defect this move prevents structurally: one function, one
+// answer, and a standing probe mutates THIS file while asserting both packages
+// go red. `charts` re-exports the public names unchanged.
+export {
+  SERIES_DASH_COUNT,
+  SERIES_PALETTE_SIZE,
+  resolveSeriesStyle,
+  seriesColorToken,
+  seriesDashToken,
+} from "./series-style";
+export type { ResolvedSeriesStyle } from "./series-style";
+
 // CSV serialisation — the chart's own table as a file (RFC 4180, injection-safe).
 export { toCsv, csvField, UTF8_BOM } from "./csv";
 export type { CsvTable, CsvOptions } from "./csv";
