@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The visual harness — the Playwright specs, the acceptance set, and the
+  // Solid fixture page under `app/`.
+  //
+  // This config did not exist until 2026-07-20, and its absence was NOT a
+  // considered scoping decision — nothing referenced this directory, so
+  // `npm run typecheck` walked straight past it while reporting success. That
+  // is the same failure shape as the Lizard scope finding recorded in
+  // `.codacy.yml`: a tool silently covering less than intended does not look
+  // like a failure, it looks like a green run.
+  //
+  // What it cost, concretely: a missing import in `app/App.tsx` typechecked
+  // clean, then surfaced as sixteen consecutive 30-second Playwright timeouts
+  // on a baseline capture — which reads like a rendering regression, not like a
+  // one-line mistake in a fixture. `gate:typecheck-coverage` now fails if any
+  // authored TypeScript file escapes a project, so a new directory cannot go
+  // unchecked the same way.
+  //
+  // `noEmit` and `composite: false` for the same reason the per-package
+  // `tsconfig.test.json` files use them: nothing here is built or published,
+  // and the visual app is served from source by Vite.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    // `types: []`, matching every other project here. This repository has no
+    // `@types/node` and that is deliberate — `packages/core/src/build-env.ts`
+    // declares `process` file-locally precisely so the browser packages never
+    // acquire node globals. The Playwright specs bring their own types through
+    // `playwright/test`, and `vite.config.ts` is excluded below rather than
+    // pulling the whole node type surface in behind one config file.
+    "types": []
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  // `vite.config.ts` alone needs node builtins (`node:url`). Excluding one
+  // build file is a far smaller hole than adding `@types/node` to a browser
+  // project, and `gate:typecheck-coverage` knows about this exclusion by name
+  // so it stays a stated decision rather than a silent gap.
+  "exclude": ["vite.config.ts"]
+}

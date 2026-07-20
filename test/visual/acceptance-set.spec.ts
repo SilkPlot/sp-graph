@@ -146,13 +146,38 @@ test.describe("the acceptance set is explicit", () => {
 });
 
 test.describe("the baseline files match the declaration", () => {
-  test("has exactly one committed baseline per declared id, and no strays", () => {
+  test("has exactly one baseline file on disk per declared id, and no strays", () => {
     // A first run on a machine with no baselines yet is a legitimate state:
     // `--update-snapshots` is how the set is created. Enforce the inventory
     // only once a set exists, and say plainly which case applies.
     test.skip(
       !existsSync(baselinesDir),
       "no baselines directory yet — create the set with `npx playwright test -c playwright.visual.config.ts --update-snapshots`",
+    );
+
+    /*
+      And skip it on any run that is WRITING the set, which is not a nicety —
+      it was a deterministic false failure.
+
+      This file sorts before `charts.spec.ts`, and the config is `workers: 1`
+      with `fullyParallel: false`, so on a run that adds cases this inventory
+      executes BEFORE the baselines it is looking for have been captured. It
+      then reports every new id as `missing`, which reads exactly like coverage
+      that silently stopped — the failure this assertion exists to catch — when
+      in fact the run is seconds away from creating them.
+
+      It cost real confusion on 2026-07-20, when reference-overlay cases were
+      first pinned: it appeared alongside a genuine frozen-totals failure and was
+      misdiagnosed first as a git-visibility blind spot and then as a race. It is
+      neither. It is ordering, and it is deterministic.
+
+      The inventory is only meaningful on a VERIFY run — one that compares
+      against a set already on disk. `updateSnapshots` is `'none'` there and
+      something else ('all', 'changed', 'missing') on a capture.
+    */
+    test.skip(
+      test.info().config.updateSnapshots !== "none",
+      "this run is writing the baseline set; the inventory is only meaningful once it is written",
     );
 
     const onDisk = readdirSync(baselinesDir)

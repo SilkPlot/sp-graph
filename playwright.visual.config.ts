@@ -51,6 +51,30 @@ export default defineConfig({
   fullyParallel: false,
 
   /**
+   * A missing baseline is a FAILURE, not something to quietly create.
+   *
+   * Playwright's default is `"missing"`, which writes any baseline that does not
+   * exist yet and reports the test green. For a declared case with no pinned
+   * image that is a self-fulfilling pass: the harness captures whatever the code
+   * renders at that moment, compares it against itself, and reports success —
+   * "a baseline nothing compares against", which is the exact failure the
+   * inventory assertion in `acceptance-set.spec.ts` exists to name. The suite
+   * would have gone green on a case nobody ever looked at.
+   *
+   * `"none"` makes a verify run refuse instead, so a new case is only ever
+   * pinned by an explicit `--update-snapshots`, which is the deliberate act
+   * `docs/visual-regression.md` requires and the baseline change log records.
+   *
+   * It also makes `updateSnapshots` a usable signal: it is `"none"` on a verify
+   * run and `"changed"` on a capture, which is how the inventory check knows
+   * not to look for files the same run has not written yet. Both values were
+   * MEASURED rather than assumed — the default turned out not to be `"none"`,
+   * and a guard written against that assumption skipped the check on every run
+   * while looking like it worked.
+   */
+  updateSnapshots: "none",
+
+  /**
    * No retries. A retry would convert an unstable baseline into a green run,
    * which is precisely the failure this harness exists to avoid — instability
    * must be visible, because the promotion criterion is measured in

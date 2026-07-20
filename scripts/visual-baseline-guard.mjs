@@ -246,6 +246,12 @@ if (comparingAgainstItself && base.how === "local fallback" && process.env.GITHU
       "  the pushed commit against itself and reported 'no baseline changed' regardless of\n" +
       "  what the push did. That is the inert failure this resolution order exists to prevent.\n\n" +
       "  remedy: the workflow step must set GITHUB_EVENT_NAME (GitHub does this) and pass\n" +
+      // GitHub Actions expression syntax, quoted verbatim in a remedy message.
+      // Turning it into a template string would EVALUATE it, and the message would
+      // then print an empty `env:` line — telling the reader to write exactly the
+      // nothing that broke their workflow. The suppression must be the LAST comment
+      // line before the code: Biome associates only that one line with the rule.
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: GHA syntax, not a JS placeholder
       "  `PUSH_BEFORE_SHA: ${{ github.event.before }}` through in its `env:` block.\n",
   );
   process.exit(1);

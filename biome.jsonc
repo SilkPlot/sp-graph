@@ -12,6 +12,18 @@
 		"includes": [
 			"**/*.ts",
 			"**/*.tsx",
+			// `.mjs` was absent until 2026-07-20, which meant the ENTIRE gate
+			// infrastructure — every `scripts/*.mjs`, including the detection-probe
+			// harness and the gates that guard the public surface — was the least
+			// checked code in the repository. Not linted, not typechecked, not even
+			// syntax-checked. A syntax error in `detection-probes.mjs` was committed
+			// on that date and survived the pre-commit hook, because the hook runs a
+			// DIFFERENT script and nothing parsed the one that was broken.
+			//
+			// It is the sharpest form of a lesson the gate-hardening work already
+			// paid for: tooling built to prevent defects is not exempt from
+			// producing them, and it is the least likely code to be checked.
+			"**/*.mjs",
 			"!**/dist/",
 			"!**/node_modules/",
 			"!**/__screenshots__/"
