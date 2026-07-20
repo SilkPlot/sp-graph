@@ -311,8 +311,41 @@ Format — the guard parses it, so it is fixed:
 ```markdown
 ### YYYY-MM-DD — id, id, id
 - **Why:** one sentence naming the cause, per step 2 of the review workflow.
-- **Accepted by:** the person who looked at the rendered before/after.
+- **Inspected by:** who opened the images # which ones, and which were not
+- **Accepted by:** the person who authorised the change to land
 ```
+
+### Why inspection and acceptance are two fields
+
+They are two different acts, and one field recorded them as one — which put a
+person's name on an inspection they had not performed, four times across three
+phases. An agent generates and samples the images; the owner authorises the
+change at merge. Both are legitimate; stating them as one is not.
+
+The vocabulary is the Linux kernel's, deliberately, rather than invented:
+
+| This ledger | Kernel trailer | What it attests |
+|---|---|---|
+| `Accepted by:` | `Acked-by:` | approval for the change to land, explicitly *not* a claim of full review — *"they may not have reviewed it as thoroughly"*, and *"does not necessarily indicate acknowledgement of the entire patch"* |
+| `Inspected by:` | `Tested-by:` | an empirical check actually performed, hedged as to extent — the kernel's own wording is *"successfully tested (in some environment)"* |
+| the `#` suffix | the kernel's scope idiom | as in `Acked-by: A Stakeholder <a@example.org> # As primary user` |
+
+**The scope suffix is required, not optional.** An inspection covering 4 of 41
+images and one covering all 41 are different claims, and an unqualified name
+reads as the second.
+
+**A tool may be named as the inspector; it may never be the accepter.** That
+follows the kernel's rule for machine contributors: a tool is credited for what
+it did (`Assisted-by: AGENT_NAME:MODEL_VERSION`, and name the model version
+here too), but *"AI agents MUST NOT add Signed-off-by tags… only humans can
+legally certify"* and the human *"takes full responsibility"*.
+
+What no source provides — checked, not assumed — is a schema for *scope of
+inspection*. Neither Percy, Chromatic, Applitools, SLSA, in-toto, nor Google's
+engineering practices has one; Google's framework has a single approval signal
+and no way to record that a review was sampled. The `#` suffix is this
+repository's own construction, with kernel precedent for its shape but not its
+specifics.
 
 Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
@@ -339,7 +372,11 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
   "graphical objects" has no glossary definition, so this was a judgement call,
   not a conformance bug — decided toward the floor. Superseded in the test, not
   silently dropped.
-- **Opened and read as images:** `line--dense-label--light` (the case that
+- **Inspected by:** Claude Code (claude-opus-4-8) # 4 of 41 opened —
+  `line--dense-label--light`, `line--default--light`,
+  `area--multi-ref-three--light`, `bar--negative--light`; the remaining 37 are
+  the same palette change across other cases and were NOT opened.
+- **Detail on those four:** `line--dense-label--light` (the case that
   motivated the change — axis and ticks now legible while gridlines stay faint,
   so the rung hierarchy survives), `line--default--light`,
   `area--multi-ref-three--light` (reference overlays still distinguishable from
@@ -363,7 +400,10 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
   from this guard, which reports added and changed together. That the overlay
   disturbed nothing already pinned is itself the result worth recording — it is
   what "additive at 0.x" (§12) looks like in pixels.
-- **Opened and read as images:** `line--multi-ref-three--light`,
+- **Inspected by:** Claude Code (claude-opus-4-8) # 4 of 16 opened — named
+  below; the remaining 12 are the same two cases in the other theme
+  combinations and were NOT opened.
+- **Detail on those four:** `line--multi-ref-three--light`,
   `line--multi-ref-three--dark-high-contrast`,
   `area--multi-ref-one--light-high-contrast`, and `area--multi-ref-three--dark`
   — chosen because they carry the claims most likely to be wrong: that two
@@ -390,8 +430,12 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
   existing baseline changed, verified with `git diff --cached --name-status`
   (24 added, 0 modified) rather than inferred from this guard, which reports
   added and changed together.
-- **Accepted by:** Adam Claassens. Scope of the visual check is stated rather
-  than implied: `legend--legend-22--light`, `legend--focus--dark`,
+- **Inspected by:** Claude Code # 4 of 24 opened — named below; the remaining
+  20 are the same four cases in the other theme combinations and were NOT
+  opened. (Backfilled 2026-07-20 from this entry's own prose when the ledger
+  split inspection from acceptance; no claim here is new.)
+- **Accepted by:** Adam Claassens, on merge.
+- **Detail on those four:** `legend--legend-22--light`, `legend--focus--dark`,
   `legend--legend-some-hidden--light`, and `legend--legend-stack-scroll--light`
   were opened and read as images — chosen because they carry the claims most
   likely to be wrong (22 entries staying readable and dash-distinguishable at
@@ -408,8 +452,12 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
   are ADDITIONS, not re-pins: no existing baseline changed, verified with `git
   diff --cached --name-status` (44 added, 0 modified) rather than inferred from
   this guard, which reports added and changed together.
-- **Accepted by:** Adam Claassens. Scope of the visual check is stated plainly
-  rather than implied: `line--multi-22--light`, `area--multi-gaps--dark`, and
+- **Inspected by:** Claude Code # 3 of 44 opened — named below; the remaining
+  41 were generated by the same declared fixtures and were NOT opened.
+  (Backfilled 2026-07-20 from this entry's own prose when the ledger split
+  inspection from acceptance; no claim here is new.)
+- **Accepted by:** Adam Claassens, on merge.
+- **Detail on those three:** `line--multi-22--light`, `area--multi-gaps--dark`, and
   `line--multi-22-narrow--dark-high-contrast` were opened and read as images —
   chosen because they carry the claims most likely to be wrong (palette wrap and
   the dash channel at 22 series, gaps that must not spike to the zero baseline,
