@@ -73,7 +73,23 @@ A hidden entry dims **and** hollows its swatch **and** reports `aria-pressed`.
 Opacity alone would encode state by colour, one level up from the failure the
 palette's dash channel avoids.
 
-### 4. Interactive targets have a floor: 24 CSS px
+### 4. There is no live region, and that is the announcement decision
+
+A toggle's `aria-pressed` change is already announced by every screen reader.
+Adding a live region alongside it announces the same state **twice**, which is
+the failure this library has already met once: the chart's `live` and `option`
+announcement channels are mutually exclusive by construction for exactly this
+reason, because running both narrates every keyboard step in duplicate.
+
+So the legend ships no live region, and a test asserts the absence — otherwise
+the next author adds one "for accessibility" and makes it worse.
+
+The entry's accessible NAME also stays constant across a toggle. Relabelling a
+button from "Series A" to "Show series A" announces it as a different control,
+and a reader that had it in a list finds the list rewritten underneath them. The
+state travels on `aria-pressed`, which is what `aria-pressed` is for.
+
+### 5. Interactive targets have a floor: 24 CSS px
 
 `MIN_TARGET_PX = 24`, applied as `min-height`/`min-width` so a long label grows
 the target rather than clipping it.
