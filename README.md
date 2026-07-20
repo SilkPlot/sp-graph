@@ -65,7 +65,7 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 |---|---|---|
 | [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, extents, ticks, shape paths, overlap packing, hit-testing. |
 | [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `createResize`. `solid-js` is a peer dep. |
-| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel` (marks; composed hit-test interaction remains roadmap work). |
+| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel`. Line and area also take a multi-series `series` prop with per-series gap policy and caller formatters (marks; composed hit-test interaction remains roadmap work). |
 | [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs; the overlap packer itself lives in `core` and is done). |
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
@@ -156,11 +156,11 @@ a later product slice.
   built. The composed charts do not yet expose the demonstrated interaction
   primitives.
 - **Phase 2 — Operational Cartesian MVP and interaction.** Multi-series
-  line/area composition, controlled legends, reference overlays, ranked bars,
-  public hit-testing, shared tooltip/cursor state, pan, zoom, visible-range
-  control, reset, responsive recovery, accessibility, installable packages,
-  and representative workload qualification. Grouped and stacked bars remain a
-  later evidence-gated extension.
+  line/area composition, controlled legends, and installable packages are
+  **built**. Still outstanding: reference overlays, ranked bars, public
+  hit-testing, shared tooltip/cursor state, pan, zoom, visible-range control,
+  reset, responsive recovery, and representative workload qualification.
+  Grouped and stacked bars remain a later evidence-gated extension.
 - **Phase 3 — Deferred calendar and dense views.** The deterministic overlap
   packer is built in `core`; the calendar time grid and rectangle resolver remain
   honest stubs. Week/agenda views, drag-resize, heatmaps, and virtualization wait
@@ -181,7 +181,7 @@ npm test              # all projects
 npm test -- --project core   # just the pure-math project
 ```
 
-Vitest runs five projects, split by what each package actually needs:
+Vitest runs six projects, split by what each package actually needs:
 
 | Project | Environment | Why |
 |---|---|---|
@@ -190,6 +190,7 @@ Vitest runs five projects, split by what each package actually needs:
 | `solid` | real chromium | `createResize` uses `ResizeObserver` and `el.clientWidth`; jsdom implements neither (`clientWidth` is always `0`), so the measurement path can only be exercised honestly in a real browser. |
 | `charts` | real chromium | Composed charts render Solid components. |
 | `playground` | real chromium | The reference composition is where the visible-focus contract is proven end to end. A focus ring is a computed style resolved under `:focus-visible`, a media query, and a custom-property cascade — none of which node resolves. |
+| `site` | real chromium | The documentation site. Its layout claims are about computed geometry — `scrollWidth` against `clientWidth` at a real viewport — and no fake DOM lays out. |
 
 The accessibility suites also run as their own CI gate:
 

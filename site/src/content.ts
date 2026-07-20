@@ -62,7 +62,7 @@ export const PACKAGES: readonly PackageRow[] = [
   },
   {
     name: "@silkplot/solid",
-    purpose: "Primitives — chart root, SVG layer, axes, gridlines, crosshair, keyboard surface",
+    purpose: "Primitives — chart root, SVG layer, axes, gridlines, legend, crosshair, keyboard surface",
     status: "Alpha",
     note: "Compose these when a preset chart is not the graph you want.",
   },
@@ -144,9 +144,9 @@ export const LIMITATIONS: readonly Limitation[] = [
       "The crosshair, tooltip anchor, and hit index all exist and are exported, and the reference composition wires them together. What is not yet built is the reusable pointer-to-datum model, so hover is something you compose today rather than a prop you set.",
   },
   {
-    headline: "One series per chart",
+    headline: "No grouped or stacked bars, and no brush or zoom",
     detail:
-      "Multi-series line and area, legends, grouped and stacked bars, and brush/zoom are not implemented.",
+      "Multi-series line and area charts ship, as does a legend with controlled visibility. What is not implemented is grouped and stacked bars, and brush or zoom navigation.",
   },
   {
     headline: "SVG only",
