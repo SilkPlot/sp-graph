@@ -307,6 +307,20 @@ describe("viewport drag-to-brush (opt-in)", () => {
     pointer(surface, "pointerup", 300);
     expect(pointCount(container)).toBe(5);
   });
+
+  it("cancels the brush on a lost pointer (pointercancel)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+    surface.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 1, bubbles: true }));
+    expect(brushRect(container)).toBeNull();
+    expect(pointCount(container)).toBe(5);
+  });
 });
 
 describe("viewport pinch zoom (opt-in)", () => {
@@ -336,6 +350,22 @@ describe("viewport pinch zoom (opt-in)", () => {
     touch(surface, "pointermove", 2, 300);
     await nextFrame();
     expect(pointCount(container)).toBe(5);
+  });
+
+  it("ends the pinch when a finger lifts (no brush fallback on the survivor)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} pinchZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    touch(surface, "pointerdown", 1, 180);
+    touch(surface, "pointerdown", 2, 220);
+    touch(surface, "pointerup", 1, 180); // one finger up ends the pinch
+    const settled = pointCount(container);
+    // Moving the surviving finger does nothing — the pinch is over and it does
+    // not fall back into a brush.
+    touch(surface, "pointermove", 2, 360);
+    await nextFrame();
+    expect(pointCount(container)).toBe(settled);
   });
 });
 
