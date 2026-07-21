@@ -863,6 +863,69 @@ const PROBES = [
     observed: "1 failure: the drawn y follows the visible-subset extent, not the full-data extent",
     messagePattern: /close to/,
   },
+  {
+    id: "gesture-keyboard-before-datum",
+    file: "packages/solid/src/ChartKeyboardSurface.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the viewport keyboard runs BEFORE the datum composite (ADR-0018 §1), which is the only " +
+      "thing that keeps `Shift`+arrow panning rather than stepping a datum — the datum composite " +
+      "does not guard `shiftKey`. Skip the first-refusal call and pan/zoom keys never fire.",
+    anchor: "if (props.beforeKeyDown?.(event)) return;",
+    mutation: "if (false && props.beforeKeyDown?.(event)) return;",
+    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    minFailures: 2,
+    observed: "≥2 failures: Shift+arrow steps a datum, and +/-/0 do nothing to the viewport",
+    messagePattern: /expected/,
+  },
+  {
+    id: "gesture-wheel-modifier-gate",
+    file: "packages/solid/src/createViewportGestures.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "with `wheelZoom` on, only a MODIFIED wheel zooms — plain vertical scrolling stays the " +
+      "page's, which keeps a tall dashboard scrollable (ADR-0014 §6). Drop the modifier gate and a " +
+      "plain wheel over any chart traps the scroll and zooms.",
+    anchor: "const zoom = plain || (wheelOn && modified);",
+    mutation: "const zoom = plain || wheelOn;",
+    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a plain (unmodified) wheel zooms instead of scrolling the page",
+    messagePattern: /expected/,
+  },
+  {
+    id: "gesture-brush-min-travel",
+    file: "packages/solid/src/createViewportGestures.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a brush commits only past a min-travel threshold (ADR-0018 §3), so a CLICK is not a request " +
+      "to zoom to a zero-width interval (which the min-span floor inflates into a jarring jump). " +
+      "Drop the `moved` guard and a click zooms.",
+    anchor: "if (!moved || scale === undefined) return;",
+    mutation: "if (scale === undefined) return;",
+    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a click below the threshold commits a zoom",
+    messagePattern: /expected/,
+  },
+  {
+    id: "gesture-autoscale-y-override",
+    file: "packages/solid/src/createCartesianModel.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the autoscale snapshot REPLACES the data-derived y extent when set (ADR-0018 §4), which is " +
+      "what makes `a` fit y to the visible values. Ignore the override and autoscale moves nothing.",
+    anchor: "spec.y.override?.() ?? extentOf(spec.data(), spec.y.accessor),",
+    mutation: "extentOf(spec.data(), spec.y.accessor),",
+    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: y stays pinned after autoscale",
+    messagePattern: /close to/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
