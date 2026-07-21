@@ -97,6 +97,19 @@ export interface TimeSeriesChartProps extends CartesianChartProps {
    *  once on mount, so an application can render its own toolbar (ADR-0014 §5)
    *  without controlling the domain itself. */
   onViewportCommands?: (commands: ViewportCommands) => void;
+  /* --- Gesture capture opt-in (ADR-0018 §2). Every one defaults to off — nothing
+     captures the page's scroll or touch unless the caller asks. The keyboard needs
+     no opt-in; it is always on the chart's keyboard composite. --- */
+  /** Enable `Ctrl`/`Cmd`+wheel (and trackpad pinch) zoom. Default off. Plain
+   *  vertical scrolling still moves the page. */
+  wheelZoom?: boolean;
+  /** Enable two-finger pinch zoom on a touch screen. Default off. */
+  pinchZoom?: boolean;
+  /** Enable the drag-to-brush gesture (zoom to the dragged interval). Default off. */
+  brushSelect?: boolean;
+  /** Let PLAIN wheel zoom, for a single full-bleed chart — the one escape hatch
+   *  that trades page scroll for zoom (ADR-0014 §6). Default off. */
+  capturePlainWheel?: boolean;
 }
 
 /**

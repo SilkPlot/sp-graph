@@ -28,6 +28,7 @@ import {
   type CartesianModel,
   type ChartInspection,
   type ChartSemantics,
+  type ViewportGestures,
 } from "@silkplot/solid";
 import type { TimePoint } from "./types";
 
@@ -239,11 +240,13 @@ export interface InteractionLayerProps<D> {
   /** Optional tooltip content (ADR-0016 §1). */
   tooltip?: (active: ActivePoint<D>) => JSX.Element;
   /**
-   * The viewport gesture keyboard handler (ADR-0018 §1), given first refusal on
-   * every keydown before the datum composite. Present only on a navigable time
-   * chart; absent leaves the keyboard as datum-stepping alone.
+   * The viewport gesture adapters (ADR-0018), composed onto the one interaction
+   * surface: its `onKeyDown` gets first refusal before the datum composite, and
+   * its `setSurface` receives the same element the inspection layer caches, so the
+   * wheel and pointer listeners attach where the hover already reads. Present only
+   * on a navigable time chart; absent leaves the keyboard as datum-stepping alone.
    */
-  viewportKeyDown?: (event: KeyboardEvent) => boolean;
+  viewportGestures?: ViewportGestures;
 }
 
 /**
@@ -264,6 +267,14 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
   const insp = props.inspection;
   const named = (): string => props.semantics.name();
   const active = (): ActivePoint<D> | undefined => insp.point();
+  // Both the inspection layer and the gesture adapters attach to the SAME surface
+  // element — the hover caches its rect here, the wheel/pointer listeners bind
+  // here — so they cannot read a different box. A ternary `ref` is not invoked by
+  // Solid's ref compilation, so this is a plain function that always runs.
+  const attachSurface = (element: HTMLElement): void => {
+    insp.setSurface(element);
+    props.viewportGestures?.setSurface(element);
+  };
 
   return (
     <>
@@ -277,7 +288,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
               data-silkplot-pointer-surface=""
               aria-hidden="true"
               style={{ position: "absolute", inset: "0" }}
-              ref={insp.setSurface}
+              ref={attachSurface}
               onPointerMove={insp.onPointerMove}
               onPointerLeave={insp.onPointerLeave}
             />
@@ -295,10 +306,10 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           // off, and the move handler self-gates on `pointer` internally. A
           // ternary `ref` is NOT invoked by Solid's ref compilation, which is how
           // the rect silently went uncached and hover resolved nothing.
-          ref={insp.setSurface}
+          ref={attachSurface}
           onPointerMove={insp.onPointerMove}
           onPointerLeave={insp.onPointerLeave}
-          beforeKeyDown={props.viewportKeyDown}
+          beforeKeyDown={props.viewportGestures?.onKeyDown}
         />
       </Show>
       <Show when={props.tooltip && active()}>

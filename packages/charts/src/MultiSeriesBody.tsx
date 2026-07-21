@@ -106,6 +106,11 @@ export interface MultiSeriesBodyProps<M = unknown> {
   tooltip?: (active: ActivePoint<SeriesDatum>) => JSX.Element;
   onActivate?: (active: ActivePoint<SeriesDatum>) => void;
   onActivePointChange?: (active: ActivePoint<SeriesDatum> | undefined) => void;
+  /* --- Viewport gesture capture opt-in (ADR-0018 §2), forwarded from the chart. --- */
+  /** Enable `Ctrl`/`Cmd`+wheel zoom. Default off. */
+  wheelZoom?: boolean;
+  /** Let plain wheel zoom (full-bleed escape hatch). Default off. */
+  capturePlainWheel?: boolean;
 }
 
 /**
@@ -201,7 +206,12 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   const keyboardOn = (): boolean => !sem().decorative() && (props.keyboard ?? true);
   const pointerOn = (): boolean => !sem().decorative() && (props.pointer ?? true);
   const live = (): boolean => (props.announce ?? "live") === "live";
-  const gestures = createViewportGestures({ viewport: props.scope.viewport });
+  const gestures = createViewportGestures({
+    viewport: props.scope.viewport,
+    xScale: model.x,
+    wheelZoom: () => props.wheelZoom,
+    capturePlainWheel: () => props.capturePlainWheel,
+  });
 
   // The announcement wording: the PRIMARY series' label, the instant, the value.
   // The series label comes from the record's `seriesId`, so the spoken series
@@ -315,7 +325,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           pointer={pointerOn()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
-          viewportKeyDown={gestures.onKeyDown}
+          viewportGestures={gestures}
         />
       </Show>
     </>

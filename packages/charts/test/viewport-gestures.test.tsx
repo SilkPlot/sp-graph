@@ -52,6 +52,23 @@ function pointCount(container: HTMLElement): number {
   return pathXs(markD(container)).length;
 }
 
+/** Dispatch a wheel notch on the surface. The zoom commits on the next frame. */
+function wheel(el: HTMLElement, opts: { deltaY: number; ctrl?: boolean }): void {
+  el.dispatchEvent(
+    new WheelEvent("wheel", {
+      deltaY: opts.deltaY,
+      ctrlKey: opts.ctrl ?? false,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+/** Wheel zoom coalesces into one commit per animation frame — wait for it. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 describe("viewport keyboard bindings", () => {
   it("zooms in on + and out on -, about the visible centre", () => {
     const { container } = render(() => (
@@ -115,6 +132,68 @@ describe("viewport keyboard bindings", () => {
     // viewport at the full extent.
     press(surface, "z");
     press(surface, "Escape");
+    expect(pointCount(container)).toBe(5);
+  });
+});
+
+describe("viewport wheel zoom (opt-in)", () => {
+  it("zooms on Ctrl+wheel when wheelZoom is on, and plain wheel is left to the page", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} wheelZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+
+    // Plain wheel (no modifier) does NOT zoom — it belongs to the page scroll.
+    wheel(surface, { deltaY: -100 });
+    await nextFrame();
+    expect(pointCount(container)).toBe(5);
+
+    // Ctrl+wheel up zooms in — the span narrows, so fewer points are drawn.
+    wheel(surface, { deltaY: -100, ctrl: true });
+    await nextFrame();
+    expect(pointCount(container)).toBeLessThan(5);
+  });
+
+  it("does nothing on Ctrl+wheel when wheelZoom is off (the default)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    wheel(surfaceOf(container), { deltaY: -100, ctrl: true });
+    await nextFrame();
+    expect(pointCount(container)).toBe(5);
+  });
+
+  it("zooms on a PLAIN wheel when capturePlainWheel is set (the full-bleed hatch)", async () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Readings"
+        data={DATA}
+        wheelZoom
+        capturePlainWheel
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    wheel(surfaceOf(container), { deltaY: -100 });
+    await nextFrame();
+    expect(pointCount(container)).toBeLessThan(5);
+  });
+
+  it("zooms back out on a downward Ctrl+wheel", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} wheelZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    wheel(surface, { deltaY: -100, ctrl: true });
+    await nextFrame();
+    const zoomedIn = pointCount(container);
+    expect(zoomedIn).toBeLessThan(5);
+
+    // A few notches the other way widen it back to the full extent.
+    for (let i = 0; i < 5; i += 1) wheel(surface, { deltaY: 100, ctrl: true });
+    await nextFrame();
     expect(pointCount(container)).toBe(5);
   });
 });
