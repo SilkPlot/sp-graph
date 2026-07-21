@@ -31,7 +31,7 @@
  * domain `timeExtentScale` produced before this phase. The narrowing is the
  * identity, and no existing baseline moves.
  */
-import { createMemo, onMount, type Accessor } from "solid-js";
+import { createMemo, createSignal, onMount, type Accessor } from "solid-js";
 import { createViewport, type Viewport, type ViewportCommands } from "@silkplot/solid";
 import {
   extentOf,
@@ -58,13 +58,14 @@ export interface ChartViewportProps {
   /** Fired on every committed change, carrying the `Date` domain and its cause. */
   onVisibleDomainChange?: (domain: TimeInterval, cause: ViewportCause) => void;
   /**
-   * Whether the caller has OPTED IN to the viewport (any viewport prop present).
-   * Absent/false → the chart is at its default and the narrowing is not applied:
-   * it tracks the full data extent exactly as before this phase, including
-   * following a data replacement to show all of it. Only an opted-in chart takes
-   * on ADR-0014 §4's "growth keeps the interval, offscreen until navigated to"
-   * behaviour — which is correct for a chart being navigated and wrong for one
-   * that never is.
+   * Whether a CONTROLLING viewport prop is present — a controlled or default
+   * domain. That engages the narrowing immediately, because the caller has stated
+   * a window the chart must open at. It is deliberately NOT set by a mere command
+   * seam (a toolbar, the keyboard, a gesture): those engage only once the user
+   * actually navigates (the `dirty` flag below), so a chart offering navigation it
+   * is never asked to perform still tracks its full data — including following a
+   * replacement to show all of it — rather than taking on ADR-0014 §4's
+   * "growth keeps the interval" behaviour before anything has been navigated.
    */
   engaged?: Accessor<boolean>;
 }
@@ -110,25 +111,46 @@ export function createScopeViewport<M = unknown>(spec: {
   series?: Accessor<readonly NormalizedSeries<M>[]>;
   props: ChartViewportProps;
 }): ScopeViewport {
+  // `dirty` flips true the first time the user actually navigates — a command
+  // that commits an x change (pan, zoom, brush, a range control, the keyboard,
+  // reset). A data-driven cause (replacement, resize, reveal, clamp) is the ground
+  // moving under the viewport, not navigation, so it does NOT engage. This is what
+  // lets a chart offer keyboard/wheel/brush navigation out of the box while an
+  // un-navigated chart still tracks its full data (ADR-0014 §3, §4).
+  const [dirty, setDirty] = createSignal(false);
+  const NAVIGATION_CAUSES: ReadonlySet<ViewportCause> = new Set([
+    "pan",
+    "zoom",
+    "pinch",
+    "brush",
+    "range-control",
+    "keyboard",
+    "reset",
+  ]);
+
   // The viewport is bounded by the full data extent. The dashboard effective
-  // domain is deliberately NOT wired as the bound for P04b (see the module note):
-  // composed charts keep their proven behaviour and the viewport is applied only
-  // when standalone.
+  // domain is deliberately NOT wired as the bound (see the module note): composed
+  // charts keep their proven behaviour and the viewport is applied only standalone.
   const viewport = createViewport<M>({
     fullExtent: spec.fullExtent,
     series: spec.series,
     visibleDomain: spec.props.visibleDomain,
     defaultVisibleDomain: spec.props.defaultVisibleDomain,
     minSpan: spec.props.minSpan,
-    onVisibleDomainChange: spec.props.onVisibleDomainChange,
+    onVisibleDomainChange: (domain, cause) => {
+      if (NAVIGATION_CAUSES.has(cause)) setDirty(true);
+      spec.props.onVisibleDomainChange?.(domain, cause);
+    },
   });
 
-  // Applied only when standalone (no dashboard scope resolved) AND the caller has
-  // opted into the viewport. Inside a `<Dashboard>` the effective domain drives
-  // the chart; at its default (not opted in) the chart tracks the full extent, so
-  // a data replacement shows all of it and no baseline moves.
+  // Applied only when standalone (no dashboard scope resolved) AND the viewport is
+  // engaged — either a controlling prop opened it at a window, or the user has
+  // navigated. Inside a `<Dashboard>` the effective domain drives the chart; at
+  // its default (un-engaged) the chart tracks the full extent, so a data
+  // replacement shows all of it and no baseline moves.
   const navigable = createMemo(
-    () => spec.effectiveDomain() === undefined && (spec.props.engaged?.() ?? false),
+    () =>
+      spec.effectiveDomain() === undefined && ((spec.props.engaged?.() ?? false) || dirty()),
   );
   const interval = createMemo<MsInterval>(() => viewport.visibleMsDomain());
 
@@ -151,10 +173,11 @@ export interface ChartViewportInput {
  * controlled `visibleDomain` signal re-resolves the viewport; the callback is
  * wrapped rather than captured so a caller swapping it is honoured.
  *
- * `engaged` is true when ANY viewport surface is present — a controlled or
- * default domain, a min span, a change callback, or a command toolbar. That is
- * what opts a chart into viewport behaviour; a chart passing none of these stays
- * pure-identity (tracks the full extent, no §4 growth semantics).
+ * `engaged` is true only for a CONTROLLING prop — a controlled or default domain,
+ * which states a window the chart must open at. A command seam (a toolbar, and in
+ * a later phase the keyboard and gestures) does not engage on its own: it engages
+ * once the user navigates, so a chart that offers navigation but is never driven
+ * still tracks its full data.
  */
 export function forwardViewport(props: ChartViewportInput): ChartViewportProps {
   return {
@@ -163,11 +186,7 @@ export function forwardViewport(props: ChartViewportInput): ChartViewportProps {
     minSpan: () => props.minSpan,
     onVisibleDomainChange: (domain, cause) => props.onVisibleDomainChange?.(domain, cause),
     engaged: () =>
-      props.visibleDomain !== undefined ||
-      props.defaultVisibleDomain !== undefined ||
-      props.minSpan !== undefined ||
-      props.onVisibleDomainChange !== undefined ||
-      props.onViewportCommands !== undefined,
+      props.visibleDomain !== undefined || props.defaultVisibleDomain !== undefined,
   };
 }
 

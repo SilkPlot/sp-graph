@@ -52,6 +52,7 @@ import {
   type TimeSeriesScope,
 } from "./scaffold";
 import { emitViewportCommands, forwardViewport } from "./viewport-scope";
+import { createViewportGestures } from "@silkplot/solid";
 import type { TimePoint } from "./types";
 import { tableOptions, type MultiSeriesFormatProps } from "./formatters";
 
@@ -227,6 +228,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     onActivePointChange: props.onActivePointChange,
   });
   const active = (): ActivePoint<SeriesDatum> | undefined => insp.inspection.point();
+  const gestures = createViewportGestures({ viewport: scope.viewport });
 
   return (
     <>
@@ -253,6 +255,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
           pointer={insp.pointer()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
+          viewportKeyDown={gestures.onKeyDown}
         />
       </Show>
     </>

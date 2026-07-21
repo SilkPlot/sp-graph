@@ -93,6 +93,14 @@ export interface ChartKeyboardSurfaceProps {
   onPointerMove?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerLeave?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerDown?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
+  /**
+   * A handler given first refusal on every keydown, BEFORE the datum composite —
+   * the viewport gestures (ADR-0018 §1). Returns true when it claimed the key, in
+   * which case the datum composite does not see it. This is the ordering that
+   * keeps `Shift`+arrow (pan) from stepping a datum, since the datum composite
+   * treats `Shift`+arrow as a plain arrow.
+   */
+  beforeKeyDown?: (event: KeyboardEvent) => boolean;
 }
 
 export const ChartKeyboardSurface: Component<ChartKeyboardSurfaceProps> = (props) => {
@@ -124,7 +132,12 @@ export const ChartKeyboardSurface: Component<ChartKeyboardSurfaceProps> = (props
       aria-activedescendant={
         (props.activeDescendant ?? true) ? kb().activeDescendant() : undefined
       }
-      onKeyDown={(event) => kb().onKeyDown(event)}
+      onKeyDown={(event) => {
+        // The viewport gestures get first refusal; a claimed key never reaches the
+        // datum composite (ADR-0018 §1).
+        if (props.beforeKeyDown?.(event)) return;
+        kb().onKeyDown(event);
+      }}
       onPointerMove={props.onPointerMove}
       onPointerLeave={props.onPointerLeave}
       onPointerDown={props.onPointerDown}
