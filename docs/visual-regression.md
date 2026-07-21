@@ -52,11 +52,12 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
 | Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps`, `multi-ref-one`, `multi-ref-three` — **Line and Area only** |
 | Ranked-bar cases | `ranked-horizontal`, `ranked-long-label` — **Bar only**, both horizontal |
+| Workload case | `w1-dense` — **Line only**, the W1 dense picture (22 series + 3 references) |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**188 baselines**: 164 geometry, 12 focus, 12 reduced-motion.
+**192 baselines**: 168 geometry, 12 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -111,6 +112,14 @@ breakage is invisible to a structural assertion:
   live in the left margin, which the caller sizes (ADR-0013 §5), and the default
   40px fits only a numeric value. The three names past 20 characters truncate
   with an ellipsis exactly as §5 specifies.
+- **`w1-dense`** — the W1 composition-workload picture: 22 series AND
+  three references in one line chart. Its halves are pinned separately —
+  `multi-22` (22 series, no references) and `multi-ref-three` (references over
+  four series) — but the *composed* picture is where ADR-0012's claim lives: a
+  reference must stay legible painted OVER the dense case. Line only, because 22
+  filled areas overlap into an unreadable band. The bulk of the workload gate is
+  browser assertions in `packages/charts/test/workload.test.tsx`; this one static
+  picture is the part a screenshot proves better than an assertion.
 
 All four scheme × contrast combinations are captured because
 `prefers-color-scheme` and `prefers-contrast` are **orthogonal** preferences,
@@ -134,7 +143,7 @@ therefore asserts, as tests in their own right:
 1. The chart, case, and theme lists equal literals written out a second time in
    the spec — so a deletion has to be made twice, in a diff a reviewer sees.
    (Comparing an array to itself proves only that it equals itself.)
-2. The frozen totals: 164 geometry / 12 focus / 12 reduced-motion / 188 all.
+2. The frozen totals: 168 geometry / 12 focus / 12 reduced-motion / 192 all.
 3. That the committed baseline files are **exactly** the declared ids — a
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.
@@ -270,7 +279,7 @@ author's.**
 3. **Check the blast radius.** An intended change usually moves a predictable
    set of baselines. If a stroke-width change also moved the `empty` case, or
    moved dark but not light, the change is not what you think it is.
-4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 188.
+4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 192.
    A bulk update hides an unrelated regression inside an intended change, and
    that is the specific way a baseline starts tracking a bug.
 5. **Commit the images in their own commit**, with the rationale from step 2 in
@@ -381,6 +390,21 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-07-21 — line--w1-dense--light, line--w1-dense--dark, line--w1-dense--light-high-contrast, line--w1-dense--dark-high-contrast
+
+- **Why:** NEW baselines, not re-pins. The composition workload gate
+  pins the W1 dense picture — 22 series AND three references in one line chart,
+  which no existing baseline composed (`multi-22` has no references,
+  `multi-ref-three` has four series). It is the picture ADR-0012's "a threshold
+  stays legible over the dense case" refers to. Nothing existing moved — verified
+  with `git diff --cached --name-status`: 4 added, 0 modified, 0 deleted.
+- **Inspected by:** Claude Code (claude-opus-4-8) # 2 of 4 opened — `light` and
+  `dark`. Twenty-two series in the default palette + dash channel, the two
+  value-axis references sitting a hair apart near 34, and the temporal "Deploy
+  4.2.0" line, all painting legibly over the dense marks. The two high-contrast
+  variants were NOT opened and differ from an inspected sibling only in palette.
+- **Accepted by:** Adam Claassens, on merge
 
 ### 2026-07-21 — bar--ranked-horizontal--light, bar--ranked-horizontal--dark, bar--ranked-horizontal--light-high-contrast, bar--ranked-horizontal--dark-high-contrast, bar--ranked-long-label--light, bar--ranked-long-label--dark, bar--ranked-long-label--light-high-contrast, bar--ranked-long-label--dark-high-contrast
 

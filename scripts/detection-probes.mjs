@@ -250,7 +250,12 @@ const PROBES = [
       "categorical axis collides into an unreadable smear - the picture this default exists to bound",
     anchor: "return label.length > DEFAULT_LABEL_MAX_CHARS",
     mutation: "return false && label.length > DEFAULT_LABEL_MAX_CHARS",
-    failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
+    failingIn: [
+      "packages/charts/test/ranked-bars.test.tsx",
+      // The workload gate's W3 truncation case asserts the same ellipsis, so it
+      // legitimately reddens too — a declared suite, not a stray.
+      "packages/charts/test/workload.test.tsx",
+    ],
     minFailures: 1,
     observed: "1 failure: the axis renders the full label, so no ellipsis is present",
     messagePattern: /to contain/,
@@ -414,7 +419,12 @@ const PROBES = [
       "consumes the shared gap policy rather than carrying a copy of it",
     anchor: '      points: series.data.filter((d) => d.state === "present"),',
     mutation: "      points: series.data,",
-    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    failingIn: [
+      "packages/charts/test/multi-series.test.tsx",
+      // The workload gate's W1/W2 gap-policy cases consume the same shared policy,
+      // so they redden on this mutation too — a declared suite, not a stray.
+      "packages/charts/test/workload.test.tsx",
+    ],
     minFailures: 1,
     observed: "connect no longer yields one subpath; a gap reaches the baseline",
     messagePattern: /expected|to be/,
@@ -511,7 +521,13 @@ const PROBES = [
       "        setSize({ width: rect.width, height: rect.height });\n" +
       "      }",
     mutation: "      void entry;",
-    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    failingIn: [
+      "packages/charts/test/multi-series.test.tsx",
+      // The workload gate's W1 repeated-resize case is the first test in the
+      // repository to drive successive resizes; it reddens here by design — a
+      // declared suite, not a stray.
+      "packages/charts/test/workload.test.tsx",
+    ],
     minFailures: 3,
     observed: "geometry stays frozen at the mount-time width across every resize",
     messagePattern: /expected|to be/,
@@ -631,7 +647,12 @@ const PROBES = [
       "screen-reader user it never existed at all.",
     anchor: "    {props.referenceList}",
     mutation: "    {null}",
-    failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
+    failingIn: [
+      "packages/charts/test/reference-overlay.test.tsx",
+      // The workload gate's W1 dense chart asserts the accessible reference list
+      // over 22 series, so it reddens when the slot is removed — a declared suite.
+      "packages/charts/test/workload.test.tsx",
+    ],
     minFailures: 1,
     observed: "no reference list renders; the drawn label is the only carrier",
     messagePattern: /expected|toEqual|length/,
