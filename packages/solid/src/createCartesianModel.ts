@@ -93,6 +93,14 @@ export interface CartesianModelSpec<T, X extends AxisScale> {
     accessor: (d: T) => number;
     /** Defaults to "extent" — the policy that assumes nothing about the mark. */
     domain?: YDomainPolicy;
+    /**
+     * An explicit raw value extent that REPLACES the one derived from the data,
+     * when present — the viewport's autoscale snapshot (ADR-0018 §4). The policy
+     * still applies to it, so a line's zero-floor and an area's zero-baseline stay
+     * the caller's decision, over the fitted values instead of the full data.
+     * Absent (or returning `undefined`) → the data's own extent, as always.
+     */
+    override?: Accessor<readonly [number, number] | undefined>;
   };
 }
 
@@ -141,7 +149,9 @@ export function createCartesianModel<T, X extends AxisScale>(
   const y = createMemo(() =>
     linearScale({
       domain: applyYDomainPolicy(
-        extentOf(spec.data(), spec.y.accessor),
+        // The autoscale snapshot, when set, replaces the data-derived extent; the
+        // policy still applies to it (ADR-0018 §4).
+        spec.y.override?.() ?? extentOf(spec.data(), spec.y.accessor),
         spec.y.domain ?? "extent",
       ),
       range: [bounds().innerHeight, 0],
