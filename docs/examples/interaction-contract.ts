@@ -1,8 +1,9 @@
 /**
- * Typed examples for ADR-0014 — the interaction and viewport contract.
+ * Typed examples for ADR-0014 — the interaction and viewport contract, with the
+ * active-point record generalized by ADR-0015.
  *
- * WHAT THIS FILE IS. Typed examples of every shape ADR-0014 introduces, checked
- * by the compiler rather than only read.
+ * WHAT THIS FILE IS. Typed examples of every shape the interaction and viewport
+ * contract introduces, checked by the compiler rather than only read.
  *
  * It is written BEFORE the implementation, because the decision is deliberately
  * settled ahead of the components that consume it — the same posture ADR-0008's
@@ -12,12 +13,20 @@
  * through the active-point record and the callbacks without a cast, and that
  * every state named in the ADR is representable.
  *
+ * WHAT ADR-0015 CHANGED, AND WHY THIS FILE ALREADY REFLECTS IT. ADR-0014 §1
+ * declared the record with `datum: SeriesDatum<M>` and `at: time | category`.
+ * Building the lookups showed the shipped families do not share one datum type —
+ * a scatter's datum is a numeric point, a ranked bar's is a category — so the
+ * record is now generic over its DATUM (`ActivePoint<D>`) and the position union
+ * gains a numeric `value` member. This file follows the NEW decision, which is a
+ * different act from editing an example to fit drifted code: a supersession is a
+ * decision changing. Part 2 now exercises all three families rather than the time
+ * series alone — stronger evidence than the single-family declaration was.
+ *
  * THE OBLIGATION. When the implementation ships, each declaration in Part 1
  * becomes an import from the package that builds it, and every example in Part 2
  * must compile UNCHANGED. If an example has to be edited, the implementation
  * diverged from the decision — so edit the implementation, or supersede the ADR.
- * Do not edit the example to fit the code. This is the same rule the series
- * contract file states and has since discharged for its own halves.
  *
  * WHAT IT IS NOT. It is not a test of runtime behaviour: it type-checks shapes
  * and does not call the library. The suites do that.
@@ -26,37 +35,54 @@
 /* ------------------------------------------------------------------------- */
 /* Part 1 — the contract.                                                     */
 /*                                                                            */
-/* The series datum and series shapes are IMPORTED — they are ADR-0008's, and  */
-/* they are built. Everything ADR-0014 introduces is DECLARED, and each         */
-/* declaration becomes an import when its phase lands, under the rule above.    */
+/* The series datum, series, and ranked-category shapes are IMPORTED — they    */
+/* are ADR-0008's and ADR-0013's, and they are built. Everything the            */
+/* interaction contract introduces is DECLARED, and each declaration becomes    */
+/* an import when its phase lands, under the rule above.                        */
 /* ------------------------------------------------------------------------- */
 
-// ADR-0008 §1, §3 — the shipped series types this contract carries and returns.
-import type { Series, SeriesDatum } from "@silkplot/core";
-export type { Series, SeriesDatum } from "@silkplot/core";
+// ADR-0008 §1, §3 and ADR-0013 — the shipped datum types the record can carry.
+import type { Series, SeriesDatum, RankedCategory } from "@silkplot/core";
+export type { Series, SeriesDatum, RankedCategory } from "@silkplot/core";
 
 /**
- * ADR-0014 §1 — the one active-datum record, written by pointer, touch, and
- * keyboard alike and read by the cursor, tooltip, emphasis, and announcement.
- *
- * `M` is the caller's metadata type from ADR-0008 §3. It threads through `datum`
- * and `atTime` so a caller who supplied a serial number gets it back with its
- * own type, not `unknown` and not `any`.
+ * A scatter's datum. The shipped `ScatterChart` plots `{ x: number; y: number }`
+ * with a numeric x — declared structurally here because the chart's own `XYPoint`
+ * lives in the DOM-bearing `charts` package and this contract file is
+ * deliberately DOM-free (see the examples tsconfig).
  */
-export interface ActivePoint<M = unknown> {
+export interface ScatterPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * ADR-0014 §1 + ADR-0015 — the one active-datum record, written by pointer,
+ * touch, and keyboard alike and read by the cursor, tooltip, emphasis, and
+ * announcement.
+ *
+ * Generic over its DATUM `D` (ADR-0015). A time chart instantiates it with
+ * `SeriesDatum<M>`, so the tooltip metadata flows through `datum` and `atTime`
+ * with the caller's own type; a scatter with `ScatterPoint`; a ranked chart with
+ * `RankedCategory`. `unknown` by default, so a consumer that does not name the
+ * family cannot read a field off the datum by accident.
+ */
+export interface ActivePoint<D = unknown> {
   seriesId: string;
   /** Into the caller's array, not a filtered or sorted copy (ADR-0008 §5). */
   sourceIndex: number;
-  datum: SeriesDatum<M>;
+  /** The datum in the caller's own shape for this chart family. */
+  datum: D;
   /** Inner coordinates — the space the cursor and tooltip draw in (ADR-0002). */
   position: { x: number; y: number };
   /** The active position along the domain axis. */
   at:
     | { kind: "time"; time: Date }
+    | { kind: "value"; x: number; y: number }
     | { kind: "category"; category: string };
   /** Every VISIBLE series' value at `at`, for a shared time cursor. Absent for
    *  a scatter or a bar, where there is no shared instant to read across. */
-  atTime?: readonly { seriesId: string; datum: SeriesDatum<M> }[];
+  atTime?: readonly { seriesId: string; datum: D }[];
 }
 
 /** ADR-0014 §3 — an absolute-instant interval. Not zoned civil time. */
@@ -121,11 +147,14 @@ export interface ViewportCommands {
   reset: () => void;
 }
 
-/** ADR-0014 §1 — activation surface, carrying the record and the caller's `M`. */
+/**
+ * ADR-0014 §1 — activation surface for a TIME chart, carrying the record with
+ * the caller's metadata inside the datum (ADR-0015). Exactly one active point per
+ * chart (ADR-0008 §8).
+ */
 export interface ActivationProps<M = unknown> {
-  /** Absent → uncontrolled. Exactly one active point per chart (ADR-0008 §8). */
-  activePoint?: ActivePoint<M> | undefined;
-  onActivate?: (active: ActivePoint<M> | undefined) => void;
+  activePoint?: ActivePoint<SeriesDatum<M>> | undefined;
+  onActivate?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
 }
 
 /** The interactive time-series surface this contract describes. */
@@ -143,9 +172,9 @@ export interface InteractiveTimeSeriesProps<M = unknown>
 const t = (iso: string): Date => new Date(iso);
 
 /**
- * THE RECORD, with the metadata generic flowing through. `active.datum.meta` and
- * every entry of `active.atTime` carry `Reading`, not `unknown` — the property
- * this example exists to prove.
+ * THE TIME RECORD, with the metadata generic flowing through. `active.datum.meta`
+ * and every entry of `active.atTime` carry `Reading`, not `unknown` — the
+ * property this example exists to prove.
  */
 interface Reading {
   serial: string;
@@ -175,14 +204,38 @@ export const withMetadata: InteractiveTimeSeriesProps<Reading> = {
 };
 
 /**
- * A SHARED TIME CURSOR reads `atTime`; a scatter or bar record does not carry it.
- * This shows a consumer handling both without a cast.
+ * A SHARED TIME CURSOR reads `atTime` and `at.kind === "time"`. This shows a
+ * consumer handling the time family without a cast.
  */
-export const readActive = (active: ActivePoint<Reading> | undefined): string => {
+export const readActiveTime = (active: ActivePoint<SeriesDatum<Reading>> | undefined): string => {
   if (active === undefined) return "";
-  if (active.at.kind === "category") return active.at.category;
+  if (active.at.kind !== "time") return "";
   const count = active.atTime?.length ?? 0;
   return `${active.at.time.toISOString()} — ${count} series`;
+};
+
+/**
+ * THE SCATTER RECORD — ADR-0015. `datum` is the numeric point and `at.kind` is
+ * `"value"`; there is no `atTime`, because a point cloud has no shared instant to
+ * read across. A consumer gets the point back in its own shape.
+ */
+export const readActiveScatter = (active: ActivePoint<ScatterPoint> | undefined): string => {
+  if (active === undefined) return "";
+  if (active.at.kind !== "value") return "";
+  // `active.datum` is `ScatterPoint`, and `at` carries the same numbers in
+  // domain space beside the pixel `position`.
+  return `(${active.datum.x}, ${active.datum.y}) at value (${active.at.x}, ${active.at.y})`;
+};
+
+/**
+ * THE RANKED RECORD — ADR-0015. `datum` is the caller's `RankedCategory` and
+ * `at.kind` is `"category"`; handing it back is what makes a caller-owned
+ * activation (ADR-0013) compose with the general pointer contract.
+ */
+export const readActiveCategory = (active: ActivePoint<RankedCategory> | undefined): string => {
+  if (active === undefined) return "";
+  if (active.at.kind !== "category") return "";
+  return `${active.at.category}: ${active.datum.value}`;
 };
 
 /** UNCONTROLLED VIEWPORT. Absent props → the chart owns navigation, full extent. */

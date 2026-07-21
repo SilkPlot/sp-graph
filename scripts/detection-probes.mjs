@@ -308,6 +308,52 @@ const PROBES = [
     messagePattern: /to deeply equal/,
   },
   {
+    id: "active-point-duplicate-time",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "duplicate timestamps in a series resolve to the lowest sourceIndex — keep the first array " +
+      "occurrence instead and a pointer and a keyboard can land on a different one of two stacked readings",
+    anchor:
+      "      if (existing === undefined || options.sourceIndex(d) < options.sourceIndex(existing)) {",
+    mutation: "      if (existing === undefined) {",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 1,
+    observed: "1 failure, “expected 2 to be +0” (the kept datum's sourceIndex)",
+    messagePattern: /expected 2 to be \+0/,
+  },
+  {
+    id: "active-point-tie-lower-ordinal",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "an exact midpoint tie resolves to the lower ordinal (the earlier instant) — flip it to the " +
+      "higher and a pointer exactly between two instants snaps to the wrong one",
+    anchor: "  return dLo <= dHi ? lo : hi;",
+    mutation: "  return dLo < dHi ? lo : hi;",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 2,
+    observed: "2 failures (the search tie and the time-index tie), e.g. “expected 1 to be +0”",
+    messagePattern: /expected 1 to be \+0/,
+  },
+  {
+    id: "active-point-band-left-inclusive",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a band is selected on a left-inclusive [start, end) test — make the left edge exclusive and " +
+      "the pointer falls into no band exactly on a boundary the caller expects to hit",
+    anchor: "        if (coord >= options.bandStart(d, i) && coord < options.bandEnd(d, i)) return i;",
+    mutation: "        if (coord > options.bandStart(d, i) && coord < options.bandEnd(d, i)) return i;",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 1,
+    observed: "1 failure, “expected -1 to be +0” (the left-edge band lookup)",
+    messagePattern: /expected -1 to be \+0/,
+  },
+  {
     id: "overlap-duplicate-key",
     file: "packages/core/src/overlap.ts",
     project: "core",

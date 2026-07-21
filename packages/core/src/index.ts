@@ -56,6 +56,26 @@ export type { Interval, PackedInterval, PackOptions } from "./overlap";
 export { createHitIndex } from "./hit-test";
 export type { HitIndex, HitIndexOptions } from "./hit-test";
 
+// Active-point lookup — the pointer/keyboard resolution model (ADR-0014,
+// ADR-0015). One record and one index interface; a per-family builder (time-series
+// bisector, scatter Delaunay, categorical band) that pointer and keyboard both
+// resolve through, so the same ordinal yields the same record whatever wrote it.
+export {
+  createTimeSeriesIndex,
+  createScatterIndex,
+  createBandIndex,
+  nearestSortedIndex,
+} from "./active-point";
+export type {
+  ActivePoint,
+  ActivePointAt,
+  ActivePointIndex,
+  TimeSeriesLookupInput,
+  TimeSeriesIndexOptions,
+  ScatterIndexOptions,
+  BandIndexOptions,
+} from "./active-point";
+
 // Layered time selection — the dashboard scope precedence model (ADR-0007).
 export { resolveEffectiveDomain } from "./time-scope";
 export type {

@@ -45,10 +45,15 @@ surface that reacts to what is active:
 import type { ActivePoint } from "@silkplot/core";
 ```
 
-It carries the series id, the caller's own `sourceIndex`, the datum with its
-`meta` untouched, the inner-coordinate `position` the cursor and tooltip draw at,
-the active instant or category, and — for a time chart — every visible series'
-value at that instant. Your metadata type flows through it:
+It is generic over its **datum** ([ADR-0015](../decisions/adr-0015-active-point-record-generalization.md)),
+so it serves every family from one shape: a time chart yields
+`ActivePoint<SeriesDatum<M>>` with `at.kind: "time"`, a scatter yields
+`ActivePoint<XYPoint>` with `at.kind: "value"`, a ranked bar yields
+`ActivePoint<RankedCategory>` with `at.kind: "category"`. It carries the series
+id, the caller's own `sourceIndex`, the datum in that family's own shape, the
+inner-coordinate `position` the cursor and tooltip draw at, the active
+instant/point/category, and — for a time chart — every visible series' value at
+that instant. Your metadata type flows through the time family's datum:
 
 ```tsx
 <LineChart
