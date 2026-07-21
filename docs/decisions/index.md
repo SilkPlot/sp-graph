@@ -123,6 +123,22 @@ arrived at.
   and why axis labels truncate by character count rather than measured width.
   Extends ADR-0010; supersedes the `RankedBarsProps` declaration.
 
+- [ADR-0014 — The interaction and viewport contract](adr-0014-interaction-and-viewport-contract.md):
+  the one active-datum record every input writes and every surface reads, why it
+  carries the caller's own `sourceIndex` and metadata and the per-instant values
+  a shared cursor needs; the per-family lookup — a bisector for a time series, the
+  Delaunay index for a scatter, a band for bars — and the deterministic tie,
+  duplicate-time, hidden, missing, empty, and out-of-plot answers; the
+  controlled/uncontrolled visible-domain state, why its authority is a data
+  interval and never a pixel transform, and why nothing widens past the full
+  extent or, in a dashboard, past the resolved effective domain; why a plain drag
+  brushes rather than pans and why zoom is `Ctrl`/`Cmd`+wheel; why nothing
+  captures the page's scroll unless the caller asks; the per-event budget,
+  per-frame coalescing, cause-labelled callbacks, and cleanup; and why fetching a
+  moved range stays entirely the application's. Fills the boundary ADR-0008 §8
+  left open; navigates within ADR-0007's effective domain; keeps ADR-0002's and
+  ADR-0005's interaction rules.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.
@@ -132,3 +148,9 @@ An ADR states the decision; a migration states what a consumer has to change.
   opting decorative charts out explicitly, the description and data-alternative
   props, and what a missing name does in a development versus a production
   build.
+- [Interaction and viewport (0.x, additive)](../migrations/interaction-and-viewport-0.x.md):
+  adopting the ADR-0014 surface — the active-datum record and `onActivate`, the
+  controlled and uncontrolled visible domain and its cause-labelled callback, the
+  opt-in gestures and why zoom takes a modifier, the viewport commands, and the
+  application-owned fetch boundary — none of which changes an existing chart that
+  adds nothing.
