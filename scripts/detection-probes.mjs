@@ -748,6 +748,73 @@ const PROBES = [
     observed: "no reference list renders; the drawn label is the only carrier",
     messagePattern: /expected|toEqual|length/,
   },
+  {
+    id: "viewport-scale-divergence",
+    file: "packages/solid/src/createViewport.ts",
+    project: "solid",
+    browser: true,
+    breaks:
+      "the public Date read is DERIVED from the one epoch-ms visible domain, so every " +
+      "consumer — axis, gridlines, marks, the range control — sees the same window. Derive " +
+      "it from anything else and the surfaces drift: the domain a reader sees stops matching " +
+      "the domain the marks are drawn against (ADR-0014 §3, ADR-0017 §4).",
+    anchor: "toTimeInterval(visibleMsDomain())",
+    mutation: "toTimeInterval({ start: visibleMsDomain().start + 60000, end: visibleMsDomain().end })",
+    failingIn: ["packages/solid/test/viewport.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: the public visibleDomain start no longer equals the ms domain start",
+    messagePattern: /to be/,
+  },
+  {
+    id: "viewport-unclamped-pan",
+    file: "packages/core/src/viewport.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a pan is clamped to the extent so nothing widens past the full data range (ADR-0014 " +
+      "§3). Drop the clamp and a pan scrolls the window off the end of the data into empty " +
+      "space, showing a range that does not exist.",
+    anchor: "return slideIntoBound({ start: interval.start + deltaMs, end: interval.end + deltaMs }, bound);",
+    mutation: "return { start: interval.start + deltaMs, end: interval.end + deltaMs };",
+    failingIn: ["packages/core/test/viewport.test.ts"],
+    minFailures: 2,
+    observed: "2 failures: pan past either edge no longer stops at it",
+    messagePattern: /to deeply equal/,
+  },
+  {
+    id: "viewport-duplicate-callback",
+    file: "packages/solid/src/createViewport.ts",
+    project: "solid",
+    browser: true,
+    breaks:
+      "the echo guard is what stops a controlled viewport looping: a command that resolves to " +
+      "the domain already shown commits nothing and fires nothing, so a caller feeding the " +
+      "emitted domain back does not re-fire (ADR-0014 §7). Remove it and the callback fires " +
+      "on a no-op change.",
+    anchor: "if (intervalsEqualMs(next, visibleMsDomain())) return;",
+    mutation: "if (false && intervalsEqualMs(next, visibleMsDomain())) return;",
+    failingIn: ["packages/solid/test/viewport.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: onVisibleDomainChange fires for a command that changed nothing",
+    messagePattern: /to not be called|not be called/,
+  },
+  {
+    id: "viewport-interval-authority",
+    file: "packages/core/src/viewport.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "the visible interval is authoritative and stable: a data extent that merely GROWS " +
+      "keeps the window and emits nothing (ADR-0014 §4), rather than being recomputed and " +
+      "re-emitted the way a pixel-transform-backed viewport would be on every change. Remove " +
+      "the no-op short-circuit and growth spuriously reports a change.",
+    anchor: "if (intervalsEqualMs(next, prev)) return null;",
+    mutation: "if (false && intervalsEqualMs(next, prev)) return null;",
+    failingIn: ["packages/core/test/viewport.test.ts"],
+    minFailures: 2,
+    observed: "2 failures: growth and a same-source no-op no longer reconcile to null",
+    messagePattern: /to be null/,
+  },
 ];
 
 // ---------------------------------------------------------------------------

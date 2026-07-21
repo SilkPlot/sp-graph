@@ -158,6 +158,14 @@ arrived at.
   keyboard across all four charts, extending active-datum to the multi-series path,
   Area, and Scatter for the first time. Supersedes ADR-0008 §9's `formatTooltip`;
   extends ADR-0002 and builds on ADR-0014/0015.
+- [ADR-0017 — Time at the boundary: `Date` public, epoch-ms canonical](adr-0017-time-at-the-boundary.md):
+  the one representation rule for time — the public surface speaks `Date` (series
+  `t`, `ActivePoint.at.time`, the dashboard range, the visible viewport), the
+  internal engine speaks epoch-ms, and conversion happens once at the seam. Defines
+  the single public `Date`-based `TimeInterval` in `@silkplot/core`, corrects the
+  dashboard range and section-window props from epoch-ms to `Date` (breaking, 0.x),
+  and keeps the viewport model pure epoch-ms so it clamps against the effective
+  domain with no conversion. Extends ADR-0007 and ADR-0014.
 
 ## Migrations
 
@@ -174,3 +182,8 @@ An ADR states the decision; a migration states what a consumer has to change.
   opt-in gestures and why zoom takes a modifier, the viewport commands, and the
   application-owned fetch boundary — none of which changes an existing chart that
   adds nothing.
+- [Time interval → `Date` (0.x, breaking)](../migrations/time-interval-date-0.x.md):
+  adopting the ADR-0017 representation — passing `<Dashboard>`'s range and
+  `<DashboardSection>`'s window/now as `Date`s instead of epoch milliseconds, with
+  the mechanical one-line change per call site and what stays a number (a `last`
+  duration).

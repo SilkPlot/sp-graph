@@ -20,14 +20,17 @@ import {
   type EffectiveDomain,
   type GlobalRange,
   type SectionScope,
+  type TimeInterval,
   type TimeScopeIssue,
 } from "@silkplot/core";
 
-/** A selected interval, in epoch milliseconds. */
-export interface TimeInterval {
-  start: number;
-  end: number;
-}
+// The public interval is `Date`-based and defined once, in `@silkplot/core`
+// (ADR-0017 §2). It is re-exported here so `@silkplot/solid`'s existing
+// consumers keep importing `TimeInterval` from this module unchanged, while
+// there is exactly one definition. The dashboard's own arithmetic — feeding
+// `resolveEffectiveDomain` — is epoch-ms, so the `Date`→ms conversion happens at
+// this boundary and nowhere deeper (ADR-0017 §3, §4).
+export type { TimeInterval };
 
 /** What a member reads from the dashboard it is rendered inside. */
 export interface DashboardTime {
@@ -78,8 +81,11 @@ export interface DashboardTimeSpec {
  */
 export function createDashboardTime(spec: DashboardTimeSpec): DashboardTime {
   const global = createMemo<GlobalRange>(() => {
+    // The one `Date`→epoch-ms crossing on the dashboard path (ADR-0017 §3): the
+    // selection is a `Date` interval at the prop boundary, and the precedence
+    // model below it is epoch-ms throughout.
     const { start, end } = spec.interval();
-    return { scope: "global", start, end };
+    return { scope: "global", start: start.getTime(), end: end.getTime() };
   });
 
   return {

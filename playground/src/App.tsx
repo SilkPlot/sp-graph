@@ -667,8 +667,8 @@ export const App: Component = () => {
       <div data-perf-dashboard="" style={{ "margin-top": cssVar("space-lg") }}>
         <Dashboard
           defaultRange={{
-            start: series()[0]?.t.getTime() ?? 0,
-            end: series()[series().length - 1]?.t.getTime() ?? 1,
+            start: series()[0]?.t ?? new Date(0),
+            end: series()[series().length - 1]?.t ?? new Date(1),
           }}
         >
           <Panel title="Dashboard" note="One global range drives every member below.">
@@ -678,8 +678,8 @@ export const App: Component = () => {
           <DashboardSection
             label="Whole range"
             window={{
-              start: series()[0]?.t.getTime() ?? 0,
-              end: series()[series().length - 1]?.t.getTime() ?? 1,
+              start: series()[0]?.t ?? new Date(0),
+              end: series()[series().length - 1]?.t ?? new Date(1),
             }}
           >
             <LineChart data={series()} title="Samples over the selected range" />

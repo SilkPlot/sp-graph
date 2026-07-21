@@ -25,6 +25,13 @@ import type { TimeScopeIssue } from "@silkplot/core";
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 2, 1);
 
+/** A `Date` interval from epoch-ms endpoints — the prop boundary is `Date` now
+ *  (ADR-0017), while the resolved `EffectiveDomain` a member reads stays ms. */
+const iv = (startMs: number, endMs: number): TimeInterval => ({
+  start: new Date(startMs),
+  end: new Date(endMs),
+});
+
 /** Build a `datetime-local` value the way the control does — in the local zone. */
 function localValue(ms: number): string {
   const d = new Date(ms);
@@ -50,7 +57,7 @@ describe("DashboardTimeControl — the start input", () => {
     let seen: TimeInterval | undefined;
     const { container } = render(() => (
       <Dashboard
-        defaultRange={{ start: T0, end: T0 + 10 * DAY }}
+        defaultRange={iv(T0, T0 + 10 * DAY)}
         onRangeChange={(range) => {
           seen = range;
         }}
@@ -63,8 +70,8 @@ describe("DashboardTimeControl — the start input", () => {
     start.value = localValue(T0 + 3 * DAY);
     start.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(seen?.start).toBe(T0 + 3 * DAY);
-    expect(seen?.end).toBe(T0 + 10 * DAY);
+    expect(seen?.start?.getTime()).toBe(T0 + 3 * DAY);
+    expect(seen?.end?.getTime()).toBe(T0 + 10 * DAY);
     expect(container.querySelector("[data-silkplot-range-error]")).toBeNull();
   });
 
@@ -72,7 +79,7 @@ describe("DashboardTimeControl — the start input", () => {
     let seen: TimeInterval | undefined;
     const { container } = render(() => (
       <Dashboard
-        defaultRange={{ start: T0, end: T0 + 2 * DAY }}
+        defaultRange={iv(T0, T0 + 2 * DAY)}
         onRangeChange={(range) => {
           seen = range;
         }}
@@ -108,8 +115,8 @@ describe("Dashboard — an application driving an invalid range directly", () =>
     // control entirely, which is exactly the case the diagnostic exists for.
     const { container } = render(() => (
       <Dashboard
-        defaultRange={{ start: T0, end: T0 + DAY }}
-        range={{ start: T0 + 5 * DAY, end: T0 + DAY }}
+        defaultRange={iv(T0, T0 + DAY)}
+        range={iv(T0 + 5 * DAY, T0 + DAY)}
         onIssue={(issue) => issues.push(issue)}
       >
         <Probe />
@@ -129,7 +136,7 @@ describe("Dashboard — an application driving an invalid range directly", () =>
 
 describe("Dashboard — controlled and uncontrolled", () => {
   it("lets a controlled parent replace the range, ignoring the internal value", () => {
-    const [range, setRange] = createSignal<TimeInterval>({ start: T0, end: T0 + DAY });
+    const [range, setRange] = createSignal<TimeInterval>(iv(T0, T0 + DAY));
 
     /**
      * The resolution is read INTO THE DOM rather than into a captured variable.
@@ -151,7 +158,7 @@ describe("Dashboard — controlled and uncontrolled", () => {
     }
 
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: 0, end: 1 }} range={range()}>
+      <Dashboard defaultRange={iv(0, 1)} range={range()}>
         <Probe />
       </Dashboard>
     ));
@@ -161,7 +168,7 @@ describe("Dashboard — controlled and uncontrolled", () => {
     // would read "0-1" rather than the controlled values.
     expect(probe()).toBe(`${T0}-${T0 + DAY}`);
 
-    setRange({ start: T0 + 2 * DAY, end: T0 + 4 * DAY });
+    setRange(iv(T0 + 2 * DAY, T0 + 4 * DAY));
     expect(probe()).toBe(`${T0 + 2 * DAY}-${T0 + 4 * DAY}`);
   });
 });

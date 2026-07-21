@@ -27,7 +27,7 @@
 import { createMemo, type JSX, type ParentComponent } from "solid-js";
 import type { SectionScope } from "@silkplot/core";
 import { DashboardSectionContext, rollingWindow } from "./dashboard-section";
-import { useDashboardTime } from "./dashboard-time";
+import { useDashboardTime, type TimeInterval } from "./dashboard-time";
 
 interface SectionCommon {
   /**
@@ -44,8 +44,11 @@ interface SectionCommon {
 
 export type DashboardSectionProps = SectionCommon &
   (
-    | { window: { start: number; end: number }; last?: never; latest?: never; now?: never }
-    | { window?: never; last: number; latest?: never; now?: number }
+    // `window` is a pair of instants → `Date` (ADR-0017). `last` is a DURATION in
+    // milliseconds, not an instant, so it stays a number; `now` is an instant, so
+    // it is a `Date`.
+    | { window: TimeInterval; last?: never; latest?: never; now?: never }
+    | { window?: never; last: number; latest?: never; now?: Date }
     | { window?: never; last?: never; latest: true; now?: never }
   );
 
@@ -62,12 +65,21 @@ export const DashboardSection: ParentComponent<DashboardSectionProps> = (props) 
   const scope = createMemo<SectionScope>(() => {
     if (props.latest === true) return { scope: "section-latest" };
     if (props.window !== undefined) {
-      return { scope: "section-window", start: props.window.start, end: props.window.end };
+      // The `Date`→ms crossing for a section window (ADR-0017 §3); the precedence
+      // model below is epoch-ms.
+      return {
+        scope: "section-window",
+        start: props.window.start.getTime(),
+        end: props.window.end.getTime(),
+      };
     }
     // The rolling case. Anchored at the global range's end by default so "the
     // last five minutes" means the last five minutes of what the dashboard is
     // showing, rather than silently jumping to the present.
-    return rollingWindow(props.last as number, props.now ?? time.global().end);
+    return rollingWindow(
+      props.last as number,
+      props.now !== undefined ? props.now.getTime() : time.global().end,
+    );
   });
 
   /**

@@ -32,8 +32,8 @@ const series = (count: number): TimePoint[] =>
 function Fixture(props: { data?: TimePoint[]; width?: number }) {
   const w = () => props.width ?? 320;
   return (
-    <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
-      <DashboardSection label="Recent" window={{ start: T0 + 5 * DAY, end: T0 + 9 * DAY }}>
+    <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
+      <DashboardSection label="Recent" window={{ start: new Date(T0 + 5 * DAY), end: new Date(T0 + 9 * DAY) }}>
         <LineChart title="Line in section" data={props.data ?? series(10)} width={w()} height={160} />
         <AreaChart title="Area in section" data={props.data ?? series(10)} width={w()} height={160} />
       </DashboardSection>
@@ -157,7 +157,7 @@ describe("A member revealed after being hidden", () => {
     const [shown, setShown] = createSignal(false);
 
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
         <Show when={shown()}>
           <LineChart title="Revealed" data={series(10)} width={300} height={160} />
         </Show>

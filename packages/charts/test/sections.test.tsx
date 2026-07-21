@@ -43,8 +43,8 @@ const iso = (day: number) => new Date(T0 + day * DAY).toISOString();
  */
 function ThreeScopes() {
   return (
-    <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
-      <DashboardSection label="Narrow" window={{ start: T0 + 2 * DAY, end: T0 + 4 * DAY }}>
+    <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
+      <DashboardSection label="Narrow" window={{ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 4 * DAY) }}>
         <LineChart title="In narrow" data={SERIES} {...SIZE} />
       </DashboardSection>
       <DashboardSection label="Rolling" last={2 * DAY}>
@@ -77,8 +77,8 @@ describe("One global selection, three effective ranges", () => {
 
   it("clamps a section configured wider than the global range", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 3 * DAY, end: T0 + 5 * DAY }}>
-        <DashboardSection label="Too wide" window={{ start: T0, end: T0 + 19 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 3 * DAY), end: new Date(T0 + 5 * DAY) }}>
+        <DashboardSection label="Too wide" window={{ start: new Date(T0), end: new Date(T0 + 19 * DAY) }}>
           <LineChart title="Clamped" data={SERIES} {...SIZE} />
         </DashboardSection>
       </Dashboard>
@@ -90,14 +90,14 @@ describe("One global selection, three effective ranges", () => {
   });
 
   it("keeps one section unchanged when another section's scope moves", () => {
-    const [window, setWindow] = createSignal({ start: T0 + 2 * DAY, end: T0 + 3 * DAY });
+    const [window, setWindow] = createSignal({ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 3 * DAY) });
 
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
         <DashboardSection label="Moving" window={window()}>
           <LineChart title="Moving" data={SERIES} {...SIZE} />
         </DashboardSection>
-        <DashboardSection label="Still" window={{ start: T0 + 6 * DAY, end: T0 + 7 * DAY }}>
+        <DashboardSection label="Still" window={{ start: new Date(T0 + 6 * DAY), end: new Date(T0 + 7 * DAY) }}>
           <LineChart title="Still" data={SERIES} {...SIZE} />
         </DashboardSection>
       </Dashboard>
@@ -105,7 +105,7 @@ describe("One global selection, three effective ranges", () => {
 
     expect(tableDays(container)).toEqual([[2, 3], [6, 7]]);
 
-    setWindow({ start: T0 + 8 * DAY, end: T0 + 9 * DAY });
+    setWindow({ start: new Date(T0 + 8 * DAY), end: new Date(T0 + 9 * DAY) });
 
     // The first moved; the second did not. Asserted as a pair, because a suite
     // that only checked the moved section would pass with isolation broken.
@@ -116,7 +116,7 @@ describe("One global selection, three effective ranges", () => {
 describe("Latest-value mode", () => {
   it("shows only the most recent datum inside the global range", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 5 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 5 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart title="Reading" data={SERIES} {...SIZE} />
         </DashboardSection>
@@ -134,7 +134,7 @@ describe("Latest-value mode", () => {
     const [data, setData] = createSignal(SERIES.slice(0, 3));
 
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 19 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 19 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart title="Reading" data={data()} {...SIZE} />
         </DashboardSection>
@@ -168,7 +168,7 @@ describe("Latest-value mode", () => {
     const { container } = render(() => (
       <>
         <h2 id="reading-heading">Current reading</h2>
-        <Dashboard defaultRange={{ start: T0, end: T0 + 5 * DAY }}>
+        <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 5 * DAY) }}>
           <DashboardSection label="Current" latest>
             <LineChart labelledBy="reading-heading" data={SERIES} {...SIZE} />
           </DashboardSection>
@@ -184,7 +184,7 @@ describe("Latest-value mode", () => {
 
   it("tolerates a caller row with fewer cells than there are columns", async () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 5 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 5 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart
             title="Reading"
@@ -207,7 +207,7 @@ describe("Latest-value mode", () => {
 
   it("renders the empty state when no datum falls inside the range", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 40 * DAY, end: T0 + 50 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 40 * DAY), end: new Date(T0 + 50 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart title="Reading" data={SERIES} {...SIZE} />
         </DashboardSection>
@@ -239,7 +239,7 @@ describe("A section states its own scope", () => {
 
   it("says that a latest-value section is showing only a reading", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 5 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 5 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart title="Reading" data={SERIES} {...SIZE} />
         </DashboardSection>

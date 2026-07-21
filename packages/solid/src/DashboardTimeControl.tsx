@@ -27,7 +27,7 @@
  * supplies its own control and calls `setRange` with instants.
  */
 import { createMemo, createSignal, createUniqueId, Show, type Component } from "solid-js";
-import { useDashboardTime, type DashboardTime, type TimeInterval } from "./dashboard-time";
+import { useDashboardTime, type DashboardTime } from "./dashboard-time";
 
 export interface DashboardTimeControlProps {
   /** Group label. Default: "Time range". */
@@ -113,11 +113,13 @@ function createRangeDraft(time: DashboardTime) {
      * Note what is NOT here: a swap, a clamp, or a nudge of the other input to
      * keep the pair ordered. Each would move a value the user did not touch.
      */
-    commit: (next: Partial<TimeInterval>): void => {
+    commit: (next: { start?: number; end?: number }): void => {
       const start = next.start ?? fromLocalInputValue(startValue());
       const end = next.end ?? fromLocalInputValue(endValue());
       if (start === undefined || end === undefined || end < start) return;
-      time.setRange({ start, end });
+      // The draft is epoch-ms (its `datetime-local` inputs are); the `Date`
+      // crossing is here, at the single commit, per ADR-0017 §3.
+      time.setRange({ start: new Date(start), end: new Date(end) });
       setDraftStart(undefined);
       setDraftEnd(undefined);
     },

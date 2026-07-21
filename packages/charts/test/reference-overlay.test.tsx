@@ -200,8 +200,8 @@ describe("the dashboard scope beats a reference", () => {
     const outside = at(50);
     const { container } = render(() => (
       <Dashboard
-        defaultRange={{ start: at(0).valueOf(), end: at(2).valueOf() }}
-        range={{ start: at(0).valueOf(), end: at(2).valueOf() }}
+        defaultRange={{ start: new Date(at(0).valueOf()), end: new Date(at(2).valueOf()) }}
+        range={{ start: new Date(at(0).valueOf()), end: new Date(at(2).valueOf()) }}
       >
         <LineChart
           title="Scoped chart"

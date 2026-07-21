@@ -77,7 +77,7 @@ function xAxisLabels(container: Element): string[][] {
  */
 function ThreeMembers(props: { start: number; end: number }) {
   return (
-    <Dashboard defaultRange={{ start: props.start, end: props.end }}>
+    <Dashboard defaultRange={{ start: new Date(props.start), end: new Date(props.end) }}>
       <LineChart
         title="Early"
         data={series(0, 10)}
@@ -157,7 +157,7 @@ describe("Dashboard — one selection drives every member", () => {
 
 describe("Dashboard — changing the range", () => {
   it("moves every member without remounting them", () => {
-    const [range, setRange] = createSignal({ start: T0 + 2 * DAY, end: T0 + 7 * DAY });
+    const [range, setRange] = createSignal({ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 7 * DAY) });
 
     const { container } = render(() => (
       <Dashboard defaultRange={range()} range={range()}>
@@ -184,7 +184,7 @@ describe("Dashboard — changing the range", () => {
     const before = [...container.querySelectorAll("svg")];
     expect(before).toHaveLength(2);
 
-    setRange({ start: T0 + 6 * DAY, end: T0 + 12 * DAY });
+    setRange({ start: new Date(T0 + 6 * DAY), end: new Date(T0 + 12 * DAY) });
 
     const after = [...container.querySelectorAll("svg")];
     expect(after[0]).toBe(before[0]);
@@ -331,7 +331,7 @@ describe("DashboardTimeControl — an inverted range is reported, not applied", 
 
   it("is labelled and keyboard-reachable", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 2 * DAY, end: T0 + 7 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 7 * DAY) }}>
         <DashboardTimeControl />
       </Dashboard>
     ));
@@ -349,7 +349,7 @@ describe("DashboardTimeControl — an inverted range is reported, not applied", 
 
   it("reports an end before the start and leaves the members on the old range", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 2 * DAY, end: T0 + 7 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 7 * DAY) }}>
         <DashboardTimeControl />
         <LineChart
           title="Member"
@@ -384,7 +384,7 @@ describe("DashboardTimeControl — an inverted range is reported, not applied", 
 
   it("applies a valid edit and clears the error", () => {
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 2 * DAY, end: T0 + 7 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 7 * DAY) }}>
         <DashboardTimeControl />
         <LineChart
           title="Member"

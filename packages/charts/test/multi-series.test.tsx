@@ -459,7 +459,7 @@ describe("dashboard scope narrows the multi-series model", () => {
 
   it("draws only the points inside the global range", () => {
     const { container } = mountIn((chart) => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 3 * DAY }}>{chart()}</Dashboard>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 3 * DAY) }}>{chart()}</Dashboard>
     ));
     // Four instants in range, so four table rows — the table follows the
     // effective domain, which is what makes it a description of the picture.
@@ -469,8 +469,8 @@ describe("dashboard scope narrows the multi-series model", () => {
 
   it("narrows further inside a section window", () => {
     const { container } = mountIn((chart) => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
-        <DashboardSection label="Recent" window={{ start: T0 + 7 * DAY, end: T0 + 9 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
+        <DashboardSection label="Recent" window={{ start: new Date(T0 + 7 * DAY), end: new Date(T0 + 9 * DAY) }}>
           {chart()}
         </DashboardSection>
       </Dashboard>
@@ -480,7 +480,7 @@ describe("dashboard scope narrows the multi-series model", () => {
 
   it("shows exactly one reading per series in latest mode", () => {
     const { container } = mountIn((chart) => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 9 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 9 * DAY) }}>
         <DashboardSection label="Current" latest>
           {chart()}
         </DashboardSection>
@@ -492,7 +492,7 @@ describe("dashboard scope narrows the multi-series model", () => {
   it("picks a PRESENT datum as the latest, never a gap", () => {
     const withTrailingGap: readonly Series[] = [daily("a", [1, 2, 3, null])];
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0, end: T0 + 3 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0), end: new Date(T0 + 3 * DAY) }}>
         <DashboardSection label="Current" latest>
           <LineChart
             title="Scoped"
@@ -516,7 +516,7 @@ describe("dashboard scope narrows the multi-series model", () => {
 
   it("renders the empty state when the range contains nothing", () => {
     const { container } = mountIn((chart) => (
-      <Dashboard defaultRange={{ start: T0 + 100 * DAY, end: T0 + 101 * DAY }}>{chart()}</Dashboard>
+      <Dashboard defaultRange={{ start: new Date(T0 + 100 * DAY), end: new Date(T0 + 101 * DAY) }}>{chart()}</Dashboard>
     ));
     // Empty, not silently widened to the next scope out — that would show a
     // reader data they had excluded, in a chart that looks like it is working.
@@ -618,7 +618,7 @@ describe("an area chart's empty state", () => {
     const DAY = 24 * 60 * 60 * 1000;
     const T0 = Date.UTC(2026, 2, 1);
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 500 * DAY, end: T0 + 501 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 500 * DAY), end: new Date(T0 + 501 * DAY) }}>
         <AreaChart
           title="Empty area"
           desc="d"
