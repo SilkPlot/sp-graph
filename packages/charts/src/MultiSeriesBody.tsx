@@ -113,6 +113,8 @@ export interface MultiSeriesBodyProps<M = unknown> {
   capturePlainWheel?: boolean;
   /** Enable the drag-to-brush gesture. Default off. */
   brushSelect?: boolean;
+  /** Enable two-pointer pinch zoom. Default off. */
+  pinchZoom?: boolean;
 }
 
 /**
@@ -218,6 +220,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
     brushSelect: () => props.brushSelect,
+    pinchZoom: () => props.pinchZoom,
   });
 
   // The announcement wording: the PRIMARY series' label, the instant, the value.

@@ -94,6 +94,26 @@ function brushRect(container: HTMLElement): SVGRectElement | null {
   return container.querySelector<SVGRectElement>("[data-silkplot-brush]");
 }
 
+/** Dispatch one finger of a multi-touch gesture at a plot-x. */
+function touch(
+  el: HTMLElement,
+  type: "pointerdown" | "pointermove" | "pointerup",
+  pointerId: number,
+  plotX: number,
+): void {
+  const clientX = el.getBoundingClientRect().left + plotX;
+  el.dispatchEvent(
+    new PointerEvent(type, {
+      pointerId,
+      isPrimary: pointerId === 1,
+      button: 0,
+      clientX,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
 describe("viewport keyboard bindings", () => {
   it("zooms in on + and out on -, about the visible centre", () => {
     const { container } = render(() => (
@@ -285,6 +305,36 @@ describe("viewport drag-to-brush (opt-in)", () => {
     await nextFrame();
     expect(brushRect(container)).toBeNull();
     pointer(surface, "pointerup", 300);
+    expect(pointCount(container)).toBe(5);
+  });
+});
+
+describe("viewport pinch zoom (opt-in)", () => {
+  it("zooms in when two fingers move apart", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} pinchZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    // Two fingers down near the centre, then spread apart — the gap grows, so the
+    // span shrinks and fewer points draw.
+    touch(surface, "pointerdown", 1, 180);
+    touch(surface, "pointerdown", 2, 220);
+    touch(surface, "pointermove", 1, 100);
+    touch(surface, "pointermove", 2, 300);
+    await nextFrame();
+    expect(pointCount(container)).toBeLessThan(5);
+  });
+
+  it("does nothing when pinchZoom is off (the default)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    touch(surface, "pointerdown", 1, 180);
+    touch(surface, "pointerdown", 2, 220);
+    touch(surface, "pointermove", 1, 100);
+    touch(surface, "pointermove", 2, 300);
+    await nextFrame();
     expect(pointCount(container)).toBe(5);
   });
 });
