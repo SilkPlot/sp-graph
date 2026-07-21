@@ -50,6 +50,8 @@ export const CASES = [
   "multi-gaps",
   "multi-ref-one",
   "multi-ref-three",
+  "ranked-horizontal",
+  "ranked-long-label",
 ] as const;
 export type Case = (typeof CASES)[number];
 
@@ -106,6 +108,34 @@ export const MULTI_CASES = [
 export type MultiCase = (typeof MULTI_CASES)[number];
 
 /**
+ * The ranked-bar cases (ADR-0013), and the chart that can render them.
+ *
+ * Like the multi-series cases they break the uniform chart × case product, and
+ * for the same reason: only `bar` has a `categories` input and an `orientation`,
+ * so a line+ranked baseline would be a picture of the wrong chart under a
+ * confident name. They are generated separately below and counted separately.
+ *
+ * Both are HORIZONTAL on purpose. Vertical ranked geometry is already pinned by
+ * the single-series `bar` cases — `data` is adapted into `categories` through ONE
+ * render path (ADR-0013 §1), so a vertical `categories` picture would be
+ * byte-identical to the `data` one and prove nothing new. Horizontal is the
+ * geometry that had never been pinned.
+ *
+ * - `ranked-horizontal` — the ordinary rotated shape, short labels. The reference
+ *   geometry for a horizontal chart, which no other case exercises.
+ * - `ranked-long-label` — the twelve clinic names that smear on the VERTICAL
+ *   `dense-label` axis, drawn one-per-row instead. This is the case orientation
+ *   exists FOR (ADR-0013 §5): horizontal is the documented answer for long
+ *   category labels, and pinning the identical label set both ways is what shows
+ *   it. It runs on a taller box so all twelve rows have room.
+ */
+export const RANKED_CASES = [
+  "ranked-horizontal",
+  "ranked-long-label",
+] as const satisfies readonly Case[];
+export type RankedCase = (typeof RANKED_CASES)[number];
+
+/**
  * The legend is a PRIMITIVE, not a chart family, and it gets its own axis here
  * rather than being forced into the chart x case product.
  *
@@ -129,6 +159,9 @@ export type Surface = Chart | "legend";
 
 /** Only these two compose the multi-series surface today. */
 export const MULTI_CHARTS = ["line", "area"] as const satisfies readonly Chart[];
+
+/** Only `bar` composes the ranked surface — horizontal orientation and `categories`. */
+export const RANKED_CHARTS = ["bar"] as const satisfies readonly Chart[];
 
 /**
  * The four scheme x contrast combinations.
@@ -225,10 +258,13 @@ export interface Baseline {
 const isMultiCase = (kase: Case): kase is MultiCase =>
   (MULTI_CASES as readonly Case[]).includes(kase);
 
-/** The uniform product: every chart x every NON-multi case x every theme. */
+const isRankedCase = (kase: Case): kase is RankedCase =>
+  (RANKED_CASES as readonly Case[]).includes(kase);
+
+/** The uniform product: every chart x every case that is neither multi nor ranked x every theme. */
 const geometry = (): Baseline[] =>
   CHARTS.flatMap((chart) =>
-    CASES.filter((kase) => !isMultiCase(kase)).flatMap((kase) =>
+    CASES.filter((kase) => !isMultiCase(kase) && !isRankedCase(kase)).flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -249,6 +285,27 @@ const geometry = (): Baseline[] =>
 const multiSeries = (): Baseline[] =>
   MULTI_CHARTS.flatMap((chart) =>
     MULTI_CASES.flatMap((kase) =>
+      THEME_STATES.map((theme) => ({
+        id: `${chart}--${kase}--${theme}`,
+        kind: "geometry" as const,
+        chart,
+        case: kase,
+        theme,
+        reducedMotion: false,
+        focus: false,
+        viewport: viewportFor(kase),
+      })),
+    ),
+  );
+
+/**
+ * The ranked-bar product (ADR-0013), kept apart for the same reason as the
+ * multi-series one: only `bar` renders a horizontal orientation and the ranked
+ * `categories` surface, so this is one chart rather than four.
+ */
+const rankedBars = (): Baseline[] =>
+  RANKED_CHARTS.flatMap((chart) =>
+    RANKED_CASES.flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -349,6 +406,7 @@ const reducedMotion = (): Baseline[] =>
 export const ACCEPTANCE_SET: readonly Baseline[] = [
   ...geometry(),
   ...multiSeries(),
+  ...rankedBars(),
   ...legend(),
   ...focus(),
   ...legendFocus(),
@@ -363,8 +421,9 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  *
  * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
  * 2 multi-capable charts x 7 multi cases x 4 combinations =  56
+ * 1 ranked-capable chart x 2 ranked cases x 4 combinations =   8
  * 5 legend cases x 4 combinations                          =  20
- *                                              geometry    = 156
+ *                                              geometry    = 164
  * 2 focusable charts x 4 scheme/contrast combinations      =   8
  * the legend, focused, x 4 combinations                    =   4
  *                                                 focus    =  12
@@ -373,10 +432,10 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 156,
+  geometry: 164,
   focus: 12,
   "reduced-motion": 12,
-  all: 180,
+  all: 188,
 } as const;
 
 /**

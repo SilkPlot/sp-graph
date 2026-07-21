@@ -19,12 +19,14 @@ import { type Component, Show } from "solid-js";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "@silkplot/charts";
 import { seriesChannel } from "@silkplot/theme";
 import { Legend } from "@silkplot/solid";
-import type { ReferenceValue, Series } from "@silkplot/core";
+import type { RankedCategory, ReferenceValue, Series } from "@silkplot/core";
 import {
   CATEGORY_DEFAULT,
   CATEGORY_DENSE,
   CATEGORY_EMPTY,
   CATEGORY_NEGATIVE,
+  RANKED_DEFAULT,
+  RANKED_LONG_LABEL,
   REFERENCES_ONE,
   REFERENCES_THREE,
   SERIES_22,
@@ -49,7 +51,8 @@ type Case =
   | "dense-label"
   | "responsive-mobile"
   | MultiCase
-  | LegendCase;
+  | LegendCase
+  | RankedCase;
 
 /**
  * The multi-series cases (ADR-0008), which only `line` and `area` can render —
@@ -99,6 +102,15 @@ const MULTI_CASES: readonly MultiCase[] = [
 const isMulti = (kase: Case): kase is MultiCase =>
   (MULTI_CASES as readonly string[]).includes(kase);
 
+/** The ranked-bar cases (ADR-0013), which only `bar` can render — horizontal
+ *  orientation and the `categories` input. */
+type RankedCase = "ranked-horizontal" | "ranked-long-label";
+
+const RANKED_CASES: readonly RankedCase[] = ["ranked-horizontal", "ranked-long-label"];
+
+const isRanked = (kase: Case): kase is RankedCase =>
+  (RANKED_CASES as readonly string[]).includes(kase);
+
 const CHARTS: readonly Chart[] = ["line", "area", "bar", "scatter", "legend"];
 const CASES: readonly Case[] = [
   "default",
@@ -108,6 +120,7 @@ const CASES: readonly Case[] = [
   "responsive-mobile",
   ...MULTI_CASES,
   ...LEGEND_CASES,
+  ...RANKED_CASES,
 ];
 
 /**
@@ -130,7 +143,11 @@ const boxFor = (kase: Case): { width: string; height: string } =>
     ? { width: "100%", height: "260px" }
     : kase === "dense-label"
       ? { width: "380px", height: "220px" }
-      : { width: "640px", height: "360px" };
+      : // The long-label horizontal case runs taller so its twelve rows each
+        // have room — a short box would restack the point the case exists to show.
+        kase === "ranked-long-label"
+        ? { width: "640px", height: "480px" }
+        : { width: "640px", height: "360px" };
 
 /** Which series a legend case lists. */
 const legendSeries = (kase: LegendCase): readonly Series[] =>
@@ -178,6 +195,23 @@ const categoryData = (kase: Case) =>
         ? CATEGORY_DENSE
         : CATEGORY_DEFAULT;
 
+/** Which ranked set a horizontal case draws. */
+const rankedData = (kase: RankedCase): readonly RankedCategory[] =>
+  kase === "ranked-long-label" ? RANKED_LONG_LABEL : RANKED_DEFAULT;
+
+/**
+ * The left margin a horizontal ranked chart needs for its CATEGORY labels.
+ *
+ * Horizontal orientation puts the category labels where the value axis normally
+ * sits, and the default 40px left margin only fits a numeric value like "100".
+ * The caller sizes it (ADR-0013 §5): auto-measuring text width is rejected on the
+ * same determinism grounds §5 gives for label truncation, so the margin is a
+ * caller decision rather than something the library derives. 150px clears the
+ * 20-char-truncated clinic names; 80px clears the short default labels.
+ */
+const rankedLeftMargin = (kase: RankedCase): number =>
+  kase === "ranked-long-label" ? 150 : 80;
+
 const xyData = (kase: Case) =>
   kase === "empty"
     ? XY_EMPTY
@@ -224,7 +258,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         }
       />
     </Show>
-    <Show when={props.chart === "line" && !isMulti(props.case)}>
+    <Show when={props.chart === "line" && !isMulti(props.case) && !isRanked(props.case)}>
       <LineChart
         tableHidden
         data={timeData(props.case)}
@@ -250,7 +284,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         desc="Deterministic multi-series daily readings, rendered for a visual baseline."
       />
     </Show>
-    <Show when={props.chart === "area" && !isMulti(props.case)}>
+    <Show when={props.chart === "area" && !isMulti(props.case) && !isRanked(props.case)}>
       <AreaChart
         tableHidden
         data={timeData(props.case)}
@@ -269,7 +303,14 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         desc="Deterministic multi-series daily readings, filled from the zero baseline."
       />
     </Show>
-    <Show when={props.chart === "bar" && !isMulti(props.case) && !isLegend(props.case)}>
+    <Show
+      when={
+        props.chart === "bar" &&
+        !isMulti(props.case) &&
+        !isLegend(props.case) &&
+        !isRanked(props.case)
+      }
+    >
       <BarChart
         tableHidden
         data={categoryData(props.case)}
@@ -278,7 +319,32 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         fill={seriesChannel(2).color}
       />
     </Show>
-    <Show when={props.chart === "scatter" && !isMulti(props.case) && !isLegend(props.case)}>
+    {/*
+      The ranked bar surface (ADR-0013), HORIZONTAL. Passes `categories` rather
+      than `data` — the second input shape — and `orientation="horizontal"`, the
+      geometry no vertical bar case reaches. No `onActivate`: these are geometry
+      baselines, and the keyboard composite's focus ring is captured on the
+      `default` case, not here.
+    */}
+    <Show when={props.chart === "bar" && isRanked(props.case)}>
+      <BarChart
+        tableHidden
+        categories={rankedData(props.case as RankedCase)}
+        orientation="horizontal"
+        margins={{ left: rankedLeftMargin(props.case as RankedCase) }}
+        title="Ranked totals by category"
+        desc="Deterministic ranked categorical totals, drawn horizontally so long labels stay readable."
+        fill={seriesChannel(2).color}
+      />
+    </Show>
+    <Show
+      when={
+        props.chart === "scatter" &&
+        !isMulti(props.case) &&
+        !isLegend(props.case) &&
+        !isRanked(props.case)
+      }
+    >
       <ScatterChart
         tableHidden
         data={xyData(props.case)}

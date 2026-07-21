@@ -152,6 +152,28 @@ the second-ranked remedy — is deliberately unbuilt and tracked in the planning
 backlog, because it needs bottom-margin reservation that touches every chart's
 layout.
 
+**Horizontal orientation reserves its category-label room through the caller's
+`margins.left`, and the library does NOT size it.** In horizontal orientation the
+category labels occupy the left margin where a vertical chart's value axis sits,
+and the default `margins.left` of 40px fits a numeric value like `100` — not a
+category name. A caller drawing long labels horizontally therefore sets
+`margins.left` wide enough for them, exactly as they choose the orientation.
+
+Deriving that margin from the measured width of the labels is rejected for the
+**same reason measured-width truncation is** two paragraphs above: it makes the
+layout depend on font metrics resolved at run time, so a chart would reflow — and
+every pinned baseline would move — when a font loads differently. A single larger
+default constant is rejected on the ground §5 already establishes for the
+label-thinning pixel floor: no constant fits both `"Bolts"` and
+`"Gqeberha Summerstrand"`, so one either over-pads the short case or under-fits
+the long one. The caller knows their own labels; the library does not. This is
+surfaced in the visual acceptance set: `ranked-long-label` sizes `margins.left`
+to 150px, and its baseline is the readable-per-row picture this section promises.
+
+A reconsideration of the horizontal default — a more generous starting margin, or
+an opt-in measured mode behind an explicit determinism trade-off — is tracked as a
+follow-up in the planning backlog rather than decided here.
+
 **What was tried and rejected, so it is not rebuilt.** Thinning the labels —
 rendering every nth — was implemented and reverted. Dropping labels is valid on
 a CONTINUOUS axis, where a reader interpolates an unlabelled position between 0
