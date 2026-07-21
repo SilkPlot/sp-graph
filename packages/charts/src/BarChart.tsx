@@ -36,17 +36,16 @@
  * TODO(grouped/stacked extension): grouped and stacked variants over
  * `d3-shape` stack after consumer evidence justifies them.
  */
-import { For, Show, createMemo, type Component } from "solid-js";
+import { For, Show, createMemo, type Component, type JSX } from "solid-js";
 import {
+  createBandIndex,
   normalizeCategories,
+  type ActivePoint,
   type NormalizedCategory,
   type RankedCategory,
   type RankedFormatProps,
 } from "@silkplot/core";
 import {
-  ChartKeyboardSurface,
-  createActiveDatum,
-  createChartKeyboard,
   createRankedModel,
   type ChartSemantics,
   type ChartSemanticsProps,
@@ -55,6 +54,7 @@ import {
   type RankedOrientation,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { InteractionLayer, useInspection, type KeyboardHoverProps } from "./inspection";
 import {
   ChartShell,
   CATEGORY_COLUMNS,
@@ -103,9 +103,14 @@ export interface SingleCategoryInput extends BarLayoutProps {
   onActivate?: never;
   keyboard?: never;
   pageSize?: never;
+  /** The legacy `data` shape carries no interaction — same reason as `onActivate`. */
+  pointer?: never;
+  announce?: never;
+  tooltip?: never;
+  onActivePointChange?: never;
 }
 
-export interface RankedInput extends BarLayoutProps, RankedFormatProps {
+export interface RankedInput extends BarLayoutProps, RankedFormatProps, KeyboardHoverProps {
   /**
    * The ranked categories, in the caller's own order.
    *
@@ -129,10 +134,13 @@ export interface RankedInput extends BarLayoutProps, RankedFormatProps {
    * Routing, filtering, modal and drill-down behaviour are the application's.
    */
   onActivate?: (category: RankedCategory) => void;
-  /** Offer the keyboard composite at all. Default true for an informative chart. */
-  keyboard?: boolean;
-  /** How far PageUp/PageDown step. Default: `createActiveDatum`'s own. */
-  pageSize?: number;
+  /**
+   * Tooltip content, as a render-prop (ADR-0016 §1). Receives the active bar's
+   * record — `datum` is the caller's `RankedCategory`, `at.kind` is `"category"`.
+   */
+  tooltip?: (active: ActivePoint<RankedCategory>) => JSX.Element;
+  /** Fires on every active-category CHANGE — a hover, a keyboard step, a clear. */
+  onActivePointChange?: (active: ActivePoint<RankedCategory> | undefined) => void;
   data?: never;
 }
 
@@ -144,16 +152,17 @@ export type BarChartBaseProps = SingleCategoryInput | RankedInput;
  */
 export type BarChartProps = BarChartBaseProps & ChartSemanticsProps;
 
-type ResolvedBarProps = BarLayoutProps & {
-  categories: readonly RankedCategory[];
-  orientation?: RankedOrientation;
-  categoryTickFormat?: (label: string) => string;
-  valueTickFormat?: (value: number) => string;
-  tableValueFormat?: (value: number) => string;
-  onActivate?: (category: RankedCategory) => void;
-  keyboard?: boolean;
-  pageSize?: number;
-};
+type ResolvedBarProps = BarLayoutProps &
+  KeyboardHoverProps & {
+    categories: readonly RankedCategory[];
+    orientation?: RankedOrientation;
+    categoryTickFormat?: (label: string) => string;
+    valueTickFormat?: (value: number) => string;
+    tableValueFormat?: (value: number) => string;
+    onActivate?: (category: RankedCategory) => void;
+    tooltip?: (active: ActivePoint<RankedCategory>) => JSX.Element;
+    onActivePointChange?: (active: ActivePoint<RankedCategory> | undefined) => void;
+  };
 
 type BarChartBodyProps = ResolvedBarProps & { semantics: ChartSemantics };
 
@@ -177,63 +186,22 @@ function truncateLabel(label: string): string {
 }
 
 /**
- * The chart's keyboard state and the wording it announces.
- *
- * The same shape `createLineKeyboard` has, and deliberately so — one active
- * datum, written here by the keyboard and by a pointer model when composed
- * hit-testing arrives, so the cursor and the announcement can never describe
- * different bars (ADR-0002 §1, §4).
+ * The announcement wording for one active category — the FULL label (never the
+ * truncated axis text) and the value. One active datum, written by the keyboard
+ * and the pointer through the shared inspection, so the cursor and the
+ * announcement can never describe different bars (ADR-0002 §1, §4; ADR-0016 §3).
  */
-function createBarKeyboard(
+function barLabel(
   props: BarChartBodyProps,
-  categories: () => readonly NormalizedCategory[],
-) {
-  const active = createActiveDatum({
-    count: () => categories().length,
-    pageSize: props.pageSize,
-  });
-
-  const sem = (): ChartSemantics => props.semantics;
-
-  const at = (index: number): NormalizedCategory | undefined => categories()[index];
-
-  const keyboard = createChartKeyboard({
-    active,
-    onActivate:
-      props.onActivate === undefined
-        ? undefined
-        : (index: number): void => {
-            const c = at(index);
-            if (c === undefined) return;
-            // The caller's own shape back, rebuilt from the normalised record.
-            // `meta` rides along verbatim (ADR-0008 §3).
-            props.onActivate?.({
-              id: c.id,
-              label: c.label,
-              value: c.value as number,
-              meta: c.meta,
-            });
-          },
-  });
-
-  return {
-    active,
-    keyboard,
-    /** Off for a decorative chart: a focusable surface announcing nothing is a dead tab stop. */
-    enabled: (): boolean => !sem().decorative() && (props.keyboard ?? true),
-    optionLabel: (index: number): string => {
-      const c = at(index);
-      if (c === undefined) return "";
-      // The FULL label, never the truncated axis text — the whole reason
-      // truncation is acceptable is that this surface keeps the original.
-      const value =
-        c.value === null
-          ? "no value"
-          : (props.tableValueFormat?.(c.value) ?? String(c.value));
-      const name = sem().name();
-      return name ? `${name}, ${c.label}, ${value}` : `${c.label}, ${value}`;
-    },
-  };
+  active: ActivePoint<RankedCategory> | undefined,
+): string {
+  if (active === undefined) return "";
+  const c = active.datum;
+  const value = Number.isFinite(c.value)
+    ? (props.tableValueFormat?.(c.value) ?? String(c.value))
+    : "no value";
+  const name = props.semantics.name();
+  return name ? `${name}, ${c.label}, ${value}` : `${c.label}, ${value}`;
 }
 
 /** One bar, positioned for whichever axis its category landed on. */
@@ -241,10 +209,14 @@ const Bar: Component<{
   model: RankedModel;
   category: NormalizedCategory;
   fill?: string;
+  /** Emphasised as the active bar — an outline that survives monochrome (ADR-0005 §5). */
+  active?: boolean;
 }> = (props) => {
   const band = (): number | undefined => props.model.band()(props.category.id);
   const zero = (): number => props.model.value()(0);
   const at = (): number => props.model.value()(props.category.value as number);
+  const stroke = (): string => (props.active ? "var(--sp-color-cursor, currentColor)" : "none");
+  const strokeWidth = (): number => (props.active ? 2 : 0);
 
   return (
     // A broken or absent value is drawn as NO BAR rather than as a zero-height
@@ -260,6 +232,8 @@ const Bar: Component<{
           width={props.model.band().bandwidth()}
           height={Math.abs(at() - zero())}
           fill={props.fill ?? "currentColor"}
+          stroke={stroke()}
+          stroke-width={strokeWidth()}
         />
       ) : (
         <rect
@@ -270,6 +244,8 @@ const Bar: Component<{
           width={Math.abs(at() - zero())}
           height={props.model.band().bandwidth()}
           fill={props.fill ?? "currentColor"}
+          stroke={stroke()}
+          stroke-width={strokeWidth()}
         />
       )}
     </Show>
@@ -292,7 +268,39 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
     padding: () => props.padding,
   });
 
-  const kb = createBarKeyboard(props, categories);
+  const isVertical = (): boolean => ranked.orientation() === "vertical";
+
+  // The band lookup: a pointer is over a bar's band or between bands. The
+  // selection axis follows orientation — the x coordinate picks the band on a
+  // vertical chart, the y coordinate on a horizontal one (ADR-0014 §2).
+  const index = createMemo(() => {
+    const b = ranked.band();
+    const bw = b.bandwidth();
+    const v = ranked.value();
+    const vertical = isVertical();
+    const start = (c: RankedCategory): number => b(c.id) ?? Number.NaN;
+    return createBandIndex<RankedCategory>(props.categories, {
+      category: (c) => c.id,
+      bandStart: start,
+      bandEnd: (c) => start(c) + bw,
+      axis: (px, py) => (vertical ? px : py),
+      px: (c) => (vertical ? start(c) + bw / 2 : v(c.value)),
+      py: (c) => (vertical ? v(c.value) : start(c) + bw / 2),
+    });
+  });
+
+  const insp = useInspection<RankedCategory>({
+    index,
+    semantics: () => props.semantics,
+    keyboard: props.keyboard,
+    pointer: props.pointer,
+    pageSize: props.pageSize,
+    announce: props.announce,
+    // ADR-0013's commit hands back the caller's OWN category, unchanged.
+    onActivate: props.onActivate ? (a) => props.onActivate?.(a.datum) : undefined,
+    onActivePointChange: props.onActivePointChange,
+  });
+  const active = (): ActivePoint<RankedCategory> | undefined => insp.inspection.point();
 
   /**
    * The band domain is ids, so the axis must resolve one back to its label
@@ -303,8 +311,6 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
     const label = model().byId.get(id)?.label ?? id;
     return props.categoryTickFormat?.(label) ?? truncateLabel(label);
   };
-
-  const isVertical = (): boolean => ranked.orientation() === "vertical";
 
   return (
     <>
@@ -318,20 +324,27 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
         yFormat={isVertical() ? props.valueTickFormat : categoryFormat}
       >
         <For each={categories()}>
-          {(c) => <Bar model={ranked} category={c} fill={props.fill} />}
+          {(c) => (
+            <Bar
+              model={ranked}
+              category={c}
+              fill={props.fill}
+              active={active()?.datum.id === c.id}
+            />
+          )}
         </For>
       </CartesianFrame>
-      <Show when={kb.enabled()}>
-        <ChartKeyboardSurface
-          keyboard={kb.keyboard}
-          optionLabel={kb.optionLabel}
-          label={
-            props.semantics.name()
-              ? `${props.semantics.name()}. Use arrow keys to step through categories.`
-              : undefined
-          }
-          labelledBy={props.semantics.name() ? undefined : props.semantics.labelledBy()}
-          describedBy={props.semantics.describedBy()}
+
+      <Show when={insp.enabled() || insp.pointer()}>
+        <InteractionLayer
+          inspection={insp.inspection}
+          semantics={props.semantics}
+          label={(a) => barLabel(props, a)}
+          live={insp.live()}
+          keyboard={insp.enabled()}
+          pointer={insp.pointer()}
+          instruction="Use arrow keys to step through categories."
+          tooltip={props.tooltip}
         />
       </Show>
     </>

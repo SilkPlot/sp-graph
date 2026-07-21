@@ -20,8 +20,8 @@
  *   — note that the resolution belongs to a pointer model, not to this chart
  *   and not to the cursor.
  */
-import { For, type Component } from "solid-js";
-import { extentOf, linearScale } from "@silkplot/core";
+import { For, Show, createMemo, type Component, type JSX } from "solid-js";
+import { createScatterIndex, extentOf, linearScale, type ActivePoint } from "@silkplot/core";
 import {
   createCartesianModel,
   type ChartSemantics,
@@ -30,6 +30,12 @@ import {
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import {
+  InteractionLayer,
+  PointMark,
+  useInspection,
+  type KeyboardHoverProps,
+} from "./inspection";
+import {
   ChartShell,
   XY_COLUMNS,
   createInspectableSemantics,
@@ -37,7 +43,7 @@ import {
 } from "./scaffold";
 import type { XYPoint } from "./types";
 
-export interface ScatterChartBaseProps extends CartesianChartProps {
+export interface ScatterChartBaseProps extends CartesianChartProps, KeyboardHoverProps {
   /** The points to plot, as `{ x: number, y: number }[]`. */
   data: readonly XYPoint[];
   /** Point radius in px. Default: 3. */
@@ -46,6 +52,16 @@ export interface ScatterChartBaseProps extends CartesianChartProps {
   fill?: string;
   /** Point fill opacity. Default: 1. */
   fillOpacity?: number;
+  /** Accessible wording for one point — x and y. Default: the chart name and the
+   *  two numbers (ADR-0005 §4). */
+  pointLabel?: (d: XYPoint, index: number) => string;
+  /** Tooltip content (ADR-0016 §1). Receives the nearest point's record —
+   *  `datum` is the `{ x, y }`, `at.kind` is `"value"`. */
+  tooltip?: (active: ActivePoint<XYPoint>) => JSX.Element;
+  /** Drill-down commit — Enter, Space, or a click on the active point. */
+  onActivate?: (active: ActivePoint<XYPoint>) => void;
+  /** Fires on every active-point CHANGE — a hover snap, a keyboard step, a clear. */
+  onActivePointChange?: (active: ActivePoint<XYPoint> | undefined) => void;
 }
 
 /**
@@ -74,20 +90,74 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
     y: { accessor: (d) => d.y, domain: "extent" },
   });
 
+  const sem = (): ChartSemantics => props.semantics;
+
+  // A 2-D point cloud has no sorted axis, so nearest-in-the-plane is the honest
+  // question and the Delaunay index answers it (ADR-0002 §1). This is the
+  // interaction ADR-0002 was written for, finally composed.
+  const index = createMemo(() => {
+    const xs = model.x();
+    const ys = model.y();
+    return createScatterIndex<XYPoint>(props.data, {
+      px: (d) => xs(d.x),
+      py: (d) => ys(d.y),
+      x: (d) => d.x,
+      y: (d) => d.y,
+      seriesId: sem().name() || "scatter",
+    });
+  });
+
+  const insp = useInspection<XYPoint>({
+    index,
+    semantics: sem,
+    keyboard: props.keyboard,
+    pointer: props.pointer,
+    pageSize: props.pageSize,
+    announce: props.announce,
+    onActivate: props.onActivate,
+    onActivePointChange: props.onActivePointChange,
+  });
+  const active = (): ActivePoint<XYPoint> | undefined => insp.inspection.point();
+
+  const label = (a: ActivePoint<XYPoint> | undefined): string => {
+    if (a === undefined) return "";
+    if (props.pointLabel) return props.pointLabel(a.datum, a.sourceIndex);
+    const name = sem().name();
+    return name ? `${name}, ${a.datum.x}, ${a.datum.y}` : `${a.datum.x}, ${a.datum.y}`;
+  };
+
   return (
-    <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-      <For each={props.data}>
-        {(d) => (
-          <circle
-            cx={model.x()(d.x)}
-            cy={model.y()(d.y)}
-            r={props.radius ?? 3}
-            fill={props.fill ?? "currentColor"}
-            fill-opacity={props.fillOpacity ?? 1}
-          />
-        )}
-      </For>
-    </CartesianFrame>
+    <>
+      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
+        <For each={props.data}>
+          {(d) => (
+            <circle
+              cx={model.x()(d.x)}
+              cy={model.y()(d.y)}
+              r={props.radius ?? 3}
+              fill={props.fill ?? "currentColor"}
+              fill-opacity={props.fillOpacity ?? 1}
+            />
+          )}
+        </For>
+        <Show when={active()}>
+          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
+        </Show>
+      </CartesianFrame>
+
+      <Show when={insp.enabled() || insp.pointer()}>
+        <InteractionLayer
+          inspection={insp.inspection}
+          semantics={props.semantics}
+          label={label}
+          live={insp.live()}
+          keyboard={insp.enabled()}
+          pointer={insp.pointer()}
+          instruction="Use arrow keys to step through points."
+          tooltip={props.tooltip}
+        />
+      </Show>
+    </>
   );
 };
 

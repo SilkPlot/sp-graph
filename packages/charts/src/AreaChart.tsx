@@ -14,7 +14,13 @@
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
 import { createMemo, Show, type Component } from "solid-js";
-import { areaPath, linePath, type CurveName } from "@silkplot/core";
+import {
+  areaPath,
+  linePath,
+  type ActivePoint,
+  type CurveName,
+  type SeriesDatum,
+} from "@silkplot/core";
 import {
   ChartEmptyMark,
   ChartEmptyState,
@@ -23,6 +29,12 @@ import {
   type ChartSemantics,
   type ChartSemanticsProps,
 } from "@silkplot/solid";
+import {
+  InteractionLayer,
+  PointMark,
+  createTimeChartInspection,
+  type TimeChartInspectionProps,
+} from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
 import { MultiSeriesBody } from "./MultiSeriesBody";
@@ -43,7 +55,7 @@ import {
 import type { TimePoint } from "./types";
 import { tableOptions } from "./formatters";
 
-export interface AreaChartBaseProps extends TimeSeriesChartProps {
+export interface AreaChartBaseProps extends TimeSeriesChartProps, TimeChartInspectionProps {
   /** Area/line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -129,16 +141,50 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     return linePath(scope.visible(), { x, y, defined, curve });
   });
 
+  // One active-datum state, shared by keyboard and pointer over the same
+  // time-series index Line uses — Area and Line differ in their marks and never
+  // in this (ADR-0016 §3).
+  const insp = createTimeChartInspection({
+    visible: scope.visible,
+    model,
+    semantics: () => props.semantics,
+    defined: props.defined,
+    keyboard: props.keyboard,
+    pointer: props.pointer,
+    pageSize: props.pageSize,
+    announce: props.announce,
+    pointLabel: props.pointLabel,
+    onActivate: props.onActivate,
+    onActivePointChange: props.onActivePointChange,
+  });
+  const active = (): ActivePoint<SeriesDatum> | undefined => insp.inspection.point();
+
   return (
     <>
       <CartesianFrame model={model} layout={props} semantics={props.semantics}>
         <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
         <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+        <Show when={active()}>
+          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
+        </Show>
         <Show when={scope.isEmpty()}>
           <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
         </Show>
       </CartesianFrame>
       <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
+
+      <Show when={insp.enabled() || insp.pointer()}>
+        <InteractionLayer
+          inspection={insp.inspection}
+          semantics={props.semantics}
+          label={insp.label}
+          live={insp.live()}
+          keyboard={insp.enabled()}
+          pointer={insp.pointer()}
+          instruction="Use arrow keys to step through points."
+          tooltip={props.tooltip}
+        />
+      </Show>
     </>
   );
 };
@@ -174,6 +220,13 @@ const AreaChartMulti: Component<
         scope={scope}
         layout={props}
         semantics={props.semantics}
+        keyboard={props.keyboard}
+        pointer={props.pointer}
+        pageSize={props.pageSize}
+        announce={props.announce}
+        tooltip={props.tooltip}
+        onActivate={props.onActivate}
+        onActivePointChange={props.onActivePointChange}
         xTickFormat={props.xTickFormat}
         yTickFormat={props.yTickFormat}
         area

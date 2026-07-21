@@ -27,7 +27,7 @@ opt-in props whose defaults never touch the page's scroll or focus.
 
 | Surface | Default behaviour |
 |---|---|
-| Pointer hover | no cursor or tooltip until you compose them |
+| Pointer hover | an informative chart inspects on hover ([ADR-0016](../decisions/adr-0016-composed-chart-inspection.md)) — crosshair, active mark, and announcement; a tooltip **card** renders only if you pass `tooltip`. `pointer={false}` opts out |
 | Wheel over the chart | scrolls the **page** — never zooms unless you opt in |
 | Touch drag | scrolls the **page** |
 | Visible interval | the full data extent; no zoom or pan state |
@@ -59,17 +59,23 @@ that instant. Your metadata type flows through the time family's datum:
 <LineChart
   series={series}
   title="Inlet temperature"
-  onActivate={(active) => {
+  // A render-prop for the tooltip card (ADR-0016 §1): you own the content, the
+  // library owns the geometry and confinement. Omit it and hover still moves the
+  // crosshair and announces.
+  tooltip={(active) => <b>{active.datum.meta?.serial}: {active.datum.y}</b>}
+  onActivePointChange={(active) => {
     if (active === undefined) return;            // clearing is `undefined`
     const serial = active.datum.meta?.serial;    // your type, no cast
   }}
 />
 ```
 
-`onActivate` fires on a committed change — a keyboard step, a snapped cursor —
-not on every hover sample, per [ADR-0005](../decisions/adr-0005-accessibility-contract.md)
-§4. Clearing the active point passes `undefined`; there is no sentinel record to
-special-case.
+`onActivePointChange` fires on a committed change — a keyboard step, a snapped
+hover — not on every raw pointer sample, per
+[ADR-0005](../decisions/adr-0005-accessibility-contract.md) §4. Clearing the
+active point passes `undefined`; there is no sentinel record to special-case. It
+is distinct from a drill-down **commit** (`onActivate`, Enter/Space/click), which
+is the user acting rather than the cursor moving.
 
 ## Navigating: the controlled viewport
 

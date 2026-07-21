@@ -18,24 +18,33 @@
  * Collapsing them now would bury a deliberate difference behind a shared name.
  */
 import { createMemo, For, Show, type JSX } from "solid-js";
-import { referenceDomainOf, resolveSeriesStyle, seriesGeometry } from "@silkplot/core";
+import {
+  createTimeSeriesIndex,
+  referenceDomainOf,
+  resolveSeriesStyle,
+  seriesGeometry,
+} from "@silkplot/core";
 import type {
+  ActivePoint,
   NormalizedDatum,
   NormalizedReference,
   NormalizedSeries,
   ResolvedSeriesStyle,
   ScaleTime,
+  SeriesDatum,
 } from "@silkplot/core";
 import {
   ChartEmptyMark,
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
+  createChartInspection,
   type CartesianModel,
   type ChartSemantics,
   type YDomainPolicy,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { InteractionLayer, PointMark } from "./inspection";
 import type { CartesianChartProps } from "./scaffold";
 import type { MultiSeriesScope } from "./multi-series";
 import { ReferenceOverlay } from "./ReferenceOverlay";
@@ -80,6 +89,22 @@ export interface MultiSeriesBodyProps<M = unknown> {
   yTickFormat?: (value: number) => string;
   /** Draw one series. Called once per visible series, in paint order. */
   renderSeries: (context: SeriesRenderContext<M>) => JSX.Element;
+  /* --- Inspection (ADR-0016). The multi-series path gains one active-datum
+     state here for the first time: a shared time cursor over every visible
+     series, written by pointer and keyboard alike. --- */
+  /** Keyboard composite. Default: true for an informative chart. */
+  keyboard?: boolean;
+  /** Pointer hover. Default: true for an informative chart. */
+  pointer?: boolean;
+  /** Page-step size for the keyboard. */
+  pageSize?: number;
+  /** Announcement channel. Default `"live"`. */
+  announce?: "live" | "option";
+  /** Tooltip content, as a render-prop (ADR-0016 §1). Receives the shared-time
+   *  record — the primary datum plus `atTime` across every visible series. */
+  tooltip?: (active: ActivePoint<SeriesDatum>) => JSX.Element;
+  onActivate?: (active: ActivePoint<SeriesDatum>) => void;
+  onActivePointChange?: (active: ActivePoint<SeriesDatum> | undefined) => void;
 }
 
 /**
@@ -141,6 +166,47 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
       y: (d: NormalizedDatum<M>): number => ys(d.y as number),
     };
   });
+
+  // The shared-time lookup: every visible series' present points, keyed by
+  // instant. `at` carries the whole column (`atTime`), so a tooltip reads every
+  // series at the hovered instant, and `locate` bisects on pixel x (ADR-0014 §2).
+  const sem = (): ChartSemantics => props.semantics;
+  const index = createMemo(() => {
+    const m = mapping();
+    const input = props.scope.visible().map((s) => ({
+      seriesId: s.id,
+      points: s.data.filter((d) => d.state === "present"),
+    }));
+    return createTimeSeriesIndex<NormalizedDatum<M>>(input, {
+      time: (d) => d.time,
+      px: (d) => m.x(d),
+      py: (d) => m.y(d),
+      sourceIndex: (d) => d.sourceIndex,
+    });
+  });
+
+  const inspection = createChartInspection<SeriesDatum>({
+    index,
+    pageSize: props.pageSize,
+    pointer: () => !sem().decorative() && (props.pointer ?? true),
+    onActivate: props.onActivate,
+    onActivePointChange: props.onActivePointChange,
+  });
+  const active = (): ActivePoint<SeriesDatum> | undefined => inspection.point();
+  const keyboardOn = (): boolean => !sem().decorative() && (props.keyboard ?? true);
+  const pointerOn = (): boolean => !sem().decorative() && (props.pointer ?? true);
+  const live = (): boolean => (props.announce ?? "live") === "live";
+
+  // The announcement wording: the PRIMARY series' label, the instant, the value.
+  // The series label comes from the record's `seriesId`, so the spoken series
+  // and the drawn mark cannot name different things.
+  const label = (a: ActivePoint<SeriesDatum> | undefined): string => {
+    if (a === undefined) return "";
+    const series = props.scope.visible().find((s) => s.id === a.seriesId);
+    const name = series?.label ?? sem().name();
+    const t = (a.datum.t as Date).toISOString();
+    return name ? `${name}, ${t}, ${a.datum.y}` : `${t}, ${a.datum.y}`;
+  };
 
   return (
     <>
@@ -220,12 +286,31 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           innerHeight={model.bounds().innerHeight}
         />
 
+        {/* The active mark, painted above the series and references so the
+            cursor is never hidden behind a dense line. */}
+        <Show when={active()}>
+          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
+        </Show>
+
         <Show when={props.scope.isEmpty()}>
           <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
         </Show>
       </CartesianFrame>
 
       <ChartEmptyState when={props.scope.isEmpty()} message={props.emptyMessage} />
+
+      <Show when={keyboardOn() || pointerOn()}>
+        <InteractionLayer
+          inspection={inspection}
+          semantics={props.semantics}
+          label={label}
+          live={live()}
+          keyboard={keyboardOn()}
+          pointer={pointerOn()}
+          instruction="Use arrow keys to step through points."
+          tooltip={props.tooltip}
+        />
+      </Show>
     </>
   );
 }
