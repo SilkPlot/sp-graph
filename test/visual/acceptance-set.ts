@@ -52,6 +52,7 @@ export const CASES = [
   "multi-ref-three",
   "ranked-horizontal",
   "ranked-long-label",
+  "w1-dense",
 ] as const;
 export type Case = (typeof CASES)[number];
 
@@ -164,6 +165,23 @@ export const MULTI_CHARTS = ["line", "area"] as const satisfies readonly Chart[]
 export const RANKED_CHARTS = ["bar"] as const satisfies readonly Chart[];
 
 /**
+ * The composition-workload cases, and the chart that carries them.
+ *
+ * `w1-dense` is the W1 "dense operational telemetry" picture: 22 series AND three
+ * references in one chart. Its two halves are pinned separately already —
+ * `multi-22` (22 series, no references) and `multi-ref-three` (references over
+ * FOUR series) — but the composed picture is not, and it is where ADR-0012's
+ * claim lives: a reference must stay legible painted OVER the dense case, not
+ * just over a handful of series. Line only: 22 filled areas overlap into an
+ * unreadable band, so an area version would pin a mess rather than a workload.
+ */
+export const WORKLOAD_CASES = ["w1-dense"] as const satisfies readonly Case[];
+export type WorkloadCase = (typeof WORKLOAD_CASES)[number];
+
+/** Only `line` carries the dense-telemetry workload picture. */
+export const WORKLOAD_CHARTS = ["line"] as const satisfies readonly Chart[];
+
+/**
  * The four scheme x contrast combinations.
  *
  * `prefers-color-scheme` and `prefers-contrast` are ORTHOGONAL preferences, not
@@ -261,10 +279,15 @@ const isMultiCase = (kase: Case): kase is MultiCase =>
 const isRankedCase = (kase: Case): kase is RankedCase =>
   (RANKED_CASES as readonly Case[]).includes(kase);
 
-/** The uniform product: every chart x every case that is neither multi nor ranked x every theme. */
+const isWorkloadCase = (kase: Case): kase is WorkloadCase =>
+  (WORKLOAD_CASES as readonly Case[]).includes(kase);
+
+/** The uniform product: every chart x every case that is not multi, ranked, or workload x every theme. */
 const geometry = (): Baseline[] =>
   CHARTS.flatMap((chart) =>
-    CASES.filter((kase) => !isMultiCase(kase) && !isRankedCase(kase)).flatMap((kase) =>
+    CASES.filter(
+      (kase) => !isMultiCase(kase) && !isRankedCase(kase) && !isWorkloadCase(kase),
+    ).flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -306,6 +329,27 @@ const multiSeries = (): Baseline[] =>
 const rankedBars = (): Baseline[] =>
   RANKED_CHARTS.flatMap((chart) =>
     RANKED_CASES.flatMap((kase) =>
+      THEME_STATES.map((theme) => ({
+        id: `${chart}--${kase}--${theme}`,
+        kind: "geometry" as const,
+        chart,
+        case: kase,
+        theme,
+        reducedMotion: false,
+        focus: false,
+        viewport: viewportFor(kase),
+      })),
+    ),
+  );
+
+/**
+ * The composition-workload product, kept apart for the same reason as
+ * the two above: only `line` carries the dense-telemetry picture, so this is one
+ * chart rather than four.
+ */
+const workload = (): Baseline[] =>
+  WORKLOAD_CHARTS.flatMap((chart) =>
+    WORKLOAD_CASES.flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -407,6 +451,7 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
   ...geometry(),
   ...multiSeries(),
   ...rankedBars(),
+  ...workload(),
   ...legend(),
   ...focus(),
   ...legendFocus(),
@@ -422,8 +467,9 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
  * 2 multi-capable charts x 7 multi cases x 4 combinations =  56
  * 1 ranked-capable chart x 2 ranked cases x 4 combinations =   8
+ * 1 workload chart x 1 workload case x 4 combinations      =   4
  * 5 legend cases x 4 combinations                          =  20
- *                                              geometry    = 164
+ *                                              geometry    = 168
  * 2 focusable charts x 4 scheme/contrast combinations      =   8
  * the legend, focused, x 4 combinations                    =   4
  *                                                 focus    =  12
@@ -432,10 +478,10 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 164,
+  geometry: 168,
   focus: 12,
   "reduced-motion": 12,
-  all: 188,
+  all: 192,
 } as const;
 
 /**

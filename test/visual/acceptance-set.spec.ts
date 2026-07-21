@@ -26,6 +26,8 @@ import {
   MULTI_CHARTS,
   RANKED_CASES,
   RANKED_CHARTS,
+  WORKLOAD_CASES,
+  WORKLOAD_CHARTS,
   FOCUS_RATIONALE,
   THEME_STATES,
 } from "./acceptance-set";
@@ -43,7 +45,7 @@ test.describe("the acceptance set is explicit", () => {
     expect([...CHARTS]).toEqual(["line", "area", "bar", "scatter"]);
   });
 
-  test("covers exactly the fourteen rendering cases", () => {
+  test("covers exactly the fifteen rendering cases", () => {
     expect([...CASES]).toEqual([
       "default",
       "empty",
@@ -59,6 +61,7 @@ test.describe("the acceptance set is explicit", () => {
       "multi-ref-three",
       "ranked-horizontal",
       "ranked-long-label",
+      "w1-dense",
     ]);
   });
 
@@ -102,6 +105,14 @@ test.describe("the acceptance set is explicit", () => {
     expect([...RANKED_CASES]).toEqual(["ranked-horizontal", "ranked-long-label"]);
   });
 
+  test("declares which chart carries the composition-workload picture", () => {
+    // One line chart, one case. The dense W1 picture (22 series + 3 references)
+    // is line-only by design — an area version overlaps 22 fills into a band.
+    // Written out here so a widening changes this literal in a visible diff.
+    expect([...WORKLOAD_CHARTS]).toEqual(["line"]);
+    expect([...WORKLOAD_CASES]).toEqual(["w1-dense"]);
+  });
+
   test("covers all four scheme x contrast combinations, not three", () => {
     // Scheme and contrast are orthogonal preferences. A three-value list here
     // is the exact shape of the defect that painted light high-contrast values
@@ -127,7 +138,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(188);
+    expect(EXPECTED_TOTALS.all).toBe(192);
   });
 
   test("never lists a surface as excluded AND captures it", () => {

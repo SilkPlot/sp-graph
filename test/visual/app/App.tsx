@@ -52,7 +52,8 @@ type Case =
   | "responsive-mobile"
   | MultiCase
   | LegendCase
-  | RankedCase;
+  | RankedCase
+  | WorkloadCase;
 
 /**
  * The multi-series cases (ADR-0008), which only `line` and `area` can render —
@@ -111,6 +112,14 @@ const RANKED_CASES: readonly RankedCase[] = ["ranked-horizontal", "ranked-long-l
 const isRanked = (kase: Case): kase is RankedCase =>
   (RANKED_CASES as readonly string[]).includes(kase);
 
+/** The composition-workload cases, carried by `line` only. */
+type WorkloadCase = "w1-dense";
+
+const WORKLOAD_CASES: readonly WorkloadCase[] = ["w1-dense"];
+
+const isWorkload = (kase: Case): kase is WorkloadCase =>
+  (WORKLOAD_CASES as readonly string[]).includes(kase);
+
 const CHARTS: readonly Chart[] = ["line", "area", "bar", "scatter", "legend"];
 const CASES: readonly Case[] = [
   "default",
@@ -121,6 +130,7 @@ const CASES: readonly Case[] = [
   ...MULTI_CASES,
   ...LEGEND_CASES,
   ...RANKED_CASES,
+  ...WORKLOAD_CASES,
 ];
 
 /**
@@ -258,7 +268,14 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         }
       />
     </Show>
-    <Show when={props.chart === "line" && !isMulti(props.case) && !isRanked(props.case)}>
+    <Show
+      when={
+        props.chart === "line" &&
+        !isMulti(props.case) &&
+        !isRanked(props.case) &&
+        !isWorkload(props.case)
+      }
+    >
       <LineChart
         tableHidden
         data={timeData(props.case)}
@@ -266,6 +283,22 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         desc="A deterministic daily series in units, rendered for a visual baseline."
         stroke={seriesChannel(0).color}
         strokeWidth={2}
+      />
+    </Show>
+    {/*
+      The W1 composition-workload picture: the twenty-two-series density AND three
+      references in one chart. No `stroke`, for the same reason the multi-series
+      branch passes none — the point is the default palette. The references are
+      what this case adds over `multi-22`: ADR-0012's claim that a threshold stays
+      legible painted OVER the dense marks, which no other baseline pins.
+    */}
+    <Show when={props.chart === "line" && isWorkload(props.case)}>
+      <LineChart
+        tableHidden
+        series={SERIES_22}
+        references={REFERENCES_THREE}
+        title="Bay telemetry"
+        desc="Twenty-two deterministic sensor series with three references, rendered for a visual baseline."
       />
     </Show>
     {/*
