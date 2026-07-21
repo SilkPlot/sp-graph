@@ -139,6 +139,15 @@ arrived at.
   left open; navigates within ADR-0007's effective domain; keeps ADR-0002's and
   ADR-0005's interaction rules.
 
+- [ADR-0015 — The active-point record is generic over its datum](adr-0015-active-point-record-generalization.md):
+  why the one active-point record is generic over its datum type rather than
+  fixed to `SeriesDatum` — a scatter's datum is a numeric point and a ranked
+  bar's is a category, neither a `SeriesDatum` — why the position union gains a
+  numeric `value` member for the scatter, why the type parameter is the datum and
+  the tooltip metadata rides inside it, and why one generic record beats both a
+  per-family result type and a datum union. Supersedes ADR-0014 §1's record shape
+  only; its one-record invariant stands.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

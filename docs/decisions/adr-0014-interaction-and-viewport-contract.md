@@ -43,6 +43,17 @@ emphasis, the committed announcement — reads that one value. This is the
 invariant ADR-0002 and ADR-0008 §8 exist to protect, restated as the shape they
 left unspecified.
 
+> **The INVARIANT below stands. The RECORD SHAPE this section declares is
+> superseded by [ADR-0015](adr-0015-active-point-record-generalization.md).** The
+> record is now generic over its **datum** — `ActivePoint<D>` with `datum: D` —
+> because the shipped families do not share one datum type: a scatter's datum is
+> `{ x: number; y: number }` and a ranked bar's is `{ id, label, value }`, neither
+> a `SeriesDatum`. The `at` union gains a `{ kind: "value"; x; y }` member for the
+> scatter's numeric point. The metadata generic rides inside `D` for the time
+> family that has one (`D = SeriesDatum<M>`). One record, one lookup interface,
+> every surface reads the same value — all unchanged; only the datum's type
+> parameter and the `at` union widened.
+
 The record a lookup produces, and every reader consumes:
 
 ```ts
