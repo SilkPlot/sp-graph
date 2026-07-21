@@ -228,7 +228,12 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     onActivePointChange: props.onActivePointChange,
   });
   const active = (): ActivePoint<SeriesDatum> | undefined => insp.inspection.point();
-  const gestures = createViewportGestures({ viewport: scope.viewport });
+  const gestures = createViewportGestures({
+    viewport: scope.viewport,
+    xScale: model.x,
+    wheelZoom: () => props.wheelZoom,
+    capturePlainWheel: () => props.capturePlainWheel,
+  });
 
   return (
     <>
@@ -255,7 +260,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
           pointer={insp.pointer()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
-          viewportKeyDown={gestures.onKeyDown}
+          viewportGestures={gestures}
         />
       </Show>
     </>
@@ -310,6 +315,8 @@ const LineChartMulti: Component<
         // you can see it.
         yDomain="zero-floor"
         emptyMessage={props.emptyMessage}
+        wheelZoom={props.wheelZoom}
+        capturePlainWheel={props.capturePlainWheel}
         renderSeries={(ctx) => (
           <StrokedLine
             d={linePath(ctx.points, {

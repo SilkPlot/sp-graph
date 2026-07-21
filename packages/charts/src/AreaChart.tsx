@@ -164,7 +164,12 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     onActivePointChange: props.onActivePointChange,
   });
   const active = (): ActivePoint<SeriesDatum> | undefined => insp.inspection.point();
-  const gestures = createViewportGestures({ viewport: scope.viewport });
+  const gestures = createViewportGestures({
+    viewport: scope.viewport,
+    xScale: model.x,
+    wheelZoom: () => props.wheelZoom,
+    capturePlainWheel: () => props.capturePlainWheel,
+  });
 
   return (
     <>
@@ -190,7 +195,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
           pointer={insp.pointer()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
-          viewportKeyDown={gestures.onKeyDown}
+          viewportGestures={gestures}
         />
       </Show>
     </>
@@ -246,6 +251,8 @@ const AreaChartMulti: Component<
         // deliberately differs; an all-negative series is where you see it.
         yDomain="zero-baseline"
         emptyMessage={props.emptyMessage}
+        wheelZoom={props.wheelZoom}
+        capturePlainWheel={props.capturePlainWheel}
         renderSeries={(ctx) => {
           // ONE defined predicate, built once and shared by both marks. Two
           // separately-built predicates would break the fill and its stroke at
