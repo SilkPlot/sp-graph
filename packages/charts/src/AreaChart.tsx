@@ -31,6 +31,7 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import {
+  BrushRect,
   InteractionLayer,
   PointMark,
   createTimeChartInspection,
@@ -169,6 +170,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     xScale: model.x,
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
+    brushSelect: () => props.brushSelect,
   });
 
   return (
@@ -176,6 +178,9 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
       <CartesianFrame model={model} layout={props} semantics={props.semantics}>
         <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
         <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+        <Show when={gestures.brush()}>
+          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
+        </Show>
         <Show when={active()}>
           {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
         </Show>
@@ -253,6 +258,7 @@ const AreaChartMulti: Component<
         emptyMessage={props.emptyMessage}
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
+        brushSelect={props.brushSelect}
         renderSeries={(ctx) => {
           // ONE defined predicate, built once and shared by both marks. Two
           // separately-built predicates would break the fill and its stroke at

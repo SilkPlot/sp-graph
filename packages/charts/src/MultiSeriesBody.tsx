@@ -45,7 +45,7 @@ import {
   type YDomainPolicy,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import { InteractionLayer, PointMark } from "./inspection";
+import { BrushRect, InteractionLayer, PointMark } from "./inspection";
 import type { CartesianChartProps } from "./scaffold";
 import type { MultiSeriesScope } from "./multi-series";
 import { ReferenceOverlay } from "./ReferenceOverlay";
@@ -111,6 +111,8 @@ export interface MultiSeriesBodyProps<M = unknown> {
   wheelZoom?: boolean;
   /** Let plain wheel zoom (full-bleed escape hatch). Default off. */
   capturePlainWheel?: boolean;
+  /** Enable the drag-to-brush gesture. Default off. */
+  brushSelect?: boolean;
 }
 
 /**
@@ -211,6 +213,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
     xScale: model.x,
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
+    brushSelect: () => props.brushSelect,
   });
 
   // The announcement wording: the PRIMARY series' label, the instant, the value.
@@ -301,6 +304,10 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           innerWidth={model.bounds().innerWidth}
           innerHeight={model.bounds().innerHeight}
         />
+
+        <Show when={gestures.brush()}>
+          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
+        </Show>
 
         {/* The active mark, painted above the series and references so the
             cursor is never hidden behind a dense line. */}

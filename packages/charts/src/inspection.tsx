@@ -224,6 +224,37 @@ export const PointMark: Component<{ cx: number; cy: number }> = (props) => (
   </>
 );
 
+/**
+ * The live brush rectangle, drawn while a drag-to-brush is in flight (ADR-0018
+ * §3). A shaded band across the full plot height between the drag's start and the
+ * pointer, drawn in the cursor colour with a dashed edge — the non-colour channel
+ * that keeps it legible in a monochrome rendering (ADR-0005 §5). `pointer-events`
+ * is off so the band never intercepts the drag that draws it.
+ *
+ * Coordinates are inner (plot) px, the same space `PointMark` and the marks use,
+ * so it lands exactly where the pointer is.
+ */
+export const BrushRect: Component<{ x0: number; x1: number; height: number }> = (props) => {
+  const x = (): number => Math.min(props.x0, props.x1);
+  const width = (): number => Math.abs(props.x1 - props.x0);
+  return (
+    <rect
+      data-silkplot-brush=""
+      x={x()}
+      y={0}
+      width={width()}
+      height={props.height}
+      fill="var(--sp-color-cursor, currentColor)"
+      fill-opacity="0.12"
+      stroke="var(--sp-color-cursor, currentColor)"
+      stroke-opacity="0.5"
+      stroke-width="1"
+      stroke-dasharray="3 2"
+      pointer-events="none"
+    />
+  );
+};
+
 export interface InteractionLayerProps<D> {
   inspection: ChartInspection<D>;
   semantics: ChartSemantics;
