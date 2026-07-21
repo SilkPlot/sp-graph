@@ -113,10 +113,11 @@ describe("the viewport drives a standalone time chart", () => {
     // not the three visible points ([0, 60]). The first drawn point is day 1, y=40.
     const pinned = expectedYScale(DATA.map((d) => d.y), "zero-floor", HEIGHT);
     const autoscaled = expectedYScale([40, 60, 50], "zero-floor", HEIGHT);
-    expect(ys[0]).toBeCloseTo(pinned(40), 3);
+    const y0 = ys[0] ?? Number.NaN;
+    expect(y0).toBeCloseTo(pinned(40), 3);
     // And it is NOT the autoscaled position — the two oracles genuinely disagree,
     // so this fails the moment a zoom starts moving y.
-    expect(Math.abs(ys[0] - autoscaled(40))).toBeGreaterThan(1);
+    expect(Math.abs(y0 - autoscaled(40))).toBeGreaterThan(1);
   });
 
   it("exposes zoomIn / reset command functions that move the viewport", () => {
