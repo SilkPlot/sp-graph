@@ -22,8 +22,9 @@ import {
 
 export interface DashboardProps {
   /**
-   * The selected range, in epoch milliseconds. Supply it to control the
-   * dashboard from application state; omit it to let the dashboard hold its own.
+   * The selected range, as a pair of `Date`s (ADR-0017 §2). Supply it to control
+   * the dashboard from application state; omit it to let the dashboard hold its
+   * own.
    */
   range?: TimeInterval;
   /** Initial selection when `range` is not supplied. */

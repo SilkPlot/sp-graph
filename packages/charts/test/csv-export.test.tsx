@@ -178,7 +178,7 @@ describe("The exported file", () => {
     const capture = captureDownload();
     // Ten days of data, a dashboard range covering three of them.
     const { container } = render(() => (
-      <Dashboard defaultRange={{ start: T0 + 2 * DAY, end: T0 + 4 * DAY }}>
+      <Dashboard defaultRange={{ start: new Date(T0 + 2 * DAY), end: new Date(T0 + 4 * DAY) }}>
         <LineChart title="Daily" data={series(10)} {...SIZE} />
       </Dashboard>
     ));

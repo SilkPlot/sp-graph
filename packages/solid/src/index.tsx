@@ -38,6 +38,13 @@ export type { ChartKeyboard, ChartKeyboardSpec, ChartKeyboardRole } from "./crea
 export { createChartInspection } from "./createChartInspection";
 export type { ChartInspection, ChartInspectionSpec } from "./createChartInspection";
 
+// The reactive visible-time viewport holder — ADR-0014 §3/§4 on ADR-0017's
+// representation. Controlled/uncontrolled state over the pure `@silkplot/core`
+// viewport model; the single `Date`↔ms boundary; the navigation commands a
+// range control or a P05 gesture adapter drives.
+export { createViewport } from "./createViewport";
+export type { Viewport, ViewportSpec } from "./createViewport";
+
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 export { Legend, MIN_TARGET_PX } from "./Legend";
 export type { LegendProps } from "./Legend";

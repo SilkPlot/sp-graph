@@ -111,7 +111,7 @@ widen `threshold` or `maxDiffPixels`. See
 
 ## Detection probes
 
-`npm run probe:detection` applies thirty-three known defects, asserts each one is caught,
+`npm run probe:detection` applies thirty-seven known defects, asserts each one is caught,
 and restores. It runs weekly rather than on every push, so it will not catch this
 PR before merge.
 

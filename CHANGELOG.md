@@ -37,7 +37,28 @@ under Unreleased: **a minor bump may contain breaking changes.**
   shipped in that release; multi-series and the legend are unreleased until the
   next publish.
 
+- **Controlled time viewport.** A new `createViewport` in `@silkplot/solid` over
+  a pure viewport model in `@silkplot/core` (clamp, minimum-span, translate,
+  scale-around-anchor, autoscale, reset, and data-change reconciliation). One
+  visible time interval feeds every scale consumer — axes, gridlines, marks,
+  references, the hit index — so they cannot drift; controlled and uncontrolled
+  forms follow the ADR-0008 §6 pattern; the cause-labelled `onVisibleDomainChange`
+  does not loop when a controlled caller feeds the domain back; and the authority
+  is a data interval, never a pixel transform, so the window survives a resize.
+  Public ADR-0014. Gesture adapters (pan, wheel, pinch, brush) are a later phase.
+
 ### Changed
+
+- **Time is `Date` at the boundary, epoch-ms inside (breaking, 0.x).** There is
+  now one public `TimeInterval = { start: Date; end: Date }`, defined in
+  `@silkplot/core`. `<Dashboard>`'s `range`/`defaultRange`/`onRangeChange` and
+  `<DashboardSection>`'s `window`/`now` — previously epoch-ms numbers — now take
+  and emit `Date`s, matching series `t`, `ActivePoint.at.time`, and the new
+  viewport. A `<DashboardSection last={…}>` duration stays a number, because it is
+  an elapsed span and not an instant. The engine stays epoch-ms; conversion
+  happens once, at the reactive seam. Public ADR-0017; see the
+  [migration](docs/migrations/time-interval-date-0.x.md) for the one-line change
+  per call site.
 
 - **`seriesColorToken`, `seriesDashToken` and `SERIES_PALETTE_SIZE` moved from
   `@silkplot/charts` to `@silkplot/core`**, so the legend in `@silkplot/solid`

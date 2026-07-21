@@ -76,6 +76,31 @@ export type {
   BandIndexOptions,
 } from "./active-point";
 
+// The visible time viewport — ADR-0014 §3/§4's controlled navigation state, on
+// ADR-0017's representation (public `Date` `TimeInterval`, canonical epoch-ms
+// `MsInterval`). Pure interval arithmetic: clamp, min-span, translate,
+// scale-around-anchor, reset, data-change reconciliation, and the visible-range
+// autoscale. The reactive holder and gesture adapters are the Solid layer's.
+export {
+  DEFAULT_MIN_SPAN_MS,
+  toMsInterval,
+  toTimeInterval,
+  spanOf,
+  isFiniteInterval,
+  intervalsEqualMs,
+  isDisjoint,
+  normalizeInterval,
+  clampInterval,
+  slideIntoBound,
+  applyMinSpan,
+  translateInterval,
+  scaleIntervalAround,
+  resetInterval,
+  reconcileDataChange,
+  autoscaleValueDomain,
+} from "./viewport";
+export type { TimeInterval, MsInterval, ViewportCause } from "./viewport";
+
 // Layered time selection — the dashboard scope precedence model (ADR-0007).
 export { resolveEffectiveDomain } from "./time-scope";
 export type {
