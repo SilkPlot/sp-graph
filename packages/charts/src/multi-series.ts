@@ -30,23 +30,43 @@ import {
   type SeriesTable,
   type SeriesTableOptions,
 } from "@silkplot/core";
-import { useDashboardSection, useDashboardTime } from "@silkplot/solid";
+import { useDashboardSection, useDashboardTime, type Viewport } from "@silkplot/solid";
+import {
+  createScopeViewport,
+  dataExtentMs,
+  type ChartViewportProps,
+} from "./viewport-scope";
 
 export interface MultiSeriesScope<M = unknown> {
-  /** Visible series, already narrowed to the effective domain. */
+  /**
+   * The y-basis: visible series narrowed to the effective domain ONLY — before
+   * the viewport narrows x. The y axis is computed from this, so a zoom of x
+   * leaves y pinned (ADR-0014 §3).
+   */
   visible: Accessor<readonly NormalizedSeries<M>[]>;
-  /** Every series, narrowed — hidden ones included, for a legend to render. */
+  /**
+   * The drawn series: `visible` further narrowed to the viewport interval when
+   * the viewport is applied (standalone AND opted in), else `visible` unchanged.
+   * Feeds the marks, the hit index, and the data table.
+   */
+  drawn: Accessor<readonly NormalizedSeries<M>[]>;
+  /** Every series, narrowed to the effective domain — hidden ones included, for a
+   *  legend to render. */
   all: Accessor<readonly NormalizedSeries<M>[]>;
-  /** Build the x scale for a pixel range, over the scoped time domain. */
+  /** Build the x scale for a pixel range, over the viewport interval (or the
+   *  scoped time domain where navigation does not apply). */
   xScale: (range: [number, number]) => ScaleTime<number, number>;
   /** True when a scope is in force and nothing falls inside it. */
   isEmpty: Accessor<boolean>;
   /** True when the chart is showing a single most-recent reading. */
   isLatest: Accessor<boolean>;
-  /** The accessible data alternative, from this same narrowed model. */
+  /** The accessible data alternative, from the DRAWN model — it describes the
+   *  interval on screen. */
   table: Accessor<SeriesTable>;
   /** Normalised reference overlays (ADR-0008 §10), in the caller's order. */
   references: Accessor<readonly NormalizedReference[]>;
+  /** The viewport handle — command surface for a toolbar and the gesture adapters. */
+  viewport: Viewport;
 }
 
 /**
@@ -96,6 +116,9 @@ export interface MultiSeriesScopeSpec<M = unknown> {
   tableOptions?: Accessor<SeriesTableOptions>;
   /** Reference overlays (ADR-0008 §10). An accessor — a threshold is dynamic. */
   references?: Accessor<readonly ReferenceValue[] | undefined>;
+  /** The chart's viewport props, already adapted by `forwardViewport`.
+   *  Absent → an uncontrolled viewport at the full extent, i.e. today's behaviour. */
+  viewport?: ChartViewportProps;
 }
 
 export function createMultiSeriesScope<M = unknown>(
@@ -123,7 +146,34 @@ export function createMultiSeriesScope<M = unknown>(
     return model().series.map((s) => narrow(s, scope));
   });
 
+  // The y-basis: visible series narrowed to the effective domain only.
   const visible = createMemo(() => all().filter((s) => s.visible));
+
+  // The viewport, over the full extent of the visible series' instants. It reads
+  // `visible` (effective-domain narrowed, NOT viewport narrowed), so the outer
+  // bound is stable as the user zooms within it (ADR-0014 §3).
+  const sv = createScopeViewport<M>({
+    fullExtent: dataExtentMs(() => {
+      const times: number[] = [];
+      for (const s of visible()) for (const d of s.data) times.push(d.time);
+      return times;
+    }),
+    effectiveDomain: domain,
+    series: visible,
+    props: spec.viewport ?? {},
+  });
+
+  // The drawn series: the y-basis narrowed to the viewport interval when the
+  // viewport is applied, else unchanged. Feeds the marks, the hit index, and the
+  // table, so all three describe the interval on screen.
+  const drawn = createMemo(() => {
+    if (!sv.navigable()) return visible();
+    const iv = sv.interval();
+    return visible().map((s) => ({
+      ...s,
+      data: s.data.filter((d) => d.time >= iv.start && d.time <= iv.end),
+    }));
+  });
 
   // ONE normalisation for references too, and deliberately NOT routed through
   // `normalizeSeries`: a reference is not a series. Through that path it would
@@ -136,8 +186,15 @@ export function createMultiSeriesScope<M = unknown>(
   return {
     all,
     visible,
+    drawn,
+    viewport: sv.viewport,
     references,
     xScale: (range) => {
+      // Navigable: the x domain IS the viewport interval (standalone, opted in).
+      if (sv.navigable()) {
+        const iv = sv.interval();
+        return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });
+      }
       const scope = domain();
       // Standalone, or an empty scope with no interval of its own to show: fall
       // back to the data's own extent, which is the pre-dashboard behaviour and
@@ -167,10 +224,11 @@ export function createMultiSeriesScope<M = unknown>(
     isEmpty: () =>
       domain() !== undefined && visible().every((s) => s.data.length === 0),
     isLatest: () => domain()?.kind === "latest",
-    // Built from the NARROWED model, so the table describes the range on screen
-    // rather than the dataset behind it.
+    // Built from the DRAWN model, so the table describes the interval on screen
+    // (the viewport, and the dashboard scope before it) rather than the dataset
+    // behind it.
     table: () =>
-      seriesTable({ ...model(), visible: visible(), series: all() }, spec.tableOptions?.()),
+      seriesTable({ ...model(), visible: drawn(), series: all() }, spec.tableOptions?.()),
   };
 }
 

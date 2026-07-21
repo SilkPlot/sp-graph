@@ -51,6 +51,7 @@ import {
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
+import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import type { TimePoint } from "./types";
 import { tableOptions, type MultiSeriesFormatProps } from "./formatters";
 
@@ -187,7 +188,11 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
   const scope = props.scope;
 
   const model = createCartesianModel({
-    data: scope.visible,
+    // `yData`, not `visible`: the y axis is computed from the effective-domain
+    // data, BEFORE the viewport narrows x, so panning or zooming x leaves y
+    // pinned (ADR-0014 §3). The marks below read `visible`, the viewport-narrowed
+    // set. Standalone with no viewport prop the two are equal.
+    data: scope.yData,
     x: scope.xScale,
     // A line has no baseline to honour, so zero is only the floor — the top
     // stays the data's own maximum. Area and Bar deliberately differ, and an
@@ -265,7 +270,9 @@ const LineChartMulti: Component<
     // Read through a thunk, not spread once: a formatter closing over a signal
     // must re-run the table when that signal changes.
     tableOptions: () => tableOptions(props),
+    viewport: forwardViewport(props),
   });
+  emitViewportCommands(props.onViewportCommands, scope.viewport);
 
   return (
     <ChartShell
@@ -346,7 +353,8 @@ const LineChartSingle: Component<
   // measured box, so the scope has to be readable from both sides of it. The
   // table takes the VISIBLE rows — a table describing rows the picture does not
   // draw is the exact disagreement `ChartDataAlternative` exists to prevent.
-  const scope = createTimeSeriesScope(() => props.data);
+  const scope = createTimeSeriesScope(() => props.data, forwardViewport(props));
+  emitViewportCommands(props.onViewportCommands, scope.viewport);
 
   return (
     <ChartShell

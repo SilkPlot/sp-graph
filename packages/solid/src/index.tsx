@@ -43,7 +43,7 @@ export type { ChartInspection, ChartInspectionSpec } from "./createChartInspecti
 // viewport model; the single `Date`↔ms boundary; the navigation commands a
 // range control or a P05 gesture adapter drives.
 export { createViewport } from "./createViewport";
-export type { Viewport, ViewportSpec } from "./createViewport";
+export type { Viewport, ViewportCommands, ViewportSpec } from "./createViewport";
 
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 export { Legend, MIN_TARGET_PX } from "./Legend";

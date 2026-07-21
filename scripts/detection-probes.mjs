@@ -815,6 +815,54 @@ const PROBES = [
     observed: "2 failures: growth and a same-source no-op no longer reconcile to null",
     messagePattern: /to be null/,
   },
+  {
+    id: "viewport-xscale-narrowed",
+    file: "packages/charts/src/scaffold.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a navigated time chart's x scale is the viewport interval, not the data extent (S007-P04b). " +
+      "Ignore the interval and paint over the full extent instead, and a controlled `visibleDomain` " +
+      "no longer positions the marks where the window says they are.",
+    anchor: "return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });",
+    mutation: "return timeExtentScale(yData(), range);",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: the marks are positioned over the full extent, not the window",
+    messagePattern: /close to/,
+  },
+  {
+    id: "viewport-marks-filtered",
+    file: "packages/charts/src/scaffold.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the drawn marks are narrowed to the viewport interval (S007-P04b). Return the whole y-basis " +
+      "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
+      "was told to show.",
+    anchor: "    if (!sv.navigable()) return yData();",
+    mutation: "    return yData();",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 3,
+    observed: "≥3 failures: the drawn point count is the whole series, not the windowed subset",
+    messagePattern: /have a length/,
+  },
+  {
+    id: "viewport-y-pinned",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the y axis is computed from the effective-domain data (`yData`), so a zoom of x leaves y " +
+      "pinned (ADR-0014 §3; S007-P04b). Feed the viewport-narrowed `visible` to the model instead " +
+      "and zooming x silently autoscales y — the very coupling P04b decouples.",
+    anchor: "    data: scope.yData,",
+    mutation: "    data: scope.visible,",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: the drawn y follows the visible-subset extent, not the full-data extent",
+    messagePattern: /close to/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
