@@ -240,6 +240,7 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
     brushSelect: () => props.brushSelect,
+    pinchZoom: () => props.pinchZoom,
   });
 
   return (
@@ -328,6 +329,7 @@ const LineChartMulti: Component<
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
+        pinchZoom={props.pinchZoom}
         renderSeries={(ctx) => (
           <StrokedLine
             d={linePath(ctx.points, {

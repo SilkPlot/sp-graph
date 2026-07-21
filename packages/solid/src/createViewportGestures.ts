@@ -85,6 +85,8 @@ export interface ViewportGesturesSpec {
   capturePlainWheel?: Accessor<boolean | undefined>;
   /** Enable the drag-to-brush gesture (zoom to the dragged interval). Default off. */
   brushSelect?: Accessor<boolean | undefined>;
+  /** Enable two-pointer pinch zoom on a touch screen. Default off. */
+  pinchZoom?: Accessor<boolean | undefined>;
 }
 
 export interface ViewportGestures {
@@ -257,7 +259,24 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     if (frame === 0) frame = requestAnimationFrame(commitZoom);
   };
 
-  /* ---- brush pointer handlers ---------------------------------------------- */
+  /* ---- brush + pinch pointer handlers -------------------------------------- */
+
+  // Every pointer currently down on the surface, by id → its client x. Two of
+  // them, with `pinchZoom` on, is a pinch; one is a (possible) brush.
+  const activePointers = new Map<number, number>();
+  let pinching = false;
+  let pinchLastGap = 0;
+
+  /** The horizontal gap between the two active pointers, in px. */
+  const pinchGap = (): number => {
+    const xs = [...activePointers.values()];
+    return xs.length === 2 ? Math.abs((xs[0] as number) - (xs[1] as number)) : 0;
+  };
+  /** The midpoint client x of the two active pointers — the zoom anchor. */
+  const pinchMidX = (): number => {
+    const xs = [...activePointers.values()];
+    return xs.length === 2 ? ((xs[0] as number) + (xs[1] as number)) / 2 : 0;
+  };
 
   const paintBrush = (): void => {
     brushFrame = 0;
@@ -265,6 +284,20 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   };
 
   const onPointerDown = (event: PointerEvent): void => {
+    activePointers.set(event.pointerId, event.clientX);
+
+    // A second pointer, with pinch enabled, becomes a pinch — and supersedes any
+    // brush the first pointer had started.
+    if ((spec.pinchZoom?.() ?? false) && activePointers.size === 2) {
+      if (brushing) endBrush();
+      if (rect === undefined) refreshRect();
+      pinching = true;
+      pinchLastGap = pinchGap();
+      event.preventDefault();
+      return;
+    }
+
+    if (pinching) return; // a third pointer during a pinch is ignored
     if (!(spec.brushSelect?.() ?? false)) return;
     // A primary-button press only — a right-click or a secondary touch is not a
     // brush, and a second press mid-brush must not restart it.
@@ -287,6 +320,23 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   };
 
   const onPointerMove = (event: PointerEvent): void => {
+    if (activePointers.has(event.pointerId)) activePointers.set(event.pointerId, event.clientX);
+
+    if (pinching) {
+      const gap = pinchGap();
+      // Fingers moving APART widen the gap and zoom IN (span shrinks → factor < 1),
+      // anchored on the midpoint. Coalesced through the same per-frame commit as
+      // the wheel. A degenerate gap is skipped rather than dividing by zero.
+      if (gap > 0 && pinchLastGap > 0) {
+        pendingFactor *= pinchLastGap / gap;
+        pendingAnchor = anchorAt(pinchMidX());
+        if (frame === 0) frame = requestAnimationFrame(commitZoom);
+      }
+      pinchLastGap = gap;
+      event.preventDefault();
+      return;
+    }
+
     if (!brushing || event.pointerId !== brushPointerId) return;
     brushLastX = innerX(event.clientX);
     if (Math.abs(brushLastX - brushStartX) >= MIN_BRUSH_PX) brushMoved = true;
@@ -294,12 +344,24 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     if (brushFrame === 0) brushFrame = requestAnimationFrame(paintBrush);
   };
 
+  const endPointer = (pointerId: number): void => {
+    activePointers.delete(pointerId);
+    // A pinch needs two pointers; losing one ends it (the survivor does NOT fall
+    // back into a brush — that would zoom on a stray finger lift).
+    if (pinching && activePointers.size < 2) {
+      pinching = false;
+      pinchLastGap = 0;
+    }
+  };
+
   const onPointerUp = (event: PointerEvent): void => {
-    if (!brushing || event.pointerId !== brushPointerId) return;
+    const wasBrushing = brushing && event.pointerId === brushPointerId;
     const moved = brushMoved;
     const scale = spec.xScale?.();
     const x0 = brushStartX;
     const x1 = brushLastX;
+    endPointer(event.pointerId);
+    if (!wasBrushing) return;
     endBrush();
     // A click, or a scale we cannot invert against, commits nothing.
     if (!moved || scale === undefined) return;
@@ -309,6 +371,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   };
 
   const onPointerCancel = (event: PointerEvent): void => {
+    endPointer(event.pointerId);
     if (event.pointerId === brushPointerId) endBrush();
   };
 

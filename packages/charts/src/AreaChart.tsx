@@ -175,6 +175,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
     brushSelect: () => props.brushSelect,
+    pinchZoom: () => props.pinchZoom,
   });
 
   return (
@@ -263,6 +264,7 @@ const AreaChartMulti: Component<
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
+        pinchZoom={props.pinchZoom}
         renderSeries={(ctx) => {
           // ONE defined predicate, built once and shared by both marks. Two
           // separately-built predicates would break the fill and its stroke at
