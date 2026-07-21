@@ -52,6 +52,7 @@ import {
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
+import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import type { TimePoint } from "./types";
 import { tableOptions } from "./formatters";
 
@@ -104,7 +105,11 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   const scope = props.scope;
 
   const model = createCartesianModel({
-    data: scope.visible,
+    // `yData`, not `visible`: the y axis is computed from the effective-domain
+    // data, before the viewport narrows x, so a zoom of x leaves y pinned
+    // (ADR-0014 §3). The fill and stroke below read `visible`, the
+    // viewport-narrowed set; standalone with no viewport prop the two are equal.
+    data: scope.yData,
     x: scope.xScale,
     // The area is drawn FROM the zero baseline, so 0 must be inside the domain
     // or the fill's flat edge lands on a pixel the axis labels as some other
@@ -199,7 +204,9 @@ const AreaChartMulti: Component<
     references: () => props.references,
     // A thunk, so a formatter closing over a signal re-runs the table.
     tableOptions: () => tableOptions(props),
+    viewport: forwardViewport(props),
   });
+  emitViewportCommands(props.onViewportCommands, scope.viewport);
 
   return (
     <ChartShell
@@ -292,7 +299,8 @@ const AreaChartSingle: Component<
 > = (props) => {
   // Outside ChartRoot: the table is a sibling of the measured box, so the scope
   // must be readable from both sides of it, and the table takes the VISIBLE rows.
-  const scope = createTimeSeriesScope(() => props.data);
+  const scope = createTimeSeriesScope(() => props.data, forwardViewport(props));
+  emitViewportCommands(props.onViewportCommands, scope.viewport);
 
   return (
     <ChartShell

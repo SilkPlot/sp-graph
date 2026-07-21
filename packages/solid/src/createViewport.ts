@@ -81,8 +81,26 @@ export interface ViewportSpec<M = unknown> {
   onVisibleDomainChange?: (domain: TimeInterval, cause: ViewportCause) => void;
 }
 
+/**
+ * The four explicit viewport commands (ADR-0014 §5), exposed so an application
+ * renders its own toolbar without reaching into private state. Split out from the
+ * full `Viewport` so a chart can hand exactly these to a caller without also
+ * handing out the pan/zoomAround/brush operations that belong to the gesture
+ * adapters and the reactive reads that belong to the chart internals.
+ */
+export interface ViewportCommands {
+  /** Zoom in one step about the visible centre; cause `"zoom"`. */
+  zoomIn: () => void;
+  /** Zoom out one step about the visible centre; cause `"zoom"`. */
+  zoomOut: () => void;
+  /** Snapshot the value extent over the visible interval (ADR-0014 §3). */
+  autoscale: () => void;
+  /** Restore the declared domain — `defaultVisibleDomain`, else the bound. */
+  reset: () => void;
+}
+
 /** The viewport command surface (ADR-0014 §5), plus the operations a gesture drives. */
-export interface Viewport {
+export interface Viewport extends ViewportCommands {
   /** The current visible domain, as `Date`s — the public read. */
   visibleDomain: Accessor<TimeInterval>;
   /** The current visible domain in epoch ms — what scales, lookups, and marks use. */
@@ -105,11 +123,8 @@ export interface Viewport {
   brush: (interval: MsInterval) => void;
   /** Commit an interval directly with a stated cause (a range control, the keyboard). */
   setVisibleDomain: (interval: MsInterval, cause: ViewportCause) => void;
-  /** The ADR-0014 §5 command surface, for an application's own toolbar. */
-  zoomIn: () => void;
-  zoomOut: () => void;
-  autoscale: () => void;
-  reset: () => void;
+  // `zoomIn` / `zoomOut` / `autoscale` / `reset` are inherited from
+  // `ViewportCommands` — the subset a chart hands to an application toolbar.
 }
 
 /** How far a single zoom-in/out step scales the visible span. */

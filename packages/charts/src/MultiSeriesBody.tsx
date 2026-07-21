@@ -142,6 +142,10 @@ function yContributions<M>(
 
 export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JSX.Element {
   const model: CartesianModel<ScaleTime<number, number>> = createCartesianModel({
+    // `visible`, not `drawn`: the y axis is computed from the effective-domain
+    // data, before the viewport narrows x, so a zoom of x leaves y pinned
+    // (ADR-0014 §3). The marks and hit index below read `drawn`, the
+    // viewport-narrowed set; standalone with no viewport prop the two are equal.
     data: () => yContributions(props.scope.visible(), props.scope.references()),
     // Already numbers by the time they arrive — see `yContributions`, which is
     // where the gap policy and the reference contribution are applied together.
@@ -173,7 +177,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   const sem = (): ChartSemantics => props.semantics;
   const index = createMemo(() => {
     const m = mapping();
-    const input = props.scope.visible().map((s) => ({
+    const input = props.scope.drawn().map((s) => ({
       seriesId: s.id,
       points: s.data.filter((d) => d.state === "present"),
     }));
@@ -202,7 +206,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   // and the drawn mark cannot name different things.
   const label = (a: ActivePoint<SeriesDatum> | undefined): string => {
     if (a === undefined) return "";
-    const series = props.scope.visible().find((s) => s.id === a.seriesId);
+    const series = props.scope.drawn().find((s) => s.id === a.seriesId);
     const name = series?.label ?? sem().name();
     const t = (a.datum.t as Date).toISOString();
     return name ? `${name}, ${t}, ${a.datum.y}` : `${t}, ${a.datum.y}`;
@@ -224,7 +228,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           path and hand it series 1's data — the exact identity failure ADR-0008
           §1 exists to prevent, expressed in the DOM instead of the model.
         */}
-        <For each={props.scope.visible()}>
+        <For each={props.scope.drawn()}>
           {(series, i) => {
             const style = createMemo(() =>
               resolveSeriesStyle(series.style, series.sourceIndex, {

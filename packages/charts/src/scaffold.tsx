@@ -21,6 +21,8 @@ import {
   timeScale,
   type EffectiveDomain,
   type ScaleTime,
+  type TimeInterval,
+  type ViewportCause,
 } from "@silkplot/core";
 import {
   ChartAnnouncer,
@@ -34,8 +36,11 @@ import {
   type ChartSemantics,
   type ChartTableRow,
   type Margins,
+  type Viewport,
+  type ViewportCommands,
 } from "@silkplot/solid";
 import type { TimePoint } from "./types";
+import { createScopeViewport, dataExtentMs, type ChartViewportProps } from "./viewport-scope";
 
 /**
  * The layout and presentation props every chart in this package accepts, with
@@ -69,6 +74,29 @@ export interface TimeSeriesChartProps extends CartesianChartProps {
    * standalone chart draws its own data and cannot be empty this way.
    */
   emptyMessage?: string;
+  /* --- The visible time viewport (ADR-0014 §3, §5). All optional and
+     `Date` at the boundary (ADR-0017); absent → an uncontrolled viewport at the
+     full extent, i.e. the chart draws its whole data exactly as before. The
+     gesture adapters that drive this land in a later phase. --- */
+  /**
+   * Controlled visible time domain. Present → the caller owns navigation and
+   * drives every change; absent → the chart owns an uncontrolled viewport
+   * defaulting to the full extent (ADR-0008 §6's pattern).
+   */
+  visibleDomain?: TimeInterval;
+  /** The domain a `reset` restores; absent → reset restores the full extent (or,
+   *  inside a `<Dashboard>`, the effective domain). */
+  defaultVisibleDomain?: TimeInterval;
+  /** The zoom-in floor in ms, so a viewport cannot collapse to zero width. */
+  minSpan?: number;
+  /** Fired on every committed viewport change, with the `Date` domain and the
+   *  ADR-0014 cause. A controlled caller feeding the emitted domain back into
+   *  `visibleDomain` does not loop (ADR-0014 §7). */
+  onVisibleDomainChange?: (domain: TimeInterval, cause: ViewportCause) => void;
+  /** Receives the four explicit viewport commands (zoom in/out, autoscale, reset)
+   *  once on mount, so an application can render its own toolbar (ADR-0014 §5)
+   *  without controlling the domain itself. */
+  onViewportCommands?: (commands: ViewportCommands) => void;
 }
 
 /**
@@ -351,11 +379,25 @@ export function timePointRows(data: readonly TimePoint[]): readonly ChartTableRo
   return data.map((d) => [d.t.toISOString(), d.y] as const);
 }
 
-/** What a time-series chart draws, once the dashboard has had its say. */
+/** What a time-series chart draws, once the dashboard and the viewport have had
+ *  their say. */
 export interface TimeSeriesScope {
-  /** The data actually drawn — the caller's series, narrowed to the scope. */
+  /**
+   * The y-basis: the caller's data narrowed to the dashboard effective domain
+   * ONLY — before the viewport narrows x. The y axis is computed from this, so
+   * panning or zooming x leaves y pinned (ADR-0014 §3); `autoscale` is the
+   * explicit opt-in that fits y to the visible values. Standalone this is all the
+   * data.
+   */
+  yData: Accessor<readonly TimePoint[]>;
+  /**
+   * The data actually drawn — `yData` further narrowed to the viewport interval.
+   * Feeds the marks, the hit index, and the data table, so all three describe the
+   * interval on screen. Standalone with no viewport prop this equals `yData`.
+   */
   visible: Accessor<readonly TimePoint[]>;
-  /** Build the x scale for a pixel range, over the scoped domain. */
+  /** Build the x scale for a pixel range, over the viewport interval (or the
+   *  scoped domain where navigation does not apply). */
   xScale: (range: [number, number]) => ScaleTime<number, number>;
   /** True when the scope is real and nothing falls inside it. */
   isEmpty: Accessor<boolean>;
@@ -365,6 +407,9 @@ export interface TimeSeriesScope {
    * announced is invisible to a screen reader.
    */
   isLatest: Accessor<boolean>;
+  /** The viewport handle — the command surface a chart exposes to an
+   *  application's toolbar, and the state the gesture adapters drive. */
+  viewport: Viewport;
 }
 
 /**
@@ -389,7 +434,10 @@ export interface TimeSeriesScope {
  * y and pinning it belongs with the zoom and pan work that makes the question
  * routine, not here where the range moves only by a deliberate control.
  */
-export function createTimeSeriesScope(data: Accessor<readonly TimePoint[]>): TimeSeriesScope {
+export function createTimeSeriesScope(
+  data: Accessor<readonly TimePoint[]>,
+  viewportProps: ChartViewportProps = {},
+): TimeSeriesScope {
   const dashboard = useDashboardTime();
   const section = useDashboardSection();
 
@@ -399,7 +447,11 @@ export function createTimeSeriesScope(data: Accessor<readonly TimePoint[]>): Tim
   // one definition (ADR-0007 §3).
   const domain = createMemo<EffectiveDomain | undefined>(() => dashboard?.resolve(section?.()));
 
-  const visible = createMemo<readonly TimePoint[]>(() => {
+  // The y-basis: narrowed to the effective domain ONLY. This is the pre-viewport
+  // data — the axis is computed from it, so a zoom of x does not silently
+  // autoscale y (ADR-0014 §3; the choice this scope previously deferred to "the
+  // zoom and pan work"). Standalone it is all the data.
+  const yData = createMemo<readonly TimePoint[]>(() => {
     const scope = domain();
     if (scope === undefined) return data();
     if (scope.kind === "empty") return [];
@@ -424,15 +476,45 @@ export function createTimeSeriesScope(data: Accessor<readonly TimePoint[]>): Tim
     return within;
   });
 
+  // The viewport, bounded by the effective domain when composed and the full data
+  // extent when standalone (ADR-0014 §3). `fullExtent` reads the WHOLE data, not
+  // `yData`, so the outer bound is the data's own extent even under a dashboard
+  // narrowing.
+  const sv = createScopeViewport({
+    fullExtent: dataExtentMs(() => data().map((d) => d.t.getTime())),
+    effectiveDomain: domain,
+    props: viewportProps,
+  });
+
+  // The drawn data: the y-basis narrowed to the viewport interval when the
+  // viewport is applied (standalone AND opted in). Otherwise it is the y-basis
+  // unchanged — a chart at its default, or any dashboard member — so no baseline
+  // moves.
+  const visible = createMemo<readonly TimePoint[]>(() => {
+    if (!sv.navigable()) return yData();
+    const iv = sv.interval();
+    return yData().filter((d) => {
+      const t = d.t.getTime();
+      return t >= iv.start && t <= iv.end;
+    });
+  });
+
   return {
+    yData,
     visible,
+    viewport: sv.viewport,
     xScale: (range) => {
+      // Navigable: the x domain IS the viewport interval.
+      if (sv.navigable()) {
+        const iv = sv.interval();
+        return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });
+      }
+      // Not navigable — a chart at its default, or a dashboard scope. Exactly the
+      // pre-P04b behaviour: the data extent standalone / on an empty scope, else
+      // the effective-domain bounds.
       const scope = domain();
-      // Standalone, or an empty scope with no interval of its own to show: fall
-      // back to the data's extent, which is the pre-dashboard behaviour and the
-      // only domain available when the scope itself resolved to nothing.
       if (scope === undefined || scope.kind === "empty") {
-        return timeExtentScale(visible(), range);
+        return timeExtentScale(yData(), range);
       }
       const bounds = scope.kind === "range" ? scope : scope.bounds;
       return timeScale({
