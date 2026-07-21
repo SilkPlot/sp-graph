@@ -904,8 +904,8 @@ const PROBES = [
       "a brush commits only past a min-travel threshold (ADR-0018 §3), so a CLICK is not a request " +
       "to zoom to a zero-width interval (which the min-span floor inflates into a jarring jump). " +
       "Drop the `moved` guard and a click zooms.",
-    anchor: "if (!moved || scale === undefined) return;",
-    mutation: "if (scale === undefined) return;",
+    anchor: "    if (!moved) return;",
+    mutation: "    if (false) return;",
     failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
     minFailures: 1,
     observed: "1 failure: a click below the threshold commits a zoom",
