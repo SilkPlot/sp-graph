@@ -69,6 +69,31 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
+/** Dispatch a pointer event at a plot-x (inner px), converted to a client x
+ *  against the surface's own rect — the same conversion the gesture makes. */
+function pointer(
+  el: HTMLElement,
+  type: "pointerdown" | "pointermove" | "pointerup",
+  plotX: number,
+): void {
+  const clientX = el.getBoundingClientRect().left + plotX; // NO_MARGINS → margin.left = 0
+  el.dispatchEvent(
+    new PointerEvent(type, {
+      pointerId: 1,
+      isPrimary: true,
+      button: 0,
+      clientX,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+/** The live brush rectangle, if one is being drawn. */
+function brushRect(container: HTMLElement): SVGRectElement | null {
+  return container.querySelector<SVGRectElement>("[data-silkplot-brush]");
+}
+
 describe("viewport keyboard bindings", () => {
   it("zooms in on + and out on -, about the visible centre", () => {
     const { container } = render(() => (
@@ -194,6 +219,72 @@ describe("viewport wheel zoom (opt-in)", () => {
     // A few notches the other way widen it back to the full extent.
     for (let i = 0; i < 5; i += 1) wheel(surface, { deltaY: 100, ctrl: true });
     await nextFrame();
+    expect(pointCount(container)).toBe(5);
+  });
+});
+
+describe("viewport drag-to-brush (opt-in)", () => {
+  it("zooms to the dragged interval on release, and draws a live rectangle during", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    expect(pointCount(container)).toBe(5);
+    expect(brushRect(container)).toBeNull();
+
+    // Drag across the middle of the plot.
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    // The live rectangle is drawn while the drag is in flight.
+    expect(brushRect(container)).not.toBeNull();
+
+    pointer(surface, "pointerup", 300);
+    // On release the viewport is the dragged sub-interval, so fewer points draw,
+    // and the rectangle is gone.
+    expect(pointCount(container)).toBeLessThan(5);
+    expect(brushRect(container)).toBeNull();
+  });
+
+  it("commits nothing on a click (a drag below the min-travel threshold)", () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    pointer(surface, "pointerdown", 200);
+    pointer(surface, "pointermove", 201); // 1px < MIN_BRUSH_PX
+    pointer(surface, "pointerup", 201);
+    expect(pointCount(container)).toBe(5);
+  });
+
+  it("cancels the brush on Escape mid-drag, committing nothing", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+
+    press(surface, "Escape");
+    // The rectangle is gone and the viewport did not move; a later pointerup
+    // (capture lost) commits nothing.
+    expect(brushRect(container)).toBeNull();
+    pointer(surface, "pointerup", 300);
+    expect(pointCount(container)).toBe(5);
+  });
+
+  it("does nothing when brushSelect is off (the default)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).toBeNull();
+    pointer(surface, "pointerup", 300);
     expect(pointCount(container)).toBe(5);
   });
 });

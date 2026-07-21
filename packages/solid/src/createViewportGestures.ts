@@ -41,7 +41,7 @@
  * it is the only non-passive listener. Everything is attached in `onMount` and
  * removed in `onCleanup`, so a server render reaches none of it.
  */
-import { type Accessor, onCleanup, onMount } from "solid-js";
+import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
 import type { ScaleTime } from "@silkplot/core";
 import { useChartBounds } from "./context";
 import type { Viewport } from "./createViewport";
@@ -56,6 +56,22 @@ import type { Viewport } from "./createViewport";
 export const PAN_FRACTION = 0.25;
 export const WHEEL_ZOOM_IN_FACTOR = 0.85;
 
+/**
+ * The minimum pointer travel, in px, before a drag counts as a brush rather than a
+ * click. Below it the gesture commits nothing — a click on the plot is not a
+ * request to zoom to a zero-width interval (which the min-span floor would inflate
+ * into a jarring jump). ENGINEERING POLICY, not a researched threshold.
+ */
+export const MIN_BRUSH_PX = 3;
+
+/** A live brush extent, in inner (plot) pixels — what the chart renders while a
+ *  drag is in flight. `x0` is where the drag began, `x1` where the pointer is now;
+ *  either order is possible (a right-to-left drag is legitimate). */
+export interface BrushExtent {
+  x0: number;
+  x1: number;
+}
+
 export interface ViewportGesturesSpec {
   /** The viewport this drives — the scope's handle, shared with the chart's own
    *  command surface. */
@@ -67,6 +83,8 @@ export interface ViewportGesturesSpec {
   wheelZoom?: Accessor<boolean | undefined>;
   /** Let PLAIN wheel zoom, for a single full-bleed chart. Default off. */
   capturePlainWheel?: Accessor<boolean | undefined>;
+  /** Enable the drag-to-brush gesture (zoom to the dragged interval). Default off. */
+  brushSelect?: Accessor<boolean | undefined>;
 }
 
 export interface ViewportGestures {
@@ -76,14 +94,69 @@ export interface ViewportGestures {
    * otherwise (so the datum handler, and then the page, still see it).
    */
   onKeyDown(event: KeyboardEvent): boolean;
-  /** Ref setter for the interaction surface — the element the wheel (and, later,
-   *  pointer) listeners attach to. The same element the inspection layer caches. */
+  /** Ref setter for the interaction surface — the element the wheel and pointer
+   *  listeners attach to. The same element the inspection layer caches. */
   setSurface(element: HTMLElement): void;
+  /** The live brush extent in inner (plot) px while a drag is in flight, else
+   *  `undefined`. A chart renders it as a rectangle inside its plot area. */
+  brush: Accessor<BrushExtent | undefined>;
 }
 
 export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGestures {
   const vp = spec.viewport;
   const bounds = useChartBounds();
+
+  /* ---- the shared surface + its cached rect (ADR-0014 §7) ------------------ */
+
+  // Plain locals, not signals: written on every raw event, read once per frame.
+  // Making them reactive would schedule the work the coalescing exists to avoid.
+  let surface: HTMLElement | undefined;
+  let rect: DOMRect | undefined;
+
+  const refreshRect = (): void => {
+    rect = surface?.getBoundingClientRect();
+  };
+
+  /** A client x mapped into inner (plot) px, clamped to the plot — the space the
+   *  marks, the brush rect, and the x scale all live in. */
+  const innerX = (clientX: number): number => {
+    if (rect === undefined) return 0;
+    const x = clientX - rect.left - bounds().margins.left;
+    return Math.max(0, Math.min(x, bounds().innerWidth));
+  };
+
+  /* ---- drag-to-brush (opt-in — ADR-0014 §5; ADR-0018 §3) ------------------- */
+
+  const [brush, setBrush] = createSignal<BrushExtent | undefined>();
+  let brushing = false;
+  let brushMoved = false; // passed the min-travel threshold, so it is a brush not a click
+  let brushStartX = 0; // inner px
+  let brushLastX = 0; // inner px
+  let brushPointerId = -1;
+  let brushFrame = 0;
+
+  /** End the drag — release capture, stop the paint loop, clear the rectangle.
+   *  Used by a commit (`pointerup`), a cancel (`pointercancel`, `Escape`), and
+   *  unmount. It does NOT itself commit an interval; the caller decides that. */
+  const endBrush = (): void => {
+    if (!brushing) return;
+    brushing = false;
+    if (brushFrame !== 0) {
+      cancelAnimationFrame(brushFrame);
+      brushFrame = 0;
+    }
+    setBrush(undefined);
+    if (brushPointerId !== -1) {
+      // A capture already released (or never held) throws; a lost pointer is an
+      // ordinary end, not an error.
+      try {
+        surface?.releasePointerCapture(brushPointerId);
+      } catch {
+        /* already released */
+      }
+      brushPointerId = -1;
+    }
+  };
 
   /* ---- keyboard (always available; no opt-in — ADR-0014 §5) ---------------- */
 
@@ -93,6 +166,15 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   };
 
   const onKeyDown = (event: KeyboardEvent): boolean => {
+    // `Escape` cancels a brush in flight (ADR-0018 §3), and only then — with no
+    // brush it belongs to the datum composite, which clears the active point.
+    if (event.key === "Escape") {
+      if (!brushing) return false;
+      endBrush();
+      event.preventDefault();
+      return true;
+    }
+
     // `Ctrl`/`Cmd`/`Alt` + a key is a browser or AT command; `Shift` is the pan
     // modifier and is NOT excluded.
     if (event.ctrlKey || event.metaKey || event.altKey) return false;
@@ -133,17 +215,9 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
 
   /* ---- wheel / trackpad zoom (opt-in — ADR-0014 §6) ------------------------ */
 
-  // Plain locals, not signals: written on every raw event, read once per frame.
-  // Making them reactive would schedule the work the coalescing exists to avoid.
-  let surface: HTMLElement | undefined;
-  let rect: DOMRect | undefined;
   let frame = 0;
   let pendingFactor = 1;
   let pendingAnchor = 0;
-
-  const refreshRect = (): void => {
-    rect = surface?.getBoundingClientRect();
-  };
 
   /** The instant under the pointer, in epoch ms — the zoom anchor. Falls back to
    *  the visible centre when there is no scale or no cached rect yet. */
@@ -153,8 +227,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     if (scale === undefined || rect === undefined) {
       return (current.start + current.end) / 2;
     }
-    const innerX = clientX - rect.left - bounds().margins.left;
-    return scale.invert(innerX).getTime();
+    return scale.invert(innerX(clientX)).getTime();
   };
 
   const commitZoom = (): void => {
@@ -184,6 +257,61 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     if (frame === 0) frame = requestAnimationFrame(commitZoom);
   };
 
+  /* ---- brush pointer handlers ---------------------------------------------- */
+
+  const paintBrush = (): void => {
+    brushFrame = 0;
+    if (brushing) setBrush({ x0: brushStartX, x1: brushLastX });
+  };
+
+  const onPointerDown = (event: PointerEvent): void => {
+    if (!(spec.brushSelect?.() ?? false)) return;
+    // A primary-button press only — a right-click or a secondary touch is not a
+    // brush, and a second press mid-brush must not restart it.
+    if (event.button !== 0 || !event.isPrimary || brushing) return;
+    if (rect === undefined) refreshRect();
+    brushing = true;
+    brushMoved = false;
+    brushStartX = innerX(event.clientX);
+    brushLastX = brushStartX;
+    brushPointerId = event.pointerId;
+    // Capture so the drag keeps delivering move/up even when the pointer leaves
+    // the plot — a brush that stops tracking at the edge is unusable. A pointer
+    // that cannot be captured (already gone) is not a reason to abort the brush.
+    try {
+      surface?.setPointerCapture(event.pointerId);
+    } catch {
+      /* uncapturable pointer — the surface's own listeners still see the drag */
+    }
+    event.preventDefault();
+  };
+
+  const onPointerMove = (event: PointerEvent): void => {
+    if (!brushing || event.pointerId !== brushPointerId) return;
+    brushLastX = innerX(event.clientX);
+    if (Math.abs(brushLastX - brushStartX) >= MIN_BRUSH_PX) brushMoved = true;
+    // Coalesce: one rectangle repaint per frame, whatever the pointer rate.
+    if (brushFrame === 0) brushFrame = requestAnimationFrame(paintBrush);
+  };
+
+  const onPointerUp = (event: PointerEvent): void => {
+    if (!brushing || event.pointerId !== brushPointerId) return;
+    const moved = brushMoved;
+    const scale = spec.xScale?.();
+    const x0 = brushStartX;
+    const x1 = brushLastX;
+    endBrush();
+    // A click, or a scale we cannot invert against, commits nothing.
+    if (!moved || scale === undefined) return;
+    // The model normalises a right-to-left drag, so either order is a valid
+    // request for the same interval.
+    vp.brush({ start: scale.invert(x0).getTime(), end: scale.invert(x1).getTime() });
+  };
+
+  const onPointerCancel = (event: PointerEvent): void => {
+    if (event.pointerId === brushPointerId) endBrush();
+  };
+
   const setSurface = (element: HTMLElement): void => {
     surface = element;
   };
@@ -192,18 +320,28 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     refreshRect();
     // The wheel listener is non-passive so a captured zoom can preventDefault. The
     // rect is invalidated on resize and ANY ancestor scroll, so a wheel event
-    // never reads layout to stay correct.
+    // never reads layout to stay correct. The brush uses pointer capture, so its
+    // move/up listeners sit on the surface and keep firing past the plot edge.
     surface?.addEventListener("wheel", onWheel, { passive: false });
+    surface?.addEventListener("pointerdown", onPointerDown);
+    surface?.addEventListener("pointermove", onPointerMove);
+    surface?.addEventListener("pointerup", onPointerUp);
+    surface?.addEventListener("pointercancel", onPointerCancel);
     window.addEventListener("resize", refreshRect, { passive: true });
     window.addEventListener("scroll", refreshRect, { passive: true, capture: true });
   });
 
   onCleanup(() => {
     surface?.removeEventListener("wheel", onWheel);
+    surface?.removeEventListener("pointerdown", onPointerDown);
+    surface?.removeEventListener("pointermove", onPointerMove);
+    surface?.removeEventListener("pointerup", onPointerUp);
+    surface?.removeEventListener("pointercancel", onPointerCancel);
     window.removeEventListener("resize", refreshRect);
     window.removeEventListener("scroll", refreshRect, { capture: true });
     if (frame !== 0) cancelAnimationFrame(frame);
+    endBrush();
   });
 
-  return { onKeyDown, setSurface };
+  return { onKeyDown, setSurface, brush };
 }

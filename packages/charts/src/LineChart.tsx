@@ -30,6 +30,7 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import {
+  BrushRect,
   InteractionLayer,
   PointMark,
   createTimeChartInspection,
@@ -233,12 +234,16 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     xScale: model.x,
     wheelZoom: () => props.wheelZoom,
     capturePlainWheel: () => props.capturePlainWheel,
+    brushSelect: () => props.brushSelect,
   });
 
   return (
     <>
       <CartesianFrame model={model} layout={props} semantics={props.semantics}>
         <StrokedLine d={pathD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+        <Show when={gestures.brush()}>
+          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
+        </Show>
         {/* Solid's `<Show>` render-prop yields the narrowed `when` value itself. */}
         <Show when={active()}>
           {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
@@ -317,6 +322,7 @@ const LineChartMulti: Component<
         emptyMessage={props.emptyMessage}
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
+        brushSelect={props.brushSelect}
         renderSeries={(ctx) => (
           <StrokedLine
             d={linePath(ctx.points, {

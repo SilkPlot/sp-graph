@@ -44,8 +44,17 @@ export type { ChartInspection, ChartInspectionSpec } from "./createChartInspecti
 // range control or a P05 gesture adapter drives.
 export { createViewport } from "./createViewport";
 export type { Viewport, ViewportCommands, ViewportSpec } from "./createViewport";
-export { createViewportGestures, PAN_FRACTION } from "./createViewportGestures";
-export type { ViewportGestures, ViewportGesturesSpec } from "./createViewportGestures";
+export {
+  createViewportGestures,
+  MIN_BRUSH_PX,
+  PAN_FRACTION,
+  WHEEL_ZOOM_IN_FACTOR,
+} from "./createViewportGestures";
+export type {
+  BrushExtent,
+  ViewportGestures,
+  ViewportGesturesSpec,
+} from "./createViewportGestures";
 
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 export { Legend, MIN_TARGET_PX } from "./Legend";
