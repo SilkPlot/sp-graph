@@ -354,6 +354,51 @@ const PROBES = [
     messagePattern: /expected -1 to be \+0/,
   },
   {
+    id: "inspection-pointer-resolve",
+    file: "packages/solid/src/createChartInspection.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a pointer move resolves the nearest datum and writes it — never resolve and hover " +
+      "stops surfacing anything: no crosshair, no tooltip, no announcement",
+    anchor: "    active.set(ordinal < 0 ? undefined : ordinal);",
+    mutation: "    active.set(undefined);",
+    failingIn: ["packages/charts/test/inspection-hover.test.tsx"],
+    minFailures: 3,
+    observed: "several hover assertions, e.g. “expected null not to be null” (the crosshair)",
+    messagePattern: /not to be null/,
+  },
+  {
+    id: "inspection-clear-on-leave",
+    file: "packages/solid/src/createChartInspection.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "leaving the plot clears the active point — drop the clear and a phantom cursor, tooltip, " +
+      "and announcement stay pinned where the pointer last was",
+    anchor: "    active.clear();",
+    mutation: "    void 0; /* probe: clear removed */",
+    failingIn: ["packages/charts/test/inspection-hover.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure, “expected <g …> to be null” (the crosshair after leave)",
+    messagePattern: /to be null/,
+  },
+  {
+    id: "active-point-shared-attime",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "a shared-time record carries every visible series' value at the instant — drop atTime and " +
+      "a multi-series tooltip cannot show the other series at the hovered time",
+    anchor: "      atTime: column.entries,",
+    mutation: "      atTime: undefined,",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 1,
+    observed: "1 failure, “expected undefined to deeply equal [ 'a', 'b' ]”",
+    messagePattern: /to deeply equal/,
+  },
+  {
     id: "overlap-duplicate-key",
     file: "packages/core/src/overlap.ts",
     project: "core",

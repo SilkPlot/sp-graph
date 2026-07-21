@@ -57,7 +57,7 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**192 baselines**: 168 geometry, 12 focus, 12 reduced-motion.
+**200 baselines**: 168 geometry, 20 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -390,6 +390,25 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-07-21 — area--focus--light, area--focus--dark, area--focus--light-high-contrast, area--focus--dark-high-contrast, scatter--focus--light, scatter--focus--dark, scatter--focus--light-high-contrast, scatter--focus--dark-high-contrast
+
+- **Why:** NEW baselines, not re-pins. Area and Scatter gained the interaction
+  model — a keyboard composite and pointer hover writing one active-datum state —
+  so each now owns a focus stop and a `:focus-visible` ring that had no baseline
+  before. `FOCUSABLE` flipped `area` and `scatter` to `true`, and the focus
+  generator added four theme combinations for each. Nothing existing moved: the
+  active mark and crosshair render only on hover or keyboard step, not in a
+  resting focus frame, so every geometry, reduced-motion, and existing focus
+  baseline is byte-identical — verified with `git status`, 8 added, 0 modified,
+  0 deleted.
+- **Inspected by:** Claude Code (claude-opus-4-8) # 2 of 8 opened —
+  `area--focus--light` and `scatter--focus--dark`. Each renders the chart exactly
+  as its geometry baseline does (Area's fill-and-stroke, Scatter's point cloud)
+  with the blue `:focus-visible` ring around the plot, and no active-point mark —
+  correct, because a resting Tab focus activates no datum. The high-contrast
+  variants were not opened.
+- **Accepted by:** Adam Claassens, on merge
 
 ### 2026-07-21 — line--w1-dense--light, line--w1-dense--dark, line--w1-dense--light-high-contrast, line--w1-dense--dark-high-contrast
 

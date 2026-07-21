@@ -148,6 +148,17 @@ arrived at.
   per-family result type and a datum union. Supersedes ADR-0014 §1's record shape
   only; its one-record invariant stands.
 
+- [ADR-0016 — Composed chart inspection: the tooltip render-prop and default hover](adr-0016-composed-chart-inspection.md):
+  why tooltip content is a `tooltip` render-prop returning JSX rather than a
+  `formatTooltip` string — the caller owns the content (ADR-0002 §3) and keeps the
+  metadata generic ADR-0015 threads through the record; why an informative chart
+  inspects on hover by default, the parallel of ADR-0005's keyboard-on-by-default,
+  with a `pointer?` override and the tooltip card still opt-in content; why one
+  active-datum state and one shared inspection seam serve pointer, touch, and
+  keyboard across all four charts, extending active-datum to the multi-series path,
+  Area, and Scatter for the first time. Supersedes ADR-0008 §9's `formatTooltip`;
+  extends ADR-0002 and builds on ADR-0014/0015.
+
 ## Migrations
 
 An ADR states the decision; a migration states what a consumer has to change.

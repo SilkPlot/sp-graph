@@ -33,6 +33,11 @@ export type { ActiveDatum, ActiveDatumSpec } from "./createActiveDatum";
 export { createChartKeyboard } from "./createChartKeyboard";
 export type { ChartKeyboard, ChartKeyboardSpec, ChartKeyboardRole } from "./createChartKeyboard";
 
+// The one inspection seam every chart composes — ADR-0016. Pointer + keyboard
+// write one active-datum state over a caller-supplied active-point index.
+export { createChartInspection } from "./createChartInspection";
+export type { ChartInspection, ChartInspectionSpec } from "./createChartInspection";
+
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 export { Legend, MIN_TARGET_PX } from "./Legend";
 export type { LegendProps } from "./Legend";

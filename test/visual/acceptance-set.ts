@@ -244,17 +244,17 @@ export const viewportFor = (kase: Case | LegendCase): Viewport =>
  */
 export const FOCUSABLE: Record<Chart, boolean> = {
   line: true,
-  area: false,
+  area: true,
   bar: true,
-  scatter: false,
+  scatter: true,
 };
 
 /** Why each non-focusable chart has no focus baseline. Kept as prose on purpose. */
 export const FOCUS_RATIONALE: Record<Chart, string> = {
   line: "composes ChartKeyboardSurface, so it has one tab stop and a :focus-visible ring",
-  area: "no keyboard composite yet — nothing in the chart can receive focus",
+  area: "composes ChartKeyboardSurface, so it has one tab stop and a :focus-visible ring",
   bar: "composes ChartKeyboardSurface, so it has one tab stop and a :focus-visible ring",
-  scatter: "no keyboard composite yet — nothing in the chart can receive focus",
+  scatter: "composes ChartKeyboardSurface, so it has one tab stop and a :focus-visible ring",
 };
 
 export type BaselineKind = "geometry" | "focus" | "reduced-motion";
@@ -479,9 +479,9 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  */
 export const EXPECTED_TOTALS = {
   geometry: 168,
-  focus: 12,
+  focus: 20,
   "reduced-motion": 12,
-  all: 192,
+  all: 200,
 } as const;
 
 /**

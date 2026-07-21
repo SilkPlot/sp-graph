@@ -154,7 +154,7 @@ export interface ViewportCommands {
  */
 export interface ActivationProps<M = unknown> {
   activePoint?: ActivePoint<SeriesDatum<M>> | undefined;
-  onActivate?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
+  onActivePointChange?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
 }
 
 /** The interactive time-series surface this contract describes. */
@@ -191,7 +191,7 @@ export const withMetadata: InteractiveTimeSeriesProps<Reading> = {
       ],
     },
   ],
-  onActivate: (active) => {
+  onActivePointChange: (active) => {
     if (active === undefined) return; // Clearing is `undefined`, not a sentinel.
     // Same type on the way out. No cast, no parallel metadata map.
     const serial: string | undefined = active.datum.meta?.serial;

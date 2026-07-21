@@ -243,8 +243,13 @@ them.
 > receive. Building the surface showed a `Date` reaches two surfaces with
 > incompatible constraints (an axis tick has a few characters; a table cell is
 > read aloud), which the declared `formatTick`/`formatValue` pair could not
-> express. `formatTooltip` is NOT superseded: it stays declared and unbuilt
-> until the many-series active-datum model is decided.
+> express. `formatTooltip` **is now superseded too, by
+> [ADR-0016](adr-0016-composed-chart-inspection.md)** — the many-series
+> active-datum model it waited on is decided, and tooltip content is a `tooltip`
+> render-prop returning JSX rather than a `(datum) => string` formatter, so the
+> caller owns the content (ADR-0002 §3) and keeps the metadata generic ADR-0015
+> threads through the record. The principle that the caller supplies the wording
+> is unchanged.
 
 Tick text, tooltip wording, units, locale, and display time zone are supplied by
 the caller. Library defaults remain deliberately generic and
