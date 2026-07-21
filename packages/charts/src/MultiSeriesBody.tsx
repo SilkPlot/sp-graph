@@ -158,7 +158,11 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
     // Already numbers by the time they arrive — see `yContributions`, which is
     // where the gap policy and the reference contribution are applied together.
     x: props.scope.xScale,
-    y: { accessor: (v) => v, domain: props.yDomain },
+    y: {
+      accessor: (v) => v,
+      domain: props.yDomain,
+      override: () => props.scope.viewport.autoscaledValueDomain(),
+    },
   });
 
   /** Pixel position of zero. Only meaningful under a policy that contains zero. */

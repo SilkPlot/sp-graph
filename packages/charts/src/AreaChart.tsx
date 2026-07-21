@@ -118,7 +118,11 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     // value. "zero-baseline" keeps that honest for all-negative and
     // all-positive series alike. (A line needs no baseline, which is why
     // LineChart uses "zero-floor" instead.)
-    y: { accessor: (d) => d.y, domain: "zero-baseline" },
+    y: {
+      accessor: (d) => d.y,
+      domain: "zero-baseline",
+      override: () => scope.viewport.autoscaledValueDomain(),
+    },
   });
 
   /** Pixel position of the zero baseline; the domain policy guarantees it is in range. */

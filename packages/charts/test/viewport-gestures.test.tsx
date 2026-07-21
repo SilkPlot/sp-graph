@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, markD, pathXs } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathYs } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -286,5 +286,33 @@ describe("viewport drag-to-brush (opt-in)", () => {
     expect(brushRect(container)).toBeNull();
     pointer(surface, "pointerup", 300);
     expect(pointCount(container)).toBe(5);
+  });
+});
+
+describe("viewport autoscale (a) and reset (0) move y", () => {
+  it("fits y to the visible values on 'a', and reset restores the pinned axis", () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    // Zoom to [day 1, day 3] — the visible values are 40, 60, 50, so the visible
+    // point at index 1 is day 2 (y=60), the visible maximum.
+    press(surface, "+");
+    const pinned = expectedYScale(DATA.map((d) => d.y), "zero-floor", HEIGHT); // [0, 100]
+    const fitted = expectedYScale([40, 60, 50], "zero-floor", HEIGHT); // [0, 60]
+
+    // A plain zoom leaves y pinned to the full-data extent.
+    expect(pathYs(markD(container))[1] ?? Number.NaN).toBeCloseTo(pinned(60), 3);
+
+    // Autoscale fits y to the visible values — day 2 (the visible max) rises to
+    // the top of the plot.
+    press(surface, "a");
+    expect(pathYs(markD(container))[1] ?? Number.NaN).toBeCloseTo(fitted(60), 3);
+
+    // Reset clears the autoscale AND the zoom: five points again, y pinned. Day 2
+    // is now the middle of the five (index 2).
+    press(surface, "0");
+    expect(pointCount(container)).toBe(5);
+    expect(pathYs(markD(container))[2] ?? Number.NaN).toBeCloseTo(pinned(60), 3);
   });
 });

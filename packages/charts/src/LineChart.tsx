@@ -198,8 +198,13 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     x: scope.xScale,
     // A line has no baseline to honour, so zero is only the floor — the top
     // stays the data's own maximum. Area and Bar deliberately differ, and an
-    // all-negative series is the only input where you can see it.
-    y: { accessor: (d) => d.y, domain: "zero-floor" },
+    // all-negative series is the only input where you can see it. The autoscale
+    // snapshot, when set, fits y to the visible values under this same policy.
+    y: {
+      accessor: (d) => d.y,
+      domain: "zero-floor",
+      override: () => scope.viewport.autoscaledValueDomain(),
+    },
   });
 
   const pathD = createMemo(() => {

@@ -225,6 +225,12 @@ export function createViewport<M = unknown>(spec: ViewportSpec<M>): Viewport {
     // `onVisibleDomainChange`; a chart reads the snapshot (or the live
     // `visibleValueDomain`) and wraps it in its own policy.
     autoscale: () => setAutoscaled(autoscaleValueDomain(spec.series?.() ?? [], visibleMsDomain())),
-    reset: () => setVisibleDomain(resetInterval(defaultMs(), bound()), "reset"),
+    reset: () => {
+      // Reset restores the declared domain AND clears any autoscale snapshot, so y
+      // returns to its pinned full-data extent (ADR-0018 §4: the snapshot holds
+      // "until the next autoscale or reset").
+      setAutoscaled(undefined);
+      setVisibleDomain(resetInterval(defaultMs(), bound()), "reset");
+    },
   };
 }

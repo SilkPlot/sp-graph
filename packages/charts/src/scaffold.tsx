@@ -20,6 +20,7 @@ import {
   isDevelopmentBuild,
   timeScale,
   type EffectiveDomain,
+  type NormalizedSeries,
   type ScaleTime,
   type TimeInterval,
   type ViewportCause,
@@ -447,6 +448,30 @@ export interface TimeSeriesScope {
  * y and pinning it belongs with the zoom and pan work that makes the question
  * routine, not here where the range moves only by a deliberate control.
  */
+/**
+ * A single time series wrapped as a one-element `NormalizedSeries`, so the
+ * viewport's autoscale (which is written against the multi-series shape) can fit y
+ * to a single-series chart's visible values (ADR-0018 §4). Only `time`, `y`, and
+ * `state` are read by `autoscaleValueDomain`; the rest is the minimal valid shape.
+ */
+function pointsAsSeries(points: readonly TimePoint[]): NormalizedSeries {
+  return {
+    id: "series",
+    label: "",
+    nullPolicy: "break",
+    style: {},
+    visible: true,
+    sourceIndex: 0,
+    data: points.map((d, i) => ({
+      t: d.t,
+      time: d.t.getTime(),
+      y: d.y,
+      sourceIndex: i,
+      state: Number.isFinite(d.y) ? "present" : "invalid",
+    })),
+  };
+}
+
 export function createTimeSeriesScope(
   data: Accessor<readonly TimePoint[]>,
   viewportProps: ChartViewportProps = {},
@@ -496,6 +521,9 @@ export function createTimeSeriesScope(
   const sv = createScopeViewport({
     fullExtent: dataExtentMs(() => data().map((d) => d.t.getTime())),
     effectiveDomain: domain,
+    // The y-basis as a one-element series, so `autoscale()` fits y to the values
+    // in the visible interval (it filters to the viewport itself, ADR-0018 §4).
+    series: () => [pointsAsSeries(yData())],
     props: viewportProps,
   });
 
