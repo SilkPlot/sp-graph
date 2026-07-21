@@ -13,7 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { LineChart } from "../src/index";
+import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
 import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathYs } from "./support";
 
@@ -168,16 +168,141 @@ describe("viewport keyboard bindings", () => {
     expect(pointCount(container)).toBe(2);
   });
 
+  it("pans earlier on Shift+ArrowLeft", () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    press(surface, "+"); // [day 1, day 3], 3 points
+    expect(pointCount(container)).toBe(3);
+    // Slide the window earlier by ¼ span → [day 0.5, day 2.5], dropping day 3 off
+    // the right edge → two points.
+    press(surface, "ArrowLeft", { shift: true });
+    expect(pointCount(container)).toBe(2);
+  });
+
   it("does not claim a key it has no binding for, nor a modified one", () => {
     const { container } = render(() => (
       <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const surface = surfaceOf(container);
-    // A letter with no binding, and Escape (the active-point clear), leave the
-    // viewport at the full extent.
+    // A letter with no binding (plain and shifted), and Escape (the active-point
+    // clear), leave the viewport at the full extent.
     press(surface, "z");
+    press(surface, "x", { shift: true });
     press(surface, "Escape");
     expect(pointCount(container)).toBe(5);
+  });
+});
+
+describe("gestures reach every time chart (Area, multi-series)", () => {
+  it("keyboard-, wheel-, and brush-drives an AreaChart", async () => {
+    const { container } = render(() => (
+      <AreaChart
+        title="Readings"
+        data={DATA}
+        wheelZoom
+        capturePlainWheel
+        brushSelect
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    const surface = surfaceOf(container);
+    press(surface, "+");
+    // The stroked line is the second path (the first is the fill).
+    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    press(surface, "0");
+    expect(pathXs(markD(container, 1))).toHaveLength(5);
+
+    wheel(surface, { deltaY: -100, ctrl: true });
+    await nextFrame();
+    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    press(surface, "0");
+
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+    pointer(surface, "pointerup", 300);
+    expect(brushRect(container)).toBeNull();
+  });
+
+  it("keyboard-, wheel-, and brush-drives a multi-series LineChart", async () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Readings"
+        series={[{ id: "a", label: "A", data: DATA }]}
+        wheelZoom
+        capturePlainWheel
+        brushSelect
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    const surface = surfaceOf(container);
+    press(surface, "+");
+    expect(pointCount(container)).toBeLessThan(5);
+    press(surface, "0");
+
+    wheel(surface, { deltaY: -100, ctrl: true });
+    await nextFrame();
+    expect(pointCount(container)).toBeLessThan(5);
+    press(surface, "0");
+
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+    pointer(surface, "pointerup", 300);
+    expect(brushRect(container)).toBeNull();
+  });
+
+  it("keyboard-, wheel-, and brush-drives a multi-series AreaChart", async () => {
+    const { container } = render(() => (
+      <AreaChart
+        title="Readings"
+        series={[{ id: "a", label: "A", data: DATA }]}
+        wheelZoom
+        capturePlainWheel
+        brushSelect
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    const surface = surfaceOf(container);
+    press(surface, "+");
+    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    press(surface, "0");
+
+    wheel(surface, { deltaY: -100, ctrl: true });
+    await nextFrame();
+    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    press(surface, "0");
+
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+    pointer(surface, "pointerup", 300);
+    expect(brushRect(container)).toBeNull();
+  });
+
+  it("tears its listeners down on unmount without throwing", () => {
+    const { container, unmount } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect wheelZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    // Start a brush, then unmount mid-gesture — cleanup releases capture, removes
+    // every listener, and cancels the pending frame, all without a throw.
+    pointer(surfaceOf(container), "pointerdown", 100);
+    pointer(surfaceOf(container), "pointermove", 300);
+    expect(() => unmount()).not.toThrow();
   });
 });
 
@@ -306,6 +431,27 @@ describe("viewport drag-to-brush (opt-in)", () => {
     expect(brushRect(container)).toBeNull();
     pointer(surface, "pointerup", 300);
     expect(pointCount(container)).toBe(5);
+  });
+
+  it("ignores a non-primary button (a right-click is not a brush)", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    const r = surface.getBoundingClientRect();
+    surface.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        pointerId: 1,
+        isPrimary: true,
+        button: 2, // secondary button
+        clientX: r.left + 100,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(brushRect(container)).toBeNull();
   });
 
   it("cancels the brush on a lost pointer (pointercancel)", async () => {

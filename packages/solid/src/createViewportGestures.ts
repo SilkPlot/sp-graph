@@ -76,9 +76,9 @@ export interface ViewportGesturesSpec {
   /** The viewport this drives — the scope's handle, shared with the chart's own
    *  command surface. */
   viewport: Viewport;
-  /** The current x scale, for converting a pointer's px to an anchor instant.
-   *  Absent → wheel/pointer gestures fall back to the visible centre. */
-  xScale?: Accessor<ScaleTime<number, number>>;
+  /** The current x scale, for converting a pointer's px to an anchor instant. A
+   *  time chart always has one, so it is required. */
+  xScale: Accessor<ScaleTime<number, number>>;
   /** Enable `Ctrl`/`Cmd`+wheel (and trackpad pinch) zoom. Default off. */
   wheelZoom?: Accessor<boolean | undefined>;
   /** Let PLAIN wheel zoom, for a single full-bleed chart. Default off. */
@@ -221,16 +221,11 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   let pendingFactor = 1;
   let pendingAnchor = 0;
 
-  /** The instant under the pointer, in epoch ms — the zoom anchor. Falls back to
-   *  the visible centre when there is no scale or no cached rect yet. */
-  const anchorAt = (clientX: number): number => {
-    const scale = spec.xScale?.();
-    const current = vp.visibleMsDomain();
-    if (scale === undefined || rect === undefined) {
-      return (current.start + current.end) / 2;
-    }
-    return scale.invert(innerX(clientX)).getTime();
-  };
+  /** The instant under the pointer, in epoch ms — the zoom anchor. `innerX`
+   *  returns 0 before the rect is cached, which only happens off the interaction
+   *  path, so no event ever reads a stale anchor. */
+  const anchorAt = (clientX: number): number =>
+    spec.xScale().invert(innerX(clientX)).getTime();
 
   const commitZoom = (): void => {
     frame = 0;
@@ -357,14 +352,14 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   const onPointerUp = (event: PointerEvent): void => {
     const wasBrushing = brushing && event.pointerId === brushPointerId;
     const moved = brushMoved;
-    const scale = spec.xScale?.();
+    const scale = spec.xScale();
     const x0 = brushStartX;
     const x1 = brushLastX;
     endPointer(event.pointerId);
     if (!wasBrushing) return;
     endBrush();
-    // A click, or a scale we cannot invert against, commits nothing.
-    if (!moved || scale === undefined) return;
+    // A click below the min-travel threshold commits nothing.
+    if (!moved) return;
     // The model normalises a right-to-left drag, so either order is a valid
     // request for the same interval.
     vp.brush({ start: scale.invert(x0).getTime(), end: scale.invert(x1).getTime() });
