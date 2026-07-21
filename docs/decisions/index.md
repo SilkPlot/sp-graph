@@ -166,6 +166,12 @@ arrived at.
   dashboard range and section-window props from epoch-ms to `Date` (breaking, 0.x),
   and keeps the viewport model pure epoch-ms so it clamps against the effective
   domain with no conversion. Extends ADR-0007 and ADR-0014.
+- [ADR-0018 — The viewport gesture and keyboard bindings](adr-0018-viewport-gesture-bindings.md):
+  the concrete surface the gesture adapters implement — the keyboard map (`+`/`-`
+  zoom, `Shift`+arrow pan, `a` autoscale, `0` reset, dodging the datum-stepping
+  keys), the four capture opt-in props (all default off), the live brush rectangle
+  with `Escape`-to-cancel, and autoscale becoming visible on y. Implements
+  ADR-0014 §5/§6/§7.
 
 ## Migrations
 

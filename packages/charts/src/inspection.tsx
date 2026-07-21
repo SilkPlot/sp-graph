@@ -238,6 +238,12 @@ export interface InteractionLayerProps<D> {
   instruction: string;
   /** Optional tooltip content (ADR-0016 §1). */
   tooltip?: (active: ActivePoint<D>) => JSX.Element;
+  /**
+   * The viewport gesture keyboard handler (ADR-0018 §1), given first refusal on
+   * every keydown before the datum composite. Present only on a navigable time
+   * chart; absent leaves the keyboard as datum-stepping alone.
+   */
+  viewportKeyDown?: (event: KeyboardEvent) => boolean;
 }
 
 /**
@@ -292,6 +298,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           ref={insp.setSurface}
           onPointerMove={insp.onPointerMove}
           onPointerLeave={insp.onPointerLeave}
+          beforeKeyDown={props.viewportKeyDown}
         />
       </Show>
       <Show when={props.tooltip && active()}>

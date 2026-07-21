@@ -39,6 +39,7 @@ import {
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
   createChartInspection,
+  createViewportGestures,
   type CartesianModel,
   type ChartSemantics,
   type YDomainPolicy,
@@ -200,6 +201,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   const keyboardOn = (): boolean => !sem().decorative() && (props.keyboard ?? true);
   const pointerOn = (): boolean => !sem().decorative() && (props.pointer ?? true);
   const live = (): boolean => (props.announce ?? "live") === "live";
+  const gestures = createViewportGestures({ viewport: props.scope.viewport });
 
   // The announcement wording: the PRIMARY series' label, the instant, the value.
   // The series label comes from the record's `seriesId`, so the spoken series
@@ -313,6 +315,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           pointer={pointerOn()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
+          viewportKeyDown={gestures.onKeyDown}
         />
       </Show>
     </>

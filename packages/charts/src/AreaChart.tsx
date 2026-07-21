@@ -26,6 +26,7 @@ import {
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
+  createViewportGestures,
   type ChartSemantics,
   type ChartSemanticsProps,
 } from "@silkplot/solid";
@@ -163,6 +164,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     onActivePointChange: props.onActivePointChange,
   });
   const active = (): ActivePoint<SeriesDatum> | undefined => insp.inspection.point();
+  const gestures = createViewportGestures({ viewport: scope.viewport });
 
   return (
     <>
@@ -188,6 +190,7 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
           pointer={insp.pointer()}
           instruction="Use arrow keys to step through points."
           tooltip={props.tooltip}
+          viewportKeyDown={gestures.onKeyDown}
         />
       </Show>
     </>
