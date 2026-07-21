@@ -13,7 +13,7 @@
  * rendering regression and is not one.
  */
 import type { CategoryPoint, TimePoint, XYPoint } from "@silkplot/charts";
-import type { ReferenceValue, Series } from "@silkplot/core";
+import type { RankedCategory, ReferenceValue, Series } from "@silkplot/core";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EPOCH = Date.UTC(2026, 0, 1);
@@ -68,22 +68,33 @@ export const CATEGORY_NEGATIVE: readonly CategoryPoint[] = categories(
   (i) => -6 - Math.cos(i) * 4 - i * 1.2,
 );
 
+/**
+ * Twelve long clinic names, several past the 20-character axis-truncation floor.
+ *
+ * Shared by the VERTICAL `dense-label` case — where they collide and truncate
+ * into a smear — and the HORIZONTAL `ranked-long-label` case below, so the two
+ * baselines are the same labels rotated. That is the exact contrast ADR-0013 §5
+ * draws: horizontal is the documented answer for long category labels, and
+ * pinning the identical set both ways is what shows it.
+ */
+const CLINIC_LABELS = [
+  "Aberdeen Clinic",
+  "Bloemfontein North",
+  "Cape Town Central",
+  "Durban Berea",
+  "East London Quigney",
+  "Gqeberha Summerstrand",
+  "Johannesburg Rosebank",
+  "Kimberley Beaconsfield",
+  "Nelspruit West",
+  "Polokwane Bendor",
+  "Pretoria Hatfield",
+  "Rustenburg Waterfall",
+] as const;
+
 /** Long labels in a narrow box: the collision case, not merely a busy one. */
 export const CATEGORY_DENSE: readonly CategoryPoint[] = categories(
-  [
-    "Aberdeen Clinic",
-    "Bloemfontein North",
-    "Cape Town Central",
-    "Durban Berea",
-    "East London Quigney",
-    "Gqeberha Summerstrand",
-    "Johannesburg Rosebank",
-    "Kimberley Beaconsfield",
-    "Nelspruit West",
-    "Polokwane Bendor",
-    "Pretoria Hatfield",
-    "Rustenburg Waterfall",
-  ],
+  CLINIC_LABELS,
   (i) => 40 + Math.sin(i / 2) * 25 + i * 2,
 );
 
@@ -201,3 +212,46 @@ export const REFERENCES_THREE: readonly ReferenceValue[] = [
   // constant from another fixture breaks silently when that one is re-tuned.
   { id: "deploy", time: new Date(EPOCH + 16 * DAY_MS), label: "Deploy 4.2.0" },
 ];
+
+/* -------------------------------------------------------------------------- */
+/* Ranked categorical bars (ADR-0013)                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ranked categories arrive in the caller's OWN descending order — nothing in the
+ * library sorts them (ADR-0013 §6), so the fixture is pre-ranked, which is what a
+ * real caller does. The value function is monotonically decreasing so the picture
+ * reads as ranked: a bar longer than the one above it would look like a sort bug.
+ *
+ * Ids are `c0…` rather than the label, deliberately: the ranked shape carries its
+ * own identity independent of display text (ADR-0013 §1), and a picture that
+ * still reads correctly is the evidence that split does not disturb geometry.
+ */
+const ranked = (
+  labels: readonly string[],
+  value: (i: number) => number,
+): RankedCategory[] =>
+  labels.map((label, i) => ({
+    id: `c${i}`,
+    label,
+    value: Math.round(value(i) * 10) / 10,
+  }));
+
+/** The ordinary horizontal case: a handful of short-labelled ranked bars. */
+export const RANKED_DEFAULT: readonly RankedCategory[] = ranked(
+  ["Widgets", "Gadgets", "Sprockets", "Cogs", "Gears", "Bolts"],
+  (i) => 92 - i * 11 - i * i * 0.8,
+);
+
+/**
+ * The SAME twelve clinic names as `dense-label`, drawn horizontally.
+ *
+ * This is the case horizontal orientation exists for (ADR-0013 §5): where the
+ * vertical `dense-label` axis smears twelve long names into an unreadable band,
+ * each label here gets its own row down the category axis. Values are monotonic
+ * so it still reads as ranked.
+ */
+export const RANKED_LONG_LABEL: readonly RankedCategory[] = ranked(
+  CLINIC_LABELS,
+  (i) => 128 - i * 7 - i * i * 0.3,
+);

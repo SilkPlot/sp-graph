@@ -24,6 +24,8 @@ import {
   LEGEND_CASES,
   MULTI_CASES,
   MULTI_CHARTS,
+  RANKED_CASES,
+  RANKED_CHARTS,
   FOCUS_RATIONALE,
   THEME_STATES,
 } from "./acceptance-set";
@@ -41,7 +43,7 @@ test.describe("the acceptance set is explicit", () => {
     expect([...CHARTS]).toEqual(["line", "area", "bar", "scatter"]);
   });
 
-  test("covers exactly the twelve rendering cases", () => {
+  test("covers exactly the fourteen rendering cases", () => {
     expect([...CASES]).toEqual([
       "default",
       "empty",
@@ -55,6 +57,8 @@ test.describe("the acceptance set is explicit", () => {
       "multi-gaps",
       "multi-ref-one",
       "multi-ref-three",
+      "ranked-horizontal",
+      "ranked-long-label",
     ]);
   });
 
@@ -89,6 +93,15 @@ test.describe("the acceptance set is explicit", () => {
     ]);
   });
 
+  test("declares which chart composes the ranked-bar surface", () => {
+    // One, not four. Only `bar` has a `categories` input and an `orientation`
+    // (ADR-0013), so a line or scatter ranked baseline would be a picture of the
+    // wrong chart. Written out here so that the day another chart gains the
+    // surface, this literal has to change in a diff a reviewer sees.
+    expect([...RANKED_CHARTS]).toEqual(["bar"]);
+    expect([...RANKED_CASES]).toEqual(["ranked-horizontal", "ranked-long-label"]);
+  });
+
   test("covers all four scheme x contrast combinations, not three", () => {
     // Scheme and contrast are orthogonal preferences. A three-value list here
     // is the exact shape of the defect that painted light high-contrast values
@@ -114,7 +127,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(180);
+    expect(EXPECTED_TOTALS.all).toBe(188);
   });
 
   test("never lists a surface as excluded AND captures it", () => {

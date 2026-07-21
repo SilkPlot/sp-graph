@@ -51,11 +51,12 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Charts | Line, Area, Bar, Scatter |
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
 | Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps`, `multi-ref-one`, `multi-ref-three` — **Line and Area only** |
+| Ranked-bar cases | `ranked-horizontal`, `ranked-long-label` — **Bar only**, both horizontal |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**180 baselines**: 156 geometry, 8 focus, 12 reduced-motion.
+**188 baselines**: 164 geometry, 12 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -96,6 +97,20 @@ breakage is invisible to a structural assertion:
   under both gap policies. A null coerced to zero draws a spike to the baseline,
   which is a *picture* rather than an error and passes every path-counting
   assertion.
+- **`ranked-horizontal`** — the ranked bar surface (ADR-0013) drawn horizontally.
+  Vertical ranked geometry is already pinned by the single-series `bar` cases —
+  `data` is adapted into `categories` through one render path, so a vertical
+  `categories` picture would be byte-identical and prove nothing new. Horizontal
+  is the geometry no other case reaches.
+- **`ranked-long-label`** — the same twelve clinic names as `dense-label`, drawn
+  one-per-row instead of collided onto a vertical axis. This is the case
+  horizontal orientation exists *for*: it is the documented answer for long
+  category labels, and pinning the identical label set both ways is what shows
+  the vertical smear is a configuration to avoid, not a rendering defect. The
+  fixture sizes `margins.left` to 150px — a horizontal chart's category labels
+  live in the left margin, which the caller sizes (ADR-0013 §5), and the default
+  40px fits only a numeric value. The three names past 20 characters truncate
+  with an ellipsis exactly as §5 specifies.
 
 All four scheme × contrast combinations are captured because
 `prefers-color-scheme` and `prefers-contrast` are **orthogonal** preferences,
@@ -119,16 +134,17 @@ therefore asserts, as tests in their own right:
 1. The chart, case, and theme lists equal literals written out a second time in
    the spec — so a deletion has to be made twice, in a diff a reviewer sees.
    (Comparing an array to itself proves only that it equals itself.)
-2. The frozen totals: 156 geometry / 8 focus / 12 reduced-motion / 176 all.
+2. The frozen totals: 164 geometry / 12 focus / 12 reduced-motion / 188 all.
 3. That the committed baseline files are **exactly** the declared ids — a
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.
 4. That the charts declared to own a focus stop are exactly the charts that
-   render one, **in both directions**. Only `LineChart` composes
-   `ChartKeyboardSurface` today, so only `LineChart` has a `:focus-visible`
-   treatment to pin. The day another chart gains a keyboard composite this check
-   fails and stays failing until a focus baseline is declared for it — rather
-   than an unproven focus indicator shipping under a green run.
+   render one, **in both directions**. `LineChart` and `BarChart` compose
+   `ChartKeyboardSurface` today, so those two have a `:focus-visible` treatment
+   to pin; Area and Scatter do not. The day another chart gains a keyboard
+   composite this check fails and stays failing until a focus baseline is
+   declared for it — rather than an unproven focus indicator shipping under a
+   green run.
 
 ### Deliberately not covered
 
@@ -254,7 +270,7 @@ author's.**
 3. **Check the blast radius.** An intended change usually moves a predictable
    set of baselines. If a stroke-width change also moved the `empty` case, or
    moved dark but not light, the change is not what you think it is.
-4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 176.
+4. **Re-pin narrowly.** `--grep` the affected ids rather than updating all 188.
    A bulk update hides an unrelated regression inside an intended change, and
    that is the specific way a baseline starts tracking a bug.
 5. **Commit the images in their own commit**, with the rationale from step 2 in
@@ -365,6 +381,34 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-07-21 — bar--ranked-horizontal--light, bar--ranked-horizontal--dark, bar--ranked-horizontal--light-high-contrast, bar--ranked-horizontal--dark-high-contrast, bar--ranked-long-label--light, bar--ranked-long-label--dark, bar--ranked-long-label--light-high-contrast, bar--ranked-long-label--dark-high-contrast
+
+- **Why:** NEW baselines, not re-pins. Ranked categorical bars (ADR-0013) ship a
+  horizontal orientation and the `categories` input, and neither had a pinned
+  picture — `ranked-horizontal` is the rotated geometry the four vertical bar
+  cases never exercise, and `ranked-long-label` draws the same twelve clinic
+  names as `dense-label` one-per-row, the documented answer for long labels.
+  Nothing existing moved — verified with `git diff --cached --name-status`: 8
+  added, 0 modified, 0 deleted.
+- **Inspected by:** Claude Code (claude-opus-4-8) # 6 of 8 opened — both cases in
+  `light` and `dark`, plus `ranked-horizontal--light-high-contrast` and
+  `ranked-long-label--dark-high-contrast`. Horizontal bars run left-to-right,
+  ranked descending, category labels down the left, and the three clinic names
+  past 20 characters truncate with an ellipsis. The two NOT opened
+  (`ranked-horizontal--dark-high-contrast`, `ranked-long-label--light-high-contrast`)
+  differ from an inspected sibling only in palette.
+- **Accepted by:** Adam Claassens, on merge
+
+**The `ranked-long-label` fixture sizes `margins.left` to 150px, and that is the
+point of the case.** A horizontal chart's category labels live in the left margin
+where a vertical chart's value axis sits, and the default 40px fits only a numeric
+value — so the caller sizes it (ADR-0013 §5, amended in this phase). The first
+capture of this case, before the margin was set, clipped every label
+(`"Aberdeen Clinic"` → `"n Clinic"`); the structural tests could not see it
+because they assert bar geometry with short labels. Opening the image caught it.
+Auto-measuring the margin from label width is rejected on the same determinism
+grounds §5 gives for measured-width truncation.
 
 ### 2026-07-20 — bar--focus--light, bar--focus--dark, bar--focus--light-high-contrast, bar--focus--dark-high-contrast
 
