@@ -98,6 +98,21 @@ describe("navigate-a-time-series example", () => {
     expect(after, "ctrl+wheel did not narrow the domain").toBeLessThan(90);
   });
 
+  it("recovers with the pointer alone: toolbar Zoom in narrows, Reset restores", async () => {
+    // The finding this answers: a pointer-only visitor who zoomed had no
+    // discoverable way back. The toolbar is that way back, wired through
+    // onViewportCommands — so this test never touches the keyboard.
+    const { getByRole, container } = render(() => <NavigateExample />);
+    getByRole("button", { name: "Zoom in" }).click();
+    await nextFrame();
+    await nextFrame();
+    expect(rowCounts(container)[0]).toBeLessThan(90);
+    getByRole("button", { name: "Reset" }).click();
+    await nextFrame();
+    await nextFrame();
+    expect(rowCounts(container)[0]).toBe(90);
+  });
+
   it("zooms from the keyboard with + and restores with 0", async () => {
     const { container } = render(() => <NavigateExample />);
     const surface = surfaceOf(container);
@@ -127,6 +142,15 @@ describe("range-control example", () => {
       "the start handle did not move",
     ).not.toBe(valueBefore);
     expect(rowCounts(container)[0]).toBeLessThanOrEqual(before as number);
+  });
+
+  it("Reset range restores the full extent in the controlled pattern", async () => {
+    const { getByRole, container } = render(() => <RangeControlExample />);
+    const mounted = rowCounts(container)[0];
+    expect(mounted).toBeLessThan(120); // opens on a 30-day window
+    getByRole("button", { name: "Reset range" }).click();
+    await nextFrame();
+    expect(rowCounts(container)[0]).toBe(120);
   });
 
   it("a brush on the chart moves the control's window", async () => {
@@ -165,6 +189,20 @@ describe("linked-dashboard example", () => {
     expect(after[2], "the pinned section moved — isolation broke").toBe(
       sectionBefore,
     );
+  });
+
+  it("Reset selection recovers every linked member with one pointer click", async () => {
+    const { getByRole, container } = render(() => <LinkedDashboardExample />);
+    drag(surfaceOf(container), 80, 240);
+    await nextFrame();
+    await nextFrame();
+    expect(rowCounts(container)[0]).toBeLessThan(60);
+    getByRole("button", { name: "Reset selection" }).click();
+    await nextFrame();
+    await nextFrame();
+    const after = rowCounts(container);
+    expect(after[0], "brushed member did not recover").toBe(60);
+    expect(after[1], "linked member did not recover").toBe(60);
   });
 
   it("keyboard parity: Shift+arrow on a member drives the shared selection too", async () => {
