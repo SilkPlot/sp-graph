@@ -179,6 +179,13 @@ arrived at.
   as the single authority, ≥24px targets, and an optional off-by-default density
   slot. A view-and-input adapter, never a second viewport authority. Extends
   ADR-0014 and ADR-0011.
+- [ADR-0020 — Dashboard-linked drag selection](adr-0020-dashboard-linked-selection.md):
+  a drag or keypress on one chart sets the dashboard's shared dynamic selection and
+  every unsectioned member follows (precedence section > dynamic > global). Adds
+  `dynamic`/`setDynamic` to the dashboard, routes a member's gestures to
+  `setDynamic` through a separate linked viewport (display path untouched), keeps a
+  section isolated, clears on a global-range change, and announces once on settle.
+  Completes ADR-0007's dynamic scope; extends ADR-0014 and ADR-0018.
 
 ## Migrations
 

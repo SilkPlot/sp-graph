@@ -33,6 +33,7 @@ import {
 import { useDashboardSection, useDashboardTime, type Viewport } from "@silkplot/solid";
 import {
   createScopeViewport,
+  dashboardMemberViewport,
   dataExtentMs,
   type ChartViewportProps,
 } from "./viewport-scope";
@@ -183,11 +184,15 @@ export function createMultiSeriesScope<M = unknown>(
     () => normalizeReferences(spec.references?.(), { onIssue: spec.onIssue }).references,
   );
 
+  // An unsectioned dashboard member's gestures drive the shared dynamic selection
+  // (dashboard-linked selection); a sectioned or standalone chart drives its own viewport.
+  const viewport = dashboardMemberViewport(dashboard, section, domain, sv.viewport);
+
   return {
     all,
     visible,
     drawn,
-    viewport: sv.viewport,
+    viewport,
     references,
     xScale: (range) => {
       // Navigable: the x domain IS the viewport interval (standalone, opted in).

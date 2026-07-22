@@ -232,8 +232,10 @@ describe("A chart handed a resolution nothing supplies yet", () => {
   const provide = (domain: EffectiveDomain, data: TimePoint[]) => {
     const time: DashboardTime = {
       global: () => ({ scope: "global", start: T0, end: T0 + 30 * DAY }),
+      dynamic: () => undefined,
       resolve: () => domain,
       setRange: () => {},
+      setDynamic: () => {},
     };
     return render(() => (
       <DashboardTimeContext.Provider value={time}>
@@ -296,8 +298,10 @@ describe("A chart handed a resolution nothing supplies yet", () => {
   it("can suppress the announcement without suppressing the drawn message", () => {
     const time: DashboardTime = {
       global: () => ({ scope: "global", start: T0, end: T0 + DAY }),
+      dynamic: () => undefined,
       resolve: () => ({ kind: "empty", reason: "disjoint" }),
       setRange: () => {},
+      setDynamic: () => {},
     };
     const { container } = render(() => (
       <DashboardTimeContext.Provider value={time}>

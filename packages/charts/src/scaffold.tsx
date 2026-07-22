@@ -41,7 +41,12 @@ import {
   type ViewportCommands,
 } from "@silkplot/solid";
 import type { TimePoint } from "./types";
-import { createScopeViewport, dataExtentMs, type ChartViewportProps } from "./viewport-scope";
+import {
+  createScopeViewport,
+  dashboardMemberViewport,
+  dataExtentMs,
+  type ChartViewportProps,
+} from "./viewport-scope";
 
 /**
  * The layout and presentation props every chart in this package accepts, with
@@ -540,10 +545,16 @@ export function createTimeSeriesScope(
     });
   });
 
+  // The viewport the chart's GESTURES drive. An unsectioned dashboard member
+  // drives the shared dynamic selection (dashboard-linked selection); a sectioned member (isolated)
+  // and a standalone chart drive their own viewport. `dashboard`/`section` are
+  // context presence — stable for this chart's life — so the choice is made once.
+  const viewport = dashboardMemberViewport(dashboard, section, domain, sv.viewport);
+
   return {
     yData,
     visible,
-    viewport: sv.viewport,
+    viewport,
     xScale: (range) => {
       // Navigable: the x domain IS the viewport interval.
       if (sv.navigable()) {

@@ -958,6 +958,22 @@ const PROBES = [
     observed: "≥1 failure: a window resize listener is added on mount",
     messagePattern: /toContain|resize/,
   },
+  {
+    id: "dashboard-drag-sets-dynamic",
+    file: "packages/charts/src/viewport-scope.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "inside a dashboard, a member's gestures drive the SHARED dynamic selection: every commit " +
+      "flows out through `setDynamic`, so a drag or keypress on one chart moves every unsectioned " +
+      "member (dashboard-linked selection). Drop that route and a drag changes nothing but the chart it is on.",
+    anchor: "onVisibleDomainChange: (domain) => spec.setDynamic(domain),",
+    mutation: "onVisibleDomainChange: () => {},",
+    failingIn: ["packages/charts/test/dashboard-linked-selection.test.tsx"],
+    minFailures: 2,
+    observed: "≥2 failures: the drag and the keyboard no longer move the shared selection",
+    messagePattern: /expected/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
