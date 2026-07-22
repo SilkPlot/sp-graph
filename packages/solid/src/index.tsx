@@ -55,6 +55,8 @@ export type {
   ViewportGestures,
   ViewportGesturesSpec,
 } from "./createViewportGestures";
+export { RangeControl, COARSE_STEP_FRACTION, FINE_STEP_FRACTION } from "./RangeControl";
+export type { RangeControlProps } from "./RangeControl";
 
 export { ChartKeyboardSurface, SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 export { Legend, MIN_TARGET_PX } from "./Legend";

@@ -172,6 +172,13 @@ arrived at.
   keys), the four capture opt-in props (all default off), the live brush rectangle
   with `Escape`-to-cancel, and autoscale becoming visible on y. Implements
   ADR-0014 §5/§6/§7.
+- [ADR-0019 — The accessible range control](adr-0019-accessible-range-control.md):
+  a visible, touch-usable 1-D navigator over the viewport — the dual-thumb pattern
+  (start handle, end handle, and a window body, each `role="slider"`), its keyboard
+  (fine/coarse steps, `Home`/`End` to a thumb's limit, `0` reset), controlled props
+  as the single authority, ≥24px targets, and an optional off-by-default density
+  slot. A view-and-input adapter, never a second viewport authority. Extends
+  ADR-0014 and ADR-0011.
 
 ## Migrations
 
