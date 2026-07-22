@@ -7,11 +7,61 @@
  * theme's font tokens are CHART sizes (10–16px axis labels), not a page scale,
  * and stretching them into one would misrepresent what that package is for.
  *
- * No web fonts. A documentation site that blocks first paint on a font request
- * fails the project's own performance stance on its front page.
+ * Web fonts, on one condition. An earlier version of this file said "no web
+ * fonts" because a site that blocks first paint on a font request fails the
+ * project's own performance stance. The RULE is superseded — the identity uses
+ * Space Grotesk (display), Geist (body), and Geist Mono (code) — but its
+ * REASON survives as a constraint: the three faces are self-hosted latin
+ * subsets (~75KB total, no third-party request), preloaded, and declared
+ * `font-display: swap`, so text always paints immediately in the fallback
+ * stack and first paint never waits on a font. See docs/design-language.md.
  */
 
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Geist;
+  src: url("/fonts/geist-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/geist-mono-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* The identity's type stacks. The custom faces lead; the system stacks they
+   * previously were remain as the swap-period fallbacks. */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* The design-language hue field and glass material (docs/design-language.md).
+   * Glass is presentation, never information: under a reduced-transparency or
+   * high-contrast preference the same variables resolve to opaque surfaces, so
+   * consumers style against the token and degrade for free. */
+  --sp-brand-violet: #8b5cf6;
+  --sp-brand-cyan: #38bdf8;
+  --sp-brand-teal: #2dd4bf;
+  --sp-brand-pink: #e879f9;
+  --glass-bg: rgba(255, 255, 255, 0.055);
+  --glass-edge: rgba(255, 255, 255, 0.14);
+  --glass-blur: 22px;
+  --glass-radius: 24px;
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+
   --page-max: 62rem;
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
@@ -33,7 +83,7 @@ body {
   padding: 0;
   background: var(--sp-color-surface);
   color: var(--sp-color-text);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   font-size: var(--text-md);
   line-height: 1.65;
   -webkit-text-size-adjust: 100%;
@@ -41,7 +91,23 @@ body {
 
 code,
 pre {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+}
+
+@media (prefers-contrast: more), (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: var(--sp-color-surface);
+    --glass-edge: var(--sp-color-axis);
+    --glass-blur: 0px;
+    --glass-highlight: none;
+  }
 }
 
 :not(pre) > code {
@@ -326,7 +392,7 @@ thead th {
   padding: var(--sp-space-md) var(--sp-space-lg);
   background: color-mix(in srgb, var(--sp-color-grid) 45%, transparent);
   border-bottom: 1px solid var(--rule);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--sp-color-muted);
 }
