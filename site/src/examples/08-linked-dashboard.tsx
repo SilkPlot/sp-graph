@@ -22,11 +22,27 @@ const FIXED_WEEK: TimeInterval = { start: days(21), end: days(28) };
 const fmt = (d: Date): string =>
   d.toLocaleDateString("en", { month: "short", day: "numeric" });
 
+// The pinned week, as its own named piece: a section is isolation made
+// visible, so it reads best with a name. A selection on the charts above
+// never moves it.
+const ReferenceWeek: Component = () => (
+  <DashboardSection window={FIXED_WEEK} label="Reference week">
+    <LineChart
+      data={requests}
+      height={160}
+      stroke={seriesColorToken(4)}
+      title="Reference week (isolated)"
+      summary="The same request series pinned to one fixed week; a selection on the charts above does not move it."
+      table={{ columns: ["Day", "Requests"] }}
+      pointLabel={(d) => `${fmt(d.t)}, ${d.y} requests`}
+    />
+  </DashboardSection>
+);
+
 // Drag on either of the first two charts and BOTH follow: an unsectioned
 // member's gestures drive the dashboard's shared dynamic selection, not a
-// private viewport. The third chart sits in a section pinned to one week, so
-// it deliberately ignores the selection — that isolation is the point of
-// sections.
+// private viewport. The pinned reference week deliberately ignores the
+// selection — that isolation is the point of sections.
 const Example: Component = () => {
   // A member's reset flows out through the shared selection, so one button
   // recovers the whole dashboard — the pinned section never moved anyway.
@@ -63,17 +79,7 @@ const Example: Component = () => {
         table={{ columns: ["Day", "Errors"] }}
         pointLabel={(d) => `${fmt(d.t)}, ${d.y} errors`}
       />
-      <DashboardSection window={FIXED_WEEK} label="Reference week">
-        <LineChart
-          data={requests}
-          height={160}
-          stroke={seriesColorToken(4)}
-          title="Reference week (isolated)"
-          summary="The same request series pinned to one fixed week; a selection on the charts above does not move it."
-          table={{ columns: ["Day", "Requests"] }}
-          pointLabel={(d) => `${fmt(d.t)}, ${d.y} requests`}
-        />
-      </DashboardSection>
+      <ReferenceWeek />
       <fieldset class="viewport-toolbar">
         <legend class="viewport-toolbar__legend">Dashboard selection</legend>
         <button type="button" class="sp-focusable" onClick={() => commands()?.reset()}>Reset selection</button>
