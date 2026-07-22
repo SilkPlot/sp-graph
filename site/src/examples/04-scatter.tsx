@@ -1,4 +1,4 @@
-import { ScatterChart, type XYPoint } from "@silkplot/charts";
+import { ScatterChart, seriesColorToken, type XYPoint } from "@silkplot/charts";
 import type { Component } from "solid-js";
 
 // Scatter uses the "extent" y-domain policy: there is no baseline to honour, so
@@ -15,6 +15,7 @@ const cloud: XYPoint[] = Array.from({ length: 40 }, (_, i) => ({
 const Example: Component = () => (
   <ScatterChart
     data={cloud}
+    fill={seriesColorToken(6)}
     height={260}
     title="Response time against load"
     summary="Forty samples trending upward, with visible spread at every load level."

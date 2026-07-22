@@ -1,4 +1,4 @@
-import { LineChart, type TimePoint } from "@silkplot/charts";
+import { LineChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { TimeInterval } from "@silkplot/core";
 import { RangeControl } from "@silkplot/solid";
 import { createSignal, type Component } from "solid-js";
@@ -32,6 +32,7 @@ const Example: Component = () => {
     <div>
       <LineChart
         data={sessions}
+        stroke={seriesColorToken(2)}
         height={240}
         brushSelect
         wheelZoom

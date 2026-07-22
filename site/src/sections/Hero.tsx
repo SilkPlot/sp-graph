@@ -18,7 +18,7 @@ import logoUrl from "../../../brand/logo.svg?url";
 import markUrl from "../../../brand/mark.svg?url";
 import { ThemeSwitcher } from "../components/ThemeSwitcher";
 import { REPO_URL, repoFile } from "../content";
-import LiveLineChart from "../examples/01-line";
+import LiveNavigate from "../examples/06-navigate";
 
 const FEATURE_REQUEST_URL = `${REPO_URL}/issues/new/choose`;
 
@@ -51,10 +51,10 @@ export const Hero: Component = () => (
     </div>
 
     <div class="hero__demo panel">
-      <LiveLineChart />
+      <LiveNavigate />
       <p class="hero__demo-caption">
-        This chart is live — rendered by the library on this page, not a
-        screenshot.
+        Live, not a screenshot — zoom with Ctrl/Cmd+wheel, drag to brush,
+        or press + − 0 with the chart focused.
       </p>
     </div>
 

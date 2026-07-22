@@ -1,4 +1,4 @@
-import { AreaChart, type TimePoint } from "@silkplot/charts";
+import { AreaChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { Component } from "solid-js";
 
 // An area is drawn FROM a zero baseline, so its y-domain always contains zero.
@@ -15,6 +15,8 @@ const balance: TimePoint[] = [
 const Example: Component = () => (
   <AreaChart
     data={balance}
+    stroke={seriesColorToken(2)}
+    fill={seriesColorToken(2)}
     height={260}
     title="Daily net balance"
     summary="The balance dips below zero midweek and recovers to 17 by Saturday."

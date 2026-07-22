@@ -1,4 +1,4 @@
-import { BarChart, type CategoryPoint } from "@silkplot/charts";
+import { BarChart, seriesColorToken, type CategoryPoint } from "@silkplot/charts";
 import type { Component } from "solid-js";
 
 const perDay: CategoryPoint[] = [
@@ -12,6 +12,7 @@ const perDay: CategoryPoint[] = [
 const Example: Component = () => (
   <BarChart
     data={perDay}
+    fill={seriesColorToken(4)}
     height={260}
     title="Net change by weekday"
     summary="Four positive days and one negative, Wednesday, at minus six."
