@@ -63,6 +63,21 @@ const TITLES: Record<string, { title: string; blurb: string }> = {
     title: "Theming",
     blurb: "Forcing a colour scheme on a subtree, and reading a series' redundant channels.",
   },
+  "./06-navigate.tsx": {
+    title: "Navigate a time series",
+    blurb:
+      "Zoom with Ctrl/Cmd+wheel or pinch, drag to brush an interval, or use the keyboard — + and - zoom, Shift+arrows pan, a autoscales, 0 resets. Every gesture has a keyboard equivalent.",
+  },
+  "./07-range-control.tsx": {
+    title: "Range control",
+    blurb:
+      "The visible, touch-usable navigator over the same viewport. One signal wires the chart and the control, so a brush on the chart moves the band and the handles move the chart — no second authority.",
+  },
+  "./08-linked-dashboard.tsx": {
+    title: "Linked dashboard",
+    blurb:
+      "Drag on either top chart and both follow — a member's gestures set the dashboard's shared selection. The pinned reference week deliberately ignores it; isolation is what sections are for.",
+  },
 };
 
 export interface DocExample {
