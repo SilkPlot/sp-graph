@@ -1,4 +1,4 @@
-import { LineChart, type TimePoint } from "@silkplot/charts";
+import { LineChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { Component } from "solid-js";
 
 const bookings: TimePoint[] = [
@@ -13,6 +13,7 @@ const bookings: TimePoint[] = [
 const Example: Component = () => (
   <LineChart
     data={bookings}
+    stroke={seriesColorToken(0)}
     height={260}
     title="Weekly bookings"
     summary="Bookings rose from 31 on Monday to 61 on Saturday, dipping once midweek."

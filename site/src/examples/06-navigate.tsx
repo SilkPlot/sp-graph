@@ -1,4 +1,4 @@
-import { LineChart, type TimePoint } from "@silkplot/charts";
+import { LineChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { Component } from "solid-js";
 
 // Ninety days, deterministic — a drifting baseline with a weekly rhythm, so
@@ -13,6 +13,7 @@ const latency: TimePoint[] = Array.from({ length: 90 }, (_, i) => ({
 const Example: Component = () => (
   <LineChart
     data={latency}
+    stroke={seriesColorToken(1)}
     height={280}
     wheelZoom
     pinchZoom

@@ -353,12 +353,23 @@ main,
 
 .button {
   display: inline-block;
-  padding: 0.6em 1.2em;
-  border-radius: var(--sp-radius-md);
-  background: var(--sp-color-text);
-  color: var(--sp-color-surface);
+  padding: 0.65em 1.3em;
+  border-radius: 999px;
+  /* The identity gradient is allowed here: a primary action is an identity
+     moment, not data. Text is the fixed dark ink in BOTH schemes because the
+     gradient does not change with the scheme. Computed against the stops, the
+     worst case is the violet end at ≈4.6:1 — above the 4.5:1 floor for this
+     text size, with the cyan and teal stops far higher. If the ink or a stop
+     changes, recompute; do not trust this comment. */
+  background: linear-gradient(
+    100deg,
+    var(--sp-brand-violet),
+    var(--sp-brand-cyan) 55%,
+    var(--sp-brand-teal)
+  );
+  color: #0a0c11;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 650;
   font-size: var(--text-sm);
 }
 
@@ -463,13 +474,33 @@ main,
    twice, and `<pre>` cannot be named at all). A bare `section` rule would give
    every one of them page-section padding and a rule line. */
 main > section {
-  padding-block: clamp(2rem, 6vw, 3.5rem);
-  border-bottom: 1px solid var(--rule);
-  scroll-margin-top: 4.5rem;
+  /* The glass recipe WITHOUT backdrop-filter: the hue-field blobs behind the
+     page are already gaussian-blurred, so a translucent panel over them reads
+     as glass at zero per-frame compositing cost. Live backdrop blur is
+     reserved for the small, layered surfaces (nav, hero demo) — a page that
+     sells smoothness does not spend blur on eight full-width sections. */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-highlight);
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  margin-block: var(--sp-space-xl);
+  scroll-margin-top: 5rem;
 }
 
-main > section:last-of-type {
-  border-bottom: 0;
+main > section > h2::before {
+  content: "";
+  display: block;
+  width: 2.75rem;
+  height: 3px;
+  border-radius: 2px;
+  margin-bottom: 0.7rem;
+  background: linear-gradient(
+    90deg,
+    var(--sp-brand-violet),
+    var(--sp-brand-cyan) 55%,
+    var(--sp-brand-teal)
+  );
 }
 
 h2 {

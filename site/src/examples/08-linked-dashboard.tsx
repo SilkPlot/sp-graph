@@ -1,4 +1,4 @@
-import { AreaChart, LineChart, type TimePoint } from "@silkplot/charts";
+import { AreaChart, LineChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { TimeInterval } from "@silkplot/core";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
 import type { Component } from "solid-js";
@@ -38,6 +38,7 @@ const Example: Component = () => (
       <LineChart
         data={requests}
         height={190}
+        stroke={seriesColorToken(4)}
         brushSelect
         wheelZoom
         title="Requests per day"
@@ -47,6 +48,8 @@ const Example: Component = () => (
       />
       <AreaChart
         data={errors}
+        stroke={seriesColorToken(5)}
+        fill={seriesColorToken(5)}
         height={190}
         brushSelect
         wheelZoom
@@ -59,6 +62,7 @@ const Example: Component = () => (
         <LineChart
           data={requests}
           height={160}
+          stroke={seriesColorToken(4)}
           title="Reference week (isolated)"
           summary="The same request series pinned to one fixed week; a selection on the charts above does not move it."
           table={{ columns: ["Day", "Requests"] }}
