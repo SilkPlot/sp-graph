@@ -942,6 +942,22 @@ const PROBES = [
     observed: "1 failure: the start handle moves past end − minSpan",
     messagePattern: /expected/,
   },
+  {
+    id: "no-per-chart-window-listener",
+    file: "packages/solid/src/createViewportGestures.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a chart adds NO global `window` listener — the rect is measured on `pointerenter`, so 48 " +
+      "mounted charts do not stack 192 listeners that all fire on every scroll (responsive containers). " +
+      "Restore a `window` resize listener and every chart leaks one.",
+    anchor: 'surface?.addEventListener("pointerenter", refreshRect, { passive: true });',
+    mutation: 'window.addEventListener("resize", refreshRect, { passive: true });',
+    failingIn: ["packages/charts/test/responsive-containers.test.tsx"],
+    minFailures: 1,
+    observed: "≥1 failure: a window resize listener is added on mount",
+    messagePattern: /toContain|resize/,
+  },
 ];
 
 // ---------------------------------------------------------------------------

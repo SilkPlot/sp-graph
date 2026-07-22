@@ -320,6 +320,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
               aria-hidden="true"
               style={{ position: "absolute", inset: "0" }}
               ref={attachSurface}
+              onPointerEnter={insp.onPointerEnter}
               onPointerMove={insp.onPointerMove}
               onPointerLeave={insp.onPointerLeave}
             />
@@ -338,6 +339,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           // ternary `ref` is NOT invoked by Solid's ref compilation, which is how
           // the rect silently went uncached and hover resolved nothing.
           ref={attachSurface}
+          onPointerEnter={insp.onPointerEnter}
           onPointerMove={insp.onPointerMove}
           onPointerLeave={insp.onPointerLeave}
           beforeKeyDown={props.viewportGestures?.onKeyDown}

@@ -36,7 +36,9 @@
  *
  * A wheel handler converts the pointer against a CACHED rect, coalesces every
  * notch in a frame into ONE `zoomAround`, and reads no layout per event. The rect
- * is cached on mount and invalidated on resize and ancestor scroll. The wheel
+ * is measured once per interaction — on `pointerenter`, and on a `pointerdown`
+ * that a touch may reach without an enter — NOT on a `window` resize/scroll
+ * listener, so many mounted charts add no global listeners (responsive containers). The wheel
  * listener is `{ passive: false }` because a captured zoom must `preventDefault`;
  * it is the only non-passive listener. Everything is attached in `onMount` and
  * removed in `onCleanup`, so a server render reaches none of it.
@@ -285,7 +287,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     // brush the first pointer had started.
     if ((spec.pinchZoom?.() ?? false) && activePointers.size === 2) {
       if (brushing) endBrush();
-      if (rect === undefined) refreshRect();
+      refreshRect(); // a touch may skip pointerenter, so measure at the gesture start
       pinching = true;
       pinchLastGap = pinchGap();
       event.preventDefault();
@@ -297,7 +299,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     // A primary-button press only — a right-click or a secondary touch is not a
     // brush, and a second press mid-brush must not restart it.
     if (event.button !== 0 || !event.isPrimary || brushing) return;
-    if (rect === undefined) refreshRect();
+    refreshRect(); // a touch may skip pointerenter, so measure at the gesture start
     brushing = true;
     brushMoved = false;
     brushStartX = innerX(event.clientX);
@@ -376,27 +378,29 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
 
   onMount(() => {
     refreshRect();
+    // The rect is refreshed when the pointer ENTERS the surface — the moment a
+    // wheel-zoom, brush, or pinch can begin — rather than on a `window`
+    // resize/scroll listener, so 48 mounted charts add NO global `window`
+    // listeners (responsive containers). Every zoom/brush anchor is against a rect measured at
+    // most once per interaction, never per event.
+    surface?.addEventListener("pointerenter", refreshRect, { passive: true });
     // The wheel listener is non-passive so a captured zoom can preventDefault. The
-    // rect is invalidated on resize and ANY ancestor scroll, so a wheel event
-    // never reads layout to stay correct. The brush uses pointer capture, so its
-    // move/up listeners sit on the surface and keep firing past the plot edge.
+    // brush uses pointer capture, so its move/up listeners sit on the surface and
+    // keep firing past the plot edge.
     surface?.addEventListener("wheel", onWheel, { passive: false });
     surface?.addEventListener("pointerdown", onPointerDown);
     surface?.addEventListener("pointermove", onPointerMove);
     surface?.addEventListener("pointerup", onPointerUp);
     surface?.addEventListener("pointercancel", onPointerCancel);
-    window.addEventListener("resize", refreshRect, { passive: true });
-    window.addEventListener("scroll", refreshRect, { passive: true, capture: true });
   });
 
   onCleanup(() => {
+    surface?.removeEventListener("pointerenter", refreshRect);
     surface?.removeEventListener("wheel", onWheel);
     surface?.removeEventListener("pointerdown", onPointerDown);
     surface?.removeEventListener("pointermove", onPointerMove);
     surface?.removeEventListener("pointerup", onPointerUp);
     surface?.removeEventListener("pointercancel", onPointerCancel);
-    window.removeEventListener("resize", refreshRect);
-    window.removeEventListener("scroll", refreshRect, { capture: true });
     if (frame !== 0) cancelAnimationFrame(frame);
     endBrush();
   });
