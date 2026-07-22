@@ -66,6 +66,17 @@ jobs:
       - name: Build the documentation site (Vite)
         run: npm run build:site
 
+      # The deploy job below ships THIS artifact — the exact bytes this run
+      # built and the gates proved — never a second build that could diverge.
+      # Uploaded only on a push to main, because that is the only place the
+      # deploy job runs; pull requests get no artifact and no deploy path.
+      - name: Upload the site artifact for deployment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-dist
+          path: site/dist/
+
       # Two failures that are invisible to every other gate here, because the
       # test suite has no opinion about prose and the type checker has none
       # about a URL in a string:
@@ -510,3 +521,56 @@ jobs:
       - name: Audit dev dependencies (reported, accepted findings do not block)
         run: npm run audit:dev
         continue-on-error: true
+
+  deploy:
+    name: Deploy the site (main only, after every gate)
+    # Every job in this workflow must pass first, and only a push to main
+    # deploys — a pull request gets no artifact, no secret, and no deploy
+    # path. The decision this encodes: the artifact the gates proved is the
+    # one that ships, never a second independent build (that is why this is
+    # not Cloudflare's git integration).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, release, visual, baselines, audit]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download the gated site artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: site-dist
+          path: site-dist
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # The token is a repository secret scoped to Pages edits on this one
+      # project — no zone write, no account write (the same posture the
+      # original manual deploys used). The account ID is not a secret.
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 16bc66a5c78b465f9e1909b85012dc04
+        run: npx wrangler@4 pages deploy site-dist --project-name=silkplot --branch=main --commit-hash="$GITHUB_SHA"
+
+      # Read the LIVE site, not the deploy's exit code. The marker is the
+      # hashed bundle filename from the artifact this run deployed, so a stale
+      # cache or a half-propagated deploy fails here instead of reading green.
+      # Propagation lag is real and has been misdiagnosed twice before — hence
+      # the patient retry loop, not a single impatient probe.
+      - name: Verify the live site serves this deployment
+        run: |
+          MARKER=$(ls site-dist/assets/index-*.js | head -1 | xargs basename)
+          echo "expecting bundle: $MARKER"
+          for i in $(seq 1 20); do
+            if curl -fsS https://silkplot.com/ | grep -q "$MARKER"; then
+              echo "live site serves $MARKER"
+              exit 0
+            fi
+            echo "attempt $i: not yet propagated; waiting 15s"
+            sleep 15
+          done
+          echo "::error::live site never served $MARKER after 5 minutes"
+          exit 1
