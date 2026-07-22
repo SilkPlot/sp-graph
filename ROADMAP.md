@@ -41,23 +41,26 @@ On `main` today, proven by CI on every push:
 - Theming: light/dark × standard/high-contrast resolved as four first-class
   combinations, token-driven.
 
-The published packages (`0.2.0-next.1`, 2026-07-19) predate the interaction
-surface above — closing that gap is the current line.
+Everything under **Shipped** is on the registry: **`0.3.0-next.0`**,
+published 2026-07-22 under the `next` dist-tag with provenance.
 
 ## 0.3.0-next
 
-The publish-and-show line, in progress now:
+The publish-and-show line — delivered 2026-07-22:
 
-- Publish everything under **Shipped** as `0.3.0-next.0` on the `next`
-  dist-tag (a minor bump: the time props moved from epoch-ms to `Date`, a
-  breaking 0.x change recorded in
+- `0.3.0-next.0` published (a minor bump: the time props moved from epoch-ms
+  to `Date`, a breaking 0.x change recorded in
   [the migration note](docs/migrations/time-interval-date-0.x.md)).
-- Relaunch the documentation site around live, operable examples of the
+- The documentation site relaunched around live, operable examples of the
   interaction surface — rendered from the same source the repository builds,
   so the site provably shows current code.
 - This roadmap, the feature-request channel, Discussions, and milestones —
   the mechanism you are reading.
 - Continuous deployment of the site from CI, after every gate passes.
+
+What this line deliberately did not claim: performance numbers (still
+unmeasured) and assistive-technology verification (still ahead) — both wait
+on evidence, under **MVP beta** below.
 
 ## MVP beta
 
