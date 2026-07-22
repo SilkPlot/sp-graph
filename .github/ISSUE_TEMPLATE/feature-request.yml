@@ -11,6 +11,11 @@ body:
         solve it with a different API than the one you would sketch, and a
         clearly stated problem survives that; a bare API wish does not.
 
+        Worth thirty seconds first: check
+        [the roadmap](https://github.com/SilkPlot/sp-graph/blob/main/ROADMAP.md)
+        — your request may already be planned, explicitly deferred, or a stated
+        non-goal, and knowing which changes the conversation.
+
         Not sure it is concrete yet? Open-ended directions, comparisons, and
         "have you considered…" conversations belong in
         [Ideas on Discussions](https://github.com/SilkPlot/sp-graph/discussions/categories/ideas)

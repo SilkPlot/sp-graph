@@ -145,35 +145,16 @@ axes with Solid — no `d3-axis` anywhere.
 
 ## Roadmap
 
-These four capability families communicate direction; they are not a strict
-release train. The first Cartesian dashboard MVP combines the completed
-foundation with operational composition, dynamic interaction, accessibility,
-packaging, consumer proof, and a measured density policy. Calendar work remains
-a later product slice.
+Direction lives in one place: **[ROADMAP.md](ROADMAP.md)**. The documentation
+site renders that exact file and the repository's milestones mirror its
+version-line headings, so none of the three can drift apart. It replaced the
+capability-phase narrative that used to live in this section, which had gone
+stale — several items it listed as outstanding (pan, zoom, hit-testing, the
+visible-range control, ranked bars) have long since shipped.
 
-- **Phase 1 — Foundations.** `ChartRoot`, responsive measurement,
-  Cartesian/time scales, continuous and band axes, line/area/bar/scatter marks,
-  gridlines, presentation primitives, theming, and the current test harness are
-  built. The composed charts expose the keyboard model and the active-point
-  cursor; what they do not yet expose is POINTER hit-testing, which is listed as
-  outstanding below.
-- **Phase 2 — Operational Cartesian MVP and interaction.** Multi-series
-  line/area composition, controlled legends, and installable packages are
-  **built**, as are labelled reference overlays on either axis (ADR-0012). Still
-  outstanding: ranked bars, public
-  hit-testing, shared tooltip/cursor state, pan, zoom, visible-range control,
-  reset, responsive recovery, and representative workload qualification.
-  Grouped and stacked bars remain a later evidence-gated extension.
-- **Phase 3 — Deferred calendar and dense views.** The deterministic overlap
-  packer is built in `core`; the calendar time grid and rectangle resolver remain
-  honest stubs. Week/agenda views, drag-resize, heatmaps, and virtualization wait
-  for validated demand and time-semantics evidence. Canvas is selected only when
-  representative profiling shows SVG cannot meet the agreed budget.
-- **Phase 4 — Extras.** Pie/donut and optional hierarchy or force layouts only
-  when real consumers justify them.
-
-Substrate policy: **SVG-first** for dashboards, a **Canvas** data layer where density warrants,
-**WebGL** kept off the initial roadmap.
+Substrate policy is unchanged: **SVG-first** for dashboards, a **Canvas** data
+layer where measured density warrants it, **WebGL** kept off the roadmap until
+a workload demands it.
 
 ---
 
