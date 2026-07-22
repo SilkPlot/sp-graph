@@ -546,9 +546,14 @@ jobs:
         with:
           node-version: 24
 
-      # The token is a repository secret scoped to Pages edits on this one
-      # project — no zone write, no account write (the same posture the
-      # original manual deploys used). The account ID is not a secret.
+      # The token is a repository secret with exactly one permission —
+      # Cloudflare Pages: Edit on the one account — created 2026-07-22 with a
+      # TTL. Cloudflare offers no per-Pages-project token scoping, so
+      # account-level Pages Edit is the narrowest that exists; no zone write,
+      # no account write, no other product. When it expires this job fails on
+      # the deploy step with an auth error: that is a planned renewal, not an
+      # outage — mint the same token again and update the secret. The account
+      # ID below is not a secret.
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
