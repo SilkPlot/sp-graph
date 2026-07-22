@@ -19,6 +19,7 @@ import {
   createDashboardTime,
   type TimeInterval,
 } from "./dashboard-time";
+import { ChartAnnouncer } from "./ChartAnnouncer";
 
 export interface DashboardProps {
   /**
@@ -37,6 +38,14 @@ export interface DashboardProps {
    * would have refused it.
    */
   onIssue?: (issue: TimeScopeIssue) => void;
+  /**
+   * The wording announced once when a drag or keyboard selection SETTLES the
+   * shared dynamic selection (dashboard-linked selection). Receives the new range (`undefined` when
+   * cleared back to the global range). Default: an ISO range, which is honest but
+   * generic — supply domain wording. The announcer coalesces and de-duplicates, so
+   * it speaks once per settled selection, not per pointer move.
+   */
+  announceSelection?: (range: TimeInterval | undefined) => string;
   children?: JSX.Element;
 }
 
@@ -62,9 +71,23 @@ export const Dashboard: ParentComponent<DashboardProps> = (props) => {
     onIssue: (issue) => props.onIssue?.(issue),
   });
 
+  // The settled-selection announcement. `dynamic()` changes once per settled
+  // selection — a brush commits on release, a keyboard step on the press — so the
+  // live region speaks once, not per pointer move. Empty when there is no dynamic
+  // selection, which clears the region rather than removing it.
+  const selectionMessage = createMemo<string>(() => {
+    const d = time.dynamic();
+    const range = d ? { start: new Date(d.start), end: new Date(d.end) } : undefined;
+    if (props.announceSelection) return props.announceSelection(range);
+    return range === undefined
+      ? ""
+      : `Selected ${range.start.toISOString()} to ${range.end.toISOString()}`;
+  });
+
   return (
     <DashboardTimeContext.Provider value={time}>
       {props.children}
+      <ChartAnnouncer channel="selection" message={selectionMessage()} />
     </DashboardTimeContext.Provider>
   );
 };

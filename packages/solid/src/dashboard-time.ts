@@ -14,9 +14,10 @@
  * `<ChartRoot>` is a mistake, whereas a chart outside a dashboard is the ordinary
  * case.
  */
-import { createContext, createMemo, useContext, type Accessor } from "solid-js";
+import { createContext, createMemo, createSignal, useContext, type Accessor } from "solid-js";
 import {
   resolveEffectiveDomain,
+  type DynamicSelection,
   type EffectiveDomain,
   type GlobalRange,
   type SectionScope,
@@ -37,17 +38,25 @@ export interface DashboardTime {
   /** The dashboard's outer bound — ADR-0007's global range. */
   global: Accessor<GlobalRange>;
   /**
-   * Resolve the effective domain for one member.
-   *
-   * Takes the member's own section scope, so the same dashboard state answers
-   * differently for an isolated section than for a plain member. Nothing
-   * supplies a section yet, so every member currently resolves against the
-   * global range; the parameter exists because the resolution belongs here
-   * rather than being re-derived inside each section later.
+   * The shared DYNAMIC SELECTION — the range a drag on one chart sets, which
+   * every unsectioned member follows (ADR-0007's precedence: section > dynamic >
+   * global). `undefined` until something drags; a section with its own scope
+   * ignores it (dashboard-linked selection).
+   */
+  dynamic: Accessor<DynamicSelection | undefined>;
+  /**
+   * Resolve the effective domain for one member, given its section scope. A
+   * sectioned member resolves against its section (isolated from the dynamic
+   * selection); an unsectioned member follows the dynamic selection, falling back
+   * to the global range.
    */
   resolve: (section?: SectionScope) => EffectiveDomain;
-  /** Replace the selected range. */
+  /** Replace the selected global range. Clears the dynamic selection — a fresh
+   *  outer range starts from the whole of it, not a stale drag inside the old one. */
   setRange: (interval: TimeInterval) => void;
+  /** Set (or, with `undefined`, clear) the shared dynamic selection — the drag
+   *  route, and the keyboard route through a member's viewport (dashboard-linked selection). */
+  setDynamic: (interval: TimeInterval | undefined) => void;
 }
 
 export const DashboardTimeContext = createContext<DashboardTime>();
@@ -88,11 +97,16 @@ export function createDashboardTime(spec: DashboardTimeSpec): DashboardTime {
     return { scope: "global", start: start.getTime(), end: end.getTime() };
   });
 
+  // The dynamic selection is dashboard-owned state (not a prop): a drag is a
+  // transient view choice, distinct from the global range an application persists.
+  const [dynamic, setDynamicRaw] = createSignal<DynamicSelection | undefined>();
+
   return {
     global,
+    dynamic,
     resolve: (section) =>
       resolveEffectiveDomain(
-        { global: global(), section },
+        { global: global(), dynamic: dynamic(), section },
         {
           // Never throw from render. The control layer refuses to commit an
           // inverted range — ADR-0007 §5 puts that normalisation at the input
@@ -104,6 +118,17 @@ export function createDashboardTime(spec: DashboardTimeSpec): DashboardTime {
           onIssue: (issue) => spec.onIssue?.(issue),
         },
       ),
-    setRange: (interval) => spec.setInterval(interval),
+    setRange: (interval) => {
+      // A new outer range starts fresh: the old drag selection lived inside the
+      // previous range and would clamp to a stale sliver of the new one.
+      setDynamicRaw(undefined);
+      spec.setInterval(interval);
+    },
+    setDynamic: (interval) =>
+      setDynamicRaw(
+        interval === undefined
+          ? undefined
+          : { scope: "dynamic", start: interval.start.getTime(), end: interval.end.getTime() },
+      ),
   };
 }

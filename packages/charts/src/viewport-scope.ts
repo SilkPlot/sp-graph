@@ -32,12 +32,19 @@
  * identity, and no existing baseline moves.
  */
 import { createMemo, createSignal, onMount, type Accessor } from "solid-js";
-import { createViewport, type Viewport, type ViewportCommands } from "@silkplot/solid";
+import {
+  createViewport,
+  type DashboardTime,
+  type Viewport,
+  type ViewportCommands,
+} from "@silkplot/solid";
 import {
   extentOf,
+  toTimeInterval,
   type EffectiveDomain,
   type MsInterval,
   type NormalizedSeries,
+  type SectionScope,
   type TimeInterval,
   type ViewportCause,
 } from "@silkplot/core";
@@ -155,6 +162,61 @@ export function createScopeViewport<M = unknown>(spec: {
   const interval = createMemo<MsInterval>(() => viewport.visibleMsDomain());
 
   return { viewport, navigable, interval };
+}
+
+/**
+ * The viewport a chart's gestures drive when it is a DASHBOARD MEMBER following
+ * the shared dynamic selection (ADR-0020). It is CONTROLLED by the
+ * member's effective domain and bounded by the global range, and every commit —
+ * a brush, a keyboard pan/zoom, a reset — flows out through `setDynamic`, so a
+ * drag or a keypress on one chart moves the shared selection and every unsectioned
+ * member follows. The chart's DISPLAY still comes from the scope's effective-domain
+ * path; this viewport exists to route input, not to draw.
+ */
+export function createDashboardViewport(spec: {
+  /** The global range, in ms — the outer bound a selection may not widen past. */
+  global: Accessor<MsInterval>;
+  /** The member's current effective domain, in ms — the controlled visible domain. */
+  effective: Accessor<MsInterval>;
+  /** Commit a new (or cleared) dynamic selection. `Date` at the boundary. */
+  setDynamic: (interval: TimeInterval | undefined) => void;
+}): Viewport {
+  return createViewport({
+    fullExtent: spec.global,
+    visibleDomain: () => toTimeInterval(spec.effective()),
+    onVisibleDomainChange: (domain) => spec.setDynamic(domain),
+  });
+}
+
+/**
+ * Choose the viewport a time chart's gestures drive: the shared dynamic selection
+ * when it is an UNSECTIONED dashboard member (dashboard-linked selection), else the chart's own
+ * `fallback` viewport (a sectioned member — isolated — or a standalone chart).
+ * `dashboard`/`section` are context presence, decided once for the chart's life.
+ */
+export function dashboardMemberViewport(
+  dashboard: DashboardTime | undefined,
+  section: Accessor<SectionScope> | undefined,
+  domain: Accessor<EffectiveDomain | undefined>,
+  fallback: Viewport,
+): Viewport {
+  if (dashboard === undefined || section !== undefined) return fallback;
+  const dash = dashboard;
+  const globalMs = (): MsInterval => {
+    const g = dash.global();
+    return { start: g.start, end: g.end };
+  };
+  return createDashboardViewport({
+    global: globalMs,
+    effective: () => {
+      // A member with no section resolves to a range (dynamic ∩ global) or, if a
+      // stale dynamic ever fell disjoint, the whole global range.
+      const s = domain();
+      const bounds = s?.kind === "range" ? s : dash.global();
+      return { start: bounds.start, end: bounds.end };
+    },
+    setDynamic: dash.setDynamic,
+  });
 }
 
 /** The flat viewport props a chart declares, as they arrive on the reactive
