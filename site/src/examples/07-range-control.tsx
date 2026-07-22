@@ -44,6 +44,12 @@ const Example: Component = () => {
         table={{ columns: ["Day", "Sessions"] }}
         pointLabel={(d) => `${fmt(d.t.getTime())}, ${d.y} sessions`}
       />
+      <fieldset class="viewport-toolbar">
+        <legend class="viewport-toolbar__legend">Range controls</legend>
+        {/* Controlled recovery needs no command API: the window is our own
+            signal, so reset is just setting it back to the full extent. */}
+        <button type="button" class="sp-focusable" onClick={() => setVisible(FULL)}>Reset range</button>
+      </fieldset>
       <RangeControl
         fullExtent={FULL}
         visibleDomain={visible()}

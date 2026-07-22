@@ -1,7 +1,7 @@
 import { AreaChart, LineChart, seriesColorToken, type TimePoint } from "@silkplot/charts";
 import type { TimeInterval } from "@silkplot/core";
-import { Dashboard, DashboardSection } from "@silkplot/solid";
-import type { Component } from "solid-js";
+import { Dashboard, DashboardSection, type ViewportCommands } from "@silkplot/solid";
+import { createSignal, type Component } from "solid-js";
 
 const START = Date.UTC(2026, 5, 1);
 const DAY = 86_400_000;
@@ -27,7 +27,11 @@ const fmt = (d: Date): string =>
 // private viewport. The third chart sits in a section pinned to one week, so
 // it deliberately ignores the selection — that isolation is the point of
 // sections.
-const Example: Component = () => (
+const Example: Component = () => {
+  // A member's reset flows out through the shared selection, so one button
+  // recovers the whole dashboard — the pinned section never moved anyway.
+  const [commands, setCommands] = createSignal<ViewportCommands>();
+  return (
   <Dashboard
     defaultRange={RANGE}
     announceSelection={(r) =>
@@ -41,6 +45,7 @@ const Example: Component = () => (
         stroke={seriesColorToken(4)}
         brushSelect
         wheelZoom
+        onViewportCommands={setCommands}
         title="Requests per day"
         summary="Daily request volume across June and July, rising with a weekly cycle."
         table={{ columns: ["Day", "Requests"] }}
@@ -69,8 +74,13 @@ const Example: Component = () => (
           pointLabel={(d) => `${fmt(d.t)}, ${d.y} requests`}
         />
       </DashboardSection>
+      <fieldset class="viewport-toolbar">
+        <legend class="viewport-toolbar__legend">Dashboard selection</legend>
+        <button type="button" class="sp-focusable" onClick={() => commands()?.reset()}>Reset selection</button>
+      </fieldset>
     </div>
   </Dashboard>
-);
+  );
+};
 
 export default Example;
