@@ -20,17 +20,28 @@ import { Examples } from "./sections/Examples";
 import { Accessibility } from "./sections/Accessibility";
 import { Environments } from "./sections/Environments";
 import { Limits } from "./sections/Limits";
+import { Roadmap } from "./sections/Roadmap";
 import { Contribute } from "./sections/Contribute";
+import { REPO_URL } from "./content";
 
 export const App: Component = () => (
   <>
+    {/* The hue field behind the glass — pure decoration, so it is hidden from
+        assistive technology and removed entirely when the design language's
+        glass degrades to opaque surfaces. */}
+    <div class="field" aria-hidden="true">
+      <div class="blob blob--violet" />
+      <div class="blob blob--teal" />
+      <div class="blob blob--cyan" />
+    </div>
+
     {/* First focusable element on the page, and deliberately not hidden with
         `display: none` — that would take it out of the tab order and defeat
         the only thing it is for. */}
     <a class="skip sp-focusable" href="#main">Skip to content</a>
 
-    <Hero />
     <Nav />
+    <Hero />
 
     <main id="main">
       <Install />
@@ -39,13 +50,17 @@ export const App: Component = () => (
       <Accessibility />
       <Environments />
       <Limits />
+      <Roadmap />
       <Contribute />
     </main>
 
     <footer class="footer">
       <p>
         Apache-2.0. Copyright 2026 SilkPlot.{" "}
-        <a href={repoFile("LICENSE")}>Licence</a>.
+        <a href={repoFile("LICENSE")}>Licence</a> ·{" "}
+        <a href="#roadmap">Roadmap</a> ·{" "}
+        <a href={`${REPO_URL}/issues/new/choose`}>Feature requests</a> ·{" "}
+        <a href={`${REPO_URL}/discussions`}>Discussions</a>
       </p>
     </footer>
   </>

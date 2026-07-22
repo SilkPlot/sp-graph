@@ -9,6 +9,16 @@
       content="SilkPlot is an open-source Solid charting library. D3 computes, Solid renders — no second renderer fights Solid for the DOM."
     />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      // Re-apply a saved explicit scheme before first paint, so a dark-choice
+      // visitor never sees a light flash. "System" stores nothing and the
+      // attribute stays off, which is what keeps the page following the OS.
+      try {
+        const t = localStorage.getItem("sp-theme");
+        if (t === "light" || t === "dark")
+          document.documentElement.setAttribute("data-sp-theme", t);
+      } catch {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preload" href="/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin />

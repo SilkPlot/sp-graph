@@ -61,6 +61,7 @@
   --glass-blur: 22px;
   --glass-radius: 24px;
   --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --field-opacity: 0.3;
 
   --page-max: 62rem;
   --text-xs: 0.8125rem;
@@ -101,12 +102,47 @@ h4 {
   font-family: var(--font-display);
 }
 
+/* Light-scheme glass. The defaults above are tuned for the dark register;
+   white-tinted glass and a white edge disappear on a light surface. Same
+   dual-selector pattern the theme uses: the OS preference unless an explicit
+   `data-sp-theme` says otherwise. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-sp-theme="dark"]) {
+    --glass-bg: rgba(16, 20, 31, 0.045);
+    --glass-edge: rgba(16, 20, 31, 0.16);
+    --field-opacity: 0.14;
+  }
+}
+
+:root[data-sp-theme="light"] {
+  --glass-bg: rgba(16, 20, 31, 0.045);
+  --glass-edge: rgba(16, 20, 31, 0.16);
+  --field-opacity: 0.14;
+}
+
 @media (prefers-contrast: more), (prefers-reduced-transparency: reduce) {
   :root {
     --glass-bg: var(--sp-color-surface);
     --glass-edge: var(--sp-color-axis);
     --glass-blur: 0px;
     --glass-highlight: none;
+  }
+
+  /* The hue field exists only to give the glass something to refract. */
+  .field {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -150,8 +186,134 @@ main,
   padding-inline: var(--sp-space-lg);
 }
 
+/* ── The hue field and glass material (docs/design-language.md) ─────────── */
+
+.field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: var(--field-opacity);
+}
+
+.blob--violet {
+  width: 34rem;
+  height: 34rem;
+  left: -8rem;
+  top: -6rem;
+  background: radial-gradient(circle, var(--sp-brand-violet), transparent 70%);
+}
+
+.blob--teal {
+  width: 40rem;
+  height: 40rem;
+  right: -12rem;
+  top: 18rem;
+  background: radial-gradient(circle, var(--sp-brand-teal), transparent 70%);
+}
+
+.blob--cyan {
+  width: 28rem;
+  height: 28rem;
+  left: 30%;
+  bottom: -10rem;
+  background: radial-gradient(circle, var(--sp-brand-cyan), transparent 70%);
+}
+
+.panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--glass-radius);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  box-shadow: var(--glass-highlight);
+  padding: var(--sp-space-xl);
+}
+
 .hero {
-  padding-block: clamp(2.5rem, 8vw, 5rem) var(--sp-space-xl);
+  padding-block: clamp(2.5rem, 7vw, 4.5rem) var(--sp-space-xl);
+  display: grid;
+  gap: var(--sp-space-xl);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+
+  .hero .construction {
+    grid-column: 1 / -1;
+  }
+}
+
+.hero__title img {
+  display: block;
+  width: min(440px, 100%);
+  height: auto;
+}
+
+.hero__demo {
+  min-width: 0;
+}
+
+.hero__demo-caption {
+  margin: var(--sp-space-md) 0 0;
+  font-size: var(--text-xs);
+  color: var(--sp-color-muted);
+  font-family: var(--font-mono);
+}
+
+.construction {
+  border-inline-start: 3px solid var(--sp-brand-violet);
+}
+
+.construction h2 {
+  font-size: var(--text-lg);
+  margin-bottom: var(--sp-space-md);
+}
+
+.construction ul {
+  margin: 0;
+  padding-left: 1.2em;
+  max-width: 60rem;
+}
+
+.construction li + li {
+  margin-top: var(--sp-space-sm);
+}
+
+.construction p {
+  margin: var(--sp-space-md) 0 0;
+}
+
+.prose {
+  max-width: 46rem;
+}
+
+.prose h2,
+.prose h3 {
+  font-size: var(--text-lg);
+  margin: var(--sp-space-xl) 0 var(--sp-space-md);
+}
+
+.prose h4 {
+  font-size: var(--text-md);
+  margin: var(--sp-space-lg) 0 var(--sp-space-sm);
+}
+
+.prose ul {
+  padding-left: 1.2em;
+}
+
+.prose li + li {
+  margin-top: var(--sp-space-sm);
 }
 
 .hero__eyebrow {
@@ -164,10 +326,7 @@ main,
 }
 
 .hero__title {
-  margin: var(--sp-space-sm) 0 0;
-  font-size: var(--text-2xl);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  margin: var(--sp-space-md) 0 0;
 }
 
 .hero__tagline {
@@ -213,20 +372,79 @@ main,
   position: sticky;
   top: 0;
   z-index: 5;
-  background: color-mix(in srgb, var(--sp-color-surface) 92%, transparent);
-  backdrop-filter: blur(8px);
-  border-block: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-space-md) var(--sp-space-lg);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  border-block-end: 1px solid var(--glass-edge);
   padding-block: var(--sp-space-md);
+}
+
+/* Doubled class instead of `!important`: it has to beat `.nav a` and stay
+   honest about how it does it. */
+.nav__brand.nav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--sp-color-text);
+  text-decoration: none;
 }
 
 .nav ul {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sp-space-lg);
+  gap: var(--sp-space-md) var(--sp-space-lg);
   list-style: none;
   margin: 0;
   padding: 0;
   font-size: var(--text-sm);
+}
+
+.switcher {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  margin-inline-start: auto;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+/* Visually hidden, never display:none — the legend is the group's accessible
+   name and must stay in the accessibility tree. Same clip technique the
+   library uses for collapsed data tables. */
+.switcher__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.switcher__btn {
+  border: 0;
+  background: transparent;
+  color: var(--sp-color-muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 0.35em 0.9em;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.switcher__btn[aria-pressed="true"] {
+  background: var(--sp-color-text);
+  color: var(--sp-color-surface);
 }
 
 .nav a {
