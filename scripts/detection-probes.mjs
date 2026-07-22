@@ -926,6 +926,22 @@ const PROBES = [
     observed: "1 failure: y stays pinned after autoscale",
     messagePattern: /close to/,
   },
+  {
+    id: "range-control-min-span",
+    file: "packages/solid/src/RangeControl.tsx",
+    project: "solid",
+    browser: true,
+    breaks:
+      "a range handle cannot cross the other past the minimum span (ADR-0019 §2): the start " +
+      "handle's max is `end − minSpan`. Widen it to the full extent and a handle drags through " +
+      "its neighbour into an inverted, zero-or-negative window.",
+    anchor: 'if (thumb === "start") return { min: full.start, max: visible.end - minSpan };',
+    mutation: 'if (thumb === "start") return { min: full.start, max: full.end };',
+    failingIn: ["packages/solid/test/range-control.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: the start handle moves past end − minSpan",
+    messagePattern: /expected/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
