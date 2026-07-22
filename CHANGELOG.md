@@ -17,7 +17,7 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 Nothing yet beyond the candidate below.
 
-## [0.3.0-next.0] — unreleased candidate
+## [0.3.0-next.0] — 2026-07-22
 
 **The minor bump is deliberate: this release contains a breaking 0.x change.**
 Time is now `Date` at the public boundary — the first entry under **Changed**
