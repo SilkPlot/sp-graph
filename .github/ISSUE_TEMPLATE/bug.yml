@@ -70,12 +70,13 @@ body:
   - type: input
     id: commit
     attributes:
-      label: Commit
+      label: Version or commit
       description: >-
-        The commit SHA you are on. SilkPlot is not published to npm, so there is no
-        version number that identifies your code — a clone from three weeks ago and
-        one from today both call themselves 0.1.0. `git rev-parse --short HEAD`.
-      placeholder: 8d84c7d
+        The published version you installed (`npm ls @silkplot/charts`), or — if
+        you are running from a clone — the commit SHA you are on
+        (`git rev-parse --short HEAD`). One of the two; a prerelease version
+        identifies your code exactly.
+      placeholder: 0.2.0-next.1 or 8d84c7d
     validations:
       required: true
 

@@ -5,12 +5,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        SilkPlot is **not published to npm yet**, so every real integration today
-        starts with a tarball you built yourself. The packages do pack and install
-        correctly — a gate installs them into a project outside the repository on
-        every run — but that gate proves resolution, not ergonomics. The friction
-        you hit is information the maintainers cannot generate by testing the
-        library against itself.
+        SilkPlot is published to npm as an **alpha** under the `next` dist-tag,
+        so a real integration starts from the registry (or from a tarball you
+        built yourself — both count). A gate installs the packed packages into a
+        project outside the repository on every run, but that gate proves
+        resolution, not ergonomics. The friction you hit is information the
+        maintainers cannot generate by testing the library against itself.
 
         This form is for that: the API that did not fit, the build that would not
         resolve, the chart you had to abandon and hand-roll. **A report that ends in
@@ -18,12 +18,14 @@ body:
         somebody stops is the most useful signal there is, and it is the one people
         are least likely to send.
 
-        **Usage questions belong here too.** "Is this the intended pattern?" and
-        "how am I supposed to do X?" are integration feedback: if the answer is not
-        obvious from the documentation, that is a finding about the documentation.
+        **Usage questions go to
+        [Q&A on Discussions](https://github.com/SilkPlot/sp-graph/discussions/categories/q-a)**
+        — "is this the intended pattern?" and "how am I supposed to do X?" get
+        faster answers there, and if the answer turns out not to be in the
+        documentation, that becomes a documentation finding.
 
-        Not a bug report (something behaves incorrectly) and not an accessibility
-        report — both have their own form.
+        Not a bug report (something behaves incorrectly), not an accessibility
+        report, and not a feature request — all three have their own form.
 
   - type: dropdown
     id: kind

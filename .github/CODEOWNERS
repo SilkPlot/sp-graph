@@ -1,0 +1,5 @@
+# The maintainer of record for every path. This is not a review gate — the
+# branch protection here deliberately requires zero approvals (the audit trail
+# and the CI gates are mandatory; a second human is not) — it is the standard,
+# machine-readable statement of who answers for the code.
+* @AdamClaassens

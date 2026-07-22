@@ -1,7 +1,7 @@
-# Blank issues are off because the three forms below ask for the things that
-# decide whether a report is actionable — the package, the commit, and a
-# reproduction. A blank issue reliably arrives without them, and the follow-up
-# round trip costs the reporter more time than the form does.
+# Blank issues are off because the four forms below ask for the things that
+# decide whether a report is actionable — the package, the version or commit,
+# and a reproduction. A blank issue reliably arrives without them, and the
+# follow-up round trip costs the reporter more time than the form does.
 blank_issues_enabled: false
 
 contact_links:
@@ -13,13 +13,16 @@ contact_links:
       form is private between you and the maintainers. See SECURITY.md for scope
       and what to expect.
 
-# There is deliberately NO link to Discussions here.
-#
-# Discussions is not enabled on this repository, and a contact link pointing at
-# a disabled feature is a 404 on the first screen a new contributor sees — the
-# worst possible place for a dead link, and worse than having no question
-# channel at all. Usage questions and "is this the intended pattern?" go to the
-# integration feedback form below, which says so.
-#
-# If Discussions is enabled later, add the link back here rather than leaving
-# questions routed through an issue form.
+  - name: Ask a question or float an idea (Discussions)
+    url: https://github.com/SilkPlot/sp-graph/discussions
+    about: >-
+      Usage questions and "is this the intended pattern?" go to Q&A; open-ended
+      ideas that are not yet a concrete request go to Ideas. A concrete
+      capability you need — described by the problem it solves — belongs in the
+      feature-request form, where it gets structured triage.
+
+# The Discussions link above was added when Discussions was enabled
+# (ADR-0021 in docs/decisions records the reversal and the channel split).
+# An earlier version of this file kept the link out because Discussions was
+# off, and a contact link pointing at a disabled feature is a 404 on a new
+# contributor's first screen.

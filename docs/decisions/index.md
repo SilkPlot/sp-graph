@@ -186,6 +186,12 @@ arrived at.
   `setDynamic` through a separate linked viewport (display path untouched), keeps a
   section isolated, clears on a global-range change, and announces once on settle.
   Completes ADR-0007's dynamic scope; extends ADR-0014 and ADR-0018.
+- [ADR-0021 — The community surface and the public roadmap](adr-0021-community-surface-and-public-roadmap.md):
+  Discussions enabled (reversing the recorded off-decision), a feature-request
+  issue form beside the existing three, issues kept as an inbound channel rather
+  than a planning board, one curated `ROADMAP.md` as the single public roadmap
+  source with the site page and milestones derived from it, milestones named for
+  version lines, and CODEOWNERS naming the maintainer of record.
 
 ## Migrations
 

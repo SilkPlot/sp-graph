@@ -1,0 +1,78 @@
+name: Feature request
+description: A capability SilkPlot does not have and you need — described by the problem it solves, not the API you imagine.
+labels: ["feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for a **concrete, scoped request**: a chart you cannot
+        build, a behaviour you cannot reach, a constraint you cannot express.
+        The problem statement is the part that matters — the maintainers may
+        solve it with a different API than the one you would sketch, and a
+        clearly stated problem survives that; a bare API wish does not.
+
+        Not sure it is concrete yet? Open-ended directions, comparisons, and
+        "have you considered…" conversations belong in
+        [Ideas on Discussions](https://github.com/SilkPlot/sp-graph/discussions/categories/ideas)
+        — a request that starts there can graduate to this form once it has a
+        shape. Something already **behaves incorrectly**? That is the bug form.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Chart types and marks
+        - Interaction — viewport, gestures, keyboard, selection
+        - Dashboards and composition
+        - Theming and appearance
+        - Accessibility
+        - Data — series model, table, CSV export
+        - Packaging, types, or framework integration
+        - Documentation or the website
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >-
+        What you are trying to build and what stops you today. The real product
+        context — "a monitoring dashboard where operators need X" — is what
+        tells us whether and where this fits.
+    validations:
+      required: true
+
+  - type: textarea
+    id: done-looks-like
+    attributes:
+      label: What solved looks like
+      description: >-
+        How you would know this request is satisfied, from where you sit as the
+        library's consumer. Observable behaviour, not implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do instead today
+      description: >-
+        The workaround, the hand-rolled version, or "we dropped the
+        requirement". Where people route around a gap is the best measure of
+        how much the gap costs.
+    validations:
+      required: false
+
+  - type: textarea
+    id: api-sketch
+    attributes:
+      label: API sketch (optional)
+      description: >-
+        If you have a shape in mind, sketch it. Welcome but not binding — the
+        problem above is the required part.
+      render: tsx
+    validations:
+      required: false
