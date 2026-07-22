@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-15 9.5 100 100" role="img" aria-labelledby="sp-mark-title">
+  <title id="sp-mark-title">SilkPlot mark</title>
+  <!--
+    The standalone SilkPlot mark: the S silk-spline from the wordmark, alone.
+    This is the favicon, avatar, and small-size fallback - the full wordmark
+    does not survive 16px, this does. Stroke is heavier than the wordmark's
+    (16 vs 13) so the curve stays legible at favicon sizes.
+  -->
+  <defs>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b5cf6"/><stop offset=".45" stop-color="#e879f9"/><stop offset=".75" stop-color="#38bdf8"/><stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+  </defs>
+  <path d="M62,28 C40,18 14,26 14,44 C14,62 58,60 58,80 C58,98 28,104 8,92"
+        fill="none" stroke="url(#ribbon)" stroke-width="16" stroke-linecap="round"/>
+  <path d="M62,28 C40,18 14,26 14,44 C14,62 58,60 58,80 C58,98 28,104 8,92"
+        fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
