@@ -1,6 +1,6 @@
 {
   "name": "@silkplot/solid",
-  "version": "0.2.0-next.1",
+  "version": "0.3.0-next.0",
   "description": "SilkPlot Solid primitives — ChartRoot, SvgLayer, Axis, createResize. D3 computes, Solid renders.",
   "license": "Apache-2.0",
   "homepage": "https://silkplot.com",
@@ -34,7 +34,7 @@
     "solid-js": "^1.9.14"
   },
   "dependencies": {
-    "@silkplot/core": "0.2.0-next.1"
+    "@silkplot/core": "0.3.0-next.0"
   },
   "devDependencies": {
     "solid-js": "^1.9.14",

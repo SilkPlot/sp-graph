@@ -15,6 +15,15 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
+Nothing yet beyond the candidate below.
+
+## [0.3.0-next.0] — unreleased candidate
+
+**The minor bump is deliberate: this release contains a breaking 0.x change.**
+Time is now `Date` at the public boundary — the first entry under **Changed**
+below, with a [one-line-per-call-site migration](docs/migrations/time-interval-date-0.x.md).
+Everything else is additive: a chart that adds nothing behaves as before.
+
 ### Added
 
 - **Multi-series line and area charts.** `LineChart` and `AreaChart` accept a
@@ -45,7 +54,59 @@ under Unreleased: **a minor bump may contain breaking changes.**
   forms follow the ADR-0008 §6 pattern; the cause-labelled `onVisibleDomainChange`
   does not loop when a controlled caller feeds the domain back; and the authority
   is a data interval, never a pixel transform, so the window survives a resize.
-  Public ADR-0014. Gesture adapters (pan, wheel, pinch, brush) are a later phase.
+  Public ADR-0014.
+
+- **The viewport is wired into the time charts.** `LineChart` and `AreaChart`
+  accept `visibleDomain` / `defaultVisibleDomain` / `minSpan` /
+  `onVisibleDomainChange` / `onViewportCommands`; the visible interval drives
+  the x scale, marks, hit index, and data table, while y stays pinned to the
+  effective-domain data. Default-identical by design: an un-navigated chart
+  tracks its full data, and narrows only once the user actually navigates.
+
+- **Labelled reference overlays** on the composed charts, on either axis, in
+  one `references` array — `{ value }` for a horizontal threshold, `{ time }`
+  for a vertical event marker. References participate in the standalone domain
+  by default (a line drawn nowhere is a silent failure), paint above the marks,
+  stay off the axes, and are always listed in an accessible reference list. In
+  a dashboard, the resolved time scope wins over a reference on the time axis.
+  Public ADR-0012.
+
+- **Ranked categorical bars.** `BarChart` accepts `categories` alongside `data`
+  as a discriminated pair, in vertical and horizontal orientation, with
+  surface-named formatters (`categoryTickFormat` / `valueTickFormat` — an axis
+  letter is not a surface on a chart that rotates) and an `onActivate` seam
+  that hands back the caller's own datum. For long horizontal labels the caller
+  sizes `margins.left`; truncated ticks keep their full text in the table.
+  Public ADR-0013.
+
+- **Composed inspection on all four charts.** An informative chart inspects on
+  pointer hover by default, over the same active-datum state the keyboard
+  writes — crosshair, active-mark emphasis, a `tooltip` render-prop returning
+  JSX, and committed announcements can never describe different points.
+  Renderer-independent lookups ship in `@silkplot/core` (`ActivePoint`,
+  time-bisector, Delaunay scatter, band indexes); `ScatterChart` and
+  `AreaChart` are now focusable keyboard composites. `onActivePointChange` is
+  the change notification; ADR-0013's `onActivate` stays the drill-down commit.
+  Public ADR-0015 and ADR-0016.
+
+- **Viewport gestures, opt-in.** `Ctrl`/`Cmd`+wheel and trackpad-pinch zoom,
+  two-pointer touch pinch, drag-to-brush with a live rectangle and
+  `Escape`-cancel, and full keyboard parity — `+`/`=` and `-` zoom,
+  `Shift`+arrows pan, `a` autoscale (applied to y as well), `0` reset. Plain
+  wheel and plain drag stay with the page, so a scrollable dashboard is never
+  trapped. Public ADR-0018.
+
+- **`<RangeControl>` in `@silkplot/solid`** — the visible, touch-usable
+  navigator over the same viewport: a dual-thumb slider (controlled props, no
+  second authority), keyboard and pointer/touch operable, 24px minimum
+  targets, an optional density slot. Public ADR-0019.
+
+- **Dashboard-linked drag selection.** Inside a dashboard, a drag — or the
+  keyboard equivalent — on one member sets the shared dynamic selection and
+  every unsectioned member follows (precedence: section > dynamic > global); a
+  section stays isolated; changing the global range clears the dynamic
+  selection; the settled selection is announced once. Public ADR-0020,
+  completing ADR-0007's dynamic scope.
 
 ### Changed
 
@@ -65,6 +126,12 @@ under Unreleased: **a minor bump may contain breaking changes.**
   and the marks in `@silkplot/charts` resolve a series' presentation from one
   function. **The names are re-exported from `@silkplot/charts` unchanged**, so
   no import breaks.
+
+- **The library no longer adds any `window` listeners.** Chart inspection and
+  the gesture adapters measure their surface rect once per interaction (on
+  `pointerenter` / touch `pointerdown`) instead of holding per-chart `window`
+  listeners; a zero-size or hidden container emits no non-finite geometry, and
+  the data-domain viewport survives a resize.
 
 - **The documentation site is now <https://silkplot.com>.** `homepage` in all
   six manifests, the README, and the screen-reader protocol point there. The
