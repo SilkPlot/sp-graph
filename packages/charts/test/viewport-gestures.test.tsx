@@ -485,6 +485,52 @@ describe("viewport pinch zoom (opt-in)", () => {
     expect(pointCount(container)).toBeLessThan(5);
   });
 
+  it("ignores a second pointer during a brush when pinch is off", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    // A second finger, with pinch OFF, is not a pinch and must not restart the
+    // brush — the drag in flight carries on.
+    touch(surface, "pointerdown", 2, 250);
+    await nextFrame();
+    expect(brushRect(container)).not.toBeNull();
+    pointer(surface, "pointerup", 300);
+    expect(pointCount(container)).toBeLessThan(5);
+  });
+
+  it("ignores a third finger mid-pinch and resumes on its lift", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} pinchZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    touch(surface, "pointerdown", 1, 180);
+    touch(surface, "pointerdown", 2, 220);
+    // A third finger mid-pinch is ignored (the pinch is already the active
+    // gesture); lifting it leaves the original two, which pinch as before.
+    expect(() => touch(surface, "pointerdown", 3, 260)).not.toThrow();
+    touch(surface, "pointerup", 3, 260);
+    touch(surface, "pointermove", 1, 100);
+    touch(surface, "pointermove", 2, 300);
+    await nextFrame();
+    expect(pointCount(container)).toBeLessThan(5);
+  });
+
+  it("skips a degenerate pinch with the fingers at one x", async () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={DATA} pinchZoom width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
+    ));
+    const surface = surfaceOf(container);
+    // Both fingers on the same x — a zero gap divides nothing and commits no zoom.
+    touch(surface, "pointerdown", 1, 200);
+    touch(surface, "pointerdown", 2, 200);
+    touch(surface, "pointermove", 1, 200);
+    await nextFrame();
+    expect(pointCount(container)).toBe(5);
+  });
+
   it("does nothing when pinchZoom is off (the default)", async () => {
     const { container } = render(() => (
       <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
