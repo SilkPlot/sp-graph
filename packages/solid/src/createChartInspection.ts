@@ -57,6 +57,9 @@ export interface ChartInspection<D> {
   keyboard: ChartKeyboard;
   /** The resolved active record, or `undefined` when nothing is active. */
   point: Accessor<ActivePoint<D> | undefined>;
+  /** Pointer-enter handler — refreshes the cached surface rect as a hover begins,
+   *  so no `window` listener is needed to keep it fresh. */
+  onPointerEnter: () => void;
   /** Pointer-move handler for the interaction surface — rAF-coalesced. */
   onPointerMove: (event: PointerEvent) => void;
   /** Pointer-leave handler — clears the active point. */
@@ -125,6 +128,16 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     active.set(ordinal < 0 ? undefined : ordinal);
   };
 
+  // The rect is refreshed when the pointer ENTERS the surface — the one moment a
+  // hover begins — rather than on a `window` resize/scroll listener. A chart that
+  // resized or scrolled while the pointer was elsewhere gets a fresh rect the next
+  // time it is hovered, and 48 mounted charts add NO global `window` listeners
+  // (responsive containers). The read stays out of the per-move path: it is one measurement per
+  // hover, not one per event.
+  const onPointerEnter = (): void => {
+    refreshRect();
+  };
+
   const onPointerMove = (event: PointerEvent): void => {
     if (spec.pointer !== undefined && !spec.pointer()) return;
     clientX = event.clientX;
@@ -143,19 +156,11 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     surface = element;
   };
 
-  onMount(() => {
-    refreshRect();
-    // The rect is invalidated on resize and on ANY ancestor scroll (capture), so
-    // a pointer event never has to read layout to stay correct.
-    window.addEventListener("resize", refreshRect, { passive: true });
-    window.addEventListener("scroll", refreshRect, { passive: true, capture: true });
-  });
-
+  // Seed a measurement at mount so a first hover before any enter still resolves.
+  onMount(refreshRect);
   onCleanup(() => {
-    window.removeEventListener("resize", refreshRect);
-    window.removeEventListener("scroll", refreshRect, { capture: true });
     if (frame !== 0) cancelAnimationFrame(frame);
   });
 
-  return { active, keyboard, point, onPointerMove, onPointerLeave, setSurface };
+  return { active, keyboard, point, onPointerEnter, onPointerMove, onPointerLeave, setSurface };
 }

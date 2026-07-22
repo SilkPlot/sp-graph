@@ -90,6 +90,7 @@ export interface ChartKeyboardSurfaceProps {
    * container rect once rather than reading layout on every event.
    */
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
+  onPointerEnter?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerMove?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerLeave?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerDown?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
@@ -138,6 +139,7 @@ export const ChartKeyboardSurface: Component<ChartKeyboardSurfaceProps> = (props
         if (props.beforeKeyDown?.(event)) return;
         kb().onKeyDown(event);
       }}
+      onPointerEnter={props.onPointerEnter}
       onPointerMove={props.onPointerMove}
       onPointerLeave={props.onPointerLeave}
       onPointerDown={props.onPointerDown}
