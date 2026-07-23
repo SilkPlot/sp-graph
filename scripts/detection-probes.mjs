@@ -261,7 +261,17 @@ const PROBES = [
     ],
     minFailures: 1,
     observed: "1 failure: the axis renders the full label, so no ellipsis is present",
-    messagePattern: /to contain/,
+    // The missing token itself — the ellipsis the truncation policy appends —
+    // rather than `/to contain/`, which named only the assertion kind.
+    //
+    // The EXPECTED side deliberately, and here for a second reason beyond the
+    // machine-difference rule: Vitest ELIDES the actual side of this message
+    // (`expected 'Spend by programmeProgramme spend, in…' to contain '…'`), so
+    // the untruncated label that is the defect's real output never reaches the
+    // text at all. `'…'` is the test-authored constant and is identical
+    // everywhere. Note the elision character is itself `…` — the pattern quotes
+    // it so it cannot match that accident.
+    messagePattern: /to contain '…'/,
   },
   {
     id: "ranked-identity-by-label",
@@ -387,8 +397,17 @@ const PROBES = [
     mutation: "    void 0; /* probe: clear removed */",
     failingIn: ["packages/charts/test/inspection-hover.test.tsx"],
     minFailures: 1,
-    observed: "1 failure, “expected <g …> to be null” (the crosshair after leave)",
-    messagePattern: /to be null/,
+    observed: "1 failure, “expected SVGGElement{} to be null” (the crosshair after leave)",
+    // The phantom the defect leaves behind: a crosshair `<g>` still in the tree
+    // after the pointer left, where the contract requires nothing. `/to be null/`
+    // named the assertion kind and this suite makes fourteen null assertions.
+    //
+    // The actual side is used here rather than the expected one, and that is not
+    // a departure from the machine-difference rule: `SVGGElement{}` is the DOM
+    // interface name, not measured geometry, so it is identical on every runner.
+    // The expected side is the bare `null` that every one of those fourteen
+    // shares.
+    messagePattern: /SVGGElement\{\} to be null/,
   },
   {
     id: "active-point-shared-attime",
@@ -858,8 +877,20 @@ const PROBES = [
     mutation: "if (false && intervalsEqualMs(next, visibleMsDomain())) return;",
     failingIn: ["packages/solid/test/viewport.test.tsx"],
     minFailures: 1,
-    observed: "1 failure: onVisibleDomainChange fires for a command that changed nothing",
-    messagePattern: /to not be called|not be called/,
+    observed:
+      "1 failure: onVisibleDomainChange fires TWICE for two commands that changed nothing",
+    // The count is the defect. The echo-guard test issues exactly two no-op
+    // commands — `pan(0)` and a `setVisibleDomain` to the domain already shown —
+    // so removing the guard fires twice where the contract fires never. The old
+    // pattern said only that some mock was not supposed to be called, which is
+    // the shape of three other assertions in this same suite.
+    //
+    // A call count is not rendered geometry: it is a behavioural fact of the
+    // mutation with no layout in it, so it is stable across runners. If a
+    // command is added to that test the count moves and this probe reports NOT
+    // DETECTED — which is the intended sensitivity, and the fix is to change
+    // both in the same diff.
+    messagePattern: /to not be called at all, but actually been called 2 times/,
   },
   {
     id: "viewport-interval-authority",
@@ -1056,7 +1087,16 @@ const PROBES = [
     failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
     minFailures: 1,
     observed: "1 failure: y stays pinned after autoscale",
-    messagePattern: /close to/,
+    // Autoscale's whole claim in one number: the visible maximum is fitted to
+    // the TOP of the plot, y = 0. `/close to/` matched any float comparison in a
+    // suite full of them.
+    //
+    // The EXPECTED side only. The actual is the pinned position the defect
+    // leaves the point at (120 on this workstation) — a path coordinate read
+    // back out of rendered geometry, which is exactly the value class that
+    // passed locally and failed on a CI runner during the first tightening. Zero
+    // is the plot origin and no runner disagrees about it.
+    messagePattern: /to be close to \+0/,
   },
   {
     id: "range-control-min-span",
@@ -1639,15 +1679,18 @@ const TAUTOLOGY_EXEMPT = new Map([
     "asserts a throw; a swallowed throw carries no value to match on",
   ],
 
-  // TEMPORARY, 2026-07-23 — the second tier, still to do. These match an
-  // assertion KIND rather than a value: narrower than `/expected/`, which is why
-  // they were not in the first batch, but still not discriminating. Each needs
-  // rewriting from real `--messages` output. Entries are deleted as they are
-  // done; this section must reach empty.
-  ["bar-label-truncation", "second tier — not yet rewritten"],
-  ["inspection-clear-on-leave", "second tier — not yet rewritten"],
-  ["viewport-duplicate-callback", "second tier — not yet rewritten"],
-  ["gesture-autoscale-y-override", "second tier — not yet rewritten"],
+  // The TEMPORARY second tier is GONE, 2026-07-23. Four probes matched an
+  // assertion KIND rather than a value — `/to contain/`, `/to be null/`,
+  // `/not be called/`, `/close to/` — and each was rewritten from real
+  // `--messages` output to name what the defect produced: the missing ellipsis,
+  // the phantom `SVGGElement`, the two spurious callback fires, the fitted
+  // y = 0. All four verified as still detecting after the rewrite.
+  //
+  // Nothing temporary belongs in this map. An entry is a decision that no
+  // discriminating pattern can be written, not a note that one has not been
+  // written yet — the second tier sat here for exactly as long as it took to do,
+  // and a permanent-looking allowlist is where deferred work goes to be
+  // forgotten.
 ]);
 
 {
