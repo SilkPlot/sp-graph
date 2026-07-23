@@ -906,7 +906,13 @@ const PROBES = [
     // A mark positioned over the FULL extent where the window should have placed
     // it — the pixel gap is the defect. `/close to/` matched any approximate
     // assertion in three suites.
-    messagePattern: /96\.296 to be close to 14\.814/,
+    // Matches the EXPECTED side — a threshold the test author wrote — not the
+    // computed pixel. The first attempt at this pattern used the actual value
+    // (`96.296 to be close to 14.814`), passed locally, and failed on a CI
+    // runner: rendered geometry is not identical across environments, so an
+    // actual-side pattern is over-fitted to one machine. See the note on
+    // TAUTOLOGY_CORPUS about which side of an assertion is stable.
+    messagePattern: /to be greater than 700/,
   },
   {
     id: "viewport-marks-filtered",
@@ -1032,7 +1038,10 @@ const PROBES = [
     // A click committing where the min-travel guard should have refused it.
     // Value-bearing, so an unrelated red in either declared suite no longer
     // satisfies this probe.
-    messagePattern: /expected \+0 to be 5\b/,
+    // The EXPECTED selection the test declares, not the actual one the defect
+    // produced. Same lesson as viewport-xscale-narrowed: an actual-side pattern
+    // passed locally and failed on CI.
+    messagePattern: /to deeply equal \[ 10, 10, 3 \]/,
   },
   {
     id: "gesture-autoscale-y-override",
@@ -1566,6 +1575,22 @@ if ((dirty.stdout ?? "").trim() !== "") {
  * The rule for writing a pattern that passes this: name what the DEFECT
  * PRODUCED — the wrong value, the missing token, the type error — not the
  * assertion that noticed it.
+ *
+ * ---------------------------------------------------------------------------
+ * And prefer the EXPECTED side of the assertion to the ACTUAL side
+ * ---------------------------------------------------------------------------
+ * A Vitest message carries both: "expected <actual> to be <expected>". The
+ * expected side is a constant the test author wrote and is identical on every
+ * machine. The actual side is whatever the code produced, and where that is
+ * rendered geometry it is NOT stable across environments — different runners
+ * lay out at different sizes and produce different pixels.
+ *
+ * Two of the patterns written on 2026-07-23 matched actual-side pixel values,
+ * passed locally, and failed on a CI runner within minutes. That is the
+ * over-fitting failure the backlog item predicted: a pattern narrow enough to
+ * discriminate is often narrow enough to break on something unrelated. Anchoring
+ * to the expected side keeps the discrimination and drops the fragility, because
+ * the assertion it names is still the assertion the defect trips.
  */
 //
 // The VALUES in these are deliberately improbable. A pattern that hard-codes the
