@@ -538,83 +538,98 @@ async function runWorkload(browser, workload, query = "") {
 /* Verdicts                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Apply the protocol's acceptance criteria to one workload's numbers.
- *
- * Every criterion returns a named verdict rather than a boolean, so the report
- * says WHICH one failed. A single pass/fail on a run this size is a result
- * nobody can act on.
- */
-function judge(result) {
-  const verdicts = [];
-  const interactive = Object.entries(result.passes).filter(([name]) => name !== "idle");
-
-  for (const [name, s] of interactive) {
-    // An inert pass is not a fast pass. Judging its p95 would enter a number for
-    // a gesture that never reached the chart, so the p95 and dropped-frame
-    // criteria are replaced by the one criterion that actually failed.
-    if (s.inert) {
-      verdicts.push({
+/** Frame criteria for one interaction pass. */
+function judgePass(name, s) {
+  // An inert pass is not a fast pass. Judging its p95 would enter a number for a
+  // gesture that never reached the chart, so the p95 and dropped-frame criteria
+  // are replaced by the one criterion that actually failed.
+  if (s.inert) {
+    return [
+      {
         criterion: `gesture reached the chart · ${name}`,
         pass: false,
         detail: "0 viewport and 0 active commits — this pass measured an idle page",
-      });
-      continue;
-    }
-    verdicts.push({
+      },
+    ];
+  }
+  return [
+    {
       criterion: `p95 <= ${ACCEPTANCE_MS.toFixed(1)}ms · ${name}`,
       pass: s.p95 <= ACCEPTANCE_MS,
       detail: `p95 ${s.p95}ms`,
-    });
-    verdicts.push({
+    },
+    {
       criterion: `dropped <= ${DROPPED_GATE_PCT}% · ${name}`,
       pass: s.pctDropped <= DROPPED_GATE_PCT,
       detail: `${s.pctDropped}% over 33.4ms`,
-    });
-  }
+    },
+  ];
+}
 
-  if (result.invariants) {
-    verdicts.push({
-      criterion: "at most one commit per frame",
-      pass: result.invariants.maxCommitsPerFrame <= 1,
-      detail: `worst frame carried ${result.invariants.maxCommitsPerFrame} commit(s) across ${result.invariants.commits}`,
-    });
-    verdicts.push({
-      criterion: "no synchronous layout read inside a pointer event",
-      pass: result.invariants.layoutReadsInPointer === 0,
-      detail: `${result.invariants.layoutReadsInPointer} read(s) across ${result.invariants.pointerEvents} pointer events`,
-    });
-  }
+/** The interaction-contract criteria, which frames alone cannot answer. */
+const judgeInvariants = (inv) =>
+  inv
+    ? [
+        {
+          criterion: "at most one commit per frame",
+          pass: inv.maxCommitsPerFrame <= 1,
+          detail: `worst frame carried ${inv.maxCommitsPerFrame} commit(s) across ${inv.commits}`,
+        },
+        {
+          criterion: "no synchronous layout read inside a pointer event",
+          pass: inv.layoutReadsInPointer === 0,
+          detail: `${inv.layoutReadsInPointer} read(s) across ${inv.pointerEvents} pointer events`,
+        },
+      ]
+    : [];
 
-  for (const [name, s] of Object.entries(result.settles)) {
-    if (!s || typeof s.p95 !== "number") continue;
-    // The protocol gates the 20,000-value replacement and the 48-chart resize at
-    // 1s p95. Reveal and unmount are recorded, not gated — no target was frozen
-    // for them, and inventing one here would be this script deciding a number
-    // the protocol deliberately left to the results.
-    const gated =
-      (result.workload === "w-a" && name === "replace") ||
-      (result.workload === "w-c" && name === "resize");
-    if (!gated) continue;
-    // A trigger that changed nothing is not a fast settle. Scoring its p95 would
-    // enter a passing number for work that never happened — which is exactly how
-    // the 48-chart resize first reported 0.1ms and passed a 1-second gate.
-    if (s.samples === 0) {
-      verdicts.push({
-        criterion: `${name} actually changed the page`,
-        pass: false,
-        detail: `${s.noChange} trigger(s) mutated nothing within the settle window`,
-      });
-      continue;
-    }
-    verdicts.push({
-      criterion: `${name} settles within ${SETTLE_GATE_MS}ms p95`,
-      pass: s.p95 <= SETTLE_GATE_MS && s.noChange === 0,
-      detail: `p95 ${s.p95}ms over ${s.samples} samples${s.noChange ? `, ${s.noChange} with NO CHANGE` : ""}`,
-    });
-  }
+/**
+ * Whether the protocol froze a settle target for this one.
+ *
+ * Only the 20,000-value replacement and the 48-chart resize are gated, at 1s
+ * p95. Reveal and unmount are RECORDED, not gated — no target was frozen for
+ * them, and inventing one here would be this script deciding a number the
+ * protocol deliberately left to the results.
+ */
+const settleIsGated = (workload, name) =>
+  (workload === "w-a" && name === "replace") || (workload === "w-c" && name === "resize");
 
-  return verdicts;
+/** Settle criteria for one gated trigger. */
+function judgeSettle(name, s) {
+  // A trigger that changed nothing is not a fast settle. Scoring its p95 would
+  // enter a passing number for work that never happened — which is exactly how
+  // the 48-chart resize first reported 0.1ms and passed a 1-second gate.
+  if (s.samples === 0) {
+    return {
+      criterion: `${name} actually changed the page`,
+      pass: false,
+      detail: `${s.noChange} trigger(s) mutated nothing within the settle window`,
+    };
+  }
+  return {
+    criterion: `${name} settles within ${SETTLE_GATE_MS}ms p95`,
+    pass: s.p95 <= SETTLE_GATE_MS && s.noChange === 0,
+    detail: `p95 ${s.p95}ms over ${s.samples} samples${s.noChange ? `, ${s.noChange} with NO CHANGE` : ""}`,
+  };
+}
+
+/**
+ * Apply the protocol's acceptance criteria to one workload's numbers.
+ *
+ * Every criterion returns a NAMED verdict rather than a boolean, so the report
+ * says which one failed. A single pass/fail on a run this size is a result
+ * nobody can act on.
+ */
+function judge(result) {
+  return [
+    ...Object.entries(result.passes)
+      .filter(([name]) => name !== "idle")
+      .flatMap(([name, s]) => judgePass(name, s)),
+    ...judgeInvariants(result.invariants),
+    ...Object.entries(result.settles)
+      .filter(([name, s]) => s && typeof s.p95 === "number" && settleIsGated(result.workload, name))
+      .map(([name, s]) => judgeSettle(name, s)),
+  ];
 }
 
 /* -------------------------------------------------------------------------- */
