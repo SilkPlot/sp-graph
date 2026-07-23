@@ -99,6 +99,12 @@ const EXEMPT = new Map([
       "test/visual/tsconfig.json rather than pulling in a node type surface. " +
       BUILD_CONFIG_REASON,
   ],
+  [
+    "test/perf/vite.config.ts",
+    "needs node builtins (`node:url`), same as the visual harness's. Excluded by " +
+      "name in test/perf/tsconfig.json rather than pulling in a node type surface. " +
+      BUILD_CONFIG_REASON,
+  ],
   ["vitest.config.ts", BUILD_CONFIG_REASON],
   ["playwright.visual.config.ts", BUILD_CONFIG_REASON],
   ["playground/vite.config.ts", BUILD_CONFIG_REASON],

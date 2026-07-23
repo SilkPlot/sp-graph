@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SilkPlot — performance workload</title>
+    <style>
+      /*
+        As little page as possible. Every rule here removes something that would
+        otherwise be measured as though it were the chart:
+
+        - no page margin or max-width, so the surface geometry is the container's
+          and not a centring rule's;
+        - a named font family for the same reason the visual fixture pins one —
+          `system-ui` resolves differently per machine, and text layout is part
+          of an axis's frame cost;
+        - `contain` is deliberately NOT set. It would make the numbers better and
+          they would be the numbers of a page no consumer writes.
+      */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--sp-color-surface, #ffffff);
+        color: var(--sp-color-text, #000000);
+        font-family: "DejaVu Sans", sans-serif;
+        font-synthesis: none;
+      }
+      /* The measured container. Width is driven by the harness for the resize passes. */
+      #surface {
+        width: 1100px;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      .deck {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      /*
+        `min-width: 0` is load-bearing, not tidying.
+
+        A grid item defaults to `min-width: auto`, which is its MIN-CONTENT
+        width, and a rendered chart's min-content is the pixel width of the SVG
+        it currently holds. So the deck cannot shrink below the width its charts
+        already are: narrowing the container from 1100px to 720px moved the grid
+        to 704px while all forty-eight chart hosts stayed at 356px and simply
+        overflowed it.
+
+        That was found by the resize settle reporting that NOTHING mutated —
+        which was true, and correct, and would have been recorded as a
+        sub-millisecond 48-chart resize if the settle instrument had been willing
+        to call a no-op fast. The same grid trap cost this repository 383px of
+        horizontal scroll on the public site once already.
+      */
+      .deck > * {
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

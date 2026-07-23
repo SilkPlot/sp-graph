@@ -28,6 +28,9 @@ npm run typecheck   # tsc -b, plus the test/ directories via tsconfig.test.json
 npm test            # vitest — node for core/theme, real chromium for solid/charts
 npm run dev         # launches the playground (Vite + Solid)
 npm run perf:hover  # frame-budget measurement; needs `npm run dev` running
+
+npm run dev:perf        # serves the four performance workload pages
+npm run perf:workload   # drives them; needs `npm run dev:perf` running
 ```
 
 `npm test` downloads a Chromium via Playwright on first run. `tsc -b` is incremental — run
@@ -122,6 +125,38 @@ checks has gone wrong before:
 
 `probe:detection` runs several full suites and is deliberately not on the per-push path. Run
 it after any substantial refactor of tests or the code they cover.
+
+### The performance harnesses
+
+Two, and neither is a CI step, because a frame number is only meaningful against a named
+machine under stated conditions — and a CI runner is neither.
+
+| Command | What it measures |
+|---|---|
+| `npm run perf:hover` | One chart, one pointer sweep. Small and quick; a smoke test for the frame timer more than a workload |
+| `npm run perf:workload` | The four dense workloads — 4x5,000 points, 22 series + 3 references, 48 mounted charts, and 86,400 one-second timestamps — through every interaction, settle, heap, and density reading |
+
+Both refuse to report a number they cannot stand behind, and the refusals are the point:
+
+- **The +30ms control** proves the frame timer can see a slow frame. If adding 30ms of
+  deliberate work per frame does not move the distribution against the idle baseline, the
+  run **aborts** rather than printing a reassuring figure.
+- **The index-rebuild mutation** (workload harness only) proves the *workload* is dense
+  enough to detect the regression it is meant to detect. If forcing a full index rebuild
+  inside every pointer event still fits the budget, the clean result is reported as
+  **NON-DISCRIMINATING**, not as a pass.
+- **Commit counters** bracket every interaction pass. A gesture that silently fails to
+  reach the chart produces a flawless frame distribution, because an idle page is fast —
+  so a pass that commits nothing is marked **INERT** and cannot pass.
+- **Settle times require an actual DOM change.** A trigger that mutates nothing reports
+  `NO CHANGE` rather than 0ms. The 48-chart resize reported 0.1ms on the first run of this
+  harness, and it was correct: nothing had resized.
+
+Each workload runs twice by default, with the derived accessible data table and with
+caller-supplied empty rows (`--table derived|none|both`). The table is a real DOM row per
+instant and it narrows with the visible domain, so it is rebuilt on every viewport commit;
+running both is what separates the chart's cost from the alternative's instead of reporting
+one as the other.
 
 ### Running Codacy locally
 

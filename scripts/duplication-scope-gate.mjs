@@ -46,6 +46,14 @@ const TEST_ROOTS = [
   /^playground\/test\//,
   /^site\/test\//,
   /^test\/visual\//,
+  // The performance harness, on the same footing as the visual one: its workload
+  // page, its instruments, and its decimation candidates are all part of a
+  // measuring apparatus rather than shipped code. Note that until this entry
+  // existed the gate PASSED over `test/perf/` — it simply did not consider those
+  // files test files, so it reported "all present in every exclusion list" while
+  // Codacy went on measuring them. A gate whose scope silently excludes the thing
+  // you just added is the same failure it was written to catch.
+  /^test\/perf\//,
 ];
 
 /**
