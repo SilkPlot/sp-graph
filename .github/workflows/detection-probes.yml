@@ -29,9 +29,31 @@
 #
 # Weekly rather than daily: the probes fail when a suite's coverage regresses,
 # and a regression that lands on Monday is worth catching by Sunday. Daily would
-# spend runner minutes re-proving an unchanged property. Run it by hand
-# (`workflow_dispatch`, or `npm run probe:detection` locally) whenever a suite
-# named in the probe list is touched — that is when the answer can actually change.
+# spend runner minutes re-proving an unchanged property.
+#
+# ---------------------------------------------------------------------------
+# Why a pull-request trigger was added on 2026-07-23
+# ---------------------------------------------------------------------------
+#
+# This file used to say: "run it by hand whenever a suite named in the probe list
+# is touched — that is when the answer can actually change." That is correct
+# about WHEN, and it relied on a person remembering. On 2026-07-23 five probes
+# were found red on `main`, and the mechanism had worked exactly as designed:
+# the weekly run fired on Sunday 2026-07-19 and passed, four phases merged on the
+# Tuesday and Wednesday after it, and the next firing was still days away. Nobody
+# ran it by hand. The blind window is up to seven days wide and four merged
+# phases fit inside it.
+#
+# So it now also runs on pull requests that touch the things that can change the
+# answer: a suite, a mutated source file, or the harness itself. That is the
+# trigger the "run it by hand" sentence was standing in for.
+#
+# This does NOT contradict property 1 above. The probes still do not gate a push:
+# this workflow is deliberately not in the repository's required-checks ruleset,
+# so a slow or red run reports without blocking a merge. Making it required would
+# put ten sequential Vitest runs in front of every merge, which is the thing
+# property 1 refuses — and would also make a genuine coverage regression an
+# emergency rather than a finding.
 #
 # A red run here is not a broken build. It is a suite that has stopped detecting
 # something it used to detect, which is a slower and more expensive problem.
@@ -39,8 +61,21 @@ name: Detection probes
 
 on:
   schedule:
-    # Sundays, 03:00 UTC. Off-peak, and ahead of the working week.
+    # Sundays, 03:00 UTC. Off-peak, and ahead of the working week. Still the
+    # backstop for everything the paths below do not cover.
     - cron: "0 3 * * 0"
+  pull_request:
+    paths:
+      # A suite changing is the single most likely way a probe's claim stops
+      # being true — every one of the five found red on 2026-07-23 was a new
+      # suite that legitimately reddened and was never declared.
+      - "packages/*/test/**"
+      # A source change can move an anchor (which breaks the probe outright) or
+      # widen a defect's blast radius (which makes its declaration stale).
+      - "packages/*/src/**"
+      # The harness itself, and the workflow that runs it.
+      - "scripts/detection-probes.mjs"
+      - ".github/workflows/detection-probes.yml"
   workflow_dispatch:
 
 permissions:
