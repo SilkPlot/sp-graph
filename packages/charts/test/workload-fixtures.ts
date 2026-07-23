@@ -15,6 +15,20 @@
  * representative-performance profiling owns with the 5,000-point case — so a
  * dense-but-small series exercises every code path without turning a correctness
  * run into a benchmark.
+ *
+ * This file is ALSO the frozen data seed for the representative-performance
+ * protocol, which drives the same generators at their dense settings
+ * (`w2History(4, 5000)`, `w1DenseSeries()` + `w1References()`,
+ * `w1DashboardDeck(48)`, `w4Seconds()`) from `test/perf/`. One seed rather than
+ * two: a benchmark measured on a private copy of the data measures a shape
+ * nothing else in this repository has ever rendered, and that copy is free to
+ * drift from the fixture whose correctness is actually proven. The point COUNT
+ * is the caller's argument here, so sharing costs the composition suite nothing
+ * — it keeps passing its own modest numbers.
+ *
+ * Everything here therefore has two audiences, and a change made for one binds
+ * the other: adding a spike to a series changes what a decimation candidate is
+ * scored against, and changing a point count changes what a frame number means.
  */
 import type { RankedCategory, ReferenceValue, Series } from "@silkplot/core";
 
@@ -128,6 +142,31 @@ export const w2History = (seriesCount: number, points: number): Series[] =>
   });
 
 /**
+ * A DIFFERENT `seriesCount` x `points` set, for the complete-replacement case.
+ *
+ * The performance protocol's W-A replacement swaps 20,000 values at once
+ * (4 x 5,000) and measures how long the chart takes to settle. Replacing a
+ * series with ITSELF would settle instantly and measure nothing, so this shifts
+ * both the phase and the amplitude: every point moves, and the y domain moves
+ * with it, so the axis has to recompute rather than only the paths.
+ *
+ * The same shape as `w1ReplacementSeries` — same ids, different values — because
+ * a replacement that also changed identity would measure a remount instead.
+ */
+export const w2Replacement = (seriesCount: number, points: number): Series[] =>
+  Array.from({ length: seriesCount }, (_, s) => {
+    const nullAt = Math.floor(points / 3);
+    return {
+      id: `probe-${s}`,
+      label: `Probe ${s + 1}`,
+      nullPolicy: s % 2 === 0 ? "break" : "connect",
+      data: days(points, (i) => 62 + Math.cos(i / 4.5 + s / 2) * 17 + s * 3).map((d, i) =>
+        points > 4 && i === nullAt ? { ...d, y: null } : d,
+      ),
+    } satisfies Series;
+  });
+
+/**
  * A caller-supplied locale/time-zone tick formatter (the contract requires the
  * caller to own this). Fixed to a non-UTC zone and a non-en-US locale so a test
  * proves the CALLER's choice reaches the axis rather than a library default.
@@ -176,3 +215,70 @@ export const w3Currency = (v: number): string =>
 export const w3Count = (v: number): string =>
   new Intl.NumberFormat("en-ZA", { maximumFractionDigits: 0 }).format(v);
 export const w3Percent = (v: number): string => `${v.toFixed(1)}%`;
+
+/* -------------------------------------------------------------------------- */
+/* W4 — the declared density policy, at one-second resolution                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One full day at one-second resolution — the 86,400-timestamp case the
+ * capability boundary declares a POLICY about rather than support for.
+ *
+ * This generator exists for the representative-performance protocol, not for the
+ * composition suite: at this length the correctness questions are already
+ * answered by the shorter fixtures above, and what is left is entirely a
+ * question of frames and truthfulness under decimation.
+ *
+ * The shape matters as much as the count, because it is what a decimation
+ * candidate can be wrong about:
+ *
+ *   - a slow diurnal swell, which ANY sampling reproduces, so it cannot
+ *     distinguish a good candidate from a careless one;
+ *   - a fast oscillation near the sampling interval, where naive
+ *     every-Nth-point sampling ALIASES — the reconstruction is smooth, plausible,
+ *     and wrong, which is the failure this workload exists to expose;
+ *   - eight isolated one-second SPIKES at fixed indices, far outside the local
+ *     band. A spike is one sample wide, so a candidate that drops it loses a real
+ *     excursion while its own error metric still reads small. Their positions are
+ *     fixed rather than derived, so "did the candidate keep the extremes" is a
+ *     question with one right answer that does not move between runs.
+ *
+ * Closed-form in the index like every fixture here, so 86,400 points are
+ * reproducible without storing them.
+ */
+export const W4_SECOND_COUNT = 86_400;
+
+/** Indices of the deliberate one-second excursions, in a day of seconds. */
+export const W4_SPIKE_INDICES: readonly number[] = [
+  1_800, 9_000, 21_600, 33_333, 43_200, 57_600, 71_111, 84_000,
+];
+
+const SECOND = 1000;
+const W4_SPIKES = new Set(W4_SPIKE_INDICES);
+
+/** The undecimated value at second `i`, as a closed form — the truth a candidate is scored against. */
+export const w4ValueAt = (i: number): number => {
+  const swell = 240 + Math.sin((i / W4_SECOND_COUNT) * Math.PI * 2) * 60;
+  const fast = Math.sin(i / 3.1) * 8 + Math.cos(i / 1.7) * 5;
+  const spike = W4_SPIKES.has(i) ? 180 : 0;
+  return Math.round((swell + fast + spike) * 10) / 10;
+};
+
+/**
+ * `count` seconds from the shared epoch as ONE series — the raw density case.
+ *
+ * One series rather than several: the question here is what a single chart does
+ * with 86,400 points, and multiplying that by a series count would conflate the
+ * density limit with the multi-series limit W-B already measures.
+ */
+export const w4Seconds = (count: number = W4_SECOND_COUNT): Series[] => [
+  {
+    id: "raw",
+    label: "One day at one-second resolution",
+    nullPolicy: "connect",
+    data: Array.from({ length: count }, (_, i) => ({
+      t: new Date(EPOCH + i * SECOND),
+      y: w4ValueAt(i),
+    })),
+  } satisfies Series,
+];

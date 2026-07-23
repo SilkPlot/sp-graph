@@ -269,6 +269,18 @@ engines:
       - "test/visual/app/main.tsx"
       - "test/visual/charts.spec.ts"
       - "test/visual/vite.config.ts"
+      - "test/perf/app/App.tsx"
+      - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadB.tsx"
+      - "test/perf/app/WorkloadC.tsx"
+      - "test/perf/app/WorkloadD.tsx"
+      - "test/perf/app/decimate.ts"
+      - "test/perf/app/instrument.ts"
+      - "test/perf/app/main.tsx"
+      - "test/perf/app/state.ts"
+      - "test/perf/app/table-mode.ts"
+      - "test/perf/app/workloads.ts"
+      - "test/perf/vite.config.ts"
 
   # Cyclomatic complexity — "metric" is Codacy's name for it in this file. The
   # same list, for the same reason: a test that walks a matrix of schemes,
@@ -361,6 +373,18 @@ engines:
       - "test/visual/app/main.tsx"
       - "test/visual/charts.spec.ts"
       - "test/visual/vite.config.ts"
+      - "test/perf/app/App.tsx"
+      - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadB.tsx"
+      - "test/perf/app/WorkloadC.tsx"
+      - "test/perf/app/WorkloadD.tsx"
+      - "test/perf/app/decimate.ts"
+      - "test/perf/app/instrument.ts"
+      - "test/perf/app/main.tsx"
+      - "test/perf/app/state.ts"
+      - "test/perf/app/table-mode.ts"
+      - "test/perf/app/workloads.ts"
+      - "test/perf/vite.config.ts"
   # Lizard, added 2026-07-19 as a TESTABLE hypothesis rather than a guess.
   #
   # `engines.metric.exclude_paths` demonstrably does NOT suppress Lizard: every
@@ -461,6 +485,18 @@ engines:
       - "test/visual/app/main.tsx"
       - "test/visual/charts.spec.ts"
       - "test/visual/vite.config.ts"
+      - "test/perf/app/App.tsx"
+      - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadB.tsx"
+      - "test/perf/app/WorkloadC.tsx"
+      - "test/perf/app/WorkloadD.tsx"
+      - "test/perf/app/decimate.ts"
+      - "test/perf/app/instrument.ts"
+      - "test/perf/app/main.tsx"
+      - "test/perf/app/state.ts"
+      - "test/perf/app/table-mode.ts"
+      - "test/perf/app/workloads.ts"
+      - "test/perf/vite.config.ts"
 
 # ---------------------------------------------------------------------------
 # Excluded paths — generated and vendored output only

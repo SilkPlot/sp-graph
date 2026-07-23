@@ -23,68 +23,36 @@
  * rather than print a reassuring figure.
  */
 import { chromium } from "playwright";
+import {
+  ACCEPTANCE_MS,
+  BUDGET_MS,
+  BINDING_RATE,
+  DURATION_MS,
+  TIMER_TOLERANCE_MS,
+  VIEWPORT,
+  arg,
+  conditionsLine,
+  controlDegraded,
+  row,
+  startBurn,
+  startRecording,
+  stats,
+  stopBurn,
+  stopRecording,
+  sweep,
+} from "./lib/perf.mjs";
 
-const arg = (name, fallback) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i === -1 ? fallback : process.argv[i + 1];
-};
+// The frame timer, the percentile function, the acceptance line, and the control
+// burn all live in `lib/perf.mjs` rather than here, because the workload harness
+// reports numbers into the same appendix as this one. Two copies of a definition
+// that MUST agree is the shape of defect this repository keeps finding.
 
-const URL = arg("url", "http://localhost:5173");
-const SELECTOR = arg("selector", "[data-silkplot-keyboard-surface]");
-const RATE = Number(arg("rate", "4"));
-const BUDGET_MS = 16.7;
-const TIMER_TOLERANCE_MS = 1.0;
-const ACCEPTANCE_MS = BUDGET_MS + TIMER_TOLERANCE_MS;
-const DURATION_MS = 3000;
-
-const stats = (xs) => {
-  const s = [...xs].sort((a, b) => a - b);
-  const at = (q) => s[Math.min(s.length - 1, Math.floor(s.length * q))];
-  return {
-    frames: s.length,
-    p50: +at(0.5).toFixed(2),
-    p95: +at(0.95).toFixed(2),
-    max: +s[s.length - 1].toFixed(2),
-    overBudget: s.filter((d) => d > ACCEPTANCE_MS).length,
-    pctOver: +((s.filter((d) => d > ACCEPTANCE_MS).length / s.length) * 100).toFixed(1),
-  };
-};
-
-const startRecording = (page) =>
-  page.evaluate(() => {
-    globalThis.__frames = [];
-    let last = performance.now();
-    const tick = (now) => {
-      globalThis.__frames.push(now - last);
-      last = now;
-      globalThis.__raf = requestAnimationFrame(tick);
-    };
-    globalThis.__raf = requestAnimationFrame(tick);
-  });
-
-const stopRecording = (page) =>
-  page.evaluate(() => {
-    cancelAnimationFrame(globalThis.__raf);
-    // Drop the first frame: it carries the gap since recording started, not work.
-    return globalThis.__frames.slice(1);
-  });
-
-/** Drive the pointer back and forth across the chart for `ms`. */
-async function sweep(page, box, ms) {
-  const t0 = Date.now();
-  let i = 0;
-  while (Date.now() - t0 < ms) {
-    const phase = (Math.sin(i / 18) + 1) / 2; // 0..1, smooth reversal
-    await page.mouse.move(
-      box.x + 6 + phase * (box.width - 12),
-      box.y + box.height * (0.35 + 0.3 * phase),
-    );
-    i++;
-  }
-}
+const URL = arg(process.argv, "url", "http://localhost:5173");
+const SELECTOR = arg(process.argv, "selector", "[data-silkplot-keyboard-surface]");
+const RATE = Number(arg(process.argv, "rate", String(BINDING_RATE)));
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+const page = await browser.newPage({ viewport: VIEWPORT });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
@@ -130,40 +98,28 @@ await sweep(page, box, DURATION_MS);
 const hover = stats(await stopRecording(page));
 
 // --- control: prove the harness can fail ---
-await page.evaluate(() => {
-  globalThis.__burn = () => {
-    const end = performance.now() + 30;
-    while (performance.now() < end) {
-      /* deliberately block the frame */
-    }
-    globalThis.__burnRaf = requestAnimationFrame(globalThis.__burn);
-  };
-  globalThis.__burnRaf = requestAnimationFrame(globalThis.__burn);
-});
+await startBurn(page);
 await startRecording(page);
 await sweep(page, box, 1200);
 const control = stats(await stopRecording(page));
-await page.evaluate(() => cancelAnimationFrame(globalThis.__burnRaf));
+await stopBurn(page);
 
 await browser.close();
 
-const row = (name, s) =>
-  `${name.padEnd(22)} frames=${String(s.frames).padStart(4)}  p50=${String(s.p50).padStart(6)}ms  p95=${String(s.p95).padStart(6)}ms  max=${String(s.max).padStart(7)}ms  over-budget=${s.pctOver}%`;
-
-console.log(
-  `\nCPU throttle: ${RATE}x · nominal budget: ${BUDGET_MS}ms · harness tolerance: ${TIMER_TOLERANCE_MS.toFixed(1)}ms · acceptance: ${ACCEPTANCE_MS.toFixed(1)}ms · url: ${URL} · selector: ${SELECTOR}`,
-);
+console.log(`\n${conditionsLine(RATE, URL, ` · selector: ${SELECTOR}`)}`);
 console.log(row("idle (no pointer)", idle));
 console.log(row("hover (sweeping)", hover));
 console.log(row("control (+30ms/frame)", control));
 if (errors.length) console.log("page errors:", errors);
 
 // The control must degrade, or the measurement proves nothing.
-const controlDegraded = control.p95 > hover.p95 * 1.5 && control.p95 > ACCEPTANCE_MS;
+// Against IDLE, not against the hover pass: this asks whether the clock moves
+// when work is added, and idle is the only pass with nothing else varying.
+const degraded = controlDegraded(idle, control);
 console.log(
-  `\nharness self-check: control ${controlDegraded ? "DEGRADED as expected — the timer can see a slow frame" : "DID NOT DEGRADE — measurement is not trustworthy"}`,
+  `\nharness self-check: control ${degraded ? "DEGRADED as expected — the timer can see a slow frame" : "DID NOT DEGRADE — measurement is not trustworthy"}`,
 );
-if (!controlDegraded) {
+if (!degraded) {
   console.error("\nABORT: the control pass did not degrade, so a passing hover figure means nothing.");
   process.exit(2);
 }

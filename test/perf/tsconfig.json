@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The performance harness — the workload page under `app/`, the decimation
+  // candidates, and the instruments.
+  //
+  // Structured exactly like `test/visual/tsconfig.json`, and for the reasons
+  // recorded there: nothing here is built or published, the page is served from
+  // source by Vite, and `gate:typecheck-coverage` fails if any authored
+  // TypeScript file escapes a project. That gate is why this file exists
+  // alongside the code rather than after somebody noticed a silent gap — the
+  // visual harness went untypechecked for months and the symptom was sixteen
+  // consecutive Playwright timeouts that read like a rendering regression.
+  //
+  // `types: []` matches every other project here: this repository has no
+  // `@types/node`, deliberately, so the browser packages never acquire node
+  // globals. `vite.config.ts` is the one file that needs them (`node:url`) and
+  // is excluded by name below rather than pulling the whole node type surface in.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": []
+  },
+  // `app/**` plus the frozen fixtures the page imports. The fixtures are ALSO in
+  // `packages/charts/tsconfig.test.json`, and being in two projects is correct
+  // rather than duplicated: each project typechecks the file against its own
+  // settings, and this one would otherwise be typechecking an import it cannot
+  // see.
+  "include": ["app/**/*.ts", "app/**/*.tsx"],
+  "exclude": ["vite.config.ts"]
+}

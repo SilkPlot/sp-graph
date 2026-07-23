@@ -22,7 +22,7 @@
     "build:site": "npm run build --workspace @silkplot/site",
     "dev:site": "npm run dev --workspace @silkplot/site",
     "typecheck": "tsc -b && npm run typecheck:tests && npm run typecheck:docs",
-    "typecheck:tests": "tsc -p packages/core/tsconfig.test.json && tsc -p packages/theme/tsconfig.test.json && tsc -p packages/solid/tsconfig.test.json && tsc -p packages/charts/tsconfig.test.json && tsc -p playground/tsconfig.test.json && tsc -p site/tsconfig.test.json && tsc -p test/visual/tsconfig.json",
+    "typecheck:tests": "tsc -p packages/core/tsconfig.test.json && tsc -p packages/theme/tsconfig.test.json && tsc -p packages/solid/tsconfig.test.json && tsc -p packages/charts/tsconfig.test.json && tsc -p playground/tsconfig.test.json && tsc -p site/tsconfig.test.json && tsc -p test/visual/tsconfig.json && tsc -p test/perf/tsconfig.json",
     "typecheck:docs": "tsc -p docs/examples/tsconfig.json",
     "lint": "biome lint --error-on-warnings .",
     "dev": "npm run dev --workspace playground",
@@ -45,7 +45,9 @@
     "test:watch": "vitest",
     "gate:probe-residue": "node scripts/probe-residue-gate.mjs",
     "prepare": "git config core.hooksPath .githooks",
-    "gate:stated-facts": "node scripts/stated-facts-gate.mjs"
+    "gate:stated-facts": "node scripts/stated-facts-gate.mjs",
+    "dev:perf": "vite --config test/perf/vite.config.ts",
+    "perf:workload": "node scripts/measure-workload-frames.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
