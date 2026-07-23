@@ -197,7 +197,10 @@ const PROBES = [
     ],
     minFailures: 2,
     observed: "2 failures, on the -75-against-0 and ~60-against-0 pixel values",
-    messagePattern: /expected/,
+    // The all-negative series' baseline landing off zero — the single case that
+    // separates `zero-baseline` from `zero-floor`. Every other series makes the
+    // two policies look identical, so this value IS the discrimination.
+    messagePattern: /-75 to be close to \+0/,
   },
   {
     id: "bar-negative-height",
@@ -289,7 +292,9 @@ const PROBES = [
     failingIn: ["packages/core/test/extent.test.ts"],
     minFailures: 9,
     observed: "9 failures, e.g. “expected [ null, null ] to deeply equal [ +0, 1 ]”",
-    messagePattern: /to deeply equal/,
+    // A non-finite value reaching the extent — the defect's own output. The
+    // previous `/to deeply equal/` matched any array assertion in the suite.
+    messagePattern: /expected \[ (?:null|-?Infinity)/,
   },
   {
     id: "time-scope-isolation",
@@ -305,7 +310,9 @@ const PROBES = [
     minFailures: 2,
     observed:
       "2 failures carrying the defect's own instants, e.g. “expected { start: 300 } to deeply equal { start: 600 }”",
-    messagePattern: /to deeply equal/,
+    // The window an ISOLATED section must not have taken. Naming the leaked
+    // interval ties the pattern to the isolation claim.
+    messagePattern: /start: 300, end: 500/,
   },
   {
     id: "active-point-duplicate-time",
@@ -396,7 +403,9 @@ const PROBES = [
     failingIn: ["packages/core/test/active-point.test.ts"],
     minFailures: 1,
     observed: "1 failure, “expected undefined to deeply equal [ 'a', 'b' ]”",
-    messagePattern: /to deeply equal/,
+    // The shared-time series list, gone. The fixture's two series ids ARE the
+    // discriminator: nothing else in this suite asserts that pair.
+    messagePattern: /to deeply equal \[ 'a', 'b' \]/,
   },
   {
     id: "overlap-duplicate-key",
@@ -408,12 +417,17 @@ const PROBES = [
       "which no rendering can express and nothing reports",
     anchor: "        throw new Error(",
     mutation: "        void new Error(",
-    failingIn: [
-      "packages/core/test/overlap.test.ts",
-      "packages/core/test/overlap-identity.test.ts",
-    ],
+    // Narrowed 2026-07-23, and the narrowing is the finding rather than a tidy-up.
+    // This declared `overlap.test.ts` as well, and that suite has not asserted the
+    // duplicate-key throw since the identity cases were split into their own file
+    // — it retains only a header comment mentioning it. The probe went on claiming
+    // a blast radius it did not have, and nothing noticed, because the old
+    // `failingIn` check only forbade failures OUTSIDE the set and never required
+    // each member to contribute one. The completeness check added in the same
+    // change is what surfaced it, on its first exposure to the full set.
+    failingIn: ["packages/core/test/overlap-identity.test.ts"],
     minFailures: 2,
-    observed: "2 failures, “expected [Function] to throw an error”",
+    observed: "2 failures in overlap-identity.test.ts, “expected [Function] to throw an error”",
     messagePattern: /to throw an error/,
   },
   {
@@ -429,7 +443,9 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 4,
     observed: "identity, gap-policy and metadata lookups all miss — “expected undefined to …”",
-    messagePattern: /undefined/,
+    // A series' gap policy read off the wrong series once identity falls back
+    // to the array index. `/undefined/` matched half the suite's messages.
+    messagePattern: /undefined to be 'break'/,
   },
   {
     id: "series-metadata-preserved",
@@ -444,7 +460,9 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 2,
     observed: "2 failures, “expected undefined to deeply equal { serial: 'PA-99120' }”",
-    messagePattern: /to deeply equal/,
+    // The caller's own metadata object, which the defect drops. Naming it means
+    // the probe cannot be satisfied by an unrelated deep-equal failure.
+    messagePattern: /serial: 'PA-99120'/,
   },
   {
     id: "series-no-zero-fill",
@@ -459,7 +477,9 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 3,
     observed: "gaps read as 0 — “expected 0 to be null” and a domain floored at zero",
-    messagePattern: /to be null|to deeply equal/,
+    // A declared null rendered as ZERO — the single outcome the whole series
+    // contract exists to forbid, stated as itself.
+    messagePattern: /expected \+0 to be null/,
   },
   {
     id: "series-finite-domain",
@@ -474,7 +494,10 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 3,
     observed: "domains go non-finite — “expected [ NaN, NaN ] to deeply equal [ +0, 1 ]”",
-    messagePattern: /to deeply equal|to be/,
+    // The induced defect IS a non-finite value reaching the domain, so the
+    // symptom names itself. `/to deeply equal|to be/` matched any assertion in
+    // this suite and proved only that something went red.
+    messagePattern: /NaN/,
   },
   {
     id: "multi-series-palette-stability",
@@ -496,7 +519,9 @@ const PROBES = [
     ],
     minFailures: 1,
     observed: "the hidden series' colour shifts from --sp-cat-1 to --sp-cat-0",
-    messagePattern: /to be|expected/,
+    // A series resolving its NEIGHBOUR's palette slot. Naming the token makes
+    // the pattern about palette identity rather than about something failing.
+    messagePattern: /to contain '--sp-cat-1'/,
   },
   {
     id: "multi-series-ignored-gap",
@@ -518,7 +543,10 @@ const PROBES = [
     ],
     minFailures: 1,
     observed: "connect no longer yields one subpath; a gap reaches the baseline",
-    messagePattern: /expected|to be/,
+    // Two subpaths where a `connect` series must draw one — the gap policy
+    // inverted. Value-specific, so an unrelated red in these suites no longer
+    // satisfies the probe.
+    messagePattern: /expected 2 to be 1\b/,
   },
   {
     id: "multi-series-signed-domain",
@@ -542,7 +570,9 @@ const PROBES = [
     ],
     minFailures: 1,
     observed: "the union-domain test reads a different pixel for the same value",
-    messagePattern: /to be close to|expected/,
+    // The union domain losing its negative half, read off the pixel it puts a
+    // mark on. `/expected/` matched every assertion in two suites.
+    messagePattern: /300 to be close to 270\b/,
   },
   {
     id: "table-format-ignored",
@@ -558,7 +588,12 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 1,
     observed: "formatted cells read as bare numbers",
-    messagePattern: /expected|toEqual/,
+    // The caller's unit suffix. The mutation makes the caller's formatter be
+    // ignored, so the message carries the formatted strings it should have
+    // produced against the raw numbers it did. Deliberately tied to the
+    // fixture's unit token: narrower than the suite, which is the point, and
+    // it breaks loudly if that fixture changes rather than passing vacuously.
+    messagePattern: / u'/,
   },
   {
     id: "table-format-fills-gaps",
@@ -575,7 +610,10 @@ const PROBES = [
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 1,
     observed: "a gap cell carries a formatted zero instead of staying empty",
-    messagePattern: /expected|toEqual/,
+    // A GAP rendered as a formatted zero — the exact defect, and the one this
+    // whole contract exists to forbid. Not `/expected/`, which every Vitest
+    // assertion message begins with.
+    messagePattern: /'0 u'/,
   },
   {
     id: "axis-format-crossed",
@@ -591,7 +629,10 @@ const PROBES = [
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed: "the y axis carries the x axis' wording",
-    messagePattern: /expected|to be/,
+    // The type confusion itself: a Date handed to the value formatter. This is
+    // the sharpest discriminator in the set — no other defect in this suite can
+    // produce it, because nothing else crosses the two formatters.
+    messagePattern: /getUTCHours is not a function/,
   },
   {
     id: "resize-updates-dropped",
@@ -621,7 +662,10 @@ const PROBES = [
     ],
     minFailures: 3,
     observed: "geometry stays frozen at the mount-time width across every resize",
-    messagePattern: /expected|to be/,
+    // A chart still reporting its pre-resize width. The comparison value is the
+    // target width, so the pattern names the stale geometry rather than the
+    // fact that an assertion failed.
+    messagePattern: /to be greater than 300/,
   },
   {
     id: "legend-mark-identity",
@@ -642,7 +686,9 @@ const PROBES = [
     failingIn: ["packages/charts/test/legend-identity.test.tsx"],
     minFailures: 1,
     observed: "swatch colours no longer line up with their own marks",
-    messagePattern: /expected|toEqual/,
+    // The dash channel, which is what legend identity turns on: a swatch that
+    // carries colour but no dash is the defect, and the token names it.
+    messagePattern: /--sp-cat-dash-/,
   },
   {
     id: "legend-colour-only",
@@ -658,7 +704,10 @@ const PROBES = [
     failingIn: ["packages/solid/test/legend.test.tsx"],
     minFailures: 1,
     observed: "every swatch is solid; colour becomes the only channel",
-    messagePattern: /expected|to be/,
+    // One distinct channel where three are required — the collapse itself.
+    // Tied to the fixture's series count on purpose: it must break loudly if
+    // that fixture changes, rather than widening back into `/expected/`.
+    messagePattern: /expected 1 to be 3\b/,
   },
   {
     id: "reference-scale-drift",
@@ -679,7 +728,9 @@ const PROBES = [
     failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
     minFailures: 1,
     observed: "reference lines sit at the wrong height while everything still renders",
-    messagePattern: /expected|close to/,
+    // A reference line drawn at twice its correct pixel — a stale scale, stated
+    // as the wrong position rather than as `/expected/`.
+    messagePattern: /200 to be close to 100\b/,
   },
   {
     id: "reference-stale-value",
@@ -704,7 +755,9 @@ const PROBES = [
     failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
     minFailures: 1,
     observed: "a replaced threshold never moves, and never re-scales the axis",
-    messagePattern: /expected|close to|toEqual/,
+    // A reference that did NOT move when its value did — the negated assertion
+    // is the shape of this defect, and the pixel names which reference.
+    messagePattern: /to not be close to 180\b/,
   },
   {
     id: "reference-colour-only",
@@ -722,7 +775,9 @@ const PROBES = [
     failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
     minFailures: 1,
     observed: "reference lines render solid; colour becomes the only channel",
-    messagePattern: /expected|to be/,
+    // The missing dash pattern: a reference distinguished by colour alone. The
+    // token is the redundant channel the contract requires.
+    messagePattern: /to be '2 2'/,
   },
   {
     id: "reference-list-removed",
@@ -746,7 +801,9 @@ const PROBES = [
     ],
     minFailures: 1,
     observed: "no reference list renders; the drawn label is the only carrier",
-    messagePattern: /expected|toEqual|length/,
+    // The reference label that vanished from the accessible list. Naming the
+    // label ties the pattern to the information loss rather than to a length.
+    messagePattern: /'SLA floor: /,
   },
   {
     id: "viewport-scale-divergence",
@@ -763,7 +820,11 @@ const PROBES = [
     failingIn: ["packages/solid/test/viewport.test.tsx"],
     minFailures: 1,
     observed: "1 failure: the public visibleDomain start no longer equals the ms domain start",
-    messagePattern: /to be/,
+    // The DRIFTED instant the defect produces (60s past the viewport's own
+    // edge), not the assertion kind. Deliberately exact: the whole defect is a
+    // specific divergence between two domains, so the wrong number is the
+    // sharpest possible discriminator and a fixture change should break it.
+    messagePattern: /1772409660000/,
   },
   {
     id: "viewport-unclamped-pan",
@@ -779,7 +840,9 @@ const PROBES = [
     failingIn: ["packages/core/test/viewport.test.ts"],
     minFailures: 2,
     observed: "2 failures: pan past either edge no longer stops at it",
-    messagePattern: /to deeply equal/,
+    // The interval a pan reached after running past its bound. The numbers are
+    // the defect; the assertion kind was not.
+    messagePattern: /start: 1300, end: 1500/,
   },
   {
     id: "viewport-duplicate-callback",
@@ -813,7 +876,10 @@ const PROBES = [
     failingIn: ["packages/core/test/viewport.test.ts"],
     minFailures: 2,
     observed: "2 failures: growth and a same-source no-op no longer reconcile to null",
-    messagePattern: /to be null/,
+    // An interval object surviving where the single authority must have left
+    // null — the second authority itself. `/to be null/` also matched
+    // `expected undefined to be null`, which is a different failure entirely.
+    messagePattern: /\} to be null/,
   },
   {
     id: "viewport-xscale-narrowed",
@@ -826,10 +892,21 @@ const PROBES = [
       "no longer positions the marks where the window says they are.",
     anchor: "return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });",
     mutation: "return timeExtentScale(yData(), range);",
-    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    // Widened 2026-07-23, for the truth rather than for convenience. Suites added
+    // by the responsive-container and gesture work drive this same path and
+    // legitimately redden on this mutation; they were never declared, so the stray
+    // check had been refusing this probe on `main` — unnoticed, because the sweep
+    // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
+    failingIn: [
+      "packages/charts/test/viewport-scope.test.tsx",
+      "packages/charts/test/responsive-containers.test.tsx",
+    ],
     minFailures: 1,
     observed: "1 failure: the marks are positioned over the full extent, not the window",
-    messagePattern: /close to/,
+    // A mark positioned over the FULL extent where the window should have placed
+    // it — the pixel gap is the defect. `/close to/` matched any approximate
+    // assertion in three suites.
+    messagePattern: /96\.296 to be close to 14\.814/,
   },
   {
     id: "viewport-marks-filtered",
@@ -842,10 +919,22 @@ const PROBES = [
       "was told to show.",
     anchor: "    if (!sv.navigable()) return yData();",
     mutation: "    return yData();",
-    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    // Widened 2026-07-23, for the truth rather than for convenience. Suites added
+    // by the responsive-container and gesture work drive this same path and
+    // legitimately redden on this mutation; they were never declared, so the stray
+    // check had been refusing this probe on `main` — unnoticed, because the sweep
+    // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
+    failingIn: [
+      "packages/charts/test/viewport-scope.test.tsx",
+      "packages/charts/test/responsive-containers.test.tsx",
+      "packages/charts/test/viewport-gestures.test.tsx",
+    ],
     minFailures: 3,
     observed: "≥3 failures: the drawn point count is the whole series, not the windowed subset",
-    messagePattern: /have a length/,
+    // The whole series drawn where the windowed subset was required: five points
+    // against three. The counts name the defect; `/have a length/` named only the
+    // assertion.
+    messagePattern: /to have a length of 3 but got 5/,
   },
   {
     id: "viewport-y-pinned",
@@ -858,10 +947,20 @@ const PROBES = [
       "and zooming x silently autoscales y — the very coupling P04b decouples.",
     anchor: "    data: scope.yData,",
     mutation: "    data: scope.visible,",
-    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    // Widened 2026-07-23, for the truth rather than for convenience. Suites added
+    // by the responsive-container and gesture work drive this same path and
+    // legitimately redden on this mutation; they were never declared, so the stray
+    // check had been refusing this probe on `main` — unnoticed, because the sweep
+    // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
+    failingIn: [
+      "packages/charts/test/viewport-scope.test.tsx",
+      "packages/charts/test/viewport-gestures.test.tsx",
+    ],
     minFailures: 1,
     observed: "1 failure: the drawn y follows the visible-subset extent, not the full-data extent",
-    messagePattern: /close to/,
+    // y following the VISIBLE subset instead of staying pinned to the effective
+    // domain — read off the pixel the mark lands on.
+    messagePattern: /expected 100 to be close to 180\b/,
   },
   {
     id: "gesture-keyboard-before-datum",
@@ -874,10 +973,21 @@ const PROBES = [
       "does not guard `shiftKey`. Skip the first-refusal call and pan/zoom keys never fire.",
     anchor: "if (props.beforeKeyDown?.(event)) return;",
     mutation: "if (false && props.beforeKeyDown?.(event)) return;",
-    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    // Widened 2026-07-23. The dashboard-linked selection suite drives a member's
+    // gestures through this same path, so it legitimately reddens on this defect
+    // and had been an undeclared stray since that suite was added — which is why
+    // this probe had been failing on `main`, unnoticed, because the sweep runs off
+    // the per-push path. Both suites must now CONTRIBUTE a failure, not merely be
+    // permitted one.
+    failingIn: [
+      "packages/charts/test/viewport-gestures.test.tsx",
+      "packages/charts/test/dashboard-linked-selection.test.tsx",
+    ],
     minFailures: 2,
     observed: "≥2 failures: Shift+arrow steps a datum, and +/-/0 do nothing to the viewport",
-    messagePattern: /expected/,
+    // Five viewport commits where three are correct: the pan keys reaching the
+    // datum composite as well. `/expected/` matched any assertion in either suite.
+    messagePattern: /expected 5 to be 3\b/,
   },
   {
     id: "gesture-wheel-modifier-gate",
@@ -893,7 +1003,8 @@ const PROBES = [
     failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
     minFailures: 1,
     observed: "1 failure: a plain (unmodified) wheel zooms instead of scrolling the page",
-    messagePattern: /expected/,
+    // A wheel event slipping past the modifier gate, counted. Not `/expected/`.
+    messagePattern: /expected 4 to be 5\b/,
   },
   {
     id: "gesture-brush-min-travel",
@@ -906,10 +1017,22 @@ const PROBES = [
       "Drop the `moved` guard and a click zooms.",
     anchor: "    if (!moved) return;",
     mutation: "    if (false) return;",
-    failingIn: ["packages/charts/test/viewport-gestures.test.tsx"],
+    // Widened 2026-07-23. The dashboard-linked selection suite drives a member's
+    // gestures through this same path, so it legitimately reddens on this defect
+    // and had been an undeclared stray since that suite was added — which is why
+    // this probe had been failing on `main`, unnoticed, because the sweep runs off
+    // the per-push path. Both suites must now CONTRIBUTE a failure, not merely be
+    // permitted one.
+    failingIn: [
+      "packages/charts/test/viewport-gestures.test.tsx",
+      "packages/charts/test/dashboard-linked-selection.test.tsx",
+    ],
     minFailures: 1,
     observed: "1 failure: a click below the threshold commits a zoom",
-    messagePattern: /expected/,
+    // A click committing where the min-travel guard should have refused it.
+    // Value-bearing, so an unrelated red in either declared suite no longer
+    // satisfies this probe.
+    messagePattern: /expected \+0 to be 5\b/,
   },
   {
     id: "gesture-autoscale-y-override",
@@ -940,7 +1063,10 @@ const PROBES = [
     failingIn: ["packages/solid/test/range-control.test.tsx"],
     minFailures: 1,
     observed: "1 failure: the start handle moves past end − minSpan",
-    messagePattern: /expected/,
+    // The instant the range collapses to once the min-span floor is gone —
+    // four days past where the floor should have held it. The defect's own
+    // output, rather than `/expected/`, which every assertion message carries.
+    messagePattern: /1768089600000/,
   },
   {
     id: "no-per-chart-window-listener",
@@ -972,7 +1098,9 @@ const PROBES = [
     failingIn: ["packages/charts/test/dashboard-linked-selection.test.tsx"],
     minFailures: 2,
     observed: "≥2 failures: the drag and the keyboard no longer move the shared selection",
-    messagePattern: /expected/,
+    // The settled-selection announcement that never arrives. It names the
+    // user-visible consequence rather than the fact that something failed.
+    messagePattern: /to contain 'Selected'/,
   },
 ];
 
@@ -1285,6 +1413,29 @@ function judge(probe, run, baseline) {
     );
   }
 
+  // EVERY declared suite must contribute, not just some of them.
+  //
+  // The stray check above is one half of the claim `failingIn` makes: no failure
+  // outside the set. This is the other half, and it was missing until 2026-07-23
+  // — a probe declaring two suites passed while only one of them went red, so
+  // gutting the other left the probe still green and still claiming a blast
+  // radius it no longer had. That is the harness's own failure mode: a check
+  // that measures less than it says, reported as a pass.
+  //
+  // `silent` names the suites specifically rather than reporting a count,
+  // because the actionable question is which suite stopped detecting.
+  const silent = probe.failingIn.filter((path) => !run.failures.some((f) => f.path === path));
+  if (silent.length > 0) {
+    reasons.push(
+      `${silent.length} declared suite(s) contributed NO failure:\n` +
+        `${silent.map((p) => `        ${p}`).join("\n")}\n` +
+        "    the probe claims these suites detect this defect and they did not. Either the " +
+        "coverage has gone, or the claim was always wider than the truth — both are the " +
+        "thing this harness exists to catch, and neither is fixed by narrowing `failingIn` " +
+        "without first checking which it is",
+    );
+  }
+
   const matched = run.failures.some((f) =>
     f.messages.some((m) => probe.messagePattern.test(m)),
   );
@@ -1325,13 +1476,38 @@ if (argv.includes("--list")) {
   process.exit(0);
 }
 
+// `--only` takes a comma-separated list, not just one id.
+//
+// A single id meant one clean baseline run per probe, and the baseline is the
+// expensive part — the browser projects take minutes. Selecting several at once
+// pays for the baseline once and is what makes it practical to re-check a whole
+// project's probes after editing their patterns.
+//
+// An unknown id is a hard error rather than an empty selection: a typo would
+// otherwise "run" zero probes and report success, which is this harness's own
+// worst failure mode wearing a different hat.
 const onlyAt = argv.indexOf("--only");
-const only = onlyAt === -1 ? undefined : argv[onlyAt + 1];
-const selected = only === undefined ? PROBES : PROBES.filter((p) => p.id === only);
-if (selected.length === 0) {
-  console.error(`No probe named "${only}". Run with --list to see the ids.`);
-  process.exit(1);
+const only =
+  onlyAt === -1
+    ? undefined
+    : (argv[onlyAt + 1] ?? "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+if (only !== undefined) {
+  const known = new Set(PROBES.map((p) => p.id));
+  const unknown = only.filter((id) => !known.has(id));
+  if (only.length === 0 || unknown.length > 0) {
+    console.error(
+      `No probe named ${unknown.map((id) => `"${id}"`).join(", ") || "(nothing given)"}. ` +
+        "Run with --list to see the ids.",
+    );
+    process.exit(1);
+  }
 }
+
+const selected = only === undefined ? PROBES : PROBES.filter((p) => only.includes(p.id));
 
 // A mutated tree would corrupt every backup this script takes, so it refuses to
 // start on top of one. Scoped to the files the selected probes touch.
@@ -1367,6 +1543,128 @@ if ((dirty.stdout ?? "").trim() !== "") {
       "  remedy: commit or stash these files first.\n",
   );
   process.exit(1);
+}
+
+/**
+ * Generic assertion messages no probe's pattern may match.
+ *
+ * The weakness this closes: twenty of the forty-seven probes matched failure
+ * text with `/expected/`, or with an alternation containing it. Every Vitest
+ * assertion message begins with "expected", so those probes asserted that the
+ * declared suites went red SOMEHOW — not that they went red for the reason the
+ * mutation induced. On those probes "failed for the right reason" was close to a
+ * tautology, in the one harness whose entire purpose is catching checks that
+ * measure less than they claim.
+ *
+ * Cleaning that up once would have left nothing to stop it recurring: the next
+ * probe author reaches for `/expected/` because it always works. So the corpus
+ * below is the standing guard. Each entry is a real Vitest failure message shape,
+ * carrying no information about which defect produced it. A pattern that matches
+ * any of them cannot discriminate the induced defect from an unrelated red, and
+ * the run refuses to start.
+ *
+ * The rule for writing a pattern that passes this: name what the DEFECT
+ * PRODUCED — the wrong value, the missing token, the type error — not the
+ * assertion that noticed it.
+ */
+//
+// The VALUES in these are deliberately improbable. A pattern that hard-codes the
+// number a defect produces is discriminating and must pass this guard, so the
+// corpus must not accidentally contain that number — the first draft used
+// "expected 5 to be 3" and flagged a probe whose pattern was exactly that, a
+// false positive created by the guard's own fixture.
+const TAUTOLOGY_CORPUS = [
+  "AssertionError: expected 918273 to be 645342 // Object.is equality",
+  "AssertionError: expected false to be true // Object.is equality",
+  "AssertionError: expected [ 918273, 645342 ] to deeply equal [ 172839, 546372 ]",
+  "AssertionError: expected 'zqx-918273' to contain 'zqx-645342'",
+  "AssertionError: expected undefined to be null",
+  "AssertionError: expected null to be truthy",
+  "AssertionError: expected 918273.5 to be close to 645342.5, received difference is 1, but expected 0.0005",
+  "AssertionError: expected [ …(918273) ] to have a length of 645342 but got 918273",
+  "AssertionError: expected [Function] to throw an error",
+  "AssertionError: expected \"vi.fn()\" to be called 918273 times, but got 645342 times",
+  "AssertionError: expected '' to not be called",
+  "TypeError: Cannot read properties of undefined (reading 'zqx')",
+];
+
+/**
+ * Patterns deliberately left matching a generic message, each with its reason.
+ *
+ * The backlog item this work came from anticipated this case: where a
+ * discriminating pattern cannot be written without over-fitting, the honest
+ * answer is a recorded note rather than a pattern that only LOOKS tighter. An
+ * entry here is that note. It is an allowlist, so it goes stale loudly — an id
+ * that no longer exists is a hard error below.
+ */
+const TAUTOLOGY_EXEMPT = new Map([
+  // PERMANENT, with reasons. Both assert that a function THROWS, and a throw
+  // that was swallowed produces "expected [Function] to throw an error" and
+  // nothing else — there is no value in the message because the defect is an
+  // ABSENCE. The only way to narrow further would be to assert on Vitest's own
+  // phrasing, which over-fits to the test framework rather than to the defect and
+  // buys no discrimination at all. Recorded here rather than dressed up as a
+  // tighter pattern.
+  [
+    "semantics-strict-throw",
+    "asserts a throw; a swallowed throw carries no value to match on",
+  ],
+  [
+    "overlap-duplicate-key",
+    "asserts a throw; a swallowed throw carries no value to match on",
+  ],
+
+  // TEMPORARY, 2026-07-23 — the second tier, still to do. These match an
+  // assertion KIND rather than a value: narrower than `/expected/`, which is why
+  // they were not in the first batch, but still not discriminating. Each needs
+  // rewriting from real `--messages` output. Entries are deleted as they are
+  // done; this section must reach empty.
+  ["bar-label-truncation", "second tier — not yet rewritten"],
+  ["inspection-clear-on-leave", "second tier — not yet rewritten"],
+  ["viewport-duplicate-callback", "second tier — not yet rewritten"],
+  ["gesture-autoscale-y-override", "second tier — not yet rewritten"],
+]);
+
+{
+  const offenders = [];
+  for (const probe of PROBES) {
+    const hit = TAUTOLOGY_CORPUS.find((m) => probe.messagePattern.test(m));
+    if (hit !== undefined && !TAUTOLOGY_EXEMPT.has(probe.id)) {
+      offenders.push({ id: probe.id, pattern: probe.messagePattern, hit });
+    }
+  }
+  const staleExempt = [...TAUTOLOGY_EXEMPT.keys()].filter(
+    (id) => !PROBES.some((p) => p.id === id),
+  );
+
+  // `--messages` is the AUTHORING mode, so this guard warns there instead of
+  // refusing. Blocking it would be circular: the only way to write a
+  // discriminating pattern is to read the failure text the mutation actually
+  // produces, and the only way to read that is to run the probe.
+  const authoring = argv.includes("--messages");
+
+  if (offenders.length > 0 || staleExempt.length > 0) {
+    const say = authoring ? console.warn : console.error;
+    say(
+      authoring
+        ? "Tautological patterns present (authoring mode — continuing so you can read the text):\n"
+        : "Detection probes REFUSED to start — a probe cannot judge its own detection.\n",
+    );
+    for (const o of offenders) {
+      say(`  ${o.id}  ${o.pattern}`);
+    }
+    for (const id of staleExempt) {
+      say(`  ${id} is exempted here but no such probe exists — delete the entry`);
+    }
+    say(
+      "  remedy: name what the DEFECT PRODUCED — the wrong value, the missing token, the\n" +
+        "  type error — not the assertion that noticed it. Run a probe with `--messages` to\n" +
+        "  see the real failure text before writing the pattern. If no discriminating\n" +
+        "  pattern can be written without over-fitting, add the probe to TAUTOLOGY_EXEMPT\n" +
+        "  WITH its reason, which is a recorded decision rather than a silent weakening.\n",
+    );
+    if (!authoring) process.exit(1);
+  }
 }
 
 console.log("Detection probes — proving the suites fail when the behaviour breaks.\n");
@@ -1426,6 +1724,32 @@ try {
     }
 
     const reasons = judge(probe, run, baseline);
+
+    // `--messages` prints the failure text this mutation actually produced.
+    //
+    // It exists so a `messagePattern` can be written FROM the output rather than
+    // guessed at, and it is the tool the 2026-07-23 tightening was done with. A
+    // pattern authored from memory is how twenty probes ended up matching
+    // `/expected/` — which every Vitest assertion message begins with, so those
+    // probes were asserting that the suite failed somehow, not that it failed
+    // for the induced reason.
+    //
+    // It prints regardless of the verdict, because the case where you most need
+    // to see the text is the one where the pattern did NOT match.
+    if (argv.includes("--messages")) {
+      const seen = new Set();
+      console.log("");
+      for (const f of run.failures) {
+        for (const m of f.messages) {
+          const first = m.split("\n")[0].trim();
+          if (seen.has(first)) continue;
+          seen.add(first);
+          console.log(`      ${f.path.split("/").pop()}  ${first.slice(0, 160)}`);
+        }
+      }
+      process.stdout.write(`  probe     ${probe.id.padEnd(28)} `);
+    }
+
     if (reasons.length === 0) {
       const spread = [...new Set(run.failures.map((f) => f.path.split("/").pop()))];
       console.log(`detected — ${run.failures.length} failure(s) in ${spread.join(", ")}`);

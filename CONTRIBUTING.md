@@ -126,6 +126,27 @@ checks has gone wrong before:
 `probe:detection` runs several full suites and is deliberately not on the per-push path. Run
 it after any substantial refactor of tests or the code they cover.
 
+```sh
+npm run probe:detection                          # all of them
+npm run probe:detection -- --only a,b,c          # a subset, one baseline for the lot
+npm run probe:detection -- --only a --messages   # print the real failure text
+npm run probe:detection -- --list
+```
+
+**Writing a probe's `messagePattern`: name what the DEFECT PRODUCED, not the assertion that
+noticed it.** `/expected/` matches every Vitest assertion message ever written, so a probe
+using it asserts only that the suite went red *somehow* — not that it went red for the
+reason the mutation induced. A startup guard now refuses to run when any pattern matches a
+generic assertion message, and `--messages` exists so the pattern can be written from real
+output instead of from memory. Where a defect genuinely produces no value to match on — a
+swallowed `throw` is an absence, not a value — the probe is exempted **with its reason
+recorded**, which is a decision rather than a pattern that only looks tight.
+
+**`failingIn` is a claim in both directions.** No failure may land outside the declared
+suites, *and* every declared suite must contribute at least one. The second half was missing
+until 2026-07-23, and a probe was found claiming a suite that had stopped covering its
+defect entirely.
+
 ### The performance harnesses
 
 Two, and neither is a CI step, because a frame number is only meaningful against a named
