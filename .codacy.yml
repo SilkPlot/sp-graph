@@ -158,6 +158,20 @@
 #      to any CSS could satisfy. It surfaced only because that is the first
 #      stylesheet in the repository.
 #
+# OPEN FINDING, 2026-07-24 — Lizard `nloc-medium` against
+# `packages/charts/src/inspection.tsx:335`, "Method onHintPointerLeave has 72
+# lines of code (limit is 50)". Left OPEN and unsuppressed, with the
+# verification recorded here so nobody "fixes" it: at the analyzed commit,
+# line 335 opens `const onHintPointerLeave = (): void => {` and the function
+# closes at line 338 — it is FOUR lines. Lizard's claimed 72-line span
+# (335–407) runs through the component's JSX `return` block, so the tool
+# failed to close the arrow function at its actual brace and attributed the
+# surrounding JSX to it. This file is production code and stays fully
+# measured — no exclusion is added — but no refactor of a four-line function
+# can satisfy a mis-parse, and restructuring correct code to appease it would
+# leave a false explanation behind. Same posture as the Stylelint item above:
+# a tool-side defect, recorded rather than worked around.
+#
 # Codacy provides these as separate, scoped exclusions precisely so this
 # distinction can be made — `engines.duplication.exclude_paths` and
 # `engines.metric.exclude_paths` are independent of the repository-wide
@@ -203,6 +217,7 @@ engines:
       - "packages/charts/test/csv-export.test.tsx"
       - "packages/charts/test/viewport-scope.test.tsx"
       - "packages/charts/test/viewport-gestures.test.tsx"
+      - "packages/charts/test/keyboard-discoverability.test.tsx"
       - "packages/charts/test/responsive-containers.test.tsx"
       - "packages/charts/test/dashboard-linked-selection.test.tsx"
       - "packages/charts/test/legend-identity.test.tsx"
@@ -309,6 +324,7 @@ engines:
       - "packages/charts/test/csv-export.test.tsx"
       - "packages/charts/test/viewport-scope.test.tsx"
       - "packages/charts/test/viewport-gestures.test.tsx"
+      - "packages/charts/test/keyboard-discoverability.test.tsx"
       - "packages/charts/test/responsive-containers.test.tsx"
       - "packages/charts/test/dashboard-linked-selection.test.tsx"
       - "packages/charts/test/legend-identity.test.tsx"
@@ -423,6 +439,7 @@ engines:
       - "packages/charts/test/csv-export.test.tsx"
       - "packages/charts/test/viewport-scope.test.tsx"
       - "packages/charts/test/viewport-gestures.test.tsx"
+      - "packages/charts/test/keyboard-discoverability.test.tsx"
       - "packages/charts/test/responsive-containers.test.tsx"
       - "packages/charts/test/dashboard-linked-selection.test.tsx"
       - "packages/charts/test/legend-identity.test.tsx"

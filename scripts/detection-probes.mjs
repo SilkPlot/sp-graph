@@ -965,9 +965,14 @@ const PROBES = [
       "packages/charts/test/viewport-scope.test.tsx",
       "packages/charts/test/responsive-containers.test.tsx",
       "packages/charts/test/viewport-gestures.test.tsx",
+      // Widened when the keyboard-discoverability suite landed: its focused
+      // "+" and its committed brush both assert the drawn count NARROWS, so a
+      // chart painting the whole series reddens them — a declared suite that
+      // must contribute, not a stray.
+      "packages/charts/test/keyboard-discoverability.test.tsx",
     ],
     minFailures: 3,
-    observed: "≥3 failures: the drawn point count is the whole series, not the windowed subset",
+    observed: "21 failures: the drawn point count is the whole series, not the windowed subset",
     // The whole series drawn where the windowed subset was required: five points
     // against three. The counts name the defect; `/have a length/` named only the
     // assertion.
@@ -1019,9 +1024,14 @@ const PROBES = [
     failingIn: [
       "packages/charts/test/viewport-gestures.test.tsx",
       "packages/charts/test/dashboard-linked-selection.test.tsx",
+      // Widened when the keyboard-discoverability suite landed: it presses the
+      // real keys on a genuinely focused chart, so the first-refusal ordering
+      // this probe breaks legitimately reddens it too — a declared suite that
+      // must contribute, not a stray.
+      "packages/charts/test/keyboard-discoverability.test.tsx",
     ],
     minFailures: 2,
-    observed: "≥2 failures: Shift+arrow steps a datum, and +/-/0 do nothing to the viewport",
+    observed: "12 failures: Shift+arrow steps a datum, and +/-/0 do nothing to the viewport",
     // Five viewport commits where three are correct: the pan keys reaching the
     // datum composite as well. `/expected/` matched any assertion in either suite.
     messagePattern: /expected 5 to be 3\b/,
@@ -1097,6 +1107,50 @@ const PROBES = [
     // passed locally and failed on a CI runner during the first tightening. Zero
     // is the plot origin and no runner disagrees about it.
     messagePattern: /to be close to \+0/,
+  },
+  {
+    id: "surface-focus-on-pointerdown",
+    file: "packages/solid/src/ChartKeyboardSurface.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "a pointer-down on the plot gives the chart focus — the only route a pointer user has " +
+      "to the focus-gated viewport keys, because a brush-enabled chart cancels the same " +
+      "pointerdown and a cancelled pointerdown suppresses the browser's own mousedown focus. " +
+      "Remove the explicit focus and a click grants nothing: every key lands on `body` and is " +
+      "discarded, which is the exact defect that shipped to production and no suite could see " +
+      "until one drove input through the browser's own pipeline",
+    anchor: "        event.currentTarget.focus({ preventScroll: true });",
+    mutation: "        /* probe: pointer-down focus removed */",
+    failingIn: ["packages/charts/test/keyboard-discoverability.test.tsx"],
+    minFailures: 2,
+    observed:
+      "2 failures: the brushSelect click and the brush's own pointer-down both leave focus elsewhere",
+    // The suite's claim, stated in its own custom assertion message — a
+    // test-authored constant, identical on every runner. A value cannot carry
+    // this one: the defect is an ABSENCE of focus, and the only value in the
+    // message is `false to be true`, which is every boolean assertion's text.
+    messagePattern: /give the chart focus/,
+  },
+  {
+    id: "hint-touch-gate",
+    file: "packages/charts/src/inspection.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the hover affordance is gated to hover-capable pointers. A touch pointer has no hover " +
+      "state and no keyboard to invite, so it must never see a hint saying 'click to use " +
+      "keyboard' — drop the gate and every tap flashes an instruction that is a lie on that " +
+      "device, while every structural assertion about the affordance stays green",
+    anchor: '    if (event.pointerType !== "touch") setHovered(true);',
+    mutation: "    setHovered(true);",
+    failingIn: ["packages/charts/test/keyboard-discoverability.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: the affordance shows for a touch pointerenter",
+    // The gate's own claim in the test's custom message — like the probe above,
+    // the defect is a wrongly-present element, and the assertion's value side
+    // is an opacity string every visibility test in the suite shares.
+    messagePattern: /must not be invited/,
   },
   {
     id: "range-control-min-span",

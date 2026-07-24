@@ -121,7 +121,7 @@ checks has gone wrong before:
 | `npm run gate:stated-facts` | **A documented number disagrees with its source.** Probe count, baseline total, and Vitest project count are checked against the code that defines them; the test count is banned from undated prose, because it changes on almost every commit and no sentence re-runs the suite to notice |
 | `npm run gate:typecheck-coverage` | **A TypeScript file is in no tsconfig project**, so `npm run typecheck` never reads it. The project list is parsed out of `package.json` rather than restated, and files that are deliberately unchecked (build configs, the release-consumer fixture) are an allowlist with a reason attached to each. `test/visual/` was unchecked this way until 2026-07-20 |
 | `npm run gate:probe-residue` | **A detection-probe mutation is live in your working tree.** `try/finally` does not survive a SIGKILL, so a killed probe run can leave a plausible one-line change behind. Runs as a pre-commit hook; `-- --restore` puts the file back from the bytes the probe recorded |
-| `npm run probe:detection` | **The test suites have stopped detecting.** It applies forty-seven known defects, asserts each one is caught, and restores. A refactor that guts a suite still reports green everywhere else — this is what notices |
+| `npm run probe:detection` | **The test suites have stopped detecting.** It applies forty-nine known defects, asserts each one is caught, and restores. A refactor that guts a suite still reports green everywhere else — this is what notices |
 
 `probe:detection` runs several full suites and is deliberately not on the per-push path. Run
 it after any substantial refactor of tests or the code they cover.
