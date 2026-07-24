@@ -30,6 +30,9 @@ export type {
 
 // Extents — numeric span of a series under an accessor.
 export { extentOf } from "./extent";
+// Decimation — ADR-0023's density recovery, min/max per bucket.
+export { decimateMinMax } from "./decimate";
+export type { DecimateAccessors } from "./decimate";
 // Ticks — the d3-axis replacement.
 export {
   computeTicks,
@@ -65,11 +68,13 @@ export {
   createScatterIndex,
   createBandIndex,
   nearestSortedIndex,
+  windowActivePointIndex,
 } from "./active-point";
 export type {
   ActivePoint,
   ActivePointAt,
   ActivePointIndex,
+  TimeSeriesActivePointIndex,
   TimeSeriesLookupInput,
   TimeSeriesIndexOptions,
   ScatterIndexOptions,

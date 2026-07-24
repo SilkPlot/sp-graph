@@ -170,9 +170,14 @@ export function createViewport<M = unknown>(spec: ViewportSpec<M>): Viewport {
 
   const visibleDomain = createMemo<TimeInterval>(() => toTimeInterval(visibleMsDomain()));
 
-  const visibleValueDomain = createMemo<Domain>(() =>
-    autoscaleValueDomain(spec.series?.() ?? [], visibleMsDomain()),
-  );
+  // Derive-on-read, deliberately NOT a memo: a Solid memo recomputes eagerly
+  // when its sources change, and this one's sources change on EVERY viewport
+  // commit — an O(all points) scan (plus, in the single-series scope, a full
+  // series re-allocation) paid per commit for a value only the autoscale
+  // command and a caller's explicit read ever want. Measured in the commit
+  // profiles that attributed the viewport-commit cost. A plain function computes it when asked and never else.
+  const visibleValueDomain = (): Domain =>
+    autoscaleValueDomain(spec.series?.() ?? [], visibleMsDomain());
 
   const [autoscaledValueDomain, setAutoscaled] = createSignal<Domain | undefined>();
 

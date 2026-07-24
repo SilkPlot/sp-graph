@@ -144,10 +144,29 @@ export interface TimeSeriesIndexOptions<D> {
  *     question about x, and a stable primary is what keeps `locate` and `at`
  *     agreeing on the same record for the same ordinal.
  */
+/**
+ * A time-series index, plus the window primitive the viewport needs.
+ *
+ * `ordinalRange` exists so a chart can build this ONCE over its data-scope
+ * points and serve every viewport commit through `windowActivePointIndex`
+ * below: profiling measured the per-commit rebuild of this
+ * structure — the per-series maps, the instant union, the sort — as the
+ * dominant residual commit cost once painting was bounded, and none of that
+ * structure depends on the scale or the window. Two bisections per commit
+ * replace an O(n log n) rebuild.
+ */
+export interface TimeSeriesActivePointIndex<D = unknown> extends ActivePointIndex<D> {
+  /**
+   * The ordinal span [lo, hi] of instants inside `[startMs, endMs]`, inclusive.
+   * An empty intersection returns `{ lo: 0, hi: -1 }` (length hi - lo + 1 = 0).
+   */
+  ordinalRange(startMs: number, endMs: number): { lo: number; hi: number };
+}
+
 export function createTimeSeriesIndex<D>(
   series: readonly TimeSeriesLookupInput<D>[],
   options: TimeSeriesIndexOptions<D>,
-): ActivePointIndex<D> {
+): TimeSeriesActivePointIndex<D> {
   // Per series, the representative datum at each instant: the lowest-sourceIndex
   // present point there. Points are ascending by time, so same-time duplicates
   // are adjacent; the first one kept per instant already has the lowest index
@@ -170,18 +189,28 @@ export function createTimeSeriesIndex<D>(
   for (const s of repByInstant) for (const t of s.reps.keys()) instantSet.add(t);
   const instants = [...instantSet].sort((a, b) => a - b);
 
-  // Per instant, the visible series present there, in series input order, and the
-  // pixel x (shared across series at one instant, taken from the primary datum).
+  // Per instant, the visible series present there, in series input order.
+  //
+  // Deliberately NO pixel x here: the structure above is a pure function of
+  // the points, and keeping it scale-free is what lets a consumer build it
+  // once and serve every scale change live. An eager px array made every
+  // viewport commit rebuild all of this — profiled as the dominant
+  // residual commit cost at density. `options.px`/`options.py` are therefore
+  // read at CALL time and must be live closures over the current scale.
   const columns = instants.map((t) => {
     const entries: { seriesId: string; datum: D }[] = [];
     for (const s of repByInstant) {
       const datum = s.reps.get(t);
       if (datum !== undefined) entries.push({ seriesId: s.seriesId, datum });
     }
-    const primary = entries[0] as { seriesId: string; datum: D };
-    return { entries, px: options.px(primary.datum) };
+    return { entries };
   });
-  const pxByInstant = columns.map((c) => c.px);
+
+  /** Pixel x of an ordinal's primary datum, under the CURRENT scale. */
+  const pxAt = (ordinal: number): number => {
+    const column = columns[ordinal] as (typeof columns)[number];
+    return options.px((column.entries[0] as { datum: D }).datum);
+  };
 
   const at = (ordinal: number): ActivePoint<D> | undefined => {
     if (ordinal < 0 || ordinal >= instants.length) return undefined;
@@ -192,17 +221,90 @@ export function createTimeSeriesIndex<D>(
       seriesId: primary.seriesId,
       sourceIndex: options.sourceIndex(primary.datum),
       datum: primary.datum,
-      position: { x: column.px, y: options.py(primary.datum) },
+      position: { x: options.px(primary.datum), y: options.py(primary.datum) },
       at: { kind: "time", time: new Date(time) },
       atTime: column.entries,
     };
   };
 
+  // Nearest-time is a question about pixel x only; y does not enter it. The
+  // bisection mirrors `nearestSortedIndex` exactly — boundaries and the
+  // lower-ordinal midpoint tie (ADR-0014 §2) — but evaluates px live at ~log n
+  // probe points instead of reading a precomputed array, because the array
+  // was the scale coupling this structure exists to avoid. Assumes px is
+  // ascending in ordinal, which a time scale over ascending instants is.
+  const locate = (px: number): number => {
+    const n = instants.length;
+    if (n === 0) return -1;
+    if (px <= pxAt(0)) return 0;
+    if (px >= pxAt(n - 1)) return n - 1;
+
+    let lo = 0;
+    let hi = n - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      const v = pxAt(mid);
+      if (v === px) return mid;
+      if (v < px) lo = mid;
+      else hi = mid;
+    }
+    const dLo = px - pxAt(lo);
+    const dHi = pxAt(hi) - px;
+    return dLo <= dHi ? lo : hi;
+  };
+
+  // First ordinal with instant >= t (or n when none) — the shared lower-bound
+  // half of `ordinalRange`.
+  const lowerBound = (t: number): number => {
+    let lo = 0;
+    let hi = instants.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((instants[mid] as number) < t) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+
   return {
     length: instants.length,
     at,
-    // Nearest-time is a question about pixel x only; y does not enter it.
-    locate: (px: number): number => nearestSortedIndex(pxByInstant, px),
+    locate,
+    ordinalRange: (startMs: number, endMs: number) => {
+      const lo = lowerBound(startMs);
+      // Last ordinal with instant <= endMs: one before the lower bound of the
+      // first instant PAST the window.
+      const hi = lowerBound(endMs + 1) - 1;
+      return hi < lo ? { lo: 0, hi: -1 } : { lo, hi };
+    },
+  };
+}
+
+/**
+ * A contiguous ordinal window over a time-series index — the per-commit view.
+ *
+ * The inner index is built once from the data-scope points; a viewport commit
+ * costs one `ordinalRange` (two bisections) and this wrapper. Ordinals stay
+ * `[0, length)` so the keyboard model is none the wiser; `locate` resolves on
+ * the full set and clamps, which for ascending instants IS nearest-in-window
+ * (the nearest instant outside the window clamps to the window's edge instant
+ * on that side).
+ */
+export function windowActivePointIndex<D>(
+  inner: TimeSeriesActivePointIndex<D>,
+  lo: number,
+  hi: number,
+): ActivePointIndex<D> {
+  const length = Math.max(0, hi - lo + 1);
+  return {
+    length,
+    at: (ordinal) => (ordinal < 0 || ordinal >= length ? undefined : inner.at(lo + ordinal)),
+    locate: (px, py) => {
+      if (length === 0) return -1;
+      const resolved = inner.locate(px, py);
+      if (resolved === -1) return -1;
+      return Math.min(hi, Math.max(lo, resolved)) - lo;
+    },
   };
 }
 

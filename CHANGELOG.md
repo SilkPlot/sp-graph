@@ -15,7 +15,55 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
+### Changed
+
+- **The data alternative follows the data scope; the viewport never narrows
+  it (breaking-behavioural at 0.x).** Zooming, panning, brushing, or dragging
+  the range control frames the picture; it no longer narrows the derived table
+  or the CSV serialised from it — standalone, they describe the chart's data,
+  and inside a dashboard the resolved effective domain, so a dashboard range
+  change or linked selection still moves them. Profiling on named reference
+  hardware measured the old coupling as the single largest interaction cost in
+  the library (it multiplied zoom/brush/range-drag frame times by 6.5–9.5× on
+  a 20,000-point series); public ADR-0022 records the layering decision that
+  deletes it. Migration: nothing changes for an un-navigated chart; an
+  application that wants framed-interval rows renders its own table from
+  `onVisibleDomainChange`.
+- **Inspection resolves against the raw series at the resolved instant**
+  (public ADR-0023): the hit index, keyboard cursor, announcements, tooltip,
+  active-point callback, table, and CSV all read the un-decimated, un-narrowed
+  data-scope points, windowed to the visible interval. With decimation active
+  the path is the envelope and the active point is the truth — the active mark
+  can sit off the drawn path, by design, instead of answering with a
+  neighbouring instant's value.
+
+### Added
+
+- **Explicit decimation for dense time series** — a `decimation` prop on
+  `LineChart` and `AreaChart` naming the maximum drawn points per series.
+  Min/max per bucket: the painted envelope survives structurally (an excursion
+  is an extreme, so it cannot vanish), a bucket containing a declared gap keeps
+  a gap, zooming re-decimates so a narrow window draws raw, and only painting
+  is affected. Off by default — no chart decimates silently. Selected against
+  the published field (M4, LTTB) by first-hand measurement; public ADR-0023
+  records the selection, the inspection contract, and the overturn conditions.
+
 ### Fixed
+
+- **A viewport commit no longer tears down the multi-series mark rows.** Rows
+  were keyed on per-commit snapshots, so every zoom step recreated every
+  series' root, style, geometry, and path node; rows now key on the stable
+  series and update their geometry in place. Attributed with CPU profiles and
+  timeline traces; a standing test asserts a zoom keeps the same path nodes
+  while moving them.
+- **A viewport commit no longer rebuilds the hit-index structure.** The
+  time-series index is built once from the data-scope points, scale-free
+  (pixels are read live), and a commit pays two bisections for a windowed
+  view. On a day of one-second samples this took zoom from a multi-frame miss
+  to budget with headroom in diagnostic runs.
+- **The viewport no longer recomputes an unused value domain on every
+  commit.** `visibleValueDomain` is derived on read; only the `autoscale`
+  command ever paid for it.
 
 - **A pointer-down now gives the chart keyboard focus.** The viewport keys
   (`+`/`-` zoom, `Shift`+arrow pan, `a` autoscale, `0` reset) are bound to the

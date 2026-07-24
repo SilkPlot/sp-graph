@@ -20,9 +20,11 @@
 import { createMemo, For, Show, type JSX } from "solid-js";
 import {
   createTimeSeriesIndex,
+  decimateMinMax,
   referenceDomainOf,
   resolveSeriesStyle,
   seriesGeometry,
+  windowActivePointIndex,
 } from "@silkplot/core";
 import type {
   ActivePoint,
@@ -47,12 +49,18 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import { BrushRect, InteractionLayer, PointMark } from "./inspection";
 import type { CartesianChartProps } from "./scaffold";
-import type { MultiSeriesScope } from "./multi-series";
+import { dataWithinInterval, type MultiSeriesScope } from "./multi-series";
 import { ReferenceOverlay } from "./ReferenceOverlay";
 
 
 /** What a chart needs to draw one series' marks. */
 export interface SeriesRenderContext<M = unknown> {
+  /**
+   * The DATA-SCOPE series — identity, label, style, gap policy. Its `data` is
+   * NOT viewport-narrowed; `points` below is. Row identity keys on this, so
+   * it must stay stable across viewport commits (see the `For` note in the
+   * body) — narrowed data lives in `points`, never here.
+   */
   series: NormalizedSeries<M>;
   /** Resolved presentation — caller's style over the index-derived default. */
   style: ResolvedSeriesStyle;
@@ -90,6 +98,9 @@ export interface MultiSeriesBodyProps<M = unknown> {
   yTickFormat?: (value: number) => string;
   /** Draw one series. Called once per visible series, in paint order. */
   renderSeries: (context: SeriesRenderContext<M>) => JSX.Element;
+  /** Maximum drawn points per series (ADR-0023) — see `TimeSeriesChartProps`.
+   *  Painting only: the shared-time index below reads the RAW drawn set. */
+  decimation?: number;
   /* --- Inspection (ADR-0016). The multi-series path gains one active-datum
      state here for the first time: a shared time cursor over every visible
      series, written by pointer and keyboard alike. --- */
@@ -188,19 +199,35 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   // The shared-time lookup: every visible series' present points, keyed by
   // instant. `at` carries the whole column (`atTime`), so a tooltip reads every
   // series at the hovered instant, and `locate` bisects on pixel x (ADR-0014 §2).
+  //
+  // Built from the DATA-SCOPE series (`visible`), scale-free: the pixel
+  // closures read `mapping()` live at call time, so a viewport commit does not
+  // rebuild this structure — rebuilding it per commit over the raw points was
+  // profiled as the dominant residual commit cost at density. The
+  // commit pays two bisections in the windowed view below. Inspection over the
+  // RAW points is also the ADR-0023 contract: the path is the envelope, the
+  // active point is the truth.
   const sem = (): ChartSemantics => props.semantics;
-  const index = createMemo(() => {
-    const m = mapping();
-    const input = props.scope.drawn().map((s) => ({
+  const structure = createMemo(() => {
+    const input = props.scope.visible().map((s) => ({
       seriesId: s.id,
       points: s.data.filter((d) => d.state === "present"),
     }));
     return createTimeSeriesIndex<NormalizedDatum<M>>(input, {
       time: (d) => d.time,
-      px: (d) => m.x(d),
-      py: (d) => m.y(d),
+      px: (d) => mapping().x(d),
+      py: (d) => mapping().y(d),
       sourceIndex: (d) => d.sourceIndex,
     });
+  });
+
+  // The per-commit view: the structure, windowed to the applied viewport.
+  const index = createMemo(() => {
+    const inner = structure();
+    const iv = props.scope.viewportInterval();
+    if (iv === undefined) return inner;
+    const { lo, hi } = inner.ordinalRange(iv.start, iv.end);
+    return windowActivePointIndex(inner, lo, hi);
   });
 
   const inspection = createChartInspection<SeriesDatum>({
@@ -228,7 +255,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   // and the drawn mark cannot name different things.
   const label = (a: ActivePoint<SeriesDatum> | undefined): string => {
     if (a === undefined) return "";
-    const series = props.scope.drawn().find((s) => s.id === a.seriesId);
+    const series = props.scope.visible().find((s) => s.id === a.seriesId);
     const name = series?.label ?? sem().name();
     const t = (a.datum.t as Date).toISOString();
     return name ? `${name}, ${t}, ${a.datum.y}` : `${t}, ${a.datum.y}`;
@@ -249,8 +276,17 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
           by position. Under a reorder, `Index` would keep series 0's rendered
           path and hand it series 1's data — the exact identity failure ADR-0008
           §1 exists to prevent, expressed in the DOM instead of the model.
+
+          `visible`, not `drawn`: the row is keyed on the DATA-SCOPE series,
+          whose identity survives a viewport commit, and the viewport narrowing
+          happens INSIDE the row (`drawnData` below). Keying on `drawn` handed
+          `For` four fresh objects per commit, so every zoom step tore down and
+          recreated every row — root, style memo, geometry, path node — which
+          profiling attributed as the shared zoom/brush/range-drag
+          budget miss. With stable rows, a commit re-runs only each row's
+          geometry memos and updates the path attribute in place.
         */}
-        <For each={props.scope.drawn()}>
+        <For each={props.scope.visible()}>
           {(series, i) => {
             const style = createMemo(() =>
               resolveSeriesStyle(series.style, series.sourceIndex, {
@@ -258,16 +294,35 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
                 fillOpacity: props.fillOpacity,
               }),
             );
+            // The row's drawn points: the series narrowed to the applied
+            // viewport interval, through the scope's ONE filter definition.
+            const drawnData = createMemo(() => {
+              const iv = props.scope.viewportInterval();
+              return iv === undefined ? series.data : dataWithinInterval(series.data, iv);
+            });
+            // What this row PAINTS — the drawn points under the explicit
+            // per-series decimation budget (ADR-0023). The shared-time index
+            // above deliberately reads the RAW drawn set: the path is the
+            // envelope, the active point is the truth. A non-present state
+            // classifies as a gap, so decimation cannot connect across one.
+            const plotted = createMemo(() => {
+              const b = props.decimation;
+              if (b === undefined) return drawnData();
+              return decimateMinMax(drawnData(), b, {
+                time: (d) => d.time,
+                value: (d) => (d.state === "present" ? (d.y as number) : null),
+              });
+            });
             // Gap policy comes from `core`, not from a copy of it here. An
             // earlier draft inlined the same two branches, which is precisely
             // the duplication that disagrees silently: the model's table and
             // the chart's marks would each have had their own idea of which
             // points are drawn, and no test would have gone red when they
             // parted. One function, one answer.
-            const geometry = createMemo(() => seriesGeometry(series));
+            const geometry = createMemo(() => seriesGeometry({ ...series, data: plotted() }));
 
             return (
-              <Show when={series.data.length > 0}>
+              <Show when={drawnData().length > 0}>
                 {props.renderSeries({
                   series,
                   get style() {

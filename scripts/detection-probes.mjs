@@ -346,13 +346,34 @@ const PROBES = [
     project: "core",
     browser: false,
     breaks:
-      "an exact midpoint tie resolves to the lower ordinal (the earlier instant) — flip it to the " +
-      "higher and a pointer exactly between two instants snaps to the wrong one",
-    anchor: "  return dLo <= dHi ? lo : hi;",
-    mutation: "  return dLo < dHi ? lo : hi;",
+      "an exact midpoint tie in the sorted-array search resolves to the lower ordinal (the " +
+      "earlier instant) — flip it to the higher and a pointer exactly between two instants " +
+      "snaps to the wrong one",
+    // The tie line exists twice since the time index gained its own live-px
+    // bisection: this anchors the SEARCH's copy by its preceding line; the
+    // sibling probe below anchors the index's.
+    anchor: "  const dHi = (sorted[hi] as number) - target;\n  return dLo <= dHi ? lo : hi;",
+    mutation: "  const dHi = (sorted[hi] as number) - target;\n  return dLo < dHi ? lo : hi;",
     failingIn: ["packages/core/test/active-point.test.ts"],
-    minFailures: 2,
-    observed: "2 failures (the search tie and the time-index tie), e.g. “expected 1 to be +0”",
+    minFailures: 1,
+    observed: "1 failure (the search tie), “expected 1 to be +0”",
+    messagePattern: /expected 1 to be \+0/,
+  },
+  {
+    id: "time-locate-tie-lower-ordinal",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "the time index's own live-px bisection carries the same lower-ordinal tie rule — flip " +
+      "it and locate snaps a pointer exactly between two instants to the later one, while the " +
+      "sorted-array search (a different function since the scale-free restructuring) stays " +
+      "correct and its tests stay green",
+    anchor: "    const dHi = pxAt(hi) - px;\n    return dLo <= dHi ? lo : hi;",
+    mutation: "    const dHi = pxAt(hi) - px;\n    return dLo < dHi ? lo : hi;",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 1,
+    observed: "1 failure (the time-index tie), “expected 1 to be +0”",
     messagePattern: /expected 1 to be \+0/,
   },
   {
@@ -954,8 +975,12 @@ const PROBES = [
       "the drawn marks are narrowed to the viewport interval (S007-P04b). Return the whole y-basis " +
       "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
       "was told to show.",
-    anchor: "    if (!sv.navigable()) return yData();",
-    mutation: "    return yData();",
+    // Re-anchored when the scope moved to the shared `viewportInterval`
+    // accessor (the scale-free index restructuring): same defect, same
+    // mutation shape — the visible memo stops narrowing.
+    anchor: "    const iv = viewportInterval();\n    if (iv === undefined) return yData();",
+    mutation:
+      "    const iv = viewportInterval();\n    if (iv === undefined) return yData();\n    return yData();",
     // Widened 2026-07-23, for the truth rather than for convenience. Suites added
     // by the responsive-container and gesture work drive this same path and
     // legitimately redden on this mutation; they were never declared, so the stray
@@ -970,9 +995,13 @@ const PROBES = [
       // chart painting the whole series reddens them — a declared suite that
       // must contribute, not a stray.
       "packages/charts/test/keyboard-discoverability.test.tsx",
+      // Widened when the ADR-0022 table-scope tests landed: the Area suite's
+      // new case asserts the marks NARROW while the table stays whole, so a
+      // chart painting every point reddens it — a contributor, not a stray.
+      "packages/charts/test/AreaChart.test.tsx",
     ],
     minFailures: 3,
-    observed: "21 failures: the drawn point count is the whole series, not the windowed subset",
+    observed: "23 failures: the drawn point count is the whole series, not the windowed subset",
     // The whole series drawn where the windowed subset was required: five points
     // against three. The counts name the defect; `/have a length/` named only the
     // assertion.
@@ -1204,6 +1233,86 @@ const PROBES = [
     // The settled-selection announcement that never arrives. It names the
     // user-visible consequence rather than the fact that something failed.
     messagePattern: /to contain 'Selected'/,
+  },
+  {
+    id: "table-viewport-decoupled-single",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the table is rewired to the viewport-narrowed data — the coupling profiling measured as " +
+      "the library's largest interaction cost returns, and a navigated chart's table silently " +
+      "shows only the framed rows",
+    anchor: "rows={() => timePointRows(scope.yData())}",
+    mutation: "rows={() => timePointRows(scope.visible())}",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a standalone single-series chart's table drops from 5 rows to 3",
+    // The row count the test demands where the coupling's row count lands
+    // instead — the defect's own output, tied to this suite's fixture.
+    messagePattern: /to have a length of 5 but got 3\b/,
+  },
+  {
+    id: "table-viewport-decoupled-multi",
+    file: "packages/charts/src/multi-series.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the table is rewired to the viewport-narrowed data — the coupling profiling measured as " +
+      "the library's largest interaction cost returns, and a navigated chart's table silently " +
+      "shows only the framed rows",
+    anchor: "visible: visible(), series: all()",
+    mutation:
+      "visible: (() => { const iv = viewportInterval(); return iv === undefined ? visible() : " +
+      "visible().map((s) => ({ ...s, data: dataWithinInterval(s.data, iv) })); })(), series: all()",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a standalone multi-series chart's table drops from 5 rows to 3",
+    // Same shape as the single-series probe above, over the `series` prop path.
+    messagePattern: /to have a length of 5 but got 3\b/,
+  },
+  {
+    id: "commit-row-recreation",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the mark rows are keyed on per-commit snapshots again — the row array tracks the " +
+      "viewport, so every commit hands `For` fresh series objects and tears down and " +
+      "recreates every row (root, style, " +
+      "geometry, path node), which profiling measured as the shared zoom/brush/range-drag " +
+      "budget miss. The chart still LOOKS right; only the frame budget knows",
+    anchor: "<For each={props.scope.visible()}>",
+    mutation:
+      "<For each={props.scope.visible().map((s) => ({ ...s, viewportEpoch: props.scope.viewportInterval() }))}>",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed:
+      "1 failure: the captured path nodes are disconnected after a zoom commit (the same test's " +
+      "geometry assertion would fail next — the old nodes kept their old paths)",
+    // The row-stability claim the test authored: both series' nodes still
+    // connected. Booleans, no geometry — stable across machines.
+    messagePattern: /to deeply equal \[ true, true \]/,
+  },
+  {
+    id: "decimation-paint-only-inspection",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "inspection is wired to the PAINTED points — a decimated chart answers a keyboard step " +
+      "or a hover with the nearest surviving drawn datum instead of the raw series' value at " +
+      "the resolved instant, which the decimation evidence measured at up to ±180 units one " +
+      "second beside an excursion. ADR-0023's whole inspection contract inverts silently",
+    anchor: "visible: scope.yData,\n    window: scope.viewportInterval,",
+    mutation: "visible: plotted,\n    window: scope.viewportInterval,",
+    failingIn: ["packages/charts/test/decimation.test.tsx"],
+    minFailures: 1,
+    observed:
+      "1 failure: the keyboard's second step resolves a kept drawn point, not the second raw datum",
+    // The second raw datum's instant, in epoch ms — a fixture constant the
+    // test author wrote (2026-01-01T00:01:00Z), identical on every machine.
+    messagePattern: /to be 1767225660000\b/,
   },
 ];
 

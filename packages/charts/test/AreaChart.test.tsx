@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { AreaChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { computeTicks, timeScale } from "@silkplot/core";
+import { computeTicks, timeScale, type TimeInterval } from "@silkplot/core";
 import {
   HEIGHT,
   INNER_HEIGHT,
@@ -234,6 +234,36 @@ describe("AreaChart — time domain covers the data extent, not first/last", () 
       nice: false,
     });
     expect(firstLast(scrambled[1]!.t)).toBeGreaterThan(WIDTH);
+  });
+});
+
+/**
+ * A controlled `visibleDomain` narrows the drawn marks; the data table does
+ * not — Area's own instance of the single-series claim `viewport-scope.test.tsx`
+ * makes for LineChart. Named separately per-chart because the two charts wire
+ * their own scopes (see `multi-series.ts`'s header on why the two paths are
+ * kept apart), so a regression in one does not guarantee coverage of the other.
+ */
+describe("AreaChart — a controlled visibleDomain narrows the marks, not the table (ADR-0022)", () => {
+  it("keeps all five table rows while the line and fill narrow to the window", () => {
+    const MID: TimeInterval = { start: DATA5[1]!.t, end: DATA5[3]!.t };
+    const { container } = render(() => (
+      <AreaChart
+        title="Coverage over time"
+        data={DATA5}
+        visibleDomain={MID}
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    const [, lineEl] = getPaths(container) as [SVGPathElement, SVGPathElement];
+    // Only days 1, 2, 3 (of DATA5's 0..4) sit inside the window.
+    expect(pathXs(lineEl.getAttribute("d") ?? "")).toHaveLength(3);
+    // The table is standalone with no section or dynamic selection above it, so
+    // its data scope is the full five readings — the viewport never narrows it.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
   });
 });
 

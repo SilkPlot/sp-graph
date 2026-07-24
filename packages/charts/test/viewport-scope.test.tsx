@@ -4,10 +4,13 @@
  * The viewport model and its holder existed but nothing drew from them. These
  * tests prove the wiring: a controlled `visibleDomain`, the `defaultVisibleDomain`
  * seed, the exposed command functions, `minSpan`, and the change callback all
- * move what a STANDALONE time chart actually draws — its x scale, its marks, its
- * hit-index point count, and its data table — while the y axis stays PINNED to
- * the full-data extent (ADR-0014 §3: a zoom of x does not autoscale y; that is an
- * explicit command, wired in a later phase).
+ * move what a STANDALONE time chart actually draws — its x scale, its marks, and
+ * its hit-index point count — while the y axis stays PINNED to the full-data
+ * extent (ADR-0014 §3: a zoom of x does not autoscale y; that is an explicit
+ * command, wired in a later phase), and the data table stays pinned to the DATA
+ * scope, never the viewport (ADR-0022: the table is the alternative
+ * representation of the dataset the chart's data scope selects, not of the
+ * pixels currently framed).
  *
  * Every case uses `curve="linear"`, so `pathXs`/`pathYs` read real data
  * positions rather than a curve's bezier scaffolding, and `NO_MARGINS`, so the
@@ -92,6 +95,25 @@ describe("the viewport drives a standalone time chart", () => {
     const x = timeScale({ domain: [MID.start, MID.end], range: [0, WIDTH] });
     expect(xs[0]).toBeCloseTo(x(MID.start), 3);
     expect(xs[2]).toBeCloseTo(x(MID.end), 3);
+  });
+
+  it("narrows the drawn marks but not the table (ADR-0022)", () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Readings"
+        data={DATA}
+        visibleDomain={MID}
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    // Marks: the same three-point window as the test above.
+    expect(pathXs(markD(container))).toHaveLength(3);
+    // Table: standalone, with no section or dynamic selection above it, so the
+    // data scope is the full five readings — the viewport never narrows it.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
   });
 
   it("pins y to the full-data extent while x is narrowed (no autoscale)", () => {
@@ -238,5 +260,24 @@ describe("the viewport drives a standalone time chart", () => {
       />
     ));
     expect(pathXs(markD(container))).toHaveLength(3);
+  });
+
+  it("narrows a MULTI-series chart's drawn marks but not its table (ADR-0022)", () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Readings"
+        series={[{ id: "a", label: "A", data: DATA }]}
+        visibleDomain={MID}
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+      />
+    ));
+    expect(pathXs(markD(container))).toHaveLength(3);
+    // The multi-series scope derives its table from the effective-domain series,
+    // not the viewport-narrowed drawn series — same claim as the single-series
+    // case above, over the `series` prop path.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
   });
 });

@@ -14,8 +14,10 @@
 import { type Accessor, type Component, type JSX, Show, createMemo, createSignal } from "solid-js";
 import {
   createTimeSeriesIndex,
+  windowActivePointIndex,
   type ActivePoint,
   type ActivePointIndex,
+  type MsInterval,
   type ScaleTime,
   type SeriesDatum,
 } from "@silkplot/core";
@@ -126,8 +128,13 @@ export function useInspection<D>(spec: UseInspectionSpec<D>): UseInspectionResul
 
 /** What `createTimeChartInspection` needs from a single-series time chart. */
 export interface TimeChartInspectionSpec extends TimeChartInspectionProps {
-  /** The visible points, in the caller's order. */
+  /** The DATA-SCOPE points, in the caller's order — the raw basis inspection
+   *  resolves against (ADR-0023: the path is the envelope, the active point
+   *  is the truth). NOT the viewport-narrowed or decimated set. */
   visible: () => readonly TimePoint[];
+  /** The applied viewport interval — the window the cursor may address.
+   *  Absent or `undefined`, the whole basis is addressable. */
+  window?: () => MsInterval | undefined;
   /** The chart's cartesian model, over a time x scale. */
   model: CartesianModel<ScaleTime<number, number>>;
   semantics: () => ChartSemantics;
@@ -138,32 +145,50 @@ export interface TimeChartInspectionSpec extends TimeChartInspectionProps {
 /**
  * The one active-datum state a single-series TIME chart has, resolved from a
  * time-series index and written by both keyboard and pointer through
- * `createChartInspection` (ADR-0016 §3). The index carries the VISIBLE, DRAWN,
- * present points only: stepping or snapping onto a gap would move the cursor to a
- * coordinate no mark occupies (ADR-0014 §2).
+ * `createChartInspection` (ADR-0016 §3). The index carries present points
+ * only: stepping or snapping onto a gap would move the cursor to a coordinate
+ * no mark occupies (ADR-0014 §2).
+ *
+ * The index STRUCTURE is built from the data-scope points alone and survives
+ * every viewport commit; the commit pays two bisections for a windowed view,
+ * and the scales are read live inside `locate`/`at`. Rebuilding the structure
+ * per commit profiled as the dominant residual commit cost at
+ * density once painting was bounded — do not "simplify" the scale reads back
+ * into the memo.
  *
  * Shared by Line and Area, which differ in their marks and never in this.
  */
 export function createTimeChartInspection(spec: TimeChartInspectionSpec) {
   const sem = spec.semantics;
 
-  const index = createMemo(() => {
-    const xs = spec.model.x();
-    const ys = spec.model.y();
+  // The scale-free structure: tracks the data-scope points (and the gap
+  // predicate's identity), never the scales and never the viewport.
+  const structure = createMemo(() => {
     const points: IndexedPoint[] = [];
-    const visible = spec.visible();
-    for (let i = 0; i < visible.length; i += 1) {
-      const d = visible[i] as TimePoint;
+    const basis = spec.visible();
+    for (let i = 0; i < basis.length; i += 1) {
+      const d = basis[i] as TimePoint;
       if (!Number.isFinite(d.y) || !Number.isFinite(d.t.getTime())) continue;
       if (spec.defined && !spec.defined(d, i)) continue;
       points.push({ t: d.t, y: d.y, sourceIndex: i });
     }
     return createTimeSeriesIndex<IndexedPoint>([{ seriesId: sem().name() || "series", points }], {
       time: (d) => d.t.getTime(),
-      px: (d) => xs(d.t),
-      py: (d) => ys(d.y),
+      // Live closures — read the CURRENT scale at call time, deliberately not
+      // captured here (see the function note).
+      px: (d) => spec.model.x()(d.t),
+      py: (d) => spec.model.y()(d.y),
       sourceIndex: (d) => d.sourceIndex,
     });
+  });
+
+  // The per-commit view: the structure, windowed to the applied viewport.
+  const index = createMemo(() => {
+    const inner = structure();
+    const iv = spec.window?.();
+    if (iv === undefined) return inner;
+    const { lo, hi } = inner.ordinalRange(iv.start, iv.end);
+    return windowActivePointIndex(inner, lo, hi);
   });
 
   const shared = useInspection<SeriesDatum>({

@@ -112,8 +112,11 @@ hidden axes then relocate their information nowhere.
 
 `columns` has no default — the headers carry units and domain wording the
 library cannot invent honestly. `rows` is optional: omit it and the chart
-derives rows from the same `data` its marks are drawn from, so the table and the
-picture cannot disagree, and both follow a data replacement together.
+derives rows from the same `data` its marks are drawn from, so the table and
+the picture describe the same dataset, and both follow a data replacement
+together. The table follows the chart's **data scope**, never its viewport:
+navigating (zoom, pan, brush, range drag) frames the picture and leaves the
+table describing the full selected dataset.
 
 ```tsx
 // Rows derived from the chart's own data.

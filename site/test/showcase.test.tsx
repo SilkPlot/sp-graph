@@ -4,10 +4,13 @@
  * The library's own suites prove the gesture mechanics; these tests prove the
  * EXAMPLES actually connect them. Each interactive example takes at least one
  * dispatched pointer gesture and one keyboard gesture, and the observable is
- * user-meaningful: the chart's data table narrows with the visible domain, so
- * a zoom that works shrinks the row count. The linked-dashboard test asserts
- * the whole point of the example — a brush on one member narrows the OTHER
- * member and leaves the pinned section alone.
+ * user-meaningful: a standalone chart's PICTURE narrows with the viewport — a
+ * zoom that works shrinks the drawn marks — while its data table describes the
+ * data scope and does not move (ADR-0022). Inside the dashboard, a gesture
+ * that commits the DYNAMIC selection is a data-scope change, not a viewport
+ * one, so the linked-dashboard test keeps asserting the table narrows there —
+ * the whole point of that example — a brush on one member narrows the OTHER
+ * member's table and leaves the pinned section alone.
  *
  * Event recipes follow the library's own gesture suites: keydown on the
  * keyboard surface, ctrl-wheel with an animation-frame commit, pointer
@@ -43,6 +46,24 @@ function rowCounts(container: HTMLElement): number[] {
   return [...container.querySelectorAll("table")].map(
     (t) => t.querySelectorAll("tbody tr").length,
   );
+}
+
+/**
+ * The count of drawn points in the chart's own mark — mirrors
+ * `markD`/`pathXs` in `packages/charts/test/support.ts`, reimplemented here
+ * because a site test cannot import from another package's test directory.
+ *
+ * Unlike `support.ts`'s `pathXs`, this counts command LETTERS (`M`/`L`/`C`)
+ * rather than parsing coordinate pairs, because these examples use the
+ * library's default `monotoneX` curve, not `curve="linear"`: each point past
+ * the first emits a `C` (cubic bezier) command whose two control-point pairs
+ * are not data positions, only its final pair is — so one letter is one point
+ * regardless of curve.
+ */
+function markPointCounts(container: HTMLElement): number[] {
+  return [...container.querySelectorAll("svg > g > path")]
+    .filter((p) => !p.closest("[data-silkplot-axis]"))
+    .map((p) => (p.getAttribute("d")?.match(/[MLC]/g) ?? []).length);
 }
 
 function press(el: HTMLElement, key: string): void {
@@ -87,15 +108,20 @@ function drag(el: HTMLElement, fromX: number, toX: number): void {
 }
 
 describe("navigate-a-time-series example", () => {
-  it("zooms on ctrl+wheel: the table narrows with the visible domain", async () => {
+  it("zooms on ctrl+wheel: the marks narrow, the table does not (ADR-0022)", async () => {
     const { container } = render(() => <NavigateExample />);
-    const before = rowCounts(container)[0];
-    expect(before).toBe(90);
+    expect(markPointCounts(container)[0]).toBe(90);
+    expect(rowCounts(container)[0]).toBe(90);
     ctrlWheel(surfaceOf(container), -240);
     await nextFrame();
     await nextFrame();
-    const after = rowCounts(container)[0];
-    expect(after, "ctrl+wheel did not narrow the domain").toBeLessThan(90);
+    expect(
+      markPointCounts(container)[0],
+      "ctrl+wheel did not narrow the viewport",
+    ).toBeLessThan(90);
+    // The new-contract assertion: a standalone chart's table describes the
+    // data scope, never the viewport, so the row count stays put across the zoom.
+    expect(rowCounts(container)[0], "the table narrowed with the viewport").toBe(90);
   });
 
   it("recovers with the pointer alone: toolbar Zoom in narrows, Reset restores", async () => {
@@ -106,11 +132,11 @@ describe("navigate-a-time-series example", () => {
     getByRole("button", { name: "Zoom in" }).click();
     await nextFrame();
     await nextFrame();
-    expect(rowCounts(container)[0]).toBeLessThan(90);
+    expect(markPointCounts(container)[0]).toBeLessThan(90);
     getByRole("button", { name: "Reset" }).click();
     await nextFrame();
     await nextFrame();
-    expect(rowCounts(container)[0]).toBe(90);
+    expect(markPointCounts(container)[0]).toBe(90);
   });
 
   it("zooms from the keyboard with + and restores with 0", async () => {
@@ -118,10 +144,10 @@ describe("navigate-a-time-series example", () => {
     const surface = surfaceOf(container);
     press(surface, "+");
     await nextFrame();
-    expect(rowCounts(container)[0]).toBeLessThan(90);
+    expect(markPointCounts(container)[0]).toBeLessThan(90);
     press(surface, "0");
     await nextFrame();
-    expect(rowCounts(container)[0]).toBe(90);
+    expect(markPointCounts(container)[0]).toBe(90);
   });
 });
 
@@ -146,10 +172,14 @@ describe("range-control example", () => {
 
   it("Reset range restores the full extent in the controlled pattern", async () => {
     const { getByRole, container } = render(() => <RangeControlExample />);
-    const mounted = rowCounts(container)[0];
+    const mounted = markPointCounts(container)[0];
     expect(mounted).toBeLessThan(120); // opens on a 30-day window
+    // ADR-0022: the table describes the full data scope from first render —
+    // it is never narrowed by a controlled `visibleDomain`, which is a viewport.
+    expect(rowCounts(container)[0]).toBe(120);
     getByRole("button", { name: "Reset range" }).click();
     await nextFrame();
+    expect(markPointCounts(container)[0]).toBe(120);
     expect(rowCounts(container)[0]).toBe(120);
   });
 

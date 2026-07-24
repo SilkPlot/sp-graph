@@ -16,10 +16,12 @@
  */
 import { createMemo, mergeProps, Show, type Accessor, type Component, type JSX } from "solid-js";
 import {
+  decimateMinMax,
   extentOf,
   isDevelopmentBuild,
   timeScale,
   type EffectiveDomain,
+  type MsInterval,
   type NormalizedSeries,
   type ScaleTime,
   type TimeInterval,
@@ -103,6 +105,22 @@ export interface TimeSeriesChartProps extends CartesianChartProps {
    *  once on mount, so an application can render its own toolbar (ADR-0014 §5)
    *  without controlling the domain itself. */
   onViewportCommands?: (commands: ViewportCommands) => void;
+  /**
+   * The maximum drawn points PER SERIES (ADR-0023). Absent → every point is
+   * drawn. Present, and the viewport-narrowed set exceeds it → min/max-per-
+   * bucket decimation bounds what is PAINTED: the envelope survives
+   * structurally (an excursion is an extreme, so it cannot vanish), a bucket
+   * containing a declared gap keeps a gap, and zooming re-decimates so a
+   * window at or below the budget draws raw.
+   *
+   * Painting only. The hit index, keyboard cursor, announcements, tooltip,
+   * table, and CSV all resolve against the RAW series at the resolved
+   * instant — the path is the envelope; the active point is the truth. That
+   * is why the active mark can sit off the drawn path on a zoomed-out dense
+   * chart, and why `defined` sees decimated indexes only where it shapes the
+   * painted line. Budgets below 2 clamp to 2.
+   */
+  decimation?: number;
   /* --- Gesture capture opt-in (ADR-0018 §2). Every one defaults to off — nothing
      captures the page's scroll or touch unless the caller asks. The keyboard needs
      no opt-in; it is always on the chart's keyboard composite. --- */
@@ -398,26 +416,58 @@ export function timePointRows(data: readonly TimePoint[]): readonly ChartTableRo
   return data.map((d) => [d.t.toISOString(), d.y] as const);
 }
 
+/**
+ * The points a single-series time chart PAINTS: the drawn set, bounded by the
+ * caller's explicit `decimation` budget (ADR-0023). With no budget — or a
+ * drawn set at or below it — this is the identity, same array reference.
+ *
+ * Painting only, deliberately: the callers wire their hit index, table, and
+ * announcements to the RAW accessors, so nothing outside the path geometry
+ * ever sees a decimated point. A non-finite y classifies as a gap, so
+ * decimation can never connect the painted line across one.
+ */
+export function plottedPoints(
+  visible: Accessor<readonly TimePoint[]>,
+  budget: Accessor<number | undefined>,
+): Accessor<readonly TimePoint[]> {
+  return createMemo(() => {
+    const b = budget();
+    if (b === undefined) return visible();
+    return decimateMinMax(visible(), b, {
+      time: (d) => d.t.getTime(),
+      value: (d) => (Number.isFinite(d.y) ? d.y : null),
+    });
+  });
+}
+
 /** What a time-series chart draws, once the dashboard and the viewport have had
  *  their say. */
 export interface TimeSeriesScope {
   /**
    * The y-basis: the caller's data narrowed to the dashboard effective domain
-   * ONLY — before the viewport narrows x. The y axis is computed from this, so
-   * panning or zooming x leaves y pinned (ADR-0014 §3); `autoscale` is the
-   * explicit opt-in that fits y to the visible values. Standalone this is all the
-   * data.
+   * ONLY — before the viewport narrows x. The y axis and the derived data table
+   * are computed from this (ADR-0014 §3; ADR-0022), so panning or zooming x
+   * leaves y pinned and the table unmoved; `autoscale` is the explicit opt-in
+   * that fits y to the visible values. Standalone this is all the data.
    */
   yData: Accessor<readonly TimePoint[]>;
   /**
    * The data actually drawn — `yData` further narrowed to the viewport interval.
-   * Feeds the marks, the hit index, and the data table, so all three describe the
-   * interval on screen. Standalone with no viewport prop this equals `yData`.
+   * Feeds the marks and the hit index, so both describe the interval on screen —
+   * NOT the table (ADR-0022). Standalone with no viewport prop this equals
+   * `yData`.
    */
   visible: Accessor<readonly TimePoint[]>;
   /** Build the x scale for a pixel range, over the viewport interval (or the
    *  scoped domain where navigation does not apply). */
   xScale: (range: [number, number]) => ScaleTime<number, number>;
+  /**
+   * The applied viewport interval — `undefined` when navigation is not in
+   * force (a chart at its default, or any dashboard member). The inspection
+   * window and the drawn narrowing both read this one accessor, so the cursor
+   * and the marks cannot disagree about what is on screen.
+   */
+  viewportInterval: Accessor<MsInterval | undefined>;
   /** True when the scope is real and nothing falls inside it. */
   isEmpty: Accessor<boolean>;
   /**
@@ -532,13 +582,18 @@ export function createTimeSeriesScope(
     props: viewportProps,
   });
 
+  // The applied viewport interval — undefined when navigation is not in force.
+  const viewportInterval = createMemo<MsInterval | undefined>(() =>
+    sv.navigable() ? sv.interval() : undefined,
+  );
+
   // The drawn data: the y-basis narrowed to the viewport interval when the
   // viewport is applied (standalone AND opted in). Otherwise it is the y-basis
   // unchanged — a chart at its default, or any dashboard member — so no baseline
   // moves.
   const visible = createMemo<readonly TimePoint[]>(() => {
-    if (!sv.navigable()) return yData();
-    const iv = sv.interval();
+    const iv = viewportInterval();
+    if (iv === undefined) return yData();
     return yData().filter((d) => {
       const t = d.t.getTime();
       return t >= iv.start && t <= iv.end;
@@ -554,6 +609,7 @@ export function createTimeSeriesScope(
   return {
     yData,
     visible,
+    viewportInterval,
     viewport,
     xScale: (range) => {
       // Navigable: the x domain IS the viewport interval.

@@ -172,6 +172,16 @@
 # leave a false explanation behind. Same posture as the Stylelint item above:
 # a tool-side defect, recorded rather than worked around.
 #
+# OPEN FINDING — the same Lizard TSX mis-parse, fourth instance (PR #64):
+# `packages/charts/src/scaffold.tsx`, "Method plottedPoints has 95 lines of
+# code (limit is 50)". Verified at the flagged commit: `plottedPoints` opens
+# at line 429 and closes at line 441 — THIRTEEN lines including its
+# signature. Lizard's 95-line span runs through the `TimeSeriesScope`
+# interface declarations and doc comments that follow the function, the same
+# failure shape as the three precedents above (a TSX construct the tokenizer
+# does not close). Production stays measured; nobody should restructure a
+# thirteen-line function to appease a mis-parse.
+#
 # Codacy provides these as separate, scoped exclusions precisely so this
 # distinction can be made — `engines.duplication.exclude_paths` and
 # `engines.metric.exclude_paths` are independent of the repository-wide
@@ -226,6 +236,7 @@ engines:
       - "packages/charts/test/series-style.test.tsx"
       - "packages/charts/test/sections.test.tsx"
       - "packages/charts/test/data-table.test.tsx"
+      - "packages/charts/test/decimation.test.tsx"
       - "packages/charts/test/LineChart-keyboard.test.tsx"
       - "packages/charts/test/inspection-hover.test.tsx"
       - "packages/charts/test/LineChart-reactive.test.tsx"
@@ -234,6 +245,7 @@ engines:
       - "packages/charts/test/support.ts"
       - "packages/core/test/active-point.test.ts"
       - "packages/core/test/csv.test.ts"
+      - "packages/core/test/decimate.test.ts"
       - "packages/core/test/extent.test.ts"
       - "packages/core/test/hit-test.test.ts"
       - "packages/core/test/overlap-identity.test.ts"
@@ -333,6 +345,7 @@ engines:
       - "packages/charts/test/series-style.test.tsx"
       - "packages/charts/test/sections.test.tsx"
       - "packages/charts/test/data-table.test.tsx"
+      - "packages/charts/test/decimation.test.tsx"
       - "packages/charts/test/LineChart-keyboard.test.tsx"
       - "packages/charts/test/inspection-hover.test.tsx"
       - "packages/charts/test/LineChart-reactive.test.tsx"
@@ -341,6 +354,7 @@ engines:
       - "packages/charts/test/support.ts"
       - "packages/core/test/active-point.test.ts"
       - "packages/core/test/csv.test.ts"
+      - "packages/core/test/decimate.test.ts"
       - "packages/core/test/extent.test.ts"
       - "packages/core/test/hit-test.test.ts"
       - "packages/core/test/overlap-identity.test.ts"
@@ -448,6 +462,7 @@ engines:
       - "packages/charts/test/series-style.test.tsx"
       - "packages/charts/test/sections.test.tsx"
       - "packages/charts/test/data-table.test.tsx"
+      - "packages/charts/test/decimation.test.tsx"
       - "packages/charts/test/LineChart-keyboard.test.tsx"
       - "packages/charts/test/inspection-hover.test.tsx"
       - "packages/charts/test/LineChart-reactive.test.tsx"
@@ -456,6 +471,7 @@ engines:
       - "packages/charts/test/support.ts"
       - "packages/core/test/active-point.test.ts"
       - "packages/core/test/csv.test.ts"
+      - "packages/core/test/decimate.test.ts"
       - "packages/core/test/extent.test.ts"
       - "packages/core/test/hit-test.test.ts"
       - "packages/core/test/overlap-identity.test.ts"
