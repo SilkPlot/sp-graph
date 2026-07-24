@@ -76,7 +76,20 @@ const TRACE_CATEGORIES = [
   "v8.execute",
 ].join(",");
 
-const gestures = gesturesFor(DURATION_MS);
+// `Map`s rather than bare objects, and the requested names validated against
+// them up front: a typo'd `--gestures` value dies here with the valid names
+// listed, instead of surfacing later as a TypeError mid-collection — and the
+// dispatch below stays static-analysable (no dynamic property access on an
+// object that could be polluted from input).
+const gestures = new Map(Object.entries(gesturesFor(DURATION_MS)));
+const prepares = new Map(Object.entries(PREPARE));
+const unknown = GESTURES.filter((g) => !gestures.has(g));
+if (unknown.length > 0) {
+  console.error(
+    `unknown gesture(s): ${unknown.join(", ")} — expected one of ${[...gestures.keys()].join(", ")}`,
+  );
+  process.exit(2);
+}
 
 /** One page per pass: no state leaks from a previous gesture's navigation. */
 async function openPage(browser) {
@@ -113,10 +126,11 @@ async function pass(browser, gesture, record) {
     if (gesture === "rangeDrag" && !ctx.range) {
       return { skipped: `no range control on ${WORKLOAD}` };
     }
-    await PREPARE[gesture]?.(page, ctx);
+    await prepares.get(gesture)?.(page, ctx);
     const before = await page.evaluate(() => window.__perf?.counts());
     await startRecording(page);
-    const recorded = await record(page, cdp, () => gestures[gesture](page, ctx));
+    const run = gestures.get(gesture);
+    const recorded = await record(page, cdp, () => run(page, ctx));
     const frames = stats(await stopRecording(page));
     const after = await page.evaluate(() => window.__perf?.counts());
     const commits = {
