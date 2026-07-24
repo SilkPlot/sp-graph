@@ -1211,7 +1211,7 @@ const PROBES = [
     project: "charts",
     browser: true,
     breaks:
-      "the table is rewired to the viewport-narrowed accessor — the coupling P08 measured as " +
+      "the table is rewired to the viewport-narrowed data — the coupling profiling measured as " +
       "the library's largest interaction cost returns, and a navigated chart's table silently " +
       "shows only the framed rows",
     anchor: "rows={() => timePointRows(scope.yData())}",
@@ -1229,11 +1229,13 @@ const PROBES = [
     project: "charts",
     browser: true,
     breaks:
-      "the table is rewired to the viewport-narrowed accessor — the coupling P08 measured as " +
+      "the table is rewired to the viewport-narrowed data — the coupling profiling measured as " +
       "the library's largest interaction cost returns, and a navigated chart's table silently " +
       "shows only the framed rows",
     anchor: "visible: visible(), series: all()",
-    mutation: "visible: drawn(), series: all()",
+    mutation:
+      "visible: (() => { const iv = viewportInterval(); return iv === undefined ? visible() : " +
+      "visible().map((s) => ({ ...s, data: dataWithinInterval(s.data, iv) })); })(), series: all()",
     failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
     minFailures: 1,
     observed: "1 failure: a standalone multi-series chart's table drops from 5 rows to 3",
