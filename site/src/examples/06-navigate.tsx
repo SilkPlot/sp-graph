@@ -13,8 +13,10 @@ const latency: TimePoint[] = Array.from({ length: 90 }, (_, i) => ({
 
 // The chart hands its viewport commands out once on mount; the buttons below
 // are the application-owned toolbar the library deliberately does not force
-// on every chart. Keyboard users have the same four commands on the chart
-// itself: + and - zoom, a autoscales, 0 resets.
+// on every chart. Keyboard users have the same four commands on the chart once
+// it has FOCUS — click it, or Tab to it; hovering alone delivers no key events,
+// and a hovered chart shows a hint naming that path: + and - zoom,
+// a autoscales, 0 resets.
 const Example: Component = () => {
   const [commands, setCommands] = createSignal<ViewportCommands>();
   return (
