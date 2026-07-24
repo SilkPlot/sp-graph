@@ -192,6 +192,12 @@ arrived at.
   than a planning board, one curated `ROADMAP.md` as the single public roadmap
   source with the site page and milestones derived from it, milestones named for
   version lines, and CODEOWNERS naming the maintainer of record.
+- [ADR-0022 — The scope a data alternative follows](adr-0022-data-alternative-scope.md):
+  a data alternative (the derived table and its CSV) follows the data scope —
+  standalone, the chart's data; in a dashboard, the resolved effective domain —
+  and the viewport never narrows it. Pins the accessibility equivalence claim at
+  data-scope level, deletes the largest measured interaction cost, and amends
+  ADR-0018's context; marks, x scale, and hit index keep following the viewport.
 
 ## Migrations
 
