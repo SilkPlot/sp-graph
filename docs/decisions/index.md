@@ -198,6 +198,15 @@ arrived at.
   and the viewport never narrows it. Pins the accessibility equivalence claim at
   data-scope level, deletes the largest measured interaction cost, and amends
   ADR-0018's context; marks, x scale, and hit index keep following the viewport.
+- [ADR-0023 — Density recovery: explicit min/max decimation, and inspection that resolves against the raw series](adr-0023-density-decimation-and-inspection.md):
+  the density recovery over corrected SVG is min/max-per-bucket decimation,
+  selected on the envelope criterion (an excursion is an extreme, so it cannot
+  vanish) and measured first-hand against the published field; explicit,
+  per-series, off by default. Inspection — hit index, keyboard, announcements,
+  tooltip, table, CSV — resolves against the RAW series at the resolved instant,
+  so the path is the envelope and the active point is the truth. Canvas is not
+  promoted; its promotion still requires measured evidence that this is not
+  enough.
 
 ## Migrations
 

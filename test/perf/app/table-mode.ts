@@ -1,12 +1,15 @@
 /**
  * How much of a frame is the chart, and how much is its accessible data table?
  *
- * The question matters at these scales because the derived table is a real DOM
- * row per instant and it NARROWS with the visible domain — so a viewport commit
- * rebuilds it. W-A carries five thousand rows and W-D carries eighty-six
- * thousand. If a zoom is slow, "the marks are slow" and "the table is slow" are
- * different findings with different fixes, and a single number cannot tell them
- * apart.
+ * The question mattered at these scales because the derived table is a real
+ * DOM row per instant and it USED to narrow with the visible domain — so a
+ * viewport commit rebuilt it, which the profiling phase measured as the
+ * library's single largest interaction cost. ADR-0022 deleted that coupling:
+ * the table follows the DATA scope and a viewport commit must not touch it.
+ * The two configurations stay, because they are now the PROOF of the deletion
+ * — the density-disposition phase's acceptance criterion is that the
+ * table-vs-none gap is GONE from the re-run, not reduced, and one
+ * configuration alone cannot show a gap of any size.
  *
  * So each workload renders twice, chosen by query string:
  *

@@ -48,6 +48,7 @@ import {
   createInspectableSemantics,
   createTimeSeriesScope,
   finiteDefined,
+  plottedPoints,
   timePointRows,
   type TimeSeriesChartProps,
   type TimeSeriesScope,
@@ -207,12 +208,17 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
     },
   });
 
+  // What the path PAINTS — the drawn set under the explicit decimation budget
+  // (ADR-0023). The inspection below deliberately keeps reading `scope.visible`:
+  // the path is the envelope, the active point is the truth.
+  const plotted = plottedPoints(scope.visible, () => props.decimation);
+
   const pathD = createMemo(() => {
     const xs = model.x();
     const ys = model.y();
     const px = (d: TimePoint): number => xs(d.t);
     const py = (d: TimePoint): number => ys(d.y);
-    return linePath(scope.visible(), {
+    return linePath(plotted(), {
       x: px,
       y: py,
       defined: finiteDefined(px, py, props.defined),
@@ -221,7 +227,12 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
   });
 
   const insp = createTimeChartInspection({
-    visible: scope.visible,
+    // The DATA-SCOPE basis plus the window, not the narrowed array: the index
+    // structure survives every viewport commit (rebuilding it per commit was
+    // profiling's dominant residual commit cost), and inspection resolves raw
+    // datums per ADR-0023.
+    visible: scope.yData,
+    window: scope.viewportInterval,
     model,
     semantics: () => props.semantics,
     defined: props.defined,
@@ -326,6 +337,7 @@ const LineChartMulti: Component<
         // you can see it.
         yDomain="zero-floor"
         emptyMessage={props.emptyMessage}
+        decimation={props.decimation}
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
@@ -374,8 +386,10 @@ const LineChartSingle: Component<
 > = (props) => {
   // Outside ChartRoot for a second reason: the table is a sibling of the
   // measured box, so the scope has to be readable from both sides of it. The
-  // table takes the VISIBLE rows — a table describing rows the picture does not
-  // draw is the exact disagreement `ChartDataAlternative` exists to prevent.
+  // table takes the DATA-SCOPE rows (`yData`, ADR-0022): navigating the
+  // viewport frames the picture without changing what the chart is about, so
+  // the table — the alternative representation of the dataset, not of the
+  // pixels — does not narrow with it.
   const scope = createTimeSeriesScope(() => props.data, forwardViewport(props));
   emitViewportCommands(props.onViewportCommands, scope.viewport);
 
@@ -383,7 +397,7 @@ const LineChartSingle: Component<
     <ChartShell
       layout={props}
       semantics={props.semantics}
-      rows={() => timePointRows(scope.visible())}
+      rows={() => timePointRows(scope.yData())}
       columns={TIME_SERIES_COLUMNS}
       latest={scope.isLatest}
     >

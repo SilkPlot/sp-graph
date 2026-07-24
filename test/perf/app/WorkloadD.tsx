@@ -99,6 +99,15 @@ export const WorkloadD: Component = () => {
         series={series()}
         height={420}
         wheelZoom
+        // The ADR-0023 disposition, mounted: explicit min/max decimation at
+        // the same budget the scorer measured. Paint only — the hit index,
+        // announcements, table, and CSV still read the raw 86,400. P08
+        // recorded the pre-disposition raw figures (NOT VIABLE RAW); the P09
+        // exit run judges THIS composition, which is what ships for this
+        // density. The data-level candidate swap below stays as the
+        // comparison instrument; a swapped 2,000-point candidate is at the
+        // budget, so the prop is the identity there.
+        decimation={WD_TARGET_POINTS}
         onVisibleDomainChange={() => noteViewport()}
         onActivePointChange={(point) => noteActive(point)}
         table={tableProp()}

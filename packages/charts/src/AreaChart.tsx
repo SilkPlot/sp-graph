@@ -50,6 +50,7 @@ import {
   createInspectableSemantics,
   createTimeSeriesScope,
   finiteDefined,
+  plottedPoints,
   timePointRows,
   type TimeSeriesChartProps,
   type TimeSeriesScope,
@@ -142,21 +143,30 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
     return { x, y, defined: finiteDefined(x, y, props.defined), curve: props.curve ?? "monotoneX" };
   });
 
+  // What both marks PAINT — the drawn set under the explicit decimation budget
+  // (ADR-0023). One accessor for the fill and the stroke, for the same reason
+  // `marks` is one memo: two marks reading two decimations would disagree.
+  // The inspection below deliberately keeps reading `scope.visible`.
+  const plotted = plottedPoints(scope.visible, () => props.decimation);
+
   const areaD = createMemo(() => {
     const { x, defined, curve } = marks();
-    return areaPath(scope.visible(), { x, y0: baselineY(), y1: marks().y, defined, curve });
+    return areaPath(plotted(), { x, y0: baselineY(), y1: marks().y, defined, curve });
   });
 
   const lineD = createMemo(() => {
     const { x, y, defined, curve } = marks();
-    return linePath(scope.visible(), { x, y, defined, curve });
+    return linePath(plotted(), { x, y, defined, curve });
   });
 
   // One active-datum state, shared by keyboard and pointer over the same
   // time-series index Line uses — Area and Line differ in their marks and never
   // in this (ADR-0016 §3).
   const insp = createTimeChartInspection({
-    visible: scope.visible,
+    // The DATA-SCOPE basis plus the window — see LineChart; same reasoning,
+    // same seam (ADR-0023).
+    visible: scope.yData,
+    window: scope.viewportInterval,
     model,
     semantics: () => props.semantics,
     defined: props.defined,
@@ -261,6 +271,7 @@ const AreaChartMulti: Component<
         // deliberately differs; an all-negative series is where you see it.
         yDomain="zero-baseline"
         emptyMessage={props.emptyMessage}
+        decimation={props.decimation}
         wheelZoom={props.wheelZoom}
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
@@ -320,7 +331,8 @@ const AreaChartSingle: Component<
   AreaChartBaseProps & SingleSeriesInput & { semantics: ChartSemantics }
 > = (props) => {
   // Outside ChartRoot: the table is a sibling of the measured box, so the scope
-  // must be readable from both sides of it, and the table takes the VISIBLE rows.
+  // must be readable from both sides of it. The table takes the DATA-SCOPE rows
+  // (`yData`, ADR-0022) — the viewport frames the picture, never the table.
   const scope = createTimeSeriesScope(() => props.data, forwardViewport(props));
   emitViewportCommands(props.onViewportCommands, scope.viewport);
 
@@ -328,7 +340,7 @@ const AreaChartSingle: Component<
     <ChartShell
       layout={props}
       semantics={props.semantics}
-      rows={() => timePointRows(scope.visible())}
+      rows={() => timePointRows(scope.yData())}
       columns={TIME_SERIES_COLUMNS}
       latest={scope.isLatest}
     >

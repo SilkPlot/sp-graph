@@ -21,6 +21,8 @@ import {
   timeDomainOf,
   timeScale,
   type EffectiveDomain,
+  type MsInterval,
+  type NormalizedDatum,
   type NormalizedReference,
   type NormalizedSeries,
   type ReferenceValue,
@@ -38,6 +40,19 @@ import {
   type ChartViewportProps,
 } from "./viewport-scope";
 
+/**
+ * Narrow one series' data to a viewport interval — the ONE definition of the
+ * viewport filter, used by the per-row narrowing in `MultiSeriesBody` (which
+ * feeds the marks). Two copies of this predicate would be two ideas of what
+ * is on screen.
+ */
+export function dataWithinInterval<M>(
+  data: readonly NormalizedDatum<M>[],
+  interval: MsInterval,
+): readonly NormalizedDatum<M>[] {
+  return data.filter((d) => d.time >= interval.start && d.time <= interval.end);
+}
+
 export interface MultiSeriesScope<M = unknown> {
   /**
    * The y-basis: visible series narrowed to the effective domain ONLY — before
@@ -46,11 +61,17 @@ export interface MultiSeriesScope<M = unknown> {
    */
   visible: Accessor<readonly NormalizedSeries<M>[]>;
   /**
-   * The drawn series: `visible` further narrowed to the viewport interval when
-   * the viewport is applied (standalone AND opted in), else `visible` unchanged.
-   * Feeds the marks, the hit index, and the data table.
+   * The applied viewport interval — `undefined` when navigation is not in
+   * force (a chart at its default, or any dashboard member). This accessor is
+   * the ONLY per-commit signal the scope hands out, and everything downstream
+   * derives from `visible` plus this: the mark rows narrow per row, the hit
+   * index windows its ordinals. There is deliberately NO "drawn series"
+   * accessor minting narrowed copies — one existed, and every viewport commit
+   * paid for fresh series objects that tore down each mark row (`For` keys by
+   * reference) and rebuilt the hit index; profiling attributed
+   * the zoom/brush/range-drag budget miss to exactly that.
    */
-  drawn: Accessor<readonly NormalizedSeries<M>[]>;
+  viewportInterval: Accessor<MsInterval | undefined>;
   /** Every series, narrowed to the effective domain — hidden ones included, for a
    *  legend to render. */
   all: Accessor<readonly NormalizedSeries<M>[]>;
@@ -61,8 +82,9 @@ export interface MultiSeriesScope<M = unknown> {
   isEmpty: Accessor<boolean>;
   /** True when the chart is showing a single most-recent reading. */
   isLatest: Accessor<boolean>;
-  /** The accessible data alternative, from the DRAWN model — it describes the
-   *  interval on screen. */
+  /** The accessible data alternative, from the DATA-SCOPE model (`visible`,
+   *  the effective-domain-narrowed series) — it describes the dataset the
+   *  chart's data scope selects, never the viewport's framing (ADR-0022). */
   table: Accessor<SeriesTable>;
   /** Normalised reference overlays (ADR-0008 §10), in the caller's order. */
   references: Accessor<readonly NormalizedReference[]>;
@@ -164,17 +186,10 @@ export function createMultiSeriesScope<M = unknown>(
     props: spec.viewport ?? {},
   });
 
-  // The drawn series: the y-basis narrowed to the viewport interval when the
-  // viewport is applied, else unchanged. Feeds the marks, the hit index, and the
-  // table, so all three describe the interval on screen.
-  const drawn = createMemo(() => {
-    if (!sv.navigable()) return visible();
-    const iv = sv.interval();
-    return visible().map((s) => ({
-      ...s,
-      data: s.data.filter((d) => d.time >= iv.start && d.time <= iv.end),
-    }));
-  });
+  // The applied viewport interval — undefined when navigation is not in force.
+  const viewportInterval = createMemo<MsInterval | undefined>(() =>
+    sv.navigable() ? sv.interval() : undefined,
+  );
 
   // ONE normalisation for references too, and deliberately NOT routed through
   // `normalizeSeries`: a reference is not a series. Through that path it would
@@ -191,7 +206,7 @@ export function createMultiSeriesScope<M = unknown>(
   return {
     all,
     visible,
-    drawn,
+    viewportInterval,
     viewport,
     references,
     xScale: (range) => {
@@ -229,11 +244,14 @@ export function createMultiSeriesScope<M = unknown>(
     isEmpty: () =>
       domain() !== undefined && visible().every((s) => s.data.length === 0),
     isLatest: () => domain()?.kind === "latest",
-    // Built from the DRAWN model, so the table describes the interval on screen
-    // (the viewport, and the dashboard scope before it) rather than the dataset
-    // behind it.
+    // Built from the DATA-SCOPE model (ADR-0022): `visible` is the
+    // effective-domain-narrowed series, so a dashboard scope change moves the
+    // table — that changes what the chart is ABOUT — while a viewport commit
+    // (zoom, pan, brush, range drag) only frames the picture and leaves the
+    // table alone. P08 measured the old viewport coupling as the single
+    // largest interaction cost in the library; ADR-0022 deletes it.
     table: () =>
-      seriesTable({ ...model(), visible: drawn(), series: all() }, spec.tableOptions?.()),
+      seriesTable({ ...model(), visible: visible(), series: all() }, spec.tableOptions?.()),
   };
 }
 

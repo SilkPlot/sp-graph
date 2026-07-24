@@ -171,8 +171,8 @@ all raises a diagnostic instead of passing quietly.
 ### The table
 
 ```tsx
-// Rows derived from the chart's own data — the table and the picture cannot
-// disagree, and both follow a data replacement together.
+// Rows derived from the chart's own data — the table and the picture describe
+// the same dataset and both follow a data replacement together.
 table={{ columns: ["Week", "Bookings"] }}
 
 // Rows you format yourself — your date format, your rounding, your units.
@@ -188,6 +188,16 @@ cannot invent. `rows` is optional — omit it and rows are derived from the same
 `data` the marks are drawn from. Derived timestamps go out as ISO 8601, which is
 unambiguous and locale-independent; anything friendlier is domain wording, so
 pass `rows` for it.
+
+**The table follows the chart's data scope, not its viewport.** Zooming,
+panning, or brushing frames a part of the picture; it does not change what the
+chart is *about*, so the table (and the CSV serialised from it) keeps
+describing the whole dataset the chart's data scope selects. A sighted user
+mid-zoom and a screen-reader user reading the table hold the same dataset — the
+viewport is a lens over it, available to both through the same commands. Inside
+a dashboard, a range change or a linked selection *is* a data-scope change, so
+the table follows it. An application that specifically wants a table of only
+the framed interval can render its own from `onVisibleDomainChange`.
 
 The table ships **collapsed behind a "Show data table" disclosure**, as a
 following sibling of the chart's measured box in normal document flow, together

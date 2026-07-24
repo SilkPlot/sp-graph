@@ -77,6 +77,13 @@ export const WorkloadA: Component = () => {
         wheelZoom
         pinchZoom
         brushSelect
+        // The ADR-0023 disposition at this density: 20,000 raw points missed
+        // the commit budget on zoom/brush/range-drag even after the
+        // derivation corrections, so a consumer at this scale engages the
+        // explicit per-series budget. 2,000 per series ≈ one bucket per
+        // rendered column at this width, so the painted envelope is
+        // column-exact. Paint only — inspection, table, and CSV stay raw.
+        decimation={2000}
         minSpan={30 * DAY}
         visibleDomain={visible()}
         onVisibleDomainChange={commitDomain}

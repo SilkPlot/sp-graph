@@ -1205,6 +1205,41 @@ const PROBES = [
     // user-visible consequence rather than the fact that something failed.
     messagePattern: /to contain 'Selected'/,
   },
+  {
+    id: "table-viewport-decoupled-single",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the table is rewired to the viewport-narrowed accessor — the coupling P08 measured as " +
+      "the library's largest interaction cost returns, and a navigated chart's table silently " +
+      "shows only the framed rows",
+    anchor: "rows={() => timePointRows(scope.yData())}",
+    mutation: "rows={() => timePointRows(scope.visible())}",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a standalone single-series chart's table drops from 5 rows to 3",
+    // The row count the test demands where the coupling's row count lands
+    // instead — the defect's own output, tied to this suite's fixture.
+    messagePattern: /to have a length of 5 but got 3\b/,
+  },
+  {
+    id: "table-viewport-decoupled-multi",
+    file: "packages/charts/src/multi-series.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the table is rewired to the viewport-narrowed accessor — the coupling P08 measured as " +
+      "the library's largest interaction cost returns, and a navigated chart's table silently " +
+      "shows only the framed rows",
+    anchor: "visible: visible(), series: all()",
+    mutation: "visible: drawn(), series: all()",
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
+    minFailures: 1,
+    observed: "1 failure: a standalone multi-series chart's table drops from 5 rows to 3",
+    // Same shape as the single-series probe above, over the `series` prop path.
+    messagePattern: /to have a length of 5 but got 3\b/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
