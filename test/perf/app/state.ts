@@ -77,7 +77,7 @@ export interface PerfApi {
   decimationReport?(): readonly DecimationError[];
 }
 
-export type DecimationChoice = "raw" | "min-max" | "every-nth";
+export type DecimationChoice = "raw" | "min-max" | "every-nth" | "m4" | "lttb";
 
 /** What a workload supplies. The derived members are filled in by `publish`. */
 export type PerfPageApi = Omit<PerfApi, "tableRows" | "invariants" | "lastActive" | "counts">;

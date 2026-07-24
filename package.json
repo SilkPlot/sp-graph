@@ -47,7 +47,8 @@
     "prepare": "git config core.hooksPath .githooks",
     "gate:stated-facts": "node scripts/stated-facts-gate.mjs",
     "dev:perf": "vite --config test/perf/vite.config.ts",
-    "perf:workload": "node scripts/measure-workload-frames.mjs"
+    "perf:workload": "node scripts/measure-workload-frames.mjs",
+    "perf:decimation": "node scripts/score-decimation.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
