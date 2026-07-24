@@ -346,13 +346,34 @@ const PROBES = [
     project: "core",
     browser: false,
     breaks:
-      "an exact midpoint tie resolves to the lower ordinal (the earlier instant) — flip it to the " +
-      "higher and a pointer exactly between two instants snaps to the wrong one",
-    anchor: "  return dLo <= dHi ? lo : hi;",
-    mutation: "  return dLo < dHi ? lo : hi;",
+      "an exact midpoint tie in the sorted-array search resolves to the lower ordinal (the " +
+      "earlier instant) — flip it to the higher and a pointer exactly between two instants " +
+      "snaps to the wrong one",
+    // The tie line exists twice since the time index gained its own live-px
+    // bisection: this anchors the SEARCH's copy by its preceding line; the
+    // sibling probe below anchors the index's.
+    anchor: "  const dHi = (sorted[hi] as number) - target;\n  return dLo <= dHi ? lo : hi;",
+    mutation: "  const dHi = (sorted[hi] as number) - target;\n  return dLo < dHi ? lo : hi;",
     failingIn: ["packages/core/test/active-point.test.ts"],
-    minFailures: 2,
-    observed: "2 failures (the search tie and the time-index tie), e.g. “expected 1 to be +0”",
+    minFailures: 1,
+    observed: "1 failure (the search tie), “expected 1 to be +0”",
+    messagePattern: /expected 1 to be \+0/,
+  },
+  {
+    id: "time-locate-tie-lower-ordinal",
+    file: "packages/core/src/active-point.ts",
+    project: "core",
+    browser: false,
+    breaks:
+      "the time index's own live-px bisection carries the same lower-ordinal tie rule — flip " +
+      "it and locate snaps a pointer exactly between two instants to the later one, while the " +
+      "sorted-array search (a different function since the scale-free restructuring) stays " +
+      "correct and its tests stay green",
+    anchor: "    const dHi = pxAt(hi) - px;\n    return dLo <= dHi ? lo : hi;",
+    mutation: "    const dHi = pxAt(hi) - px;\n    return dLo < dHi ? lo : hi;",
+    failingIn: ["packages/core/test/active-point.test.ts"],
+    minFailures: 1,
+    observed: "1 failure (the time-index tie), “expected 1 to be +0”",
     messagePattern: /expected 1 to be \+0/,
   },
   {
@@ -954,8 +975,12 @@ const PROBES = [
       "the drawn marks are narrowed to the viewport interval (S007-P04b). Return the whole y-basis " +
       "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
       "was told to show.",
-    anchor: "    if (!sv.navigable()) return yData();",
-    mutation: "    return yData();",
+    // Re-anchored when the scope moved to the shared `viewportInterval`
+    // accessor (the scale-free index restructuring): same defect, same
+    // mutation shape — the visible memo stops narrowing.
+    anchor: "    const iv = viewportInterval();\n    if (iv === undefined) return yData();",
+    mutation:
+      "    const iv = viewportInterval();\n    if (iv === undefined) return yData();\n    return yData();",
     // Widened 2026-07-23, for the truth rather than for convenience. Suites added
     // by the responsive-container and gesture work drive this same path and
     // legitimately redden on this mutation; they were never declared, so the stray
