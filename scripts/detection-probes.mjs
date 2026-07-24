@@ -1248,12 +1248,14 @@ const PROBES = [
     project: "charts",
     browser: true,
     breaks:
-      "the mark rows are keyed on per-read snapshots again — every viewport commit hands `For` " +
-      "fresh series objects, so each commit tears down and recreates every row (root, style, " +
+      "the mark rows are keyed on per-commit snapshots again — the row array tracks the " +
+      "viewport, so every commit hands `For` fresh series objects and tears down and " +
+      "recreates every row (root, style, " +
       "geometry, path node), which profiling measured as the shared zoom/brush/range-drag " +
       "budget miss. The chart still LOOKS right; only the frame budget knows",
     anchor: "<For each={props.scope.visible()}>",
-    mutation: "<For each={props.scope.visible().map((s) => ({ ...s }))}>",
+    mutation:
+      "<For each={props.scope.visible().map((s) => ({ ...s, viewportEpoch: props.scope.viewportInterval() }))}>",
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed:
