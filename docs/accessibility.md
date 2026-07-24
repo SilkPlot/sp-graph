@@ -221,6 +221,17 @@ A chart is **one tab stop**, not one per mark.
 | <kbd>Esc</kbd> | clear the selection, without moving focus |
 | <kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> | always leave — forward and backward |
 
+<kbd>Tab</kbd> is not the only way in: **a pointer-down anywhere on the plot
+also gives the chart focus**, taken explicitly with `preventScroll` rather than
+left to the browser — a chart with drag-to-brush enabled cancels that same
+pointer-down, and a cancelled pointer-down suppresses the default mousedown
+focus, so without the explicit step a click could never reach the keyboard. The
+same event still starts the brush or resolves the hover it always did. A
+hovered, unfocused chart that offers viewport navigation shows a small
+affordance naming this path; it never appears for a touch pointer, which has no
+hover state and no keyboard to invite, and its fade runs only through the
+motion token, so reduced motion stills it.
+
 Selection stops at the boundaries rather than wrapping, so arrowing does not
 silently loop a user around a series they thought they were walking off the end
 of. A modified arrow (<kbd>Ctrl</kbd>, <kbd>Alt</kbd>, <kbd>⌘</kbd>) is left

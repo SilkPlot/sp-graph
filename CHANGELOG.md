@@ -15,7 +15,27 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
-Nothing yet beyond the candidate below.
+### Fixed
+
+- **A pointer-down now gives the chart keyboard focus.** The viewport keys
+  (`+`/`-` zoom, `Shift`+arrow pan, `a` autoscale, `0` reset) are bound to the
+  chart's single tab stop and need DOM focus; hover delivers no key events at
+  all, and on a `brushSelect` chart the gesture layer cancels the pointer-down,
+  which suppressed even the browser's own mousedown focus — so no click could
+  reach the keyboard either. The surface now takes focus explicitly on
+  pointer-down (with `preventScroll`), for every pointer type, leaving the
+  brush and the datum path the same event serves untouched. Found first-hand on
+  production; the pre-existing gesture suite drives the surface directly and
+  could not have seen it.
+
+### Added
+
+- **A hover affordance naming the keyboard path.** A hovered, unfocused chart
+  with viewport gestures shows a small hint — "Click to use keyboard: + − zoom
+  · Shift ←→ pan · 0 reset · a autoscale" — hidden once focus is taken, never
+  shown to a touch pointer, and faded only through the motion token so reduced
+  motion stills it by construction. `ChartKeyboardSurface` now forwards
+  `focusin`/`focusout`, so a composition can track the tab stop's focus state.
 
 ## [0.3.0-next.0] — 2026-07-22
 

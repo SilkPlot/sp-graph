@@ -11,7 +11,7 @@
  * legitimately differ (engineering-priorities: share the computation and the
  * marks that must not disagree, not the ones that legitimately do).
  */
-import { type Accessor, type Component, type JSX, Show, createMemo } from "solid-js";
+import { type Accessor, type Component, type JSX, Show, createMemo, createSignal } from "solid-js";
 import {
   createTimeSeriesIndex,
   type ActivePoint,
@@ -255,6 +255,18 @@ export const BrushRect: Component<{ x0: number; x1: number; height: number }> = 
   );
 };
 
+/**
+ * The hover affordance's wording — the previously missing signifier. A hovered chart
+ * visibly reacts (crosshair, tooltip, announcement), which is exactly the
+ * signal that says "this widget has your input" — while the viewport keys are
+ * focus-gated and hover delivers no focus, so a pressed key produces no
+ * response of any kind, indistinguishable from a broken build. This line names
+ * the path from the state the user is in (pointer on the chart) to the
+ * commands they reached for.
+ */
+export const VIEWPORT_KEYS_HINT =
+  "Click to use keyboard: + − zoom · Shift ←→ pan · 0 reset · a autoscale";
+
 export interface InteractionLayerProps<D> {
   inspection: ChartInspection<D>;
   semantics: ChartSemantics;
@@ -307,6 +319,24 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
     props.viewportGestures?.setSurface(element);
   };
 
+  // The hover-affordance state: shown while a hover-capable pointer
+  // is on an UNFOCUSED chart, gone the moment its advice is taken. Plain
+  // booleans derived from events the surface already receives — no listener is
+  // added anywhere, least of all on `window`.
+  const [hovered, setHovered] = createSignal(false);
+  const [focused, setFocused] = createSignal(false);
+  const hintShown = (): boolean => hovered() && !focused();
+  const onHintPointerEnter = (event: PointerEvent): void => {
+    // A touch pointer has no hover state and no keyboard to invite — a tap
+    // reaches focus through the same pointer-down as every other pointer.
+    if (event.pointerType !== "touch") setHovered(true);
+    insp.onPointerEnter();
+  };
+  const onHintPointerLeave = (): void => {
+    setHovered(false);
+    insp.onPointerLeave();
+  };
+
   return (
     <>
       <Show
@@ -339,11 +369,46 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           // ternary `ref` is NOT invoked by Solid's ref compilation, which is how
           // the rect silently went uncached and hover resolved nothing.
           ref={attachSurface}
-          onPointerEnter={insp.onPointerEnter}
+          onPointerEnter={onHintPointerEnter}
           onPointerMove={insp.onPointerMove}
-          onPointerLeave={insp.onPointerLeave}
+          onPointerLeave={onHintPointerLeave}
+          onFocusIn={() => setFocused(true)}
+          onFocusOut={() => setFocused(false)}
           beforeKeyDown={props.viewportGestures?.onKeyDown}
         />
+        {/* The affordance itself — only where there ARE viewport keys to name.
+            It is kept mounted and faded (not conditionally rendered) so the
+            fade can run; `pointer-events: none` so it never intercepts the
+            pointer it is advising; `aria-hidden` because the composite's own
+            accessible name already carries the instruction, and a live copy
+            here would say everything twice. Every colour, size, and timing is
+            a theme token with the ADR-0001 fallback. */}
+        <Show when={props.viewportGestures !== undefined}>
+          <div
+            data-silkplot-keyboard-hint=""
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "var(--sp-space-sm, 4px)",
+              right: "var(--sp-space-sm, 4px)",
+              padding: "var(--sp-space-xs, 2px) var(--sp-space-sm, 4px)",
+              "font-size": "var(--sp-font-xs, 10px)",
+              color: "var(--sp-color-muted, #5b616e)",
+              background: "var(--sp-color-surface, #ffffff)",
+              border: "1px solid var(--sp-color-grid, #e4e7ec)",
+              "border-radius": "var(--sp-radius-md, 4px)",
+              opacity: hintShown() ? "1" : "0",
+              // Faded through the motion token ONLY: the theme collapses it to
+              // 0ms under prefers-reduced-motion, and the 0ms fallback means an
+              // unthemed page never animates at all — reduced motion is
+              // honoured by construction, not by a listener.
+              transition: "opacity var(--sp-motion-fast, 0ms) ease",
+              "pointer-events": "none",
+            }}
+          >
+            {VIEWPORT_KEYS_HINT}
+          </div>
+        </Show>
       </Show>
       <Show when={props.tooltip && active()}>
         {(a) => {

@@ -8,6 +8,17 @@
  * and keyboard write the same active-datum state through the same element rather
  * than through two surfaces that can drift apart.
  *
+ * **A pointer-down anywhere on the surface gives it focus.** The keys
+ * are focus-gated — a composite receives keydown only while it holds DOM focus —
+ * and hover delivers no focus, so a pointer user's route to the keyboard is a
+ * click. That route cannot be left to the browser default: a gesture layer that
+ * starts a brush cancels the same `pointerdown`, and cancelling `pointerdown`
+ * suppresses the default mousedown focus, which is exactly how a brush-enabled
+ * chart shipped whose viewport keys nothing could reach. Focus is taken with
+ * `preventScroll` — the element is already under the pointer, and moving the
+ * page out from under a click is the scroll hazard that had focus-on-hover
+ * rejected outright.
+ *
  * **The active point is a real DOM element, not just a live-region string.**
  * ADR-0005 §6: Canvas exposes no per-mark semantics, so an accessible result has
  * to come from a parallel DOM layer. That layer is here, and it is exactly ONE
@@ -37,6 +48,20 @@ import type { ChartKeyboard } from "./createChartKeyboard";
  * hatch for an application with its own focus treatment.
  */
 export const SP_FOCUSABLE_CLASS = "sp-focusable";
+
+/**
+ * Invoke a forwarded JSX event handler — a plain function or Solid's
+ * `[handler, data]` bound pair. Needed once a forwarded event is wrapped rather
+ * than passed straight through: JSX compilation handles the union, a wrapper
+ * has to.
+ */
+function callEventHandler<E extends Event>(
+  handler: JSX.EventHandlerUnion<HTMLDivElement, E> | undefined,
+  event: E & { currentTarget: HTMLDivElement; target: Element },
+): void {
+  if (typeof handler === "function") handler(event);
+  else if (handler) handler[0](handler[1], event);
+}
 
 /** Clip out of view while leaving the element in the accessibility tree. */
 const VISUALLY_HIDDEN: JSX.CSSProperties = {
@@ -95,6 +120,13 @@ export interface ChartKeyboardSurfaceProps {
   onPointerLeave?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   onPointerDown?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
   /**
+   * Forwarded focus events — how a composition tracks whether the single tab
+   * stop currently holds focus (the charts' hover affordance hides itself once
+   * its advice is taken).
+   */
+  onFocusIn?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
+  onFocusOut?: JSX.EventHandlerUnion<HTMLDivElement, FocusEvent>;
+  /**
    * A handler given first refusal on every keydown, BEFORE the datum composite —
    * the viewport gestures (ADR-0018 §1). Returns true when it claimed the key, in
    * which case the datum composite does not see it. This is the ordering that
@@ -142,7 +174,16 @@ export const ChartKeyboardSurface: Component<ChartKeyboardSurfaceProps> = (props
       onPointerEnter={props.onPointerEnter}
       onPointerMove={props.onPointerMove}
       onPointerLeave={props.onPointerLeave}
-      onPointerDown={props.onPointerDown}
+      onPointerDown={(event) => {
+        // Explicit, not the browser default: a brush gesture cancels this same
+        // event, and a cancelled pointerdown suppresses the default mousedown
+        // focus (see the header). `preventScroll` — the element is already
+        // under the pointer; focusing must not move the page.
+        event.currentTarget.focus({ preventScroll: true });
+        callEventHandler(props.onPointerDown, event);
+      }}
+      onFocusIn={props.onFocusIn}
+      onFocusOut={props.onFocusOut}
       style={{ position: "absolute", inset: "0" }}
     >
       <Show when={index() !== undefined}>
