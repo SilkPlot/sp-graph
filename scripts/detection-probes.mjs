@@ -1242,6 +1242,47 @@ const PROBES = [
     // Same shape as the single-series probe above, over the `series` prop path.
     messagePattern: /to have a length of 5 but got 3\b/,
   },
+  {
+    id: "commit-row-recreation",
+    file: "packages/charts/src/MultiSeriesBody.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the mark rows are keyed on per-read snapshots again — every viewport commit hands `For` " +
+      "fresh series objects, so each commit tears down and recreates every row (root, style, " +
+      "geometry, path node), which profiling measured as the shared zoom/brush/range-drag " +
+      "budget miss. The chart still LOOKS right; only the frame budget knows",
+    anchor: "<For each={props.scope.visible()}>",
+    mutation: "<For each={props.scope.visible().map((s) => ({ ...s }))}>",
+    failingIn: ["packages/charts/test/multi-series.test.tsx"],
+    minFailures: 1,
+    observed:
+      "2 failures: the captured path nodes are disconnected after a zoom commit, and their " +
+      "geometry never moved (the new nodes got the new geometry instead)",
+    // The row-stability claim the test authored: both series' nodes still
+    // connected. Booleans, no geometry — stable across machines.
+    messagePattern: /to deeply equal \[ true, true \]/,
+  },
+  {
+    id: "decimation-paint-only-inspection",
+    file: "packages/charts/src/LineChart.tsx",
+    project: "charts",
+    browser: true,
+    breaks:
+      "inspection is wired to the PAINTED points — a decimated chart answers a keyboard step " +
+      "or a hover with the nearest surviving drawn datum instead of the raw series' value at " +
+      "the resolved instant, which the decimation evidence measured at up to ±180 units one " +
+      "second beside an excursion. ADR-0023's whole inspection contract inverts silently",
+    anchor: "visible: scope.yData,\n    window: scope.viewportInterval,",
+    mutation: "visible: plotted,\n    window: scope.viewportInterval,",
+    failingIn: ["packages/charts/test/decimation.test.tsx"],
+    minFailures: 1,
+    observed:
+      "1 failure: the keyboard's second step resolves a kept drawn point, not the second raw datum",
+    // The second raw datum's instant, in epoch ms — a fixture constant the
+    // test author wrote (2026-01-01T00:01:00Z), identical on every machine.
+    messagePattern: /to be 1767225660000\b/,
+  },
 ];
 
 // ---------------------------------------------------------------------------
