@@ -1259,8 +1259,8 @@ const PROBES = [
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed:
-      "2 failures: the captured path nodes are disconnected after a zoom commit, and their " +
-      "geometry never moved (the new nodes got the new geometry instead)",
+      "1 failure: the captured path nodes are disconnected after a zoom commit (the same test's " +
+      "geometry assertion would fail next — the old nodes kept their old paths)",
     // The row-stability claim the test authored: both series' nodes still
     // connected. Booleans, no geometry — stable across machines.
     messagePattern: /to deeply equal \[ true, true \]/,
