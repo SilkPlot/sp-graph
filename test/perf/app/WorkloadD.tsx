@@ -33,6 +33,8 @@ import {
   type Candidate,
   type DecimationError,
 } from "./decimate";
+import { lttb } from "./decimate-lttb";
+import { m4Columns } from "./decimate-m4";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
 import { noteActive, noteViewport, publish } from "./state";
 import { isTableSuppressed, tableProp } from "./table-mode";
@@ -45,6 +47,8 @@ const RAW_DATA: readonly SeriesDatum[] = RAW[0]?.data ?? [];
 const CANDIDATES: Record<Exclude<DecimationChoice, "raw">, Candidate> = {
   "min-max": minMaxBuckets,
   "every-nth": everyNth,
+  m4: m4Columns,
+  lttb,
 };
 
 /**
