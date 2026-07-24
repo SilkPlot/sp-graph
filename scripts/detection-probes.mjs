@@ -995,9 +995,13 @@ const PROBES = [
       // chart painting the whole series reddens them — a declared suite that
       // must contribute, not a stray.
       "packages/charts/test/keyboard-discoverability.test.tsx",
+      // Widened when the ADR-0022 table-scope tests landed: the Area suite's
+      // new case asserts the marks NARROW while the table stays whole, so a
+      // chart painting every point reddens it — a contributor, not a stray.
+      "packages/charts/test/AreaChart.test.tsx",
     ],
     minFailures: 3,
-    observed: "21 failures: the drawn point count is the whole series, not the windowed subset",
+    observed: "22 failures: the drawn point count is the whole series, not the windowed subset",
     // The whole series drawn where the windowed subset was required: five points
     // against three. The counts name the defect; `/have a length/` named only the
     // assertion.
