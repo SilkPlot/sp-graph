@@ -1001,7 +1001,7 @@ const PROBES = [
       "packages/charts/test/AreaChart.test.tsx",
     ],
     minFailures: 3,
-    observed: "22 failures: the drawn point count is the whole series, not the windowed subset",
+    observed: "23 failures: the drawn point count is the whole series, not the windowed subset",
     // The whole series drawn where the windowed subset was required: five points
     // against three. The counts name the defect; `/have a length/` named only the
     // assertion.
