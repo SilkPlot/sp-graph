@@ -16,7 +16,9 @@ to opt in, and *what a brush looks like* while it is being dragged.
 The viewport model ([ADR-0014](adr-0014-interaction-and-viewport-contract.md) §3)
 and its wiring into the chart scope both exist; the x scale, marks, hit index, and
 table already follow one visible interval, controllable through props and command
-functions. What is missing is the adapters that turn a pointer, a wheel, a pinch,
+functions. *(Amended by [ADR-0022](adr-0022-data-alternative-scope.md): the
+table drops out of that list — a data alternative follows the data scope, never
+the viewport. The bindings this ADR fixes are unaffected.)* What is missing is the adapters that turn a pointer, a wheel, a pinch,
 and a keypress into those command calls. This ADR fixes the bindings those
 adapters implement, so the first adapter does not set the surface by accident.
 
