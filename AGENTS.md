@@ -1,28 +1,37 @@
-# SilkPlot — agent entrypoint
+---
+type: runtime-guidance
+title: sp-graph - agent entry point
+description: Generated entry point for sp-graph, part of SilkPlot. Roles: code. Access: read-write.
+resource: sp-graph/AGENTS.md
+generated: true
+authoritative: false
+derived_from: .orca/project-profile.md
+baseline_version: 0.3.0
+regenerate_with: the bootstrap capability
+edit: unsafe - regenerated, and edits fix nothing upstream
+---
 
-SilkPlot is an open-source Solid + D3 visualization library.
+# sp-graph
 
-Follow the architecture in [`docs/architecture.md`](docs/architecture.md), and the
-decisions in [`docs/decisions/`](docs/decisions/index.md). An accepted ADR is never
-edited — supersede it.
+Part of **SilkPlot**. Roles: `code`.
+Access this session: **read-write**.
 
-## The rules that never bend
+The project profile at `sp-planning/.orca/project-profile.md` is
+authoritative. This file is generated and carries no rules of its own. It restates the authority chain so it can be found by an agent that has not yet read the profile. **A document not listed in the chain does not govern**, whatever this file repeats.
 
-- **D3 computes, Solid renders.** D3 modules are used compute-only.
-- **Never use `d3-selection`, `d3-transition`, or `d3-axis` in the render path.** Compute
-  ticks from scales and render them with Solid.
-- **SSR-safe.** No `window` / `document` / DOM work at module top level.
-- `solid-js` is a **peer dependency** of Solid-exporting packages. Runtime
-  `d3-*` use belongs in the importing package's regular dependencies
-  (`d3-scale-chromatic` belongs to `@silkplot/theme`). Each manifest declares
-  exactly what its package imports — verified, not assumed — so a new `d3-*`
-  import means adding a real dependency, not finding it already permitted.
-- **Primitives read theme tokens as `var(--sp-…)` with a fallback, and never import
-  `@silkplot/theme`.** See [ADR-0001](docs/decisions/adr-0001-theming-contract.md).
+## Rules for this repository
 
-## Package map
+none declared.
 
-`@silkplot/core` (pure math) · `@silkplot/solid` (primitives) · `@silkplot/charts` (charts) ·
-`@silkplot/calendar` (scheduler primitives) · `@silkplot/theme` (tokens) · `playground` (demo).
+## Authority chain
 
-Engineering priorities: **speed, fluidity, performance, first-hand experience.**
+| # | Repository | Path | Owns |
+|---|---|---|---|
+| 1 | `sp-planning` | `.orca/project-profile.md` | project parameters |
+| 2 | `sp-docs` | `governance/source-authority.md` | source authority and prohibited systems |
+| 3 | `sp-docs` | `governance/engineering-priorities.md` | engineering priorities |
+| 4 | `sp-docs` | `governance/performance-protocol.md` | performance measurement protocol |
+| 5 | `sp-docs` | `conventions/index.md` | documentation convention |
+| 6 | `sp-docs` | `conventions/planning.md` | planning convention |
+| 7 | `sp-docs` | `conventions/research-ingestion.md` | research ingestion |
+| 8 | `sp-docs` | `architecture/graphing-architecture.md` | graphing architecture |

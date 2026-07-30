@@ -1,7 +1,18 @@
-# SilkPlot — Claude entrypoint
+---
+type: runtime-guidance
+title: sp-graph - vendor pointer
+description: Pointer to AGENTS.md for sp-graph. Carries no rules of its own.
+resource: sp-graph/CLAUDE.md
+generated: true
+authoritative: false
+derived_from: .orca/project-profile.md
+baseline_version: 0.3.0
+regenerate_with: the bootstrap capability
+edit: unsafe - regenerated, and edits fix nothing upstream
+---
 
-This is the Claude entrypoint. Follow [AGENTS.md](AGENTS.md) exactly; it links to the
-architecture rules rather than duplicating them here.
+# sp-graph
 
-Core rule: **D3 computes, Solid renders.** Never use `d3-selection`, `d3-transition`, or
-`d3-axis` in the render path.
+[`AGENTS.md`](AGENTS.md) is the entry point for this repository. Read it before
+making any change. It applies whatever agent or editor is driving, and this file
+carries no rules of its own.
