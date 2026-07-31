@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "skills": {
+    "orca-coordinator": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "2ee859c6d76fe82b505753785e13615691bd356b530797f707681915c86e9a3c"
+    },
+    "orca-craft-research": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "620946d7337b72535a07a76e733fb9a9b1700e13a6b24cc8b740a0a566694e75"
+    },
+    "orca-decisions": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "f5245359fc7bac9a9209349ff6b7561869c25ac8ee12fda6d9acd366dc4f4a8a"
+    },
+    "orca-lessons-loop": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "14a656c820ef78aae7d8fd644840fe1b3f8aae1a2e60f4fd6229848dad982c21"
+    },
+    "orca-planning": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "44c32d76c9f8044975333d7a66e616d5b40952f67c56ebbef2885222c53f47b9"
+    },
+    "orca-session-start": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "065d9201b9ca69afad4f2aa925dc03b3b8ee3e311c1bcebcf11645aa7d54898d"
+    },
+    "orca-verification": {
+      "source": "/home/adamc/Documents/GitHub/ProbablyComputers/orca-baseline",
+      "sourceType": "local",
+      "computedHash": "5ba0bb0f32805d628236ebc4ba56297b58ae93095ac29e5421e0f5ae024e4a21"
+    }
+  }
+}
