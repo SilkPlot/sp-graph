@@ -9,7 +9,7 @@ description: >-
   would be true in a different project, and when a verification regime is
   producing more artifacts than the work it verifies.
 metadata:
-  baselineVersion: "0.3.0"
+  baselineVersion: "0.22.0"
   derivedFrom: CANON-009a
   generated: true
 ---
@@ -17,7 +17,7 @@ metadata:
 <!--
   GENERATED - DO NOT EDIT.
   Non-authoritative copy, derived from CANON-009a in orca-baseline.
-  Baseline version: 0.3.0
+  Baseline version: 0.22.0
   Regenerate with: node build/compile.mjs
   Edits made here are lost on the next update and fix nothing upstream.
 -->
@@ -93,22 +93,92 @@ individual workaround was small.
 
 ### Knowledge the estate does not have
 
-A missing mastery, role, technology or tool is a finding about the estate, not a
-gap to be filled locally.
+A missing mastery, role, technology or tool is a finding about the **estate**, not
+a gap to be filled locally. It is routed rather than recorded here, and *Filing a
+gap against the method* below owns what that takes.
 
-**Route it to the owning source's intake, which the profile declares. Never fix
-it in place.** A local copy of knowledge the estate should own is a fork: it
-inherits nothing, it is found by nobody, and the estate stays unaware of the gap
-that produced it.
+## Filing a gap against the method
 
-State what you were doing, what knowledge you needed, and what you found instead.
-The failing use is the evidence.
+Some findings are not yours to fix. A rule that is unsatisfiable as written, two
+rules that contradict, knowledge the estate should own and does not - repairing
+those in place forks the method, and a fork inherits nothing, is found by nobody,
+and leaves the owner unaware of what produced it.
 
-**Search the whole corpus before claiming something is absent, and state the
-extent of the search inside the claim.** "No evidence of X" describes the search,
-not the corpus, and reads as a finding either way. A claim of absence with no
-stated extent is not yet a claim - and a candidate raised in your own working and
-then dropped is a defect in the reasoning, not a decision already taken.
+**Route it to the owning source's intake, which the profile declares. Never fix it
+in place.**
+
+Routing is not a gesture, and a finding a maintainer cannot act on is a finding that
+was not routed. The rest of this section is what routing takes.
+
+Until 2026-08-05 this was written only in the receiving repository's own inbox
+README - a file no consumer holds. Every project was told to route findings
+upstream and none was told what a report must contain, which is
+[`lessons/0008`](../lessons/archive/0008-absence-must-be-searched-before-it-is-claimed.md)'s
+shape one level up: an instruction whose satisfaction condition lives somewhere
+the reader cannot reach.
+
+**One file, one finding, in the owning source's declared intake path.** Name it
+`gap-YYYY-MM-DD-<your-slug>-<short-slug>.md`. Commit exactly that file, message
+prefixed `gap-intake:`, and touch nothing else - a report arriving inside a larger
+change is a report the receiver must first separate from your work.
+
+**Where your environment cannot write outside your own repository, draft it there
+and say so.** A report that cannot be delivered is still evidence; an operator
+carries it across.
+
+### The eight fields, and why each is refused when absent
+
+| Field | |
+|---|---|
+| `reporter` | Who found it. The receiver answers *to* someone |
+| `reporter_kind` | `project`, `person` or `agent` |
+| `date` | When it was hit, not when it was written up |
+| `affected` | Every canonical id, role or capability you believe is involved, **or `unknown`**. `unknown` is honest; a guess that omits the nearest owner is what cost another team a full triage cycle |
+| `kind_claimed` | `missing`, `stale`, `wrong`, `unclear` or `unsatisfiable`. These are different findings and are triaged differently |
+| `searched` | **How much of the corpus you actually examined, with numbers.** Not how much you meant to |
+| `status` | `new`. Triage sets everything after that |
+| `priority` | `high`, `normal` or `low` - and see the rule below, which takes it out of your hands in one case |
+
+**`searched` is the field that makes the report usable.** *"No evidence of X"*
+describes the search, not the corpus, and reads as a finding either way. A claim of
+absence with no stated extent is not yet a claim. State it as counts - *"12 of 12
+canon documents, 8 of 8 roles"* - because a prose assurance cannot be checked and a
+count can.
+
+**Where a gap was met by a fallback rather than by a role that exists, it is `high`
+and that is not the filer's call.** Reaching the default case is what makes it high:
+a fallback makes an absence cheaper to live with, and cheap absences are never
+built. Declare it with `fallback: yes`.
+
+### The two prose sections
+
+**What was needed** - what you were doing and what rule or behaviour you needed.
+Concrete. The failing use is the evidence, and a report that describes a desire
+rather than a failure cannot be reproduced.
+
+**What the baseline has (or lacks)** - what you found instead, citing document and
+section: nothing, a rule that is unsatisfiable as written, two rules that
+contradict, or prose that did not answer the question.
+
+### What you do not fill in
+
+**The Triage section belongs to the receiving session.** Leave it untouched.
+`status`, and that section, are the response channel - read your own report later
+for the outcome. A report whose triage arrives pre-filled by its reporter has
+answered itself, which is the one thing a gap report may not do.
+
+### What this cannot promise you
+
+A gap is **neither accepted nor rejected without a full-corpus precheck** by the
+receiver, and a rejection is as expensive to get wrong as an acceptance - it is the
+one nobody comes back to check. That obligation is the receiver's and is stated in
+its own records; it is named here so a filer knows what they are owed, not so they
+can enforce it.
+
+**Validation is the receiver's tool and may not be on your machine.** Where it is,
+run it before filing. Where it is not, the field table above is the contract, and a
+report that satisfies it is filed correctly whether or not anything here could
+check that.
 
 ## Fix the system, not the instance
 
@@ -130,6 +200,28 @@ too, and it is the honest version of "we will be careful next time".
   different one.
 - **A status**, and where the rule now lives once it has one.
 
+## A defect that was caught is a near miss, and is recorded
+
+A check going red, a human correcting the work, a review finding something before
+it shipped - each is evidence that **the system permitted the defect**. The catch
+is not the safety property; the permission is.
+
+Record it as `kind: near-miss`. It carries what would have happened, what caught
+it, and whether the catch was designed or lucky.
+
+Two reasons this is not bookkeeping:
+
+- **The deviance rate is invisible from inside.** Each caught defect feels like
+  the system working. Enough of them in a row feels like a productive session.
+  Only the count reveals otherwise, and nobody counts what they do not record.
+- **A lucky catch is a defect with a good outcome.** If a human noticed, or a
+  check written for something else happened to fire, the system did not catch it -
+  someone did. Those are the ones that recur.
+
+A near miss does not need a rule change to be worth recording. Most will not
+produce one. The record exists so the pattern is visible before it produces
+something that is not near.
+
 ## A lesson has a lifecycle
 
 A record is not finished when it is written. It is finished when the thing it
@@ -141,6 +233,9 @@ describes cannot happen the same way again.
 | `IMPLEMENTED` | The rule is in force somewhere named, with its enforcement stated |
 | `ARCHIVED` | Implemented, and moved out of the active set |
 | `SUPERSEDED` | A later finding replaced it. The record stays and says by which |
+
+A `near-miss` record has no lifecycle beyond being written: it is evidence, not
+an obligation. It is `ARCHIVED` on creation.
 
 An `IMPLEMENTED` record names **where the rule now lives** and **what enforces
 it** - a check, or an explicit statement that no mechanical check is possible.

@@ -10,7 +10,7 @@ description: >-
   instrument carries the question - decision gate, ask, or the agent harness's
   own.
 metadata:
-  baselineVersion: "0.3.0"
+  baselineVersion: "0.22.0"
   derivedFrom: CANON-004
   generated: true
 ---
@@ -18,7 +18,7 @@ metadata:
 <!--
   GENERATED - DO NOT EDIT.
   Non-authoritative copy, derived from CANON-004 in orca-baseline.
-  Baseline version: 0.3.0
+  Baseline version: 0.22.0
   Regenerate with: node build/compile.mjs
   Edits made here are lost on the next update and fix nothing upstream.
 -->
@@ -43,6 +43,40 @@ those, and state the decision in one line.
 
 Do not advance past a decision point until it is answered. Do not decide on the
 human's behalf.
+
+**There are two outcomes, and no third.** Either the question meets the bar, and
+it is asked as a bundle in the section 3 format; or it does not, and it is
+decided, with the call stated in one line.
+
+A question asked in passing - trailing prose, "let me know if", "say if you would
+rather", a parenthetical at the end of a report - is the illegitimate third
+outcome. It is a decision request wearing the costume of a courtesy, and it
+escapes the format precisely because it looks too small to need it. Size is not
+the test. Whether different answers lead to different work is the test, and a
+question small enough to ask in passing has usually already failed it - meaning
+it should have been decided, not asked.
+
+Before asking anything, name which outcome it is. That is the step being skipped
+when this rule is broken.
+
+## 1a. Name the owner before raising
+
+A question is raised where its **concern** is owned, not where it was noticed.
+
+Ask CANON-009b section 3's question of the decision itself: *would this be true
+in a different project?* If yes, it belongs to the canonical source that owns it
+and is raised there - even when a project session surfaced it, and even when that
+session is the only one that can see it. If no, it belongs to the project.
+
+The failure this prevents is one-directional and quiet. A session working inside
+a project sees everything as a project question, because that is the context it
+is standing in, so a defect in a shared artifact gets recorded as a local choice.
+The project then carries an opt-out from something it never had the standing to
+opt out of, and the shared defect stays unfixed because it now looks handled.
+
+A capability shipped to every consumer is not something one consumer decides. If
+its behaviour is unacceptable to a project, that is evidence about the
+capability.
 
 ## 2. Bundling rules
 
