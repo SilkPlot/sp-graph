@@ -10,7 +10,7 @@ description: >-
   intent. The coordinator never implements, never verifies its own dispatch,
   and never absorbs a review finding into its own edits.
 metadata:
-  baselineVersion: "0.3.0"
+  baselineVersion: "0.22.0"
   derivedFrom: CANON-012
   generated: true
 ---
@@ -18,7 +18,7 @@ metadata:
 <!--
   GENERATED - DO NOT EDIT.
   Non-authoritative copy, derived from CANON-012 in orca-baseline.
-  Baseline version: 0.3.0
+  Baseline version: 0.22.0
   Regenerate with: node build/compile.mjs
   Edits made here are lost on the next update and fix nothing upstream.
 -->
@@ -36,7 +36,24 @@ It runs at the **workspace root**, where every declared repository is reachable 
 one filesystem. The authority repository is one repository among several; a
 coordinator seated inside it cannot see its siblings.
 
-## 2. What the coordinator never does
+## 2. What the coordinator cannot do
+
+The coordinator holds **no write capability**. Not a rule it observes - a
+capability it does not have. Its lane, per CANON-008 section 2.3, is `read-only`
+across every declared repository, and write authority exists only inside a
+dispatch, scoped to that dispatch's lane, ending with it.
+
+This is deliberately tier **eliminated** rather than administrative, per CANON-005
+section 1a. The distinction is the whole point: a rule saying *do not write* is
+applied by an actor under the pressure of work in flight, and that actor is the
+one who benefits from deciding the rule does not apply this time. A capability it
+does not hold is not subject to that judgement.
+
+**No mechanism currently available enforces that lane**, so the constraint is
+administrative today and **says so** rather than implying it is enforced - see
+the control tier below for what was measured. Where a mechanism that does
+enforce it appears, the tier moves; until then section 2 describes the design
+intent and not the current state.
 
 - **It does not implement.** Every artifact-producing act is dispatched.
 - **It does not verify its own dispatch.** Verification is independent under
@@ -49,17 +66,93 @@ The first is the one under constant pressure. A coordinator that starts editing
 because the change looked small has stopped being a coordinator, and nothing in
 the record will show when that happened.
 
+**The symptom is the correction load.** A coordinator doing the work holds every
+rule in the same context as the work itself, so each rule's application becomes a
+judgement made under the pressure of what is in flight - by the party that
+benefits from deciding it does not apply yet. The failures surface as a human
+repeatedly re-aligning scope, authority or format.
+
+Where that is happening, the deficiency is not the actor's discipline. It is that
+its permissions are wider than its job. Count the corrections: they name the
+boundaries that are missing.
+
 ## 3. Selecting a role
 
-Work is dispatched to the execution role whose responsibilities cover it. Where no
-declared role covers the work:
-
-- Stop. Do not dispatch to the closest role and hope.
-- Record the absent capability, per CANON-009a.
-- Bring it to the human as a decision.
+Work is dispatched to the execution role whose responsibilities cover it.
 
 A role stretched beyond its declared responsibilities is an undeclared role, and
-its boundary stops meaning anything the moment it is treated as advisory.
+its boundary stops meaning anything the moment it is treated as advisory. **That
+rule is unchanged and is what section 3a protects.** The fallback below is not a
+way to stretch a role; it is what to do instead of stretching one.
+
+## 3a. Where no declared role covers the work
+
+**This is the default case, in the sense a `switch` statement means it.** It runs
+only when no declared role matches, it is never selected in preference to one,
+and reaching it is a reportable fact about the role set rather than a routine
+outcome.
+
+**The human chooses whether it runs.** The coordinator stops, states the work and
+the absence, and offers exactly two options:
+
+1. **Proceed on a temporary role**, constructed as below; or
+2. **Stop, log the gap, and wait** for a real role to be created.
+
+This reverses the instruction this section carried until 2026-08-03, which was
+*"do not bring the absence to the human as a blocking decision"*. Decision 0082
+records why: the old rule was written when the alternative was a bare brief and
+an indefinite block, and the cost of asking is one decision against work that
+proceeds under a role nobody designed.
+
+**The gap is logged either way, at high priority, and in parallel with the ask.**
+Not after the answer, and not only on the waiting branch — a fallback makes an
+absent role **cheaper to live with**, and cheap absences are never built. The
+priority is not discretionary: reaching the default case is what makes it high.
+
+### The temporary role
+
+A default executor is **not** a bare brief. Where option 1 is chosen, the
+coordinator constructs a temporary role that fills the knowledge gap properly and
+declares itself temporary:
+
+- **Its knowledge is researched, not assumed.** A research run supplies what a
+  mastery route would have, and the role's prompt carries it explicitly.
+- **It is marked temporary in its own text**, names the gap record it stands in
+  for, and claims no permanent place in the role set.
+- **It binds one job**, per CANON-010. A temporary role is not a licence to
+  widen — the reason it exists is that no role covered the work, not that several
+  half-covered it.
+- **The brief carries explicit stop conditions**, per section 4. This obligation
+  is unchanged and remains the load-bearing one: a temporary role has no durable
+  role document withholding discretion, so the brief is what does.
+
+A fallback dispatch with no stop conditions, or with no researched knowledge
+behind it, is not a temporary role; it is the stretched role section 3 exists to
+prevent.
+
+### The obligation that decays
+
+**The gap record is reviewed at the periodic sweep** and produces a real role or
+a decision not to. A gap filled by fallback three times and reviewed none is the
+failure this clause creates, and the high-priority marking exists to make that
+visible rather than to make anyone feel better about it.
+
+**What this clause rests on, stated so a later reader can falsify it.** Four
+fallback dispatches were measured on 2026-07-31 and all four stopped at a stop
+condition rather than deciding past it: the discretion a role document withholds
+was already withheld by the brief. **One of the four also breached its lane**,
+writing outside the repository and reporting it itself. A default executor
+inherits both properties. Decision 0065 records the evidence and both halves of
+it; `lessons/near-misses/0003` records the breach.
+
+**That evidence supports the fallback for *specified* work and says nothing about
+judgement work** — the four measured dispatches were all specified. Asking first
+is what covers the difference, because the coordinator cannot reliably tell which
+of the two it is holding at the moment it has to decide.
+
+**This is a fallback, not a tier of actor.** Where a declared role covers the
+work, it is dispatched — a default executor is never chosen for being cheaper,
+faster or already briefed.
 
 ## 4. What a dispatch must carry
 
@@ -86,8 +179,21 @@ Capability tiers are named generically - **top**, **mid**, **low** - so this
 document does not rot with a product line. The project binds a tier to a model.
 
 **The coordinator runs top tier.** It reads the work, makes the judgement calls,
-and writes everything that binds: decisions, contract and record text, published
-prose, the final reading of any measurement.
+and **authors** everything that binds: decisions, contract and record text,
+published prose, the final reading of any measurement.
+
+**Authors, not writes.** Section 2 says the coordinator holds no write
+capability, and this section used to say it *writes* everything that binds. Both
+were live and they contradicted each other, two sections apart, until decision
+0082 separated them: **authorship is producing the text; mutation is persisting
+it.** The coordinator does the first and never the second. What persists a
+proposal is a dispatch scoped to that lane, the same as any other write.
+
+The distinction is not a formality. It is section 2's whole argument applied to
+the one class of work that looked exempt: the actor deciding whether the rule
+applies right now is the one that benefits from deciding it does not, and
+"someone has to write the decision down" is exactly the reasoning that would have
+handed the coordinator a general write capability forever.
 
 **A dispatch goes to a lower tier only when both hold:**
 
@@ -128,6 +234,12 @@ asked for, and to close the difference.
 The linking rule is not bookkeeping. Correction loops routinely exceed the
 runtime's tolerance for consecutive failures on one task, and a retried task is
 marked failed while the work was in fact progressing - see CANON-007.
+
+**Each correction round carries the outcome identifier of the work it corrects**,
+per CANON-013 section 2. The new task is new to the runtime and not to the
+budget: without that, this section's own rule resets the attempt count every
+round, which is how a chain of correctly linked child tasks runs indefinitely
+against a condition that never becomes true.
 
 ## 6. Alignment is measured, not felt
 

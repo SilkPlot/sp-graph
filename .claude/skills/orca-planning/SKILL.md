@@ -8,7 +8,7 @@ description: >-
   levels, promotion by proof rather than assertion, and the rule that a true
   blocker halts the whole sprint.
 metadata:
-  baselineVersion: "0.3.0"
+  baselineVersion: "0.22.0"
   derivedFrom: CANON-003
   generated: true
 ---
@@ -16,7 +16,7 @@ metadata:
 <!--
   GENERATED - DO NOT EDIT.
   Non-authoritative copy, derived from CANON-003 in orca-baseline.
-  Baseline version: 0.3.0
+  Baseline version: 0.22.0
   Regenerate with: node build/compile.mjs
   Edits made here are lost on the next update and fix nothing upstream.
 -->
