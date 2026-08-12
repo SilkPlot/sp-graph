@@ -6,7 +6,7 @@ resource: sp-graph/CLAUDE.md
 generated: true
 authoritative: false
 derived_from: .orca/project-profile.md
-baseline_version: 0.22.0
+baseline_version: 0.23.0
 regenerate_with: the bootstrap capability
 edit: unsafe - regenerated, and edits fix nothing upstream
 ---
