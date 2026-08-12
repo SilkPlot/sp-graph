@@ -5,85 +5,85 @@
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-closeout/SKILL.md",
-      "computedHash": "b4327358c3833dbfad20b3ff696a2a317adf0aba2d50b149557c7f889637b857"
+      "computedHash": "970a2a43269c4964726aecd16b87c6b630a6391fce79196a59b1ef371f8d6925"
     },
     "orca-coordinator": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-coordinator/SKILL.md",
-      "computedHash": "c6126a072485e0b921f0be28ad98ba4e38b5376ee53737343743841b7ec61ed0"
+      "computedHash": "78ab80c1ba6bbe2209e781618ccf2d084f5b53a52e1a9f38fe78e66e61e799cd"
     },
     "orca-craft-research": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-craft-research/SKILL.md",
-      "computedHash": "69719665662dfa1162baeac8964cf10c3e66c24de0b369a56aa36e54b83f04c5"
+      "computedHash": "67411f2401e3f2ea3419894258ea4a547ff5f19e27b7f2068a1f4cbd4d7e0326"
     },
     "orca-decisions": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-decisions/SKILL.md",
-      "computedHash": "fa2676cfbd34cb886c2be35e0dfca99a628bca5b72611a82802c9f6e3e1f0e2f"
+      "computedHash": "9eff3f5bab9899b59fd17f6f47d7d8d4e0b5b36ca86c3a7c25b4f350bcad56a9"
     },
     "orca-dry-principle": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-dry-principle/SKILL.md",
-      "computedHash": "59caad156f1b216fe1f184326bb73cfe8ff03bf30f6880527d1b753d564b7c91"
+      "computedHash": "f52b98a3be430cceabde85b56fdceb020e231774e644c6ab89b831c76b4203b7"
     },
     "orca-gaps": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-gaps/SKILL.md",
-      "computedHash": "c6cfef21bb364fc9b2fb21ee0df3d7d2be13ab1ed6a98c79d574d675b3523456"
+      "computedHash": "9ac3e741d2dbe910e3bea4c24972847385c92986db565c99ab2b3dfa3eb9696a"
     },
     "orca-lessons-loop": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-lessons-loop/SKILL.md",
-      "computedHash": "3df8bb2ec2f2cca54e68c216f315176d628170b6470e15ac6c9683ea6907513a"
+      "computedHash": "64b92cc2aefb70786b3f09e5b6cb8be59a90707846000b20a70cfa6b329a947a"
     },
     "orca-native-mechanisms": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-native-mechanisms/SKILL.md",
-      "computedHash": "1588129066f71317ff57d9bb6f142cd573babb1376c6cec3f4e0eebd0cce3377"
+      "computedHash": "ee85ff1da99d618c81c85fc5f83a0a3d309fbc6796395cf3ccd721ceb88d26e9"
     },
     "orca-outcome-model": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-outcome-model/SKILL.md",
-      "computedHash": "133544ced81c3f73a7bcb877bbcc36e80524ae41e564a6beae816fb0299a8b88"
+      "computedHash": "48781651a37de3f2a6385e18882273ccd5c1e48af43419cb046f29efeb3f9005"
     },
     "orca-planning": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-planning/SKILL.md",
-      "computedHash": "bec87bb410edeffb1d9f0869b8aba94bc3b000df9518c482dc02ecc0151ed452"
+      "computedHash": "e66000d7f4e1585a29b08fd7890ccd21e6ecdb179f491a79b16a0bf8d149b8cc"
     },
     "orca-project-profile": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-project-profile/SKILL.md",
-      "computedHash": "3cf87bd842fc6432776ce8b16856c787d9498bcf33ac82ef8d7ab86e2a8043e0"
+      "computedHash": "f764e3a71f5fa526757150a65d7635b6858db3300e24b7a1c4cb15bbacfdc86f"
     },
     "orca-role-contract": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-role-contract/SKILL.md",
-      "computedHash": "d36f49fc2cd37b396767045c04c7d6b21f421aac4a61513d2990894b789d2edc"
+      "computedHash": "55ba8aeb88248048e7fae89b9259052bff94e72b2d4cd7eae7e1a7cb4db466f1"
     },
     "orca-session-start": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-session-start/SKILL.md",
-      "computedHash": "59eb303fdb9b3330e757cd51f0d07e235b2034770d511bf9dfddd1d5645ad6b6"
+      "computedHash": "312bcd1813bf72cef54657d40826c6d8da429333443cc7e30760fddda2fc10b1"
     },
     "orca-verification": {
       "source": "ProbablyComputers/orca-baseline",
       "sourceType": "github",
       "skillPath": "skills/orca-verification/SKILL.md",
-      "computedHash": "d361b66c9531409cc706294417da36708e250a07a72d411e352ba44ee95d1d79"
+      "computedHash": "f692ffb7e284edae437f2c5696fa8fbe3c13e703e49b0dd632116312c1930f54"
     }
   }
 }
