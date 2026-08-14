@@ -50,6 +50,10 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ### Fixed
 
+- **Line path generation no longer copies every datum before passing it to
+  D3.** The generator accepts the existing readonly sequence directly, removing
+  a redundant dense-series allocation without changing path geometry or the
+  public curve contract.
 - **A viewport commit no longer tears down the multi-series mark rows.** Rows
   were keyed on per-commit snapshots, so every zoom step recreated every
   series' root, style, geometry, and path node; rows now key on the stable

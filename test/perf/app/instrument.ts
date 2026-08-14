@@ -8,13 +8,19 @@
  * its frame budget on a fast machine while breaking both, and then miss it by a
  * mile on a slow one. Frames are the symptom; these are the cause.
  *
- * Each instrument states what it can and cannot see. The layout-read counter
- * observes a real DOM API and is direct evidence. The commit counter observes
- * callbacks the page itself owns and is direct evidence. Index reconstruction
- * inside the library is NOT observable from out here, and nothing below pretends
- * otherwise — see `setPathological`.
+ * Each instrument reads the real operation it names. The layout-read counter
+ * observes a DOM API, the commit counter observes callbacks the page owns, and
+ * the index-build counter observes the actual production builder through an
+ * opt-in internal seam. That seam is not exported by the package and is inactive
+ * outside these bracketed passes.
  */
-import type { SeriesDatum } from "@silkplot/core";
+import {
+  createTimeSeriesIndex,
+  normalizeSeries,
+  type NormalizedDatum,
+  type Series,
+} from "@silkplot/core";
+import { observeTimeSeriesIndexBuilds } from "../../../packages/core/src/time-series-index-observer";
 
 /* -------------------------------------------------------------------------- */
 /* Settle time                                                                 */
@@ -100,7 +106,7 @@ export function settle(root: Element, trigger: () => void): Promise<number> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Commits per frame, and layout reads inside pointer dispatch                 */
+/* Commits per frame, layout reads, and production builds in pointer dispatch */
 /* -------------------------------------------------------------------------- */
 
 export interface InvariantReading {
@@ -114,18 +120,30 @@ export interface InvariantReading {
   layoutReadsInPointer: number;
   /** Pointer events dispatched while watching — the denominator for the above. */
   pointerEvents: number;
+  /** Actual production time-series index-builder calls made inside pointer dispatch. */
+  productionIndexBuildsInPointer: number;
+  /** Deliberately injected rebuilds made inside pointer dispatch. */
+  injectedRebuildsInPointer: number;
+  /** Pointer events carrying exactly one injected rebuild. */
+  pointerEventsWithOneInjectedRebuild: number;
+  /** Pointer events carrying exactly one synchronous layout read. */
+  pointerEventsWithOneLayoutRead: number;
+  /** Pointer events carrying exactly one actual production-builder call. */
+  pointerEventsWithOneProductionIndexBuild: number;
 }
 
 export interface Invariants {
   /** Called from every viewport or active-point callback the page owns. */
   noteCommit(): void;
+  /** Called by the deliberate mutation after its one injected rebuild completes. */
+  noteInjectedRebuild(): void;
   start(): void;
   stop(): void;
   read(): InvariantReading;
 }
 
 /**
- * The commit and layout-read counters.
+ * The commit, layout-read, and actual production index-builder counters.
  *
  * `getBoundingClientRect` is patched on the prototype while watching and restored
  * when it stops. That is intrusive, and it is why watching is a separate short
@@ -133,22 +151,30 @@ export interface Invariants {
  * hot DOM method would put the instrument's own cost into the numbers it is
  * standing next to.
  *
- * "Inside a pointer event" is bracketed by a capture-phase listener on the
- * document (which runs before any handler on any element) and a bubble-phase
- * listener on the window (which runs after all of them). Anything that reads
- * layout between those two points did so synchronously inside the dispatch,
- * which is exactly the claim being tested. Work deferred to a rAF callback lands
- * outside the bracket and is correctly not counted — deferring is the fix, so
- * counting it would be counting the fix as the defect.
+ * "Inside a pointer event" begins in a capture-phase listener on `window`, before
+ * document or element handlers, and ends in the first microtask after synchronous
+ * dispatch. The microtask closes the scope even if a handler stops propagation;
+ * work deferred by a handler lands outside the bracket and is correctly not
+ * counted — deferring is the fix, so counting it would count the fix as a defect.
  */
 export function createInvariants(): Invariants {
+  interface PointerEventCounts {
+    injectedRebuilds: number;
+    layoutReads: number;
+    productionIndexBuilds: number;
+  }
+
   let commits = 0;
   let maxPerFrame = 0;
   let framesWithCommits = 0;
   let thisFrame = 0;
   let layoutReads = 0;
   let pointerEvents = 0;
-  let inPointer = false;
+  let productionIndexBuilds = 0;
+  let injectedRebuilds = 0;
+  let pointerReadings: PointerEventCounts[] = [];
+  let currentPointer: PointerEventCounts | undefined;
+  let stopObservingIndexBuilds: (() => void) | undefined;
   let raf = 0;
   let watching = false;
 
@@ -164,11 +190,17 @@ export function createInvariants(): Invariants {
   };
 
   const enter = (): void => {
-    inPointer = true;
     pointerEvents++;
-  };
-  const leave = (): void => {
-    inPointer = false;
+    const reading: PointerEventCounts = {
+      injectedRebuilds: 0,
+      layoutReads: 0,
+      productionIndexBuilds: 0,
+    };
+    currentPointer = reading;
+    pointerReadings.push(reading);
+    queueMicrotask(() => {
+      if (currentPointer === reading) currentPointer = undefined;
+    });
   };
 
   return {
@@ -176,6 +208,11 @@ export function createInvariants(): Invariants {
       if (!watching) return;
       commits++;
       thisFrame++;
+    },
+    noteInjectedRebuild() {
+      if (!watching || currentPointer === undefined) return;
+      injectedRebuilds++;
+      currentPointer.injectedRebuilds++;
     },
     start() {
       if (watching) return;
@@ -186,20 +223,33 @@ export function createInvariants(): Invariants {
       thisFrame = 0;
       layoutReads = 0;
       pointerEvents = 0;
+      productionIndexBuilds = 0;
+      injectedRebuilds = 0;
+      pointerReadings = [];
+      currentPointer = undefined;
+      stopObservingIndexBuilds = observeTimeSeriesIndexBuilds(() => {
+        if (currentPointer === undefined) return;
+        productionIndexBuilds++;
+        currentPointer.productionIndexBuilds++;
+      });
       Element.prototype.getBoundingClientRect = function patched(this: Element) {
-        if (inPointer) layoutReads++;
+        if (currentPointer !== undefined) {
+          layoutReads++;
+          currentPointer.layoutReads++;
+        }
         return original.call(this);
       };
-      document.addEventListener("pointermove", enter, { capture: true });
-      window.addEventListener("pointermove", leave, { capture: false });
+      window.addEventListener("pointermove", enter, { capture: true });
       raf = requestAnimationFrame(endFrame);
     },
     stop() {
       if (!watching) return;
       watching = false;
       Element.prototype.getBoundingClientRect = original;
-      document.removeEventListener("pointermove", enter, { capture: true });
-      window.removeEventListener("pointermove", leave, { capture: false });
+      window.removeEventListener("pointermove", enter, { capture: true });
+      stopObservingIndexBuilds?.();
+      stopObservingIndexBuilds = undefined;
+      currentPointer = undefined;
       cancelAnimationFrame(raf);
       // The frame in flight when watching stopped still counts.
       if (thisFrame > 0) {
@@ -214,90 +264,109 @@ export function createInvariants(): Invariants {
       framesWithCommits,
       layoutReadsInPointer: layoutReads,
       pointerEvents,
+      productionIndexBuildsInPointer: productionIndexBuilds,
+      injectedRebuildsInPointer: injectedRebuilds,
+      pointerEventsWithOneInjectedRebuild: pointerReadings.filter(
+        (reading) => reading.injectedRebuilds === 1,
+      ).length,
+      pointerEventsWithOneLayoutRead: pointerReadings.filter(
+        (reading) => reading.layoutReads === 1,
+      ).length,
+      pointerEventsWithOneProductionIndexBuild: pointerReadings.filter(
+        (reading) => reading.productionIndexBuilds === 1,
+      ).length,
     }),
   };
 }
+
+/** The page's one truthful pointer-scope observer, shared by clean and mutation passes. */
+export const invariants = createInvariants();
 
 /* -------------------------------------------------------------------------- */
 /* The per-event index-rebuild mutation                                        */
 /* -------------------------------------------------------------------------- */
 
 let pathologicalTarget: Element | undefined;
-let pathologicalData: readonly SeriesDatum[] = [];
+let pathologicalSeries: readonly {
+  seriesId: string;
+  points: readonly NormalizedDatum[];
+}[] = [];
 let rebuilds = 0;
 
 /**
  * Rebuild a hit index. Deliberately the whole thing, deliberately every time.
  *
- * A stand-in for the regression, not a copy of the library's index — but a
- * FAITHFUL stand-in, which matters more than it sounds. `createTimeSeriesIndex`
- * builds a lookup by walking every visible point, projecting it through the
- * current scale, and sorting the result. An imitation that only read timestamps
- * and sorted them would do perhaps a third of that work, and would then report
- * "this workload cannot detect a per-event rebuild" about a rebuild half the
- * size of the real one. Under-stating the mutation biases the answer toward
- * *non-discriminating*, which reads as caution and is actually just a wrong
- * measurement — so the projection pass is here on purpose.
+ * This calls the production builder itself. The former stand-in projected and
+ * sorted one flat numeric array; after the scale-free index correction that was
+ * no longer the operation a regression would repeat. The real builder now
+ * constructs per-series maps, an instant union, sorted ordinals, and shared-time
+ * columns. A stale imitation under-states or misclassifies that work and can
+ * report "non-discriminating" about a defect it did not actually inject.
  *
  * What it must NOT do is grow until it breaches. Tuning a control until it
  * produces the verdict you wanted is fitting the instrument to the answer; the
  * size of this work is set by what the library does, and the verdict is whatever
  * falls out of that.
  */
-function rebuildIndex(data: readonly SeriesDatum[]): number {
-  const n = data.length;
-  const positions: number[] = new Array(n);
-  // A linear projection per point, standing in for the scale call: the same
-  // per-point arithmetic and the same array write, without reaching into the
-  // library to borrow its scale.
-  const first = data[0]?.t.getTime() ?? 0;
-  const last = data[n - 1]?.t.getTime() ?? 1;
+function rebuildIndex(
+  series: readonly { seriesId: string; points: readonly NormalizedDatum[] }[],
+): number {
+  const first = series[0]?.points[0]?.time ?? 0;
+  const lastSeries = series[series.length - 1];
+  const last = lastSeries?.points[lastSeries.points.length - 1]?.time ?? 1;
   const span = last - first || 1;
-  for (let i = 0; i < n; i++) {
-    const d = data[i] as SeriesDatum;
-    positions[i] = ((d.t.getTime() - first) / span) * 1000;
-  }
-  positions.sort((a, b) => a - b);
+  const index = createTimeSeriesIndex(series, {
+    time: (datum) => datum.time,
+    px: (datum) => ((datum.time - first) / span) * 1000,
+    py: (datum) => datum.y ?? 0,
+    sourceIndex: (datum) => datum.sourceIndex,
+  });
   rebuilds++;
-  return positions.length;
+  return index.length;
 }
 
 const onPathologicalMove = (): void => {
   // A synchronous layout read AND a full index rebuild, in the handler, on every
   // event — the two things the contract forbids, done on purpose.
   pathologicalTarget?.getBoundingClientRect();
-  rebuildIndex(pathologicalData);
+  rebuildIndex(pathologicalSeries);
+  invariants.noteInjectedRebuild();
 };
 
 /**
  * Turn the mutation on or off.
  *
- * What this proves, precisely: whether this workload is DENSE ENOUGH to
- * discriminate. If the clean pass and the mutated pass produce the same frame
- * distribution, then this workload could not have detected the regression either
- * way, and the clean pass's green result is reported as *non-discriminating*
- * rather than as a pass. That is the whole reason it exists — the hover
- * harness's 30-point fixture passed at every throttle rate for exactly this
- * reason and nobody could tell, for a year, that the number meant nothing.
+ * Exact application is structural on every workload: each pointer event must
+ * carry one injected rebuild, one injected layout read, and one observed call to
+ * the production builder. W-A and W-D additionally require that faithful
+ * mutation to breach a strict timing limit; W-B and W-C use the exact structure
+ * itself as their discrimination proof, even when mutation timing remains fast.
  *
- * What this does NOT prove: that the library is not itself rebuilding an index
- * per event. That happens inside `createChartInspection` and is not observable
- * from a page. The evidence for the library's behaviour is indirect and stated
- * as such — a clean pass sitting far below the mutated pass is a chart that is
- * not doing this work, because if it were, it would cost what this costs.
+ * The clean and mutated passes use the same pointer-scope observer. The clean
+ * pass therefore proves zero actual production-builder calls directly. During
+ * mutation, exactly one observed call must correspond to the one injected call
+ * on every event; any real product rebuild is an extra observed call and makes
+ * the structural proof red.
  */
-export function setPathological(on: boolean, target?: Element, data?: readonly SeriesDatum[]): void {
+export function setPathological(
+  on: boolean,
+  target?: Element,
+  data?: readonly Series[],
+): void {
   if (on) {
     pathologicalTarget = target;
-    pathologicalData = data ?? [];
+    pathologicalSeries = normalizeSeries(data ?? []).visible.map((series) => ({
+      seriesId: series.id,
+      points: series.data.filter((datum) => datum.state === "present"),
+    }));
     rebuilds = 0;
     document.addEventListener("pointermove", onPathologicalMove, { capture: true });
   } else {
     document.removeEventListener("pointermove", onPathologicalMove, { capture: true });
     pathologicalTarget = undefined;
-    pathologicalData = [];
+    pathologicalSeries = [];
   }
 }
 
-/** How many rebuilds the mutation performed — proof it was actually applied. */
+/** Raw injected count; exact proof also requires the pointer-scope observer readings. */
 export const pathologicalRebuilds = (): number => rebuilds;

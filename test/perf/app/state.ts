@@ -18,7 +18,7 @@
  */
 import type { SeriesDatum } from "@silkplot/core";
 import type { DecimationError } from "./decimate";
-import { createInvariants, type InvariantReading } from "./instrument";
+import { invariants, type InvariantReading } from "./instrument";
 
 /** What the chart last reported as active — the protocol's "inspected-value read". */
 export interface ActiveReading {
@@ -57,7 +57,7 @@ export interface PerfApi {
    * refuses to report a pass that committed nothing.
    */
   counts(): { viewport: number; active: number };
-  /** The per-event index-rebuild mutation. Returns the rebuild count on the way off. */
+  /** The per-event mutation. Returns its raw injected-build count on the way off. */
   pathological(on: boolean): number;
   lastActive(): ActiveReading | undefined;
 
@@ -87,9 +87,6 @@ declare global {
     __perf?: PerfApi;
   }
 }
-
-/** One instance for the page — the driver reads one set of counters. */
-export const invariants = createInvariants();
 
 let active: ActiveReading | undefined;
 let viewportCommits = 0;

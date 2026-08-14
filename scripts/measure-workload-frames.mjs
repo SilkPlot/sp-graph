@@ -23,14 +23,11 @@
  *    30ms of work per frame does not move the distribution, the timer is broken
  *    and every other number in the run is decoration. The run ABORTS.
  *
- * 2. The per-event INDEX-REBUILD mutation asks a different question — "is this
- *    workload dense enough to detect the regression it is supposed to detect?".
- *    If forcing a full index rebuild inside every pointer event does not breach
- *    the budget, then a chart that HAD that defect would also have passed, and
- *    the clean result is reported as NON-DISCRIMINATING rather than as a pass.
- *    This is the check the hover harness never had: it passed identically at 4x,
- *    6x, 10x and 20x throttle on a 30-point fixture for a year, and "passes at
- *    20x" turned out to mean nothing at all.
+ * 2. The per-event INDEX-REBUILD mutation asks whether the workload can detect
+ *    the forbidden operation. Every workload must first prove the exact same
+ *    structure: one injected rebuild, one injected layout read, and one observed
+ *    actual production-builder call on every pointer event. W-A and W-D then use
+ *    dense timing discrimination; W-B and W-C use that exact structural proof.
  *
  * Both mutations assert they were APPLIED before their result is trusted — the
  * detection probes' rule, learned the same way. A mutation that silently failed
@@ -50,6 +47,8 @@ import {
   arg,
   conditionsLine,
   controlDegraded,
+  evaluateCleanIndexBuildInvariant,
+  evaluateMutationProof,
   row,
   startBurn,
   startRecording,
@@ -73,11 +72,11 @@ const REQUESTED = arg(process.argv, "workload", "w-a,w-b,w-c,w-d")
  * `none`.
  *
  * `both` by default because the protocol requires frame cost to be ATTRIBUTED,
- * not merely reported, and the largest single attributable component at these
- * scales is the accessible data table — a real DOM row per instant, rebuilt on
- * every viewport commit because the derived table narrows with the visible
- * domain. One configuration alone produces a number nobody can act on: the
- * chart's cost with the table's folded invisibly into it.
+ * not merely reported. The derived accessible table follows data scope, so
+ * viewport commits do not narrow or rebuild it. Running the same marks with the
+ * table present and with caller-supplied empty rows attributes the table's
+ * presence; one configuration alone folds that standing cost invisibly into the
+ * chart's result.
  *
  * The flag exists so an operator can halve a long run when they already know
  * which half they need — not so `both` can be skipped by default.
@@ -279,7 +278,7 @@ async function runWorkload(browser, workload, query = "") {
     result.passes[name] = s;
   }
 
-  /* --- invariants: commits per frame, layout reads in pointer dispatch --- */
+  /* --- invariants: commits, layout reads, and real index builds in pointer scope --- */
   result.invariants = await readInvariants(page, ctx);
 
   /* --- self-check 1: can the timer see a slow frame? --- */
@@ -291,18 +290,41 @@ async function runWorkload(browser, workload, query = "") {
   result.selfCheck.control = control;
   result.selfCheck.controlDegraded = controlDegraded(result.passes.idle, control);
 
-  /* --- self-check 2: is this workload dense enough to discriminate? --- */
+  /* --- self-check 2: exact per-event mutation, then workload-specific proof --- */
+  await page.evaluate(() => window.__perf?.invariants.start());
   await page.evaluate(() => window.__perf?.pathological(true));
   await startRecording(page);
   await sweep(page, box, 1500);
   const mutated = stats(await stopRecording(page));
   const rebuilds = await page.evaluate(() => window.__perf?.pathological(false) ?? 0);
+  await page.evaluate(() => window.__perf?.invariants.stop());
+  const mutationInvariants = await page.evaluate(() => window.__perf?.invariants.read());
+  const mutationProof = evaluateMutationProof({
+    workload,
+    distribution: mutated,
+    counts: {
+      pointerEvents: mutationInvariants?.pointerEvents,
+      injectedRebuilds: rebuilds,
+      injectedRebuildsInPointer: mutationInvariants?.injectedRebuildsInPointer,
+      layoutReadsInPointer: mutationInvariants?.layoutReadsInPointer,
+      productionIndexBuildsInPointer: mutationInvariants?.productionIndexBuildsInPointer,
+      pointerEventsWithOneInjectedRebuild:
+        mutationInvariants?.pointerEventsWithOneInjectedRebuild,
+      pointerEventsWithOneLayoutRead: mutationInvariants?.pointerEventsWithOneLayoutRead,
+      pointerEventsWithOneProductionIndexBuild:
+        mutationInvariants?.pointerEventsWithOneProductionIndexBuild,
+    },
+  });
   result.selfCheck.mutated = mutated;
   result.selfCheck.mutationRebuilds = rebuilds;
-  // The mutation must have RUN before its result means anything — the probe
-  // rule. A mutation that silently failed to attach reports a clean pass.
-  result.selfCheck.mutationApplied = rebuilds > 0;
-  result.selfCheck.discriminating = rebuilds > 0 && mutated.p95 > ACCEPTANCE_MS;
+  result.selfCheck.mutationInvariants = mutationInvariants;
+  result.selfCheck.proofMode = mutationProof.mode;
+  result.selfCheck.mutationCounts = mutationProof.counts;
+  result.selfCheck.mutationProof = mutationProof;
+  // Retained as named summary booleans for readers of earlier artifacts. Exact
+  // application replaces the old "rebuild count > 0" approximation.
+  result.selfCheck.mutationApplied = mutationProof.exactApplication;
+  result.selfCheck.discriminating = mutationProof.pass;
 
   /* --- inspected-value read: what a reader lands on --- */
   await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
@@ -419,21 +441,29 @@ function judgePass(name, s) {
 }
 
 /** The interaction-contract criteria, which frames alone cannot answer. */
-const judgeInvariants = (inv) =>
-  inv
-    ? [
-        {
-          criterion: "at most one commit per frame",
-          pass: inv.maxCommitsPerFrame <= 1,
-          detail: `worst frame carried ${inv.maxCommitsPerFrame} commit(s) across ${inv.commits}`,
-        },
-        {
-          criterion: "no synchronous layout read inside a pointer event",
-          pass: inv.layoutReadsInPointer === 0,
-          detail: `${inv.layoutReadsInPointer} read(s) across ${inv.pointerEvents} pointer events`,
-        },
-      ]
-    : [];
+const judgeInvariants = (inv) => {
+  if (!inv) return [];
+  const cleanIndexBuild = evaluateCleanIndexBuildInvariant(inv);
+  return [
+    {
+      criterion: "at most one commit per frame",
+      pass: inv.maxCommitsPerFrame <= 1,
+      detail: `worst frame carried ${inv.maxCommitsPerFrame} commit(s) across ${inv.commits}`,
+    },
+    {
+      criterion: "no synchronous layout read inside a pointer event",
+      pass: inv.layoutReadsInPointer === 0,
+      detail: `${inv.layoutReadsInPointer} read(s) across ${inv.pointerEvents} pointer events`,
+    },
+    {
+      criterion: "no production index-builder call inside a pointer event",
+      pass: cleanIndexBuild.pass,
+      detail: cleanIndexBuild.pass
+        ? `0 call(s) across ${cleanIndexBuild.pointerEvents} pointer events`
+        : cleanIndexBuild.failureReason,
+    },
+  ];
+};
 
 /**
  * Whether the protocol froze a settle target for this one.
@@ -495,15 +525,14 @@ for (const workload of REQUESTED) {
   if (!PASSES[workload]) {
     console.error(`unknown workload '${workload}' — expected one of ${Object.keys(PASSES).join(", ")}`);
     await browser.close();
-    process.exit(2);
+    process.exit(1);
   }
   for (const mode of TABLE_MODES) {
-    // W-C runs with its derived tables only. Its questions are reveal, resize,
-    // unmount, and heap, and its per-chart tables are twelve rows — attributing
-    // cost between marks and table is not where its answer lives, so a second
-    // run of forty-eight charts would spend minutes on a distinction that does
-    // not apply there. W-A, W-B and W-D carry thousands of rows, and there the
-    // distinction IS the finding.
+    // W-C is the protocol's single-mode exception and runs with its derived
+    // tables only. Its questions are reveal, resize, unmount, heap, and one-chart
+    // interaction while forty-seven charts sit idle; a second no-table deck run
+    // would not answer a frozen attribution question. W-A, W-B and W-D run both
+    // modes to attribute the cost of the accessible table being present.
     if (workload === "w-c" && mode === "none") continue;
     results.push(await runWorkload(browser, workload, mode === "none" ? "&table=none" : ""));
   }
@@ -528,10 +557,16 @@ for (const r of results) {
     console.log(`${row(name, s)}${commits}${s.inert ? "  << INERT" : ""}`);
   }
   console.log(row("control (+30ms/frame)", r.selfCheck.control));
-  // The rebuild count is printed rather than only checked: it is the evidence
-  // that the mutation ran at all, and a NON-DISCRIMINATING verdict is only
-  // meaningful next to the number of rebuilds it failed to notice.
-  console.log(`${row("mutated (index rebuild)", r.selfCheck.mutated)}  rebuilds=${r.selfCheck.mutationRebuilds}`);
+  console.log(
+    `${row("mutated (index rebuild)", r.selfCheck.mutated)}  proof=${r.selfCheck.proofMode}`,
+  );
+  const mutationCounts = r.selfCheck.mutationCounts;
+  console.log(
+    `${"mutation counts".padEnd(26)} events=${mutationCounts.pointerEvents}  injected=${mutationCounts.injectedRebuilds} (${mutationCounts.injectedRebuildsInPointer} in scope)  layout reads=${mutationCounts.layoutReadsInPointer}  actual builder calls=${mutationCounts.productionIndexBuildsInPointer}`,
+  );
+  console.log(
+    `${"mutation exact events".padEnd(26)} injected=${mutationCounts.pointerEventsWithOneInjectedRebuild}/${mutationCounts.pointerEvents}  layout=${mutationCounts.pointerEventsWithOneLayoutRead}/${mutationCounts.pointerEvents}  actual builder=${mutationCounts.pointerEventsWithOneProductionIndexBuild}/${mutationCounts.pointerEvents}`,
+  );
 
   for (const [name, s] of Object.entries(r.settles)) {
     if (!s || typeof s.p95 !== "number") continue;
@@ -546,7 +581,7 @@ for (const r of results) {
   }
   if (r.invariants) {
     console.log(
-      `${"invariants".padEnd(26)} commits=${r.invariants.commits}  worst frame=${r.invariants.maxCommitsPerFrame}  layout reads in pointer=${r.invariants.layoutReadsInPointer}/${r.invariants.pointerEvents}`,
+      `${"invariants".padEnd(26)} commits=${r.invariants.commits}  worst frame=${r.invariants.maxCommitsPerFrame}  layout reads in pointer=${r.invariants.layoutReadsInPointer}/${r.invariants.pointerEvents}  actual builder calls in pointer=${r.invariants.productionIndexBuildsInPointer}/${r.invariants.pointerEvents}`,
     );
   }
   if (r.decimation?.report) {
@@ -575,18 +610,13 @@ for (const r of results) {
     aborted = true;
     continue;
   }
-  if (!r.selfCheck.mutationApplied) {
-    console.error(
-      `\n${label} ABORT: the index-rebuild mutation never ran (0 rebuilds recorded), so its result proves nothing about this workload's sensitivity.`,
-    );
-    aborted = true;
-    continue;
-  }
-  if (!r.selfCheck.discriminating) {
+  if (!r.selfCheck.mutationProof.pass) {
     console.log(
-      `\n${label} NON-DISCRIMINATING: forcing a full index rebuild inside every pointer event left p95 at ${r.selfCheck.mutated.p95}ms, inside the ${ACCEPTANCE_MS.toFixed(1)}ms acceptance line. A chart WITH that defect would have passed this workload, so the clean result below is not evidence that it lacks one.`,
+      `\n${label} NON-DISCRIMINATING (${r.selfCheck.mutationProof.mode}): ${r.selfCheck.mutationProof.failureReason}`,
     );
     nonDiscriminating++;
+  } else {
+    console.log(`\n${label} MUTATION PROOF PASS (${r.selfCheck.mutationProof.mode})`);
   }
 
   const verdicts = judge(r);

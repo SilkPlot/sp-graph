@@ -7,6 +7,7 @@ import {
   createTimeSeriesIndex,
   nearestSortedIndex,
 } from "../src/index";
+import { observeTimeSeriesIndexBuilds } from "../src/time-series-index-observer";
 
 /* -------------------------------------------------------------------------- */
 /* nearestSortedIndex — the owned binary search                                */
@@ -89,6 +90,33 @@ function pointerEqualsKeyboard<D>(index: ActivePointIndex<D>, px: number, py: nu
 /* -------------------------------------------------------------------------- */
 
 describe("createTimeSeriesIndex", () => {
+  it("notifies the internal observer from the real production builder", () => {
+    let builds = 0;
+    let observedRecord: ActivePoint<TPoint> | undefined;
+    const stopObserving = observeTimeSeriesIndexBuilds(() => {
+      builds++;
+    });
+    try {
+      const observed = createTimeSeriesIndex<TPoint>(
+        [{ seriesId: "a", points: [p(1000, 10, 0)] }],
+        timeOpts,
+      );
+      expect(observed.length).toBe(1);
+      observedRecord = observed.at(0);
+    } finally {
+      stopObserving();
+    }
+    expect(builds).toBe(1);
+
+    const inactive = createTimeSeriesIndex<TPoint>(
+      [{ seriesId: "a", points: [p(1000, 10, 0)] }],
+      timeOpts,
+    );
+    expect(inactive.length).toBe(1);
+    expect(inactive.at(0)).toEqual(observedRecord);
+    expect(builds).toBe(1);
+  });
+
   it("empty input has length 0 and resolves nothing", () => {
     const index = createTimeSeriesIndex<TPoint>([], timeOpts);
     expect(index.length).toBe(0);

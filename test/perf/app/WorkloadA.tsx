@@ -54,7 +54,7 @@ export const WorkloadA: Component = () => {
         // The mutation is fed the SAME points the chart is drawing, so the work
         // it does is the work a per-event rebuild would do here — not a token
         // loop that would under-state the regression on a dense series.
-        setPathological(on, host, on ? series().flatMap((s) => s.data) : undefined);
+        setPathological(on, host, on ? series() : undefined);
         return pathologicalRebuilds();
       },
       // A complete replacement: every one of the 20,000 values moves, and the y
@@ -84,6 +84,11 @@ export const WorkloadA: Component = () => {
         // rendered column at this width, so the painted envelope is
         // column-exact. Paint only — inspection, table, and CSV stay raw.
         decimation={2000}
+        // At this diagnostic density, monotone interpolation spends commit
+        // time deriving two control points per segment. The envelope already
+        // preserves excursions; a linear join is the explicit SVG density tier
+        // and leaves inspection, table, CSV and the raw data unchanged.
+        curve="linear"
         minSpan={30 * DAY}
         visibleDomain={visible()}
         onVisibleDomainChange={commitDomain}

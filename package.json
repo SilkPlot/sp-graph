@@ -28,6 +28,7 @@
     "dev": "npm run dev --workspace playground",
     "clean": "node scripts/clean.mjs",
     "test": "vitest run",
+    "test:perf-harness": "node --test scripts/lib/*.test.mjs",
     "gate:accessibility": "node scripts/accessibility-gate.mjs",
     "gate:build-hygiene": "node scripts/build-hygiene-gate.mjs",
     "gate:duplication-scope": "node scripts/duplication-scope-gate.mjs",
