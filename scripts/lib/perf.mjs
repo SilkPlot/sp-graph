@@ -205,6 +205,56 @@ export function mutationProofMode(workload) {
   throw new Error(`unknown mutation-proof workload '${workload}'`);
 }
 
+const normalizeMutationCounts = (counts) => ({
+  pointerEvents: Number(counts.pointerEvents ?? 0),
+  injectedRebuilds: Number(counts.injectedRebuilds ?? 0),
+  injectedRebuildsInPointer: Number(counts.injectedRebuildsInPointer ?? 0),
+  layoutReadsInPointer: Number(counts.layoutReadsInPointer ?? 0),
+  productionIndexBuildsInPointer: Number(counts.productionIndexBuildsInPointer ?? 0),
+  pointerEventsWithOneInjectedRebuild: Number(
+    counts.pointerEventsWithOneInjectedRebuild ?? 0,
+  ),
+  pointerEventsWithOneLayoutRead: Number(counts.pointerEventsWithOneLayoutRead ?? 0),
+  pointerEventsWithOneProductionIndexBuild: Number(
+    counts.pointerEventsWithOneProductionIndexBuild ?? 0,
+  ),
+});
+
+function mutationApplicationFailures(counts) {
+  const events = counts.pointerEvents;
+  if (events < 1) {
+    return ["observed 0 pointer events; at least one mutated event is required"];
+  }
+
+  const failureReasons = [];
+  if (
+    counts.injectedRebuilds !== events ||
+    counts.injectedRebuildsInPointer !== events ||
+    counts.pointerEventsWithOneInjectedRebuild !== events
+  ) {
+    failureReasons.push(
+      `injected rebuilds were ${counts.injectedRebuilds} total / ${counts.injectedRebuildsInPointer} in pointer scope, with ${counts.pointerEventsWithOneInjectedRebuild}/${events} events carrying exactly one; expected ${events} / ${events} and ${events}/${events}`,
+    );
+  }
+  if (
+    counts.layoutReadsInPointer !== events ||
+    counts.pointerEventsWithOneLayoutRead !== events
+  ) {
+    failureReasons.push(
+      `deliberately injected layout reads were ${counts.layoutReadsInPointer}, with ${counts.pointerEventsWithOneLayoutRead}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
+    );
+  }
+  if (
+    counts.productionIndexBuildsInPointer !== events ||
+    counts.pointerEventsWithOneProductionIndexBuild !== events
+  ) {
+    failureReasons.push(
+      `actual production-builder calls were ${counts.productionIndexBuildsInPointer}, with ${counts.pointerEventsWithOneProductionIndexBuild}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
+    );
+  }
+  return failureReasons;
+}
+
 /**
  * Judge the per-event production-index mutation without running a workload.
  *
@@ -214,52 +264,8 @@ export function mutationProofMode(workload) {
  */
 export function evaluateMutationProof({ workload, distribution, counts }) {
   const mode = mutationProofMode(workload);
-  const normalized = {
-    pointerEvents: Number(counts.pointerEvents ?? 0),
-    injectedRebuilds: Number(counts.injectedRebuilds ?? 0),
-    injectedRebuildsInPointer: Number(counts.injectedRebuildsInPointer ?? 0),
-    layoutReadsInPointer: Number(counts.layoutReadsInPointer ?? 0),
-    productionIndexBuildsInPointer: Number(counts.productionIndexBuildsInPointer ?? 0),
-    pointerEventsWithOneInjectedRebuild: Number(
-      counts.pointerEventsWithOneInjectedRebuild ?? 0,
-    ),
-    pointerEventsWithOneLayoutRead: Number(counts.pointerEventsWithOneLayoutRead ?? 0),
-    pointerEventsWithOneProductionIndexBuild: Number(
-      counts.pointerEventsWithOneProductionIndexBuild ?? 0,
-    ),
-  };
-  const events = normalized.pointerEvents;
-  const failureReasons = [];
-
-  if (events < 1) {
-    failureReasons.push("observed 0 pointer events; at least one mutated event is required");
-  } else {
-    if (
-      normalized.injectedRebuilds !== events ||
-      normalized.injectedRebuildsInPointer !== events ||
-      normalized.pointerEventsWithOneInjectedRebuild !== events
-    ) {
-      failureReasons.push(
-        `injected rebuilds were ${normalized.injectedRebuilds} total / ${normalized.injectedRebuildsInPointer} in pointer scope, with ${normalized.pointerEventsWithOneInjectedRebuild}/${events} events carrying exactly one; expected ${events} / ${events} and ${events}/${events}`,
-      );
-    }
-    if (
-      normalized.layoutReadsInPointer !== events ||
-      normalized.pointerEventsWithOneLayoutRead !== events
-    ) {
-      failureReasons.push(
-        `deliberately injected layout reads were ${normalized.layoutReadsInPointer}, with ${normalized.pointerEventsWithOneLayoutRead}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
-      );
-    }
-    if (
-      normalized.productionIndexBuildsInPointer !== events ||
-      normalized.pointerEventsWithOneProductionIndexBuild !== events
-    ) {
-      failureReasons.push(
-        `actual production-builder calls were ${normalized.productionIndexBuildsInPointer}, with ${normalized.pointerEventsWithOneProductionIndexBuild}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
-      );
-    }
-  }
+  const normalized = normalizeMutationCounts(counts);
+  const failureReasons = mutationApplicationFailures(normalized);
 
   const exactApplication = failureReasons.length === 0;
   const timingBreached = interactionGateBreached(distribution);
