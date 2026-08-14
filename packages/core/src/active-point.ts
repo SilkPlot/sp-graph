@@ -33,6 +33,7 @@
  * "nearest within the data".
  */
 import { createHitIndex } from "./hit-test";
+import { noteTimeSeriesIndexBuild } from "./time-series-index-observer";
 
 /** Where an active datum sits along the domain axis of its chart family. */
 export type ActivePointAt =
@@ -167,6 +168,8 @@ export function createTimeSeriesIndex<D>(
   series: readonly TimeSeriesLookupInput<D>[],
   options: TimeSeriesIndexOptions<D>,
 ): TimeSeriesActivePointIndex<D> {
+  noteTimeSeriesIndexBuild();
+
   // Per series, the representative datum at each instant: the lowest-sourceIndex
   // present point there. Points are ascending by time, so same-time duplicates
   // are adjacent; the first one kept per instant already has the lowest index

@@ -76,7 +76,7 @@ export const WorkloadD: Component = () => {
       points: countPoints(series()),
       surface: "[data-perf-surface] [data-silkplot-keyboard-surface]",
       pathological: (on) => {
-        setPathological(on, host, on ? RAW_DATA : undefined);
+        setPathological(on, host, on ? RAW : undefined);
         return pathologicalRebuilds();
       },
       decimate: (choice) =>

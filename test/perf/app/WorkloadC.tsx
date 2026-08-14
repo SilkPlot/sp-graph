@@ -27,12 +27,11 @@ import { For, Show, createSignal, onMount, type Component } from "solid-js";
 import { w1DashboardDeck } from "../../../packages/charts/test/workload-fixtures";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
 import { noteActive, publish } from "./state";
+import { summarizeDashboardFixture } from "./workload-fidelity";
 import { WC_CHARTS } from "./workloads";
 
 const DECK = w1DashboardDeck(WC_CHARTS);
-
-/** Points across the whole deck — the number a per-chart figure has to be read against. */
-const DECK_POINTS = DECK.reduce((n, p) => n + p.time.length, 0);
+const DECK_FIDELITY = summarizeDashboardFixture(DECK);
 
 const WIDE = 1100;
 const NARROW = 720;
@@ -81,12 +80,12 @@ export const WorkloadC: Component = () => {
 
     publish({
       workload: "w-c",
-      points: DECK_POINTS,
+      points: DECK_FIDELITY.renderedPoints,
       // The FIRST chart's surface. The interaction pass drives one chart while
       // the other forty-seven sit idle, which is the whole question here.
       surface: "[data-perf-deck] [data-silkplot-keyboard-surface]",
       pathological: (on) => {
-        setPathological(on, host, on ? DECK.flatMap((p) => p.time) : undefined);
+        setPathological(on, host, on ? DECK_FIDELITY.pathologicalSeries : undefined);
         return pathologicalRebuilds();
       },
       reveal: () => settle(root, () => setRevealed(true)),

@@ -50,7 +50,7 @@ export function linePath<Datum>(
     .y((d, i) => options.y(d, i))
     .curve(resolveCurve(options.curve));
   if (options.defined) generator.defined((d, i) => options.defined!(d, i));
-  return generator([...data]) ?? "";
+  return generator(data) ?? "";
 }
 
 export interface AreaPathOptions<Datum> {

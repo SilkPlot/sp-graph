@@ -24,6 +24,7 @@ import {
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
 import { noteActive, noteViewport, publish } from "./state";
 import { isTableSuppressed, tableProp } from "./table-mode";
+import { selectVisiblePathologicalSeries } from "./workload-fidelity";
 import { countPoints } from "./workloads";
 
 const SERIES: Series[] = w1DenseSeries();
@@ -50,7 +51,11 @@ export const WorkloadB: Component = () => {
       points: countPoints(SERIES),
       surface: "[data-perf-surface] [data-silkplot-keyboard-surface]",
       pathological: (on) => {
-        setPathological(on, host, on ? SERIES.flatMap((s) => s.data) : undefined);
+        setPathological(
+          on,
+          host,
+          on ? selectVisiblePathologicalSeries(SERIES, visibleSeries()) : undefined,
+        );
         return pathologicalRebuilds();
       },
       // Toggling ONE series at a time, cycling: each call is the commit a user's

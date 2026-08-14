@@ -186,6 +186,122 @@ export const stopBurn = (page) =>
 export const controlDegraded = (baseline, control) =>
   control.p95 > baseline.p95 * 1.5 && control.p95 > ACCEPTANCE_MS;
 
+/**
+ * Whether one interactive frame distribution breaches the frozen gate.
+ *
+ * The protocol has two independent limits: p95 and dropped-frame percentage.
+ * A regression that breaches either one must make the mutation self-check go
+ * red. Keeping that rule here lets clean-pass judging and the self-check share
+ * the same thresholds instead of reducing "the gate" to whichever number a
+ * caller happened to inspect.
+ */
+export const interactionGateBreached = (distribution) =>
+  distribution.p95 > ACCEPTANCE_MS || distribution.pctDropped > DROPPED_GATE_PCT;
+
+/** The frozen discrimination mode for each workload. */
+export function mutationProofMode(workload) {
+  if (workload === "w-a" || workload === "w-d") return "dense-timing";
+  if (workload === "w-b" || workload === "w-c") return "light-structural";
+  throw new Error(`unknown mutation-proof workload '${workload}'`);
+}
+
+/**
+ * Judge the per-event production-index mutation without running a workload.
+ *
+ * Exact per-event structure is required in both modes. Dense workloads then
+ * also have to breach either strict timing boundary; light workloads finish on
+ * the structural proof, even when the mutated timing remains fast.
+ */
+export function evaluateMutationProof({ workload, distribution, counts }) {
+  const mode = mutationProofMode(workload);
+  const normalized = {
+    pointerEvents: Number(counts.pointerEvents ?? 0),
+    injectedRebuilds: Number(counts.injectedRebuilds ?? 0),
+    injectedRebuildsInPointer: Number(counts.injectedRebuildsInPointer ?? 0),
+    layoutReadsInPointer: Number(counts.layoutReadsInPointer ?? 0),
+    productionIndexBuildsInPointer: Number(counts.productionIndexBuildsInPointer ?? 0),
+    pointerEventsWithOneInjectedRebuild: Number(
+      counts.pointerEventsWithOneInjectedRebuild ?? 0,
+    ),
+    pointerEventsWithOneLayoutRead: Number(counts.pointerEventsWithOneLayoutRead ?? 0),
+    pointerEventsWithOneProductionIndexBuild: Number(
+      counts.pointerEventsWithOneProductionIndexBuild ?? 0,
+    ),
+  };
+  const events = normalized.pointerEvents;
+  const failureReasons = [];
+
+  if (events < 1) {
+    failureReasons.push("observed 0 pointer events; at least one mutated event is required");
+  } else {
+    if (
+      normalized.injectedRebuilds !== events ||
+      normalized.injectedRebuildsInPointer !== events ||
+      normalized.pointerEventsWithOneInjectedRebuild !== events
+    ) {
+      failureReasons.push(
+        `injected rebuilds were ${normalized.injectedRebuilds} total / ${normalized.injectedRebuildsInPointer} in pointer scope, with ${normalized.pointerEventsWithOneInjectedRebuild}/${events} events carrying exactly one; expected ${events} / ${events} and ${events}/${events}`,
+      );
+    }
+    if (
+      normalized.layoutReadsInPointer !== events ||
+      normalized.pointerEventsWithOneLayoutRead !== events
+    ) {
+      failureReasons.push(
+        `deliberately injected layout reads were ${normalized.layoutReadsInPointer}, with ${normalized.pointerEventsWithOneLayoutRead}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
+      );
+    }
+    if (
+      normalized.productionIndexBuildsInPointer !== events ||
+      normalized.pointerEventsWithOneProductionIndexBuild !== events
+    ) {
+      failureReasons.push(
+        `actual production-builder calls were ${normalized.productionIndexBuildsInPointer}, with ${normalized.pointerEventsWithOneProductionIndexBuild}/${events} events carrying exactly one; expected ${events} and ${events}/${events}`,
+      );
+    }
+  }
+
+  const exactApplication = failureReasons.length === 0;
+  const timingBreached = interactionGateBreached(distribution);
+  if (exactApplication && mode === "dense-timing" && !timingBreached) {
+    failureReasons.push(
+      `dense timing stayed inside the inclusive clean limits: p95 ${distribution.p95}ms <= ${ACCEPTANCE_MS.toFixed(1)}ms and dropped ${distribution.pctDropped}% <= ${DROPPED_GATE_PCT}%; require p95 > ${ACCEPTANCE_MS.toFixed(1)}ms OR dropped > ${DROPPED_GATE_PCT}%`,
+    );
+  }
+
+  return {
+    mode,
+    pass: failureReasons.length === 0,
+    exactApplication,
+    timingBreached,
+    counts: normalized,
+    failureReason: failureReasons.length === 0 ? null : failureReasons.join("; "),
+    failureReasons,
+  };
+}
+
+/** Direct clean-path criterion for the production builder inside pointer scope. */
+export function evaluateCleanIndexBuildInvariant(reading) {
+  const pointerEvents = Number(reading?.pointerEvents ?? 0);
+  const observed = Number.isFinite(reading?.productionIndexBuildsInPointer);
+  const productionIndexBuildsInPointer = observed
+    ? Number(reading.productionIndexBuildsInPointer)
+    : 0;
+  const pass = observed && productionIndexBuildsInPointer === 0;
+  let failureReason = null;
+  if (!observed) {
+    failureReason = "actual production-builder observation is missing from the clean invariant reading";
+  } else if (!pass) {
+    failureReason = `observed ${productionIndexBuildsInPointer} actual production-builder call(s) inside ${pointerEvents} clean pointer event(s); expected 0`;
+  }
+  return {
+    pass,
+    pointerEvents,
+    productionIndexBuildsInPointer,
+    failureReason,
+  };
+}
+
 /** One fixed-width report line. */
 export const row = (name, s) =>
   `${name.padEnd(26)} frames=${String(s.frames).padStart(4)}  p50=${String(s.p50).padStart(6)}ms  ` +

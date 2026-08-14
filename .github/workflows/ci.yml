@@ -43,6 +43,13 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      # The frame harness is deliberately not a CI benchmark: a runner is not
+      # the named reference machine. Its pure verdict and fixture-fidelity logic
+      # is deterministic, though: dense timing uses either frozen limit while
+      # light workloads prove the exact per-event mutation structure.
+      - name: Performance harness deterministic tests
+        run: npm run test:perf-harness
+
       # `npm run build` cleans first, so this is a build from scratch and not an
       # incremental one. That matters: `tsc -b` never deletes, so without the
       # clean a module whose source was deleted stays in `dist` forever.
