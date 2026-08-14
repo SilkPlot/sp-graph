@@ -472,10 +472,26 @@ knowledge are filed.
 | `estate_root` | Root the knowledge sources resolve from. Declared relative to the home directory so it resolves on any machine |
 | `sources` | Each knowledge source this project's roles bind to, by slug |
 | `gap_intake` | Where a finding about a source is filed, per source |
+| `execution_roles` | The execution-role capabilities this project intends to install, as exact `orca-role-*` identifiers, or `none` |
 
 Rules:
 
-- A project with no roles declares `none` for all three.
+- A project with no execution roles declares `execution_roles: none`. Where it
+  also binds no estate knowledge, it declares `none` for the other three
+  parameters as well.
+- **`execution_roles` is project intent, declared once for the project.** It is
+  never derived from `baseline.json`, from a lockfile, from what happens to be on
+  disk, or from command-line flags. The distribution manifest is the inventory
+  of roles available to install; the lockfile and disk are evidence of what did
+  install. Neither answers what this project intended.
+- Every non-`none` value is an exact comma-separated `orca-role-*` capability
+  identifier, with no prose, wildcard, count or duplicate. `orca-role-contract`
+  is a canonical capability and not an execution role merely because its name
+  shares the prefix; the install check reconciles declared identifiers against
+  the distribution's execution-role inventory.
+- The installed execution-role set equals this declaration exactly. One extra
+  installed role and one missing declared role are both defects. `none` is green
+  only while no execution role is installed.
 - `gap_intake` is required for every declared source. A source with no declared
   intake cannot receive a finding, so the finding is lost and the gap persists -
   and CANON-009a routes findings there rather than permitting a local fix.
@@ -522,6 +538,9 @@ A profile is valid only when:
 - every entry in the authority chain resolves, and no two entries claim the
   same concern;
 - every declared Orca identifier resolves against the live runtime;
+- `execution_roles` is present and contains only exact, non-duplicated
+  `orca-role-*` identifiers or `none`; installed-state reconciliation is the
+  install check's separate obligation;
 - every repository declaring a `lane` also declares an access mode - a lane
   enforces a declaration, it does not replace one. **Nothing validates that a
   declared lane enforces what it names**, and no check is specified here for it:
