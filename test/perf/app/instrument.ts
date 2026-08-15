@@ -387,9 +387,11 @@ const onPathologicalMove = (): void => {
  *
  * Exact application is structural on every workload: each pointer event must
  * carry one injected rebuild, one injected layout read, and one observed call to
- * the production builder. W-A and W-D additionally require that faithful
- * mutation to breach a strict timing limit; W-B and W-C use the exact structure
- * itself as their discrimination proof, even when mutation timing remains fast.
+ * the production builder. W-D additionally requires that faithful mutation to
+ * breach a strict timing limit; W-A, W-B and W-C use the exact structure itself
+ * as their discrimination proof, even when mutation timing remains fast — W-A
+ * joined them on 2026-08-15, when the first scored run that could measure it put
+ * its faithful mutation at p95 16.8ms against a 17.7ms gate.
  *
  * The clean and mutated passes use the same pointer-scope observer. The clean
  * pass therefore proves zero actual production-builder calls directly. During

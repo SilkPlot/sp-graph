@@ -18,9 +18,12 @@ const exactCounts = (pointerEvents = 4) => ({
   pointerEventsWithOneProductionIndexBuild: pointerEvents,
 });
 
+// `w-d` is the only dense-timing workload since 2026-08-15. `w-a` carried these
+// two cases until the first scored run measured its faithful mutation at p95
+// 16.8ms — under the gate — and moved it to the structural proof.
 test("dense timing proof is discriminating on a strict p95 breach alone", () => {
   const proof = evaluateMutationProof({
-    workload: "w-a",
+    workload: "w-d",
     distribution: {
       p95: ACCEPTANCE_MS + 0.1,
       pctDropped: DROPPED_GATE_PCT,
@@ -49,7 +52,7 @@ test("dense timing proof is discriminating on a strict dropped-frame breach alon
 
 test("dense timing proof keeps equality inside both inclusive clean limits", () => {
   const proof = evaluateMutationProof({
-    workload: "w-a",
+    workload: "w-d",
     distribution: {
       p95: ACCEPTANCE_MS,
       pctDropped: DROPPED_GATE_PCT,
@@ -66,6 +69,23 @@ test("light structural proof succeeds with exact counts despite fast timing", ()
   const proof = evaluateMutationProof({
     workload: "w-b",
     distribution: { p95: 8, pctDropped: 0 },
+    counts: exactCounts(),
+  });
+
+  assert.equal(proof.mode, "light-structural");
+  assert.equal(proof.timingBreached, false);
+  assert.equal(proof.pass, true);
+});
+
+// The reassignment itself, asserted rather than left to the mode function's
+// prose. Without this, restoring `w-a` to dense timing reddens nothing: every
+// other case here names its own workload, and the two that changed above now
+// name `w-d`, so the suite would pass against the exact regression this
+// documents.
+test("w-a proves discrimination by structure, not by timing", () => {
+  const proof = evaluateMutationProof({
+    workload: "w-a",
+    distribution: { p95: 16.8, pctDropped: 0 },
     counts: exactCounts(),
   });
 
