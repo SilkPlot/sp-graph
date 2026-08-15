@@ -310,6 +310,7 @@ engines:
       - "test/perf/app/table-mode.ts"
       - "test/perf/app/workload-fidelity.ts"
       - "test/perf/app/workloads.ts"
+      - "test/perf/test/instrument-pointer-scope.test.ts"
       - "test/perf/vite.config.ts"
 
   # Cyclomatic complexity — "metric" is Codacy's name for it in this file. The
@@ -420,6 +421,7 @@ engines:
       - "test/perf/app/table-mode.ts"
       - "test/perf/app/workload-fidelity.ts"
       - "test/perf/app/workloads.ts"
+      - "test/perf/test/instrument-pointer-scope.test.ts"
       - "test/perf/vite.config.ts"
   # Lizard, added 2026-07-19 as a TESTABLE hypothesis rather than a guess.
   #
@@ -538,6 +540,7 @@ engines:
       - "test/perf/app/table-mode.ts"
       - "test/perf/app/workload-fidelity.ts"
       - "test/perf/app/workloads.ts"
+      - "test/perf/test/instrument-pointer-scope.test.ts"
       - "test/perf/vite.config.ts"
 
 # ---------------------------------------------------------------------------
