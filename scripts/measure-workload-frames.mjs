@@ -26,8 +26,8 @@
  * 2. The per-event INDEX-REBUILD mutation asks whether the workload can detect
  *    the forbidden operation. Every workload must first prove the exact same
  *    structure: one injected rebuild, one injected layout read, and one observed
- *    actual production-builder call on every pointer event. W-A and W-D then use
- *    dense timing discrimination; W-B and W-C use that exact structural proof.
+ *    actual production-builder call on every pointer event. W-D then uses dense
+ *    timing discrimination; W-A, W-B and W-C use that exact structural proof.
  *
  * Both mutations assert they were APPLIED before their result is trusted — the
  * detection probes' rule, learned the same way. A mutation that silently failed

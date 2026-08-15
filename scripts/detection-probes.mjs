@@ -1314,6 +1314,34 @@ const PROBES = [
     // test author wrote (2026-01-01T00:01:00Z), identical on every machine.
     messagePattern: /to be 1767225660000\b/,
   },
+  {
+    id: "pointer-scope-window",
+    file: "test/perf/app/instrument.ts",
+    project: "perf-harness",
+    browser: true,
+    breaks:
+      "the pointer-scope window is closed on a microtask again — a checkpoint runs between the " +
+      "window-capture opener and every document-phase listener of a browser-dispatched event, so " +
+      "all three scope-gated counters read zero unconditionally and the two clean-pass invariants " +
+      "(no synchronous layout read, no production index-builder call inside a pointer event) " +
+      "report PASS on a zero they could not exceed",
+    // The exact code that shipped, restored: the eventPhase read is disabled by
+    // dropping the event, and the historical microtask close is put back. This
+    // is the defect as it existed on 2026-08-15, not an approximation of it.
+    anchor: "    currentPointer = reading;\n    currentEvent = event;\n    pointerReadings.push(reading);",
+    mutation:
+      "    currentPointer = reading;\n    currentEvent = undefined;\n    pointerReadings.push(reading);\n" +
+      "    queueMicrotask(() => {\n      if (currentPointer === reading) currentPointer = undefined;\n    });",
+    failingIn: ["test/perf/test/instrument-pointer-scope.test.ts"],
+    minFailures: 2,
+    observed: "2 failures: the layout read and the injected rebuild both attribute zero",
+    // The counters reading zero against a floor of one — the defect's own
+    // output. The third test (deferred work stays out of scope) still passes
+    // under the mutation, which is correct: the defect narrows the window, and
+    // a probe demanding it redden a ceiling test would be asserting the wrong
+    // failure.
+    messagePattern: /expected 0 to be greater than 0/,
+  },
 ];
 
 // ---------------------------------------------------------------------------

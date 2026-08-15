@@ -93,6 +93,14 @@ export default defineConfig({
       // one: the layout claims are about computed geometry — `scrollWidth`
       // against `clientWidth` at a real viewport — and no fake DOM lays out.
       browserProjectIn("site", "site"),
+      // The performance harness's own instrument. It is test infrastructure, so
+      // it had no suite for a long time — and that is exactly how it shipped a
+      // pointer-scope window that was closed for every event a browser
+      // dispatched, leaving two "clean pass" invariants unable to fail. The
+      // instrument measures the browser's dispatch order, so like `solid` and
+      // `charts` it can only be tested in a browser; unlike them it must be
+      // driven through the real input pipeline, for the reason its suite states.
+      browserProjectIn("perf-harness", "test/perf"),
     ],
   },
 });

@@ -165,7 +165,7 @@ npm test              # all projects
 npm test -- --project core   # just the pure-math project
 ```
 
-Vitest runs six projects, split by what each package actually needs:
+Vitest runs seven projects, split by what each package actually needs:
 
 | Project | Environment | Why |
 |---|---|---|
@@ -175,6 +175,7 @@ Vitest runs six projects, split by what each package actually needs:
 | `charts` | real chromium | Composed charts render Solid components. |
 | `playground` | real chromium | The reference composition is where the visible-focus contract is proven end to end. A focus ring is a computed style resolved under `:focus-visible`, a media query, and a custom-property cascade — none of which node resolves. |
 | `site` | real chromium | The documentation site. Its layout claims are about computed geometry — `scrollWidth` against `clientWidth` at a real viewport — and no fake DOM lays out. |
+| `perf-harness` | real chromium | The performance harness's own pointer-scope instrument. It measures the browser's dispatch order, and its suite must drive **trusted** input — a synthetic `dispatchEvent` interleaves no microtask checkpoint and passes against the defect this project exists to keep out. |
 
 The accessibility suites also run as their own CI gate:
 

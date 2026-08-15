@@ -152,10 +152,36 @@ export interface Invariants {
  * standing next to.
  *
  * "Inside a pointer event" begins in a capture-phase listener on `window`, before
- * document or element handlers, and ends in the first microtask after synchronous
- * dispatch. The microtask closes the scope even if a handler stops propagation;
- * work deferred by a handler lands outside the bracket and is correctly not
- * counted — deferring is the fix, so counting it would count the fix as a defect.
+ * document or element handlers, and ends when that event's dispatch ends. Work
+ * deferred by a handler lands outside the bracket and is correctly not counted —
+ * deferring is the fix, so counting it would count the fix as a defect.
+ *
+ * ---------------------------------------------------------------------------
+ * The bracket is READ from the event, never timed
+ * ---------------------------------------------------------------------------
+ * This closed on `queueMicrotask` until 2026-08-15, and that was wrong in the
+ * one direction no test could see. A microtask checkpoint runs between listener
+ * callbacks of a BROWSER-dispatched event, so the window shut before any
+ * document-phase listener ran and all three scope-gated counters read zero
+ * unconditionally — including the two that back the clean-pass invariants, which
+ * therefore could not fail. A synthetic `dispatchEvent` keeps the JS stack
+ * non-empty, interleaves no checkpoint, and counted 10/10 throughout: the defect
+ * was invisible to exactly the driver a test was most likely to use.
+ *
+ * The repair does not move the window to a later tick. `setTimeout(…, 0)` and
+ * `requestAnimationFrame` both restore the count and both then attribute work
+ * that ran later in the same task or frame but not in the handler — measured, a
+ * `requestAnimationFrame`-deferred layout read scores 10/10 against a
+ * `setTimeout` close. Widening trades an unfalsifiable pass for a false failure.
+ *
+ * Instead the scope is a property of the event: the browser resets `eventPhase`
+ * to `NONE` when dispatch ends, whatever any handler did to propagation, so
+ * "are we inside this pointer event" is a question the event itself answers. No
+ * timer, no phase-ordering assumption, and nothing to re-tune if listener
+ * registration order changes. A window bubble-phase close was measured as the
+ * alternative and rejected: it is correct until a handler calls
+ * `stopPropagation`, after which its macrotask backstop holds the scope open
+ * into the next frame and counts deferred work 10/10.
  */
 export function createInvariants(): Invariants {
   interface PointerEventCounts {
@@ -174,6 +200,7 @@ export function createInvariants(): Invariants {
   let injectedRebuilds = 0;
   let pointerReadings: PointerEventCounts[] = [];
   let currentPointer: PointerEventCounts | undefined;
+  let currentEvent: Event | undefined;
   let stopObservingIndexBuilds: (() => void) | undefined;
   let raf = 0;
   let watching = false;
@@ -189,7 +216,7 @@ export function createInvariants(): Invariants {
     raf = requestAnimationFrame(endFrame);
   };
 
-  const enter = (): void => {
+  const enter = (event: Event): void => {
     pointerEvents++;
     const reading: PointerEventCounts = {
       injectedRebuilds: 0,
@@ -197,10 +224,26 @@ export function createInvariants(): Invariants {
       productionIndexBuilds: 0,
     };
     currentPointer = reading;
+    currentEvent = event;
     pointerReadings.push(reading);
-    queueMicrotask(() => {
-      if (currentPointer === reading) currentPointer = undefined;
-    });
+  };
+
+  /**
+   * The open reading, or `undefined` if the pointer event has finished dispatching.
+   *
+   * Closing is lazy on purpose. Nothing observes the scope except the three
+   * counters below, so the only moment the answer matters is the moment one of
+   * them asks — and asking the event is exact, where any scheduled close is a
+   * guess about when dispatch ended.
+   */
+  const openReading = (): PointerEventCounts | undefined => {
+    if (currentPointer === undefined) return undefined;
+    if (currentEvent !== undefined && currentEvent.eventPhase === Event.NONE) {
+      currentPointer = undefined;
+      currentEvent = undefined;
+      return undefined;
+    }
+    return currentPointer;
   };
 
   return {
@@ -210,9 +253,11 @@ export function createInvariants(): Invariants {
       thisFrame++;
     },
     noteInjectedRebuild() {
-      if (!watching || currentPointer === undefined) return;
+      if (!watching) return;
+      const reading = openReading();
+      if (reading === undefined) return;
       injectedRebuilds++;
-      currentPointer.injectedRebuilds++;
+      reading.injectedRebuilds++;
     },
     start() {
       if (watching) return;
@@ -227,15 +272,18 @@ export function createInvariants(): Invariants {
       injectedRebuilds = 0;
       pointerReadings = [];
       currentPointer = undefined;
+      currentEvent = undefined;
       stopObservingIndexBuilds = observeTimeSeriesIndexBuilds(() => {
-        if (currentPointer === undefined) return;
+        const reading = openReading();
+        if (reading === undefined) return;
         productionIndexBuilds++;
-        currentPointer.productionIndexBuilds++;
+        reading.productionIndexBuilds++;
       });
       Element.prototype.getBoundingClientRect = function patched(this: Element) {
-        if (currentPointer !== undefined) {
+        const reading = openReading();
+        if (reading !== undefined) {
           layoutReads++;
-          currentPointer.layoutReads++;
+          reading.layoutReads++;
         }
         return original.call(this);
       };
@@ -250,6 +298,7 @@ export function createInvariants(): Invariants {
       stopObservingIndexBuilds?.();
       stopObservingIndexBuilds = undefined;
       currentPointer = undefined;
+      currentEvent = undefined;
       cancelAnimationFrame(raf);
       // The frame in flight when watching stopped still counts.
       if (thisFrame > 0) {
@@ -338,9 +387,11 @@ const onPathologicalMove = (): void => {
  *
  * Exact application is structural on every workload: each pointer event must
  * carry one injected rebuild, one injected layout read, and one observed call to
- * the production builder. W-A and W-D additionally require that faithful
- * mutation to breach a strict timing limit; W-B and W-C use the exact structure
- * itself as their discrimination proof, even when mutation timing remains fast.
+ * the production builder. W-D additionally requires that faithful mutation to
+ * breach a strict timing limit; W-A, W-B and W-C use the exact structure itself
+ * as their discrimination proof, even when mutation timing remains fast — W-A
+ * joined them on 2026-08-15, when the first scored run that could measure it put
+ * its faithful mutation at p95 16.8ms against a 17.7ms gate.
  *
  * The clean and mutated passes use the same pointer-scope observer. The clean
  * pass therefore proves zero actual production-builder calls directly. During
