@@ -1,45 +1,77 @@
 name: PR CI notify
 
-# Comments on the PR when the CI suite settles. GitHub's app listeners can
-# watch CI on main, not per-PR checks; this is the in-repo event path for that.
-# workflow_run only fires from the default branch, so this file must be on main
-# before it can notify later PRs.
+# Runs on the pull request itself, not via workflow_run (that only fires
+# from main). Waits on `gh pr checks` so Codacy and other non-Actions
+# checks count. This job excludes itself from the wait so it cannot deadlock.
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  pull_request:
+    branches: [main]
 
 permissions:
-  actions: read
+  checks: read
+  statuses: read
   pull-requests: write
 
 jobs:
   notify:
-    if: github.event.workflow_run.event == 'pull_request'
+    name: PR check notify
     runs-on: ubuntu-latest
     permissions:
-      actions: read
+      checks: read
+      statuses: read
       pull-requests: write
+    timeout-minutes: 90
     steps:
-      - name: Comment when the CI suite settles
+      - name: Wait for other PR checks, then comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
+          SELF: PR check notify
         shell: bash
         run: |
           set -euo pipefail
-          # workflow_run.pull_requests is empty for some same-repo events.
-          # The commit→pulls API is the deterministic lookup.
-          prs="$(gh api "repos/${REPO}/commits/${HEAD_SHA}/pulls" --jq '.[].number')"
-          if [ -z "${prs}" ]; then
-            echo "No pull request for ${HEAD_SHA}; nothing to notify."
+          deadline=$((SECONDS + 5400))
+          json='[]'
+          while true; do
+            json="$(gh pr checks "${PR}" --repo "${REPO}" --json name,state,bucket,link || true)"
+            if [ -z "${json}" ]; then
+              json='[]'
+            fi
+            others="$(jq --arg s "${SELF}" '[.[] | select(.name != $s)] | length' <<<"${json}")"
+            pending="$(jq --arg s "${SELF}" '[.[] | select(.name != $s) | select((.bucket == "pending") or (.state == "PENDING") or (.state == "IN_PROGRESS") or (.state == "QUEUED"))] | length' <<<"${json}")"
+            if [ "${others}" -gt 0 ] && [ "${pending}" -eq 0 ]; then
+              break
+            fi
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "timed out waiting for other checks"
+              break
+            fi
+            sleep 30
+          done
+
+          marker="<!-- pr-ci-notify:${SHA} -->"
+          existing="$(gh api "repos/${REPO}/issues/${PR}/comments" --jq --arg m "${marker}" '.[] | select(.body | contains($m)) | .id' || true)"
+          if [ -n "${existing}" ]; then
+            echo "already commented for ${SHA}; skipping"
             exit 0
           fi
-          body="CI suite settled: ${CONCLUSION}. Run: ${RUN_URL}"
-          while IFS= read -r n; do
-            gh pr comment "${n}" --repo "${REPO}" --body "${body}"
-          done <<< "${prs}"
+
+          summary="$(jq --arg s "${SELF}" -r '
+            [.[] | select(.name != $s)]
+            | map("- \(.name): \(.bucket // .state) \(.link)")
+            | join("\n")
+          ' <<<"${json}")"
+          pending_left="$(jq --arg s "${SELF}" '[.[] | select(.name != $s) | select((.bucket == "pending") or (.state == "PENDING") or (.state == "IN_PROGRESS") or (.state == "QUEUED"))] | length' <<<"${json}")"
+          if [ "${pending_left}" -eq 0 ]; then
+            heading="PR checks settled (\`gh pr checks\`, excluding this job)"
+          else
+            heading="PR checks still pending after 90m (\`gh pr checks\`, excluding this job)"
+          fi
+          body="${marker}
+${heading} for \`${SHA}\`.
+
+${summary}"
+          gh pr comment "${PR}" --repo "${REPO}" --body "${body}"
