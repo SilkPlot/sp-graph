@@ -1,0 +1,45 @@
+name: PR CI notify
+
+# Comments on the PR when the CI suite settles. GitHub's app listeners can
+# watch CI on main, not per-PR checks; this is the in-repo event path for that.
+# workflow_run only fires from the default branch, so this file must be on main
+# before it can notify later PRs.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  pull-requests: write
+
+jobs:
+  notify:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pull-requests: write
+    steps:
+      - name: Comment when the CI suite settles
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # workflow_run.pull_requests is empty for some same-repo events.
+          # The commit→pulls API is the deterministic lookup.
+          prs="$(gh api "repos/${REPO}/commits/${HEAD_SHA}/pulls" --jq '.[].number')"
+          if [ -z "${prs}" ]; then
+            echo "No pull request for ${HEAD_SHA}; nothing to notify."
+            exit 0
+          fi
+          body="CI suite settled: ${CONCLUSION}. Run: ${RUN_URL}"
+          while IFS= read -r n; do
+            gh pr comment "${n}" --repo "${REPO}" --body "${body}"
+          done <<< "${prs}"
