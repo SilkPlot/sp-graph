@@ -144,9 +144,9 @@ export const LIMITATIONS: readonly Limitation[] = [
       "The crosshair, tooltip anchor, and hit index all exist and are exported, and the reference composition wires them together. What is not yet built is the reusable pointer-to-datum model, so hover is something you compose today rather than a prop you set.",
   },
   {
-    headline: "No grouped or stacked bars, and no brush or zoom",
+    headline: "No grouped or stacked bars",
     detail:
-      "Multi-series line and area charts ship, as does a legend with controlled visibility. What is not implemented is grouped and stacked bars, and brush or zoom navigation.",
+      "Multi-series line and area charts ship, as does a legend with controlled visibility. What is not implemented is grouped and stacked bars.",
   },
   {
     headline: "SVG only",
