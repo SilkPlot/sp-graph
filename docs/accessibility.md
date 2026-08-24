@@ -216,6 +216,58 @@ Position it with your own CSS; find it at `[data-silkplot-alternative]`.
 `tableHidden` clips the whole thing to assistive technology only — reach for
 that last.
 
+### The CSV export is CSV plus a formula guard
+
+**"Download CSV" does not emit your strings verbatim, and a consumer parsing the
+file needs to know that.** A string field beginning with any of six characters —
+`=`, `+`, `-`, `@`, tab, or carriage return — is exported with a single leading
+apostrophe.
+
+So a category label `=1+1` leaves as `'=1+1`. The reason is one sentence: a
+spreadsheet reads a cell starting with those characters as a **formula**, and a
+spreadsheet is this feature's stated destination, so an exported file that
+executes on opening is an injection vector rather than an edge case. The
+apostrophe is the smallest visible defence — it is [OWASP's
+mitigation](https://owasp.org/www-community/attacks/CSV_Injection) for exactly
+this.
+
+**Numbers are never guarded — and the type is what decides, not the
+characters.** A JavaScript `number` of `-5` exports as `-5`; the *string* `"-5"`
+exports as `'-5`. A number was never text, so it cannot carry a formula, and
+guarding it would turn a numeric column into text in the very spreadsheet the
+export exists to serve. If a column is arriving guarded when you expected plain
+numerals, it is reaching `rows` as strings.
+
+**To recover the raw label, strip a leading apostrophe only when a trigger
+character follows it.** Do not strip every leading apostrophe: the apostrophe is
+not itself a trigger, so a label that genuinely begins with one is exported
+untouched, and blind stripping would corrupt it.
+
+```ts
+const TRIGGERS = ["=", "+", "-", "@", "\t", "\r"];
+const raw =
+  field.startsWith("'") && TRIGGERS.some((t) => field.startsWith(t, 1))
+    ? field.slice(1)
+    : field;
+```
+
+**One case is genuinely ambiguous, and no parser can resolve it.** A label of
+`'=1+1` — apostrophe first, in your data — is exported unchanged, and a label of
+`=1+1` is exported as `'=1+1`. The two produce identical bytes. If your labels
+can begin with an apostrophe followed by a trigger character, the CSV is lossy
+for those values and you should pass your own `rows` rather than rely on the
+derived export.
+
+**Honest limitation:** this protects the file as written. It does not survive a
+user opening the file in a spreadsheet, saving, and reopening — no
+serialisation-side mitigation does, and claiming otherwise would be a guarantee
+this library cannot keep.
+
+Everything else about the file is unremarkable RFC 4180: comma delimiter, `"`
+quoting with internal quotes doubled, CRLF line endings, and a UTF-8
+byte-order mark so a spreadsheet decodes it as UTF-8 rather than the system code
+page.
+
 ---
 
 ## Keyboard behaviour

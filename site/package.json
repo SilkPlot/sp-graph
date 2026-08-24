@@ -15,11 +15,11 @@
     "@silkplot/core": "0.3.0-next.0",
     "@silkplot/solid": "0.3.0-next.0",
     "@silkplot/theme": "0.3.0-next.0",
-    "solid-js": "^1.9.14"
+    "solid-js": "^1.9.15"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
-    "vite": "^8.1.5",
-    "vite-plugin-solid": "^2.11.13"
+    "vite": "^8.2.2",
+    "vite-plugin-solid": "^2.11.14"
   }
 }

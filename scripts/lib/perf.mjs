@@ -198,10 +198,34 @@ export const controlDegraded = (baseline, control) =>
 export const interactionGateBreached = (distribution) =>
   distribution.p95 > ACCEPTANCE_MS || distribution.pctDropped > DROPPED_GATE_PCT;
 
-/** The frozen discrimination mode for each workload. */
+/**
+ * The frozen discrimination mode for each workload.
+ *
+ * `w-d` is the only workload dense enough to prove discrimination by timing. It
+ * was not the only one until 2026-08-15: `w-a` was assigned dense timing at the
+ * same time, on the reasoning that 20,000 points is dense, and no scored run
+ * could test that reasoning until the pointer-scope window was repaired and the
+ * mutation started applying at all.
+ *
+ * The first run that could measure it says otherwise. `w-a`'s mutation applies
+ * exactly — 89/89 and 91/91 pointer events carrying one injected rebuild, one
+ * layout read and one production-builder call — and costs p95 16.8ms against a
+ * 17.7ms gate. `w-d`'s identical mutation over 86,400 points costs 216.7ms. A
+ * 4.3x point count separates them by more than 12x in time, and `w-a` lands
+ * under the gate, so a faithful mutation there proves nothing by timing.
+ *
+ * The alternative was to grow `w-a`'s mutation until it breached, and
+ * `test/perf/app/instrument.ts` forbids exactly that: the size of the injected
+ * work is set by what the library does, not by the verdict it needs to produce.
+ * So `w-a` proves discrimination the way `w-b` and `w-c` do — by exact
+ * structure, which it already satisfies — and the timing claim it can honestly
+ * make is the clean-pass one it already makes.
+ */
 export function mutationProofMode(workload) {
-  if (workload === "w-a" || workload === "w-d") return "dense-timing";
-  if (workload === "w-b" || workload === "w-c") return "light-structural";
+  if (workload === "w-d") return "dense-timing";
+  if (workload === "w-a" || workload === "w-b" || workload === "w-c") {
+    return "light-structural";
+  }
   throw new Error(`unknown mutation-proof workload '${workload}'`);
 }
 
