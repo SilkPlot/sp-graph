@@ -268,13 +268,13 @@ describe("entering/leaving segments reach both plot edges", () => {
     for (const ui of fixtures) {
       const { container, unmount } = render(ui);
       // Area's stroked line is the second path; a line chart's only path is [0].
-      const stroked = markD(container, markPaths(container).length > 1 ? 1 : 0);
-      const xs = pathXs(stroked);
+      const paths = markPaths(container);
+      const strokedPath = paths[paths.length > 1 ? 1 : 0];
+      expect(strokedPath, "stroked mark should render").toBeTruthy();
+      const xs = pathXs(strokedPath?.getAttribute("d") ?? "");
       expect(xs[0] ?? 0).toBeLessThan(0);
       expect(xs[xs.length - 1] ?? 0).toBeGreaterThan(WIDTH);
-      expect(plotArea(container).contains(container.querySelector("svg path") as Node)).toBe(
-        true,
-      );
+      expect(plotArea(container).contains(strokedPath as Node)).toBe(true);
       unmount();
     }
   });
