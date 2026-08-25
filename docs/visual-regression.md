@@ -391,6 +391,12 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 
 <!-- Entries below, newest first. -->
 
+### 2026-08-25 — bar--dense-label--light, bar--dense-label--dark, bar--dense-label--light-high-contrast, bar--dense-label--dark-high-contrast
+
+- **Why:** the bar `dense-label` fixture opted in to `rotateCategoryLabels`, so the twelve clinic names that collided horizontally now rotate in place at ~45° and the shared margin path reserves the extra bottom those labels need.
+- **Inspected by:** Cursor Grok 4.6 (cursor-grok-4.6-high-fast) # 2 of 4 opened — `light` and `dark`; the two high-contrast variants were NOT opened, and differ from their inspected siblings only in palette.
+- **Accepted by:** Adam Claassens, on merge
+
 ### 2026-07-21 — area--focus--light, area--focus--dark, area--focus--light-high-contrast, area--focus--dark-high-contrast, scatter--focus--light, scatter--focus--dark, scatter--focus--light-high-contrast, scatter--focus--dark-high-contrast
 
 - **Why:** NEW baselines, not re-pins. Area and Scatter gained the interaction
