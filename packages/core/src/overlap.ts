@@ -9,8 +9,10 @@
  * The greedy lane assignment below is real and correct for column packing, but
  * intentionally minimal.
  *
- * TODO(deferred calendar): column-count normalisation (widen events to fill free lanes),
- *   visible-range clipping / overscan, and resource-row grouping.
+ * TODO(deferred calendar): resource-row grouping. Column-count normalisation
+ *   (widen events to fill trailing free lanes) and visible-range clipping are
+ *   composed in `@silkplot/calendar`'s overlap resolver from these lanes — they
+ *   are not packer math and are not implemented here.
  */
 
 /** A time interval to be packed. `start`/`end` are comparable numbers (e.g. epoch ms). */

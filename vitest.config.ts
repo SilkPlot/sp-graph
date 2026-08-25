@@ -79,8 +79,17 @@ export default defineConfig({
         // `calendar` is zoned civil-time geometry — Temporal, no DOM — so node
         // is sufficient. A browser project would not make the DST cases more
         // honest; they are IANA-zone fixtures, not layout.
+        //
+        // Node/SSR resolution is a separate condition list from `resolve`.
+        // Without it, `@silkplot/core` falls through to `dist`, which this
+        // workspace does not emit for tests — `source` must win here too.
         resolve: {
           conditions: ["source", "development"],
+        },
+        ssr: {
+          resolve: {
+            conditions: ["source", "development"],
+          },
         },
         test: {
           name: "calendar",
