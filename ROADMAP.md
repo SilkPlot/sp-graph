@@ -82,9 +82,7 @@ so these are evidence tasks, not feature tasks:
 
 Explored, deliberately not committed:
 
-- Calendar and agenda views — the time-grid layout is an honest stub today,
-  and the time-semantics decision (display zones, DST geometry) comes before
-  any implementation, so the hard part is not accidentally decided by code.
+- A week-grid view exists in source and is unpublished; agenda views remain later, and time-semantics is decided ([ADR-0024](docs/decisions/adr-0024-zoned-civil-time-for-calendar-grids.md)).
 - Grouped and stacked bars.
 - A Canvas density layer — selected by measurement, never by taste.
 - Heatmaps and virtualization for dense boards.
