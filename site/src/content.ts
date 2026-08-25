@@ -139,9 +139,9 @@ export const LIMITATIONS: readonly Limitation[] = [
       "Pin an exact version. Breaking changes are documented as decision records in the repository, but 0.x semantics mean a minor release may contain them.",
   },
   {
-    headline: "Pointer hover is not yet built into the chart components",
+    headline: "Informative charts inspect on pointer hover by default",
     detail:
-      "The crosshair, tooltip anchor, and hit index all exist and are exported, and the reference composition wires them together. What is not yet built is the reusable pointer-to-datum model, so hover is something you compose today rather than a prop you set.",
+      "Crosshair, active mark, and tooltip share the same active-datum state the keyboard writes; the tooltip is a render-prop you supply.",
   },
   {
     headline: "No grouped or stacked bars",
