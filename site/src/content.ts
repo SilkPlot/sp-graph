@@ -154,7 +154,7 @@ export const LIMITATIONS: readonly Limitation[] = [
       "There is no Canvas or WebGL substrate yet. Density beyond a few thousand marks is untested, and that is where the rendering approach is expected to have to change.",
   },
   {
-    headline: "The calendar package is a stub",
+    headline: "The calendar package is not published",
     detail: "buildTimeGrid is implemented in source; the package is not published.",
   },
 ];
