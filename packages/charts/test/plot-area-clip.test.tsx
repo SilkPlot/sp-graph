@@ -17,6 +17,7 @@ import {
   HEIGHT,
   NO_MARGINS,
   WIDTH,
+  expectedTimeXScale,
   markD,
   markPaths,
   pathXs,
@@ -99,6 +100,36 @@ describe("marksForPlotInterval — neighbour-or-all", () => {
     const scrambled = [DATA[2]!, DATA[0]!, DATA[4]!, DATA[1]!, DATA[3]!];
     const iv = { start: BETWEEN.start.getTime(), end: BETWEEN.end.getTime() };
     expect(marksForPlotInterval(scrambled, time, iv)).toEqual(scrambled);
+  });
+
+  it("is the identity on empty data (same array reference)", () => {
+    const empty: TimePoint[] = [];
+    const iv = { start: BETWEEN.start.getTime(), end: BETWEEN.end.getTime() };
+    expect(marksForPlotInterval(empty, time, iv)).toBe(empty);
+  });
+
+  it("keeps a point sitting exactly on either interval edge", () => {
+    const iv = { start: day(1).getTime(), end: day(3).getTime() };
+    expect(marksForPlotInterval(DATA, time, iv).map((d) => d.y)).toEqual([
+      100, 40, 60, 50, 5,
+    ]);
+  });
+
+  it("picks the temporally nearest neighbour when several sit past an edge", () => {
+    // Window around day 2 only: days 0 and 1 are left, 3 and 4 are right.
+    // Sorted hits farther-then-closer on the left and closer-then-farther on
+    // the right; the scrambled order reverses both, so each skip branch runs.
+    const iv = { start: day(1.5).getTime(), end: day(2.5).getTime() };
+    expect(marksForPlotInterval(DATA, time, iv).map((d) => d.y)).toEqual([40, 60, 50]);
+    const closerFirst = [DATA[1]!, DATA[0]!, DATA[2]!, DATA[4]!, DATA[3]!];
+    expect(marksForPlotInterval(closerFirst, time, iv).map((d) => d.y)).toEqual([
+      40, 60, 50,
+    ]);
+  });
+
+  it("returns only the nearest neighbours when nothing sits inside", () => {
+    const iv = { start: day(2).getTime() + 1, end: day(2).getTime() + 2 };
+    expect(marksForPlotInterval(DATA, time, iv).map((d) => d.y)).toEqual([60, 50]);
   });
 });
 
@@ -290,9 +321,19 @@ describe("entering/leaving segments reach both plot edges", () => {
         curve="linear"
       />
     ));
+    // All five points, on the data-extent scale. `timeScale` nices to local
+    // calendar bounds by default, so the first/last vertices sit on the plot
+    // edges only when those bounds already match the data — they do in UTC
+    // and they do not under CI's `TZ=America/New_York`. The oracle nices the
+    // same way the chart does (see viewport-scope identity).
     const xs = pathXs(markD(container));
     expect(xs).toHaveLength(5);
-    expect(xs[0]).toBeCloseTo(0, 3);
-    expect(xs[4]).toBeCloseTo(WIDTH, 3);
+    const x = expectedTimeXScale(
+      DATA.map((d) => d.t),
+      WIDTH,
+    );
+    DATA.forEach((d, i) => {
+      expect(xs[i]).toBeCloseTo(x(d.t), 3);
+    });
   });
 });
