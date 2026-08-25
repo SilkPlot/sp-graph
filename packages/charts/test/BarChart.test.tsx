@@ -15,7 +15,11 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { BarChart } from "../src/index";
 import type { CategoryPoint } from "../src/index";
-import { bandScale, computeBandTicks } from "@silkplot/core";
+import {
+  bandScale,
+  computeBandTicks,
+  resolveCategoryLabelRotation,
+} from "@silkplot/core";
 import {
   HEIGHT,
   INNER_HEIGHT,
@@ -198,6 +202,87 @@ describe("BarChart — edge cases", () => {
       <BarChart data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} title="Category totals" />
     ));
     expect(container.querySelector("svg > title")?.textContent).toBe("Category totals");
+  });
+});
+
+describe("BarChart — rotateCategoryLabels opt-in", () => {
+  const LONG: CategoryPoint[] = [
+    { label: "Aberdeen Clinic", y: 10 },
+    { label: "Bloemfontein North", y: 20 },
+    { label: "Cape Town Central", y: 15 },
+    { label: "Durban Berea", y: 12 },
+    { label: "East London Quigney", y: 18 },
+    { label: "Gqeberha Summerstrand", y: 22 },
+    { label: "Johannesburg Rosebank", y: 9 },
+    { label: "Kimberley Beaconsfield", y: 14 },
+    { label: "Nelspruit West", y: 11 },
+    { label: "Polokwane Bendor", y: 16 },
+    { label: "Pretoria Hatfield", y: 13 },
+    { label: "Rustenburg Waterfall", y: 17 },
+  ];
+
+  const innerWidth = INNER_WIDTH;
+  const defaultInnerHeight = INNER_HEIGHT;
+
+  it("does not rotate and keeps default bottom margin when the caller did not opt in", () => {
+    const { container } = render(() => (
+      <BarChart title="Clinics" data={LONG} width={WIDTH} height={HEIGHT} />
+    ));
+    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
+    expect(axis).not.toBeNull();
+    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBeNull();
+    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
+    expect(d).toContain(`M0,${defaultInnerHeight}H`);
+    expect(axisLabels(container, "bottom")).toHaveLength(LONG.length);
+  });
+
+  it("stays horizontal with default margins when opted in but labels do not collide", () => {
+    const { container } = render(() => (
+      <BarChart
+        title="Days"
+        data={ALL_POSITIVE}
+        width={WIDTH}
+        height={HEIGHT}
+        rotateCategoryLabels
+      />
+    ));
+    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
+    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBeNull();
+    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
+    expect(d).toContain(`M0,${defaultInnerHeight}H`);
+  });
+
+  it("rotates ~45° and reserves the collision-test bottom when opted in and labels collide", () => {
+    const labels = LONG.map((d) =>
+      d.label.length > 20 ? `${d.label.slice(0, 19)}…` : d.label,
+    );
+    const expected = resolveCategoryLabelRotation({
+      optedIn: true,
+      labels,
+      innerWidth,
+    });
+    expect(expected.rotate).toBe(true);
+
+    const { container } = render(() => (
+      <BarChart
+        title="Clinics"
+        data={LONG}
+        width={WIDTH}
+        height={HEIGHT}
+        rotateCategoryLabels
+      />
+    ));
+    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
+    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBe("-45");
+    const texts = Array.from(axis?.querySelectorAll("text") ?? []);
+    expect(texts).toHaveLength(LONG.length);
+    for (const text of texts) {
+      expect(text.getAttribute("transform")).toMatch(/rotate\(-45\)/);
+    }
+    const innerHeight = HEIGHT - 8 - expected.reservedBottom;
+    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
+    expect(d).toContain(`M0,${innerHeight}H`);
+    expect(axisLabels(container, "bottom")).toHaveLength(LONG.length);
   });
 });
 

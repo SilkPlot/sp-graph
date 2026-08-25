@@ -7,7 +7,7 @@
  * its own `vite-plugin-solid` (the "solid" export condition points here).
  */
 export { ChartRoot } from "./ChartRoot";
-export type { ChartRootProps } from "./ChartRoot";
+export type { ChartRootProps, MarginReservation } from "./ChartRoot";
 
 export { SvgLayer } from "./SvgLayer";
 export type { SvgLayerProps } from "./SvgLayer";
@@ -135,6 +135,7 @@ export {
   useChartBounds,
   ChartBoundsContext,
   resolveBounds,
+  resolveMargins,
   DEFAULT_MARGINS,
 } from "./context";
 export type { ChartBounds, Margins } from "./context";

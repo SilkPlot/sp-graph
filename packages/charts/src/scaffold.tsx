@@ -38,6 +38,7 @@ import {
   type ChartSemanticsInput,
   type ChartSemantics,
   type ChartTableRow,
+  type MarginReservation,
   type Margins,
   type Viewport,
   type ViewportCommands,
@@ -210,6 +211,12 @@ export interface ChartShellProps {
    * about how a value reads — see `ReferenceList`.
    */
   referenceList?: JSX.Element;
+  /**
+   * Extra inset reserved through the shared `ChartRoot` margin path.
+   * Category-label rotation uses this so the extra bottom is not a bar-only
+   * layout fork.
+   */
+  reserved?: MarginReservation;
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */
   children?: JSX.Element;
 }
@@ -229,6 +236,7 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
       width={props.layout.width}
       height={props.layout.height}
       margins={props.layout.margins}
+      reserved={props.reserved}
     >
       {props.children}
     </ChartRoot>

@@ -249,6 +249,32 @@ describe("Axis — scale kinds", () => {
   });
 });
 
+describe("Axis — labelRotation", () => {
+  it("leaves bottom labels horizontal and unannotated when rotation is omitted", () => {
+    const { container } = mount(() => <Axis scale={linear} />);
+    const axisGroup = getAxisGroup(container);
+    expect(axisGroup.getAttribute("data-silkplot-label-rotation")).toBeNull();
+    const texts = Array.from(axisGroup.querySelectorAll("text"));
+    expect(texts.length).toBeGreaterThan(0);
+    for (const text of texts) {
+      expect(text.getAttribute("text-anchor")).toBe("middle");
+      expect(text.getAttribute("transform")).toBeNull();
+    }
+  });
+
+  it("rotates bottom labels in place at the given angle and records it on the group", () => {
+    const { container } = mount(() => <Axis scale={linear} labelRotation={-45} />);
+    const axisGroup = getAxisGroup(container);
+    expect(axisGroup.getAttribute("data-silkplot-label-rotation")).toBe("-45");
+    const texts = Array.from(axisGroup.querySelectorAll("text"));
+    expect(texts.length).toBeGreaterThan(0);
+    for (const text of texts) {
+      expect(text.getAttribute("text-anchor")).toBe("end");
+      expect(text.getAttribute("transform")).toMatch(/rotate\(-45\)/);
+    }
+  });
+});
+
 describe("Axis — reactivity", () => {
   it("recomputes ticks (the ticks createMemo reruns) when the scale prop signal changes", () => {
     const scaleA = linearScale({ domain: [0, 10], range: [0, BOUNDS.innerWidth] });

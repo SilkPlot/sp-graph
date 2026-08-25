@@ -38,8 +38,10 @@
  */
 import { For, Show, createMemo, type Component, type JSX } from "solid-js";
 import {
+  CATEGORY_LABEL_ROTATION_DEG,
   createBandIndex,
   normalizeCategories,
+  resolveCategoryLabelRotation,
   type ActivePoint,
   type NormalizedCategory,
   type RankedCategory,
@@ -47,9 +49,11 @@ import {
 } from "@silkplot/core";
 import {
   createRankedModel,
+  useChartBounds,
   type ChartSemantics,
   type ChartSemanticsProps,
   type ChartTableRow,
+  type MarginReservation,
   type RankedModel,
   type RankedOrientation,
 } from "@silkplot/solid";
@@ -86,6 +90,15 @@ interface BarLayoutProps extends CartesianChartProps {
   padding?: number;
   /** Bar fill color. Default: "currentColor". */
   fill?: string;
+  /**
+   * Opt in to rotating vertical category labels in place at ~45° when a
+   * deterministic collision test says they would otherwise collide.
+   *
+   * Default off: existing pictures stay byte-identical until a caller asks.
+   * Horizontal orientation is unchanged — it is already the primary remedy
+   * for long labels, and its category axis is not the bottom edge.
+   */
+  rotateCategoryLabels?: boolean;
 }
 
 /**
@@ -163,6 +176,45 @@ type ResolvedBarProps = BarLayoutProps &
     tooltip?: (active: ActivePoint<RankedCategory>) => JSX.Element;
     onActivePointChange?: (active: ActivePoint<RankedCategory> | undefined) => void;
   };
+
+/** Axis text as it will be painted — truncation, then any caller formatter. */
+function displayedCategoryLabel(
+  label: string,
+  format?: (label: string) => string,
+): string {
+  return format?.(label) ?? truncateLabel(label);
+}
+
+function displayedCategoryLabels(
+  categories: readonly RankedCategory[],
+  format?: (label: string) => string,
+): readonly string[] {
+  return categories.map((c) => displayedCategoryLabel(c.label, format));
+}
+
+/**
+ * Shared decide-to-rotate answer: same labels, inner width, padding, and
+ * opt-in flag in → same rotate-or-not and reserved bottom out. Horizontal
+ * orientation never rotates; its category labels already live one-per-row.
+ */
+function categoryLabelRotationFor(
+  props: {
+    rotateCategoryLabels?: boolean;
+    orientation?: RankedOrientation;
+    padding?: number;
+    categoryTickFormat?: (label: string) => string;
+    categories: readonly RankedCategory[];
+  },
+  innerWidth: number,
+) {
+  return resolveCategoryLabelRotation({
+    optedIn:
+      props.rotateCategoryLabels === true && (props.orientation ?? "vertical") === "vertical",
+    labels: displayedCategoryLabels(props.categories, props.categoryTickFormat),
+    innerWidth,
+    padding: props.padding,
+  });
+}
 
 type BarChartBodyProps = ResolvedBarProps & { semantics: ChartSemantics };
 
@@ -309,7 +361,13 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
    */
   const categoryFormat = (id: string): string => {
     const label = model().byId.get(id)?.label ?? id;
-    return props.categoryTickFormat?.(label) ?? truncateLabel(label);
+    return displayedCategoryLabel(label, props.categoryTickFormat);
+  };
+
+  const bounds = useChartBounds();
+  const xLabelRotation = (): number | undefined => {
+    const decision = categoryLabelRotationFor(props, bounds().innerWidth);
+    return decision.rotate ? CATEGORY_LABEL_ROTATION_DEG : undefined;
   };
 
   return (
@@ -322,6 +380,7 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
         // whole reason the props are not named for the axes.
         xFormat={isVertical() ? categoryFormat : props.valueTickFormat}
         yFormat={isVertical() ? props.valueTickFormat : categoryFormat}
+        xLabelRotation={xLabelRotation()}
       >
         <For each={categories()}>
           {(c) => (
@@ -376,8 +435,22 @@ export const BarChart: Component<BarChartProps> = (props) => {
         ] as const,
     );
 
+  const reserved: MarginReservation = (inner) => {
+    const decision = categoryLabelRotationFor(
+      { ...(props as ResolvedBarProps), categories: resolved() },
+      inner.width,
+    );
+    return decision.rotate ? { bottom: decision.reservedBottom } : undefined;
+  };
+
   return (
-    <ChartShell layout={props} semantics={semantics} rows={rows} columns={CATEGORY_COLUMNS}>
+    <ChartShell
+      layout={props}
+      reserved={reserved}
+      semantics={semantics}
+      rows={rows}
+      columns={CATEGORY_COLUMNS}
+    >
       <BarChartBody
         {...(props as ResolvedBarProps)}
         categories={resolved()}

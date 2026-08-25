@@ -3,6 +3,7 @@ import { createEffect, createRoot, createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import {
   resolveBounds,
+  resolveMargins,
   DEFAULT_MARGINS,
   useChartBounds,
   ChartBoundsContext,
@@ -12,6 +13,37 @@ import type { ChartBounds } from "../src/index";
 describe("DEFAULT_MARGINS", () => {
   it("matches the documented shape", () => {
     expect(DEFAULT_MARGINS).toEqual({ top: 8, right: 12, bottom: 24, left: 40 });
+  });
+});
+
+describe("resolveMargins", () => {
+  it("merges a partial over the defaults and leaves unspecified edges alone", () => {
+    expect(resolveMargins({ bottom: 40 })).toEqual({
+      top: 8,
+      right: 12,
+      bottom: 40,
+      left: 40,
+    });
+  });
+
+  it("raises an edge to the reserved floor without shrinking a larger caller value", () => {
+    expect(resolveMargins({ bottom: 24 }, { bottom: 110 })).toEqual({
+      top: 8,
+      right: 12,
+      bottom: 110,
+      left: 40,
+    });
+    expect(resolveMargins({ bottom: 150 }, { bottom: 110 })).toEqual({
+      top: 8,
+      right: 12,
+      bottom: 150,
+      left: 40,
+    });
+  });
+
+  it("is a no-op when no reservation is supplied — default pictures stay put", () => {
+    expect(resolveMargins()).toEqual(DEFAULT_MARGINS);
+    expect(resolveMargins(undefined, undefined)).toEqual(DEFAULT_MARGINS);
   });
 });
 

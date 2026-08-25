@@ -62,6 +62,11 @@ export interface CartesianFrameProps<
    */
   xFormat?: TickFormat;
   yFormat?: TickFormat;
+  /**
+   * Degrees to rotate the bottom-axis labels. Forwarded to `Axis`; the
+   * decide-to-rotate path stays with the chart that opted in.
+   */
+  xLabelRotation?: number;
   children?: JSX.Element;
 }
 
@@ -102,7 +107,12 @@ export const CartesianFrame = <
           <Gridlines scale={props.model.x()} axis="x" />
         </Show>
         <Axis scale={props.model.y()} orientation="left" format={props.yFormat} />
-        <Axis scale={props.model.x()} orientation="bottom" format={props.xFormat} />
+        <Axis
+          scale={props.model.x()}
+          orientation="bottom"
+          format={props.xFormat}
+          labelRotation={props.xLabelRotation}
+        />
         {props.children}
       </Show>
     </SvgLayer>
