@@ -144,7 +144,7 @@ export function buildTimeGrid(config: TimeGridConfig): TimeGrid {
   const { timeZone, slotMinutes, axisLength, weekStart, serviceDayAnchor } = normalized;
 
   const days = collectDays(normalized.start, normalized.end, timeZone, serviceDayAnchor);
-  const slots = collectSlots(days, startMs, endMs, timeZone, slotMinutes, axisLength);
+  const slots = collectSlots(days, startMs, endMs, slotMinutes, axisLength);
   const weeks = collectWeeks(days, weekStart);
 
   return {
@@ -273,7 +273,6 @@ function collectSlots(
   days: readonly TimeGridDay[],
   rangeStartMs: number,
   rangeEndMs: number,
-  timeZone: string,
   slotMinutes: number,
   axisLength: number,
 ): TimeSlot[] {
@@ -293,9 +292,6 @@ function collectSlots(
       });
     }
     cursor = cursor.add({ minutes: slotMinutes });
-    if (cursor.timeZoneId !== timeZone) {
-      cursor = cursor.withTimeZone(timeZone);
-    }
   }
   return slots;
 }

@@ -318,4 +318,37 @@ describe("config validation", () => {
   it("rejects an inverted visible range", () => {
     expect(() => grid({ ...base, start: end, end: start })).toThrowError(/start must be strictly before end/);
   });
+
+  it("rejects a non-positive slot size or a negative axis", () => {
+    expect(() => grid({ ...base, slotMinutes: 0 })).toThrowError(/slotMinutes/);
+    expect(() => grid({ ...base, axisLength: -1 })).toThrowError(/axisLength/);
+  });
+
+  it("rejects an out-of-range service-day anchor", () => {
+    expect(() => grid({ ...base, serviceDayAnchor: { hour: 24 } })).toThrowError(/hour/);
+    expect(() => grid({ ...base, serviceDayAnchor: { hour: 6, minute: 60 } })).toThrowError(/minute/);
+  });
+
+  it("accepts a ZonedDateTime visible range and a non-zero minute anchor", () => {
+    const start = Temporal.ZonedDateTime.from({
+      timeZone: NY,
+      year: 2026,
+      month: 6,
+      day: 1,
+      hour: 17,
+    });
+    const end = start.add({ hours: 2 });
+    const built = grid({
+      start,
+      end,
+      slotMinutes: 30,
+      axisLength: 0,
+      timeZone: NY,
+      weekStart: 1,
+      serviceDayAnchor: { hour: 17, minute: 30 },
+    });
+    expect(built.days[0]!.start.hour).toBe(17);
+    expect(built.days[0]!.start.minute).toBe(30);
+    expect(built.positionOf(new Date(start.epochMilliseconds))).toBe(0);
+  });
 });
