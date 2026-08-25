@@ -1,6 +1,6 @@
 # ADR-0024 — Zoned civil time for calendar grids
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-25
 
 ## Context
