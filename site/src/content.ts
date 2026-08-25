@@ -76,7 +76,7 @@ export const PACKAGES: readonly PackageRow[] = [
     name: "@silkplot/calendar",
     purpose: "Time-grid and calendar layout",
     status: "Stub",
-    note: "Typed but not implemented — its entry point throws. Not published.",
+    note: "buildTimeGrid is implemented in source. Not published.",
   },
 ];
 
@@ -155,6 +155,6 @@ export const LIMITATIONS: readonly Limitation[] = [
   },
   {
     headline: "The calendar package is a stub",
-    detail: "It is typed, its entry point throws, and it is not published.",
+    detail: "buildTimeGrid is implemented in source; the package is not published.",
   },
 ];
