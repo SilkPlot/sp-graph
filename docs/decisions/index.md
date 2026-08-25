@@ -207,6 +207,12 @@ arrived at.
   so the path is the envelope and the active point is the truth. Canvas is not
   promoted; its promotion still requires measured evidence that this is not
   enough.
+- [ADR-0024 — Zoned civil time for calendar grids](adr-0024-zoned-civil-time-for-calendar-grids.md):
+  the calendar-grid contract before any grid is built — one IANA display zone
+  per view, truthful DST geometry (23h spring-forward, 25h fall-back), Temporal
+  at the calendar boundary and `Date` only at the D3 seam, library owns grid
+  meaning and the application owns booking validity. Does not reopen ADR-0017.
+  Ships no implementation.
 
 ## Migrations
 
