@@ -29,6 +29,7 @@ import {
   markPaths as getPaths,
   moveCount,
   pathXs,
+  pathXsOnPlot,
   pathYs,
 } from "./support";
 
@@ -259,8 +260,9 @@ describe("AreaChart — a controlled visibleDomain narrows the marks, not the ta
       />
     ));
     const [, lineEl] = getPaths(container) as [SVGPathElement, SVGPathElement];
-    // Only days 1, 2, 3 (of DATA5's 0..4) sit inside the window.
-    expect(pathXs(lineEl.getAttribute("d") ?? "")).toHaveLength(3);
+    // Only days 1, 2, 3 (of DATA5's 0..4) sit inside the window. Neighbours
+    // past each edge are painted for the clip and sit outside the plot.
+    expect(pathXsOnPlot(lineEl.getAttribute("d") ?? "", WIDTH)).toHaveLength(3);
     // The table is standalone with no section or dynamic selection above it, so
     // its data scope is the full five readings — the viewport never narrows it.
     expect(container.querySelectorAll("tbody tr")).toHaveLength(5);

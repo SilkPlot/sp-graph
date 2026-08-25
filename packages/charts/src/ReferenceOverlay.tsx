@@ -10,11 +10,13 @@
  * exactly like a working chart. The cost is a hairline of data covered by each
  * line, which is accepted and is why the default stroke is 1px.
  *
- * It never draws over the axes, and that is achieved by CLIPPING rather than by
- * ordering. The frame paints its axes before its children, so a mark already
- * paints above an axis; ordering could not put references below one. Instead
- * every line and label is confined to the inner plot rect, which the axes sit
- * outside of — so the guarantee holds regardless of what the frame does next.
+ * It never draws over the axes, and that is achieved by the FRAME's plot-area
+ * clip rather than by ordering. The frame paints its axes before its children,
+ * so a mark already paints above an axis; ordering could not put references
+ * below one. The shared `clipPath` confines every line and label to the inner
+ * plot rect, which the axes sit outside of — so the guarantee holds regardless
+ * of what the frame does next, and a reference does not carry a private clip
+ * of its own.
  *
  * ## Internal to `@silkplot/charts`, like `CartesianFrame`
  *
@@ -23,7 +25,7 @@
  * cartesian charts, not a contract worth freezing in the public primitive layer
  * before a second consumer asks for it.
  */
-import { createMemo, createUniqueId, For, Show, type JSX } from "solid-js";
+import { createMemo, For, Show, type JSX } from "solid-js";
 import { packOverlaps, type NormalizedReference } from "@silkplot/core";
 
 /**
@@ -157,64 +159,49 @@ export function ReferenceOverlay(props: ReferenceOverlayProps): JSX.Element {
     place(props.references, props.position, props.innerWidth, props.innerHeight),
   );
 
-  // One clip path per overlay INSTANCE. `createUniqueId` for the same reason the
-  // semantics ids use it: two charts on one page must not share an id, and an
-  // SVG id is document-global, so a clip keyed on anything derivable from the
-  // props — the dimensions, say — would be shared by two charts of the same size
-  // and would also churn on every resize. It is sequential rather than random,
-  // so the rendered markup stays deterministic for the visual baselines.
-  const clipId = `sp-ref-clip-${createUniqueId()}`;
-
   return (
     <Show when={props.innerWidth > 0 && props.innerHeight > 0}>
       <g data-silkplot-references="">
-        <defs>
-          <clipPath id={clipId}>
-            <rect x={0} y={0} width={props.innerWidth} height={props.innerHeight} />
-          </clipPath>
-        </defs>
-        <g clip-path={`url(#${clipId})`}>
-          <For each={placed()}>
-            {(p) => (
-              <g data-silkplot-reference={p.reference.id}>
-                {/*
-                  One `<line>` for both axes, with the span computed. Two
-                  branches would be the same element written twice and would
-                  drift the moment a stroke or dash default changed on one.
-                */}
-                <line
-                  x1={p.reference.axis === "value" ? 0 : p.at}
-                  y1={p.reference.axis === "value" ? p.at : 0}
-                  x2={p.reference.axis === "value" ? props.innerWidth : p.at}
-                  y2={p.reference.axis === "value" ? p.at : props.innerHeight}
-                  stroke={p.reference.style.stroke ?? REFERENCE_STROKE}
-                  stroke-width={p.reference.style.strokeWidth ?? REFERENCE_STROKE_WIDTH}
-                  // `.join(" ")` because `SeriesStyle.dash` is a number array,
-                  // exactly as `resolveSeriesStyle` serialises it. The default
-                  // is a string literal rather than an array so the dashed-vs-
-                  // solid distinction against the crosshair is stated once here.
-                  stroke-dasharray={p.reference.style.dash?.join(" ") ?? REFERENCE_DASH}
-                  // `butt`, not `round`: a round cap extends each dash by half a
-                  // stroke width at both ends, closing a fine pattern into a
-                  // solid line. Same reasoning as `StrokedLine`.
-                  stroke-linecap="butt"
-                />
-                <Show when={p.labelDrawn}>
-                  <text
-                    x={p.labelX}
-                    y={p.labelY}
-                    text-anchor={p.reference.axis === "value" ? "end" : "start"}
-                    font-size={REFERENCE_FONT_SIZE}
-                    fill={REFERENCE_STROKE}
-                    data-silkplot-reference-label={p.reference.id}
-                  >
-                    {p.reference.label}
-                  </text>
-                </Show>
-              </g>
-            )}
-          </For>
-        </g>
+        <For each={placed()}>
+          {(p) => (
+            <g data-silkplot-reference={p.reference.id}>
+              {/*
+                One `<line>` for both axes, with the span computed. Two
+                branches would be the same element written twice and would
+                drift the moment a stroke or dash default changed on one.
+              */}
+              <line
+                x1={p.reference.axis === "value" ? 0 : p.at}
+                y1={p.reference.axis === "value" ? p.at : 0}
+                x2={p.reference.axis === "value" ? props.innerWidth : p.at}
+                y2={p.reference.axis === "value" ? p.at : props.innerHeight}
+                stroke={p.reference.style.stroke ?? REFERENCE_STROKE}
+                stroke-width={p.reference.style.strokeWidth ?? REFERENCE_STROKE_WIDTH}
+                // `.join(" ")` because `SeriesStyle.dash` is a number array,
+                // exactly as `resolveSeriesStyle` serialises it. The default
+                // is a string literal rather than an array so the dashed-vs-
+                // solid distinction against the crosshair is stated once here.
+                stroke-dasharray={p.reference.style.dash?.join(" ") ?? REFERENCE_DASH}
+                // `butt`, not `round`: a round cap extends each dash by half a
+                // stroke width at both ends, closing a fine pattern into a
+                // solid line. Same reasoning as `StrokedLine`.
+                stroke-linecap="butt"
+              />
+              <Show when={p.labelDrawn}>
+                <text
+                  x={p.labelX}
+                  y={p.labelY}
+                  text-anchor={p.reference.axis === "value" ? "end" : "start"}
+                  font-size={REFERENCE_FONT_SIZE}
+                  fill={REFERENCE_STROKE}
+                  data-silkplot-reference-label={p.reference.id}
+                >
+                  {p.reference.label}
+                </text>
+              </Show>
+            </g>
+          )}
+        </For>
       </g>
     </Show>
   );

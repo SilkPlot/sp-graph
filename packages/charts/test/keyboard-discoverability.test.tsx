@@ -28,7 +28,7 @@ import { render } from "@solidjs/testing-library";
 import { userEvent } from "@vitest/browser/context";
 import { BarChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, markD, pathXs } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, markD, pathXsOnPlot } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -55,7 +55,7 @@ function hintOf(container: HTMLElement): HTMLElement | null {
 }
 
 function pointCount(container: HTMLElement): number {
-  return pathXs(markD(container)).length;
+  return pathXsOnPlot(markD(container), WIDTH).length;
 }
 
 /** One frame — the pointer loop and the brush paint are rAF-coalesced. */
