@@ -76,9 +76,9 @@ export default defineConfig({
         },
       },
       {
-        // `calendar` is zoned civil-time geometry — Temporal, no DOM — so node
-        // is sufficient. A browser project would not make the DST cases more
-        // honest; they are IANA-zone fixtures, not layout.
+        // `calendar` node: zoned civil-time geometry — Temporal, no DOM.
+        // DST slot/day cases are IANA-zone fixtures, not layout. The week-grid
+        // Solid view is a separate browser project below.
         //
         // Node/SSR resolution is a separate condition list from `resolve`.
         // Without it, `@silkplot/core` falls through to `dist`, which this
@@ -96,6 +96,21 @@ export default defineConfig({
           include: ["packages/calendar/test/**/*.test.ts"],
           environment: "node",
         },
+      },
+      // Week-grid Solid layout. Block positions must match `buildTimeGrid` /
+      // `resolveEventLanes` / `positionOf` in a real browser; jsdom cannot
+      // measure SVG. Only `*.test.tsx` — the node geometry suites stay above.
+      {
+        ...(() => {
+          const project = browserProject("calendar-browser", "calendar");
+          return {
+            ...project,
+            test: {
+              ...project.test,
+              include: ["packages/calendar/test/**/*.test.tsx"],
+            },
+          };
+        })(),
       },
       browserProject("solid", "solid"),
       browserProject("charts", "charts"),

@@ -24,6 +24,7 @@ import {
   type CategoryPoint,
   type XYPoint,
 } from "@silkplot/charts";
+import { BookingWeek } from "./BookingWeek";
 import {
   ChartRoot,
   SvgLayer,
@@ -594,6 +595,32 @@ export const App: Component = () => {
       </header>
 
       <ThemeControl />
+
+      <section style={{ "margin-bottom": cssVar("space-lg") }}>
+        <h2 style={{ margin: "0 0 2px", "font-size": "15px" }}>
+          Week grid — North clinic, 2–8 March 2026
+        </h2>
+        <p style={{ margin: "0 0 6px", "font-size": "13px", color: cssVar("color-muted") }}>
+          America/New_York. Sunday is the spring-forward day (23 elapsed hours, no
+          02:00). Wednesday is a four-appointment overlap. Friday 22:00–Saturday
+          06:00 is an overnight split. Geometry comes from{" "}
+          <code>buildTimeGrid</code> + <code>resolveEventLanes</code>; the view
+          does not invent lanes.
+        </p>
+        <div
+          style={{
+            width: "100%",
+            height: "520px",
+            overflow: "auto",
+            border: `1px solid ${cssVar("color-grid")}`,
+            "border-radius": cssVar("radius-lg"),
+            padding: cssVar("space-md"),
+            "box-sizing": "border-box",
+          }}
+        >
+          <BookingWeek />
+        </div>
+      </section>
 
       <section
         style={{
