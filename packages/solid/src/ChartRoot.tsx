@@ -10,11 +10,21 @@ import { createMemo } from "solid-js";
 import type { JSX, ParentComponent } from "solid-js";
 import {
   ChartBoundsContext,
-  DEFAULT_MARGINS,
   resolveBounds,
+  resolveMargins,
   type Margins,
 } from "./context";
 import { createResize } from "./createResize";
+
+/**
+ * Extra inset reserved beyond the caller/default margins. A floor per edge
+ * (`Math.max` with the merged defaults). The function form runs after the
+ * outer size is known, so a measured chart can reserve from its inner width
+ * without a second layout pass owned by one chart family.
+ */
+export type MarginReservation =
+  | Partial<Margins>
+  | ((inner: { width: number; height: number }) => Partial<Margins> | undefined);
 
 export interface ChartRootProps {
   /** Fixed width in px. When omitted, the container is measured. */
@@ -23,6 +33,11 @@ export interface ChartRootProps {
   height?: number;
   /** Insets for axes and labels. Partial values merge over the defaults. */
   margins?: Partial<Margins>;
+  /**
+   * Extra room a chart must keep — rotated category labels today.
+   * Applied through `resolveMargins`, the same path every chart already uses.
+   */
+  reserved?: MarginReservation;
   /** Extra style applied to the container element. */
   style?: JSX.CSSProperties;
   class?: string;
@@ -32,10 +47,19 @@ export interface ChartRootProps {
 export const ChartRoot: ParentComponent<ChartRootProps> = (props) => {
   const { size, setTarget } = createResize();
 
-  const margins = createMemo<Margins>(() => ({
-    ...DEFAULT_MARGINS,
-    ...(props.margins ?? {}),
-  }));
+  const margins = createMemo<Margins>(() => {
+    const measured = size();
+    const width = props.width ?? measured.width;
+    const height = props.height ?? measured.height;
+    const base = resolveMargins(props.margins);
+    const inner = {
+      width: Math.max(0, width - base.left - base.right),
+      height: Math.max(0, height - base.top - base.bottom),
+    };
+    const reserved =
+      typeof props.reserved === "function" ? props.reserved(inner) : props.reserved;
+    return resolveMargins(props.margins, reserved);
+  });
 
   const bounds = createMemo(() => {
     const measured = size();

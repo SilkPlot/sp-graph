@@ -31,6 +31,28 @@ export interface ChartBounds {
 
 export const DEFAULT_MARGINS: Margins = { top: 8, right: 12, bottom: 24, left: 40 };
 
+/**
+ * Merge caller insets over the defaults, then raise any edge a reservation
+ * asks to keep. Reservation is a floor (`Math.max`), so a caller who already
+ * sized an edge larger than the reserved amount keeps their own value.
+ *
+ * This is the shared margin path every chart already walks. Extra room for
+ * rotated category labels is applied here rather than as a bar-only layout.
+ */
+export function resolveMargins(
+  partial?: Partial<Margins>,
+  reserved?: Partial<Margins>,
+): Margins {
+  const base: Margins = { ...DEFAULT_MARGINS, ...partial };
+  if (reserved === undefined) return base;
+  return {
+    top: Math.max(base.top, reserved.top ?? 0),
+    right: Math.max(base.right, reserved.right ?? 0),
+    bottom: Math.max(base.bottom, reserved.bottom ?? 0),
+    left: Math.max(base.left, reserved.left ?? 0),
+  };
+}
+
 /** Compute inner dimensions from outer size + margins, clamped at 0. */
 export function resolveBounds(
   width: number,

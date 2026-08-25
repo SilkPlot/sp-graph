@@ -73,6 +73,12 @@ export interface AxisProps {
   format?: TickFormat;
   /** Length of the tick marks in px. Default: 6. */
   tickSize?: number;
+  /**
+   * Degrees to rotate bottom-axis labels in place. Absent or 0 keeps the
+   * existing horizontal, centred labels. The decide-to-rotate path lives
+   * outside this primitive — Axis only paints what it is told.
+   */
+  labelRotation?: number;
   class?: string;
 }
 
@@ -132,19 +138,31 @@ export const Axis: Component<AxisProps> = (props) => {
     // Separately, a bare <g> has no tabindex and is not focusable, so the lint
     // rule's own premise does not hold here.
     // biome-ignore lint/a11y/noAriaHiddenOnFocusable: a <g> with no tabindex is not focusable
-    <g class={props.class} data-silkplot-axis={orientation()} aria-hidden="true">
+    <g
+      class={props.class}
+      data-silkplot-axis={orientation()}
+      data-silkplot-label-rotation={
+        props.labelRotation !== undefined && props.labelRotation !== 0
+          ? String(props.labelRotation)
+          : undefined
+      }
+      aria-hidden="true"
+    >
       <path d={domainPath()} fill="none" stroke={AXIS_STROKE} />
       <For each={ticks()}>
         {(tick) => {
           if (isHorizontal()) {
             const dir = orientation() === "bottom" ? 1 : -1;
             const labelY = orientation() === "bottom" ? tickSize() + 12 : -(tickSize() + 4);
+            const rotation = props.labelRotation ?? 0;
+            const rotate = orientation() === "bottom" && rotation !== 0;
             return (
               <g transform={`translate(${tick.position},${axisOffset()})`}>
                 <line y2={dir * tickSize()} stroke={AXIS_STROKE} />
                 <text
-                  y={labelY}
-                  text-anchor="middle"
+                  y={rotate ? undefined : labelY}
+                  text-anchor={rotate ? "end" : "middle"}
+                  transform={rotate ? `translate(0, ${labelY}) rotate(${rotation})` : undefined}
                   fill="currentColor"
                   font-size={AXIS_FONT_SIZE}
                 >

@@ -42,6 +42,22 @@ export {
 } from "./ticks";
 export type { Tick, TickOptions, BandTickOptions } from "./ticks";
 
+// Opt-in category-label rotation — deterministic collision + reserved bottom.
+export {
+  CATEGORY_LABEL_CHAR_PX,
+  CATEGORY_LABEL_ROTATION_DEG,
+  CATEGORY_LABEL_TICK_GAP_PX,
+  CATEGORY_LABEL_FONT_PX,
+  categoryBandStep,
+  adjacentCategoryLabelsCollide,
+  reservedRotatedCategoryBottom,
+  resolveCategoryLabelRotation,
+} from "./category-label-layout";
+export type {
+  CategoryLabelRotationInput,
+  CategoryLabelRotation,
+} from "./category-label-layout";
+
 // Shape — line/area path builders over d3-shape.
 export { linePath, areaPath, curves } from "./shape";
 export type {

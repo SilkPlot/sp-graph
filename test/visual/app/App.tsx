@@ -347,6 +347,7 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
       <BarChart
         tableHidden
         data={categoryData(props.case)}
+        rotateCategoryLabels={props.case === "dense-label"}
         title="Totals by category"
         desc="Deterministic categorical totals, drawn from the zero baseline."
         fill={seriesChannel(2).color}
