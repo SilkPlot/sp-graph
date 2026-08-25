@@ -47,7 +47,7 @@ export const INNER_HEIGHT = HEIGHT - MARGINS.top - MARGINS.bottom;
  * without a `data-silkplot-axis` ancestor.
  */
 export function markPaths(container: HTMLElement): SVGPathElement[] {
-  return Array.from(container.querySelectorAll("svg > g > path")).filter(
+  return Array.from(container.querySelectorAll("svg path")).filter(
     (p) => !p.closest("[data-silkplot-axis]"),
   ) as SVGPathElement[];
 }
@@ -58,11 +58,13 @@ export function markD(container: HTMLElement, index = 0): string {
 }
 
 export function circles(container: HTMLElement): SVGCircleElement[] {
-  return Array.from(container.querySelectorAll("svg > g > circle")) as SVGCircleElement[];
+  return Array.from(container.querySelectorAll("svg circle")) as SVGCircleElement[];
 }
 
 export function bars(container: HTMLElement): SVGRectElement[] {
-  return Array.from(container.querySelectorAll("rect"));
+  return Array.from(container.querySelectorAll("rect")).filter(
+    (r) => !r.closest("clipPath"),
+  ) as SVGRectElement[];
 }
 
 /** The text of every label on one axis, in document order. */
@@ -94,6 +96,17 @@ export function pathYs(d: string): number[] {
 /** X coordinates of every M/L point in a path `d`, in order. Linear curve only. */
 export function pathXs(d: string): number[] {
   return Array.from(d.matchAll(POINT)).map((m) => Number(m[1]));
+}
+
+/**
+ * Path vertices whose x sits inside the plot `[0, plotWidth]`.
+ *
+ * A narrowed viewport paints one neighbour past each edge so a segment can
+ * enter or leave; those vertices sit strictly outside and are excluded here.
+ * Suites that ask "how many points are in the window" read this, not `pathXs`.
+ */
+export function pathXsOnPlot(d: string, plotWidth: number): number[] {
+  return pathXs(d).filter((x) => x >= 0 && x <= plotWidth);
 }
 
 /** Count of subpath moves — one per contiguous region, so `> 1` means a gap. */

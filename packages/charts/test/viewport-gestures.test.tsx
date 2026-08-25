@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathYs } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathXsOnPlot, pathYs } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -49,7 +49,7 @@ function press(el: HTMLElement, key: string, modifiers: { shift?: boolean } = {}
 }
 
 function pointCount(container: HTMLElement): number {
-  return pathXs(markD(container)).length;
+  return pathXsOnPlot(markD(container), WIDTH).length;
 }
 
 /** Dispatch a wheel notch on the surface. The zoom commits on the next frame. */
@@ -213,13 +213,13 @@ describe("gestures reach every time chart (Area, multi-series)", () => {
     const surface = surfaceOf(container);
     press(surface, "+");
     // The stroked line is the second path (the first is the fill).
-    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    expect(pathXsOnPlot(markD(container, 1), WIDTH).length).toBeLessThan(5);
     press(surface, "0");
     expect(pathXs(markD(container, 1))).toHaveLength(5);
 
     wheel(surface, { deltaY: -100, ctrl: true });
     await nextFrame();
-    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    expect(pathXsOnPlot(markD(container, 1), WIDTH).length).toBeLessThan(5);
     press(surface, "0");
 
     pointer(surface, "pointerdown", 100);
@@ -278,12 +278,12 @@ describe("gestures reach every time chart (Area, multi-series)", () => {
     ));
     const surface = surfaceOf(container);
     press(surface, "+");
-    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    expect(pathXsOnPlot(markD(container, 1), WIDTH).length).toBeLessThan(5);
     press(surface, "0");
 
     wheel(surface, { deltaY: -100, ctrl: true });
     await nextFrame();
-    expect(pathXs(markD(container, 1)).length).toBeLessThan(5);
+    expect(pathXsOnPlot(markD(container, 1), WIDTH).length).toBeLessThan(5);
     press(surface, "0");
 
     pointer(surface, "pointerdown", 100);
@@ -567,19 +567,19 @@ describe("viewport autoscale (a) and reset (0) move y", () => {
       <LineChart title="Readings" data={DATA} width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />
     ));
     const surface = surfaceOf(container);
-    // Zoom to [day 1, day 3] — the visible values are 40, 60, 50, so the visible
-    // point at index 1 is day 2 (y=60), the visible maximum.
+    // Zoom to [day 1, day 3] — the visible values are 40, 60, 50. The path also
+    // paints one neighbour past each edge, so day 2 (y=60) is index 2.
     press(surface, "+");
     const pinned = expectedYScale(DATA.map((d) => d.y), "zero-floor", HEIGHT); // [0, 100]
     const fitted = expectedYScale([40, 60, 50], "zero-floor", HEIGHT); // [0, 60]
 
     // A plain zoom leaves y pinned to the full-data extent.
-    expect(pathYs(markD(container))[1] ?? Number.NaN).toBeCloseTo(pinned(60), 3);
+    expect(pathYs(markD(container))[2] ?? Number.NaN).toBeCloseTo(pinned(60), 3);
 
     // Autoscale fits y to the visible values — day 2 (the visible max) rises to
     // the top of the plot.
     press(surface, "a");
-    expect(pathYs(markD(container))[1] ?? Number.NaN).toBeCloseTo(fitted(60), 3);
+    expect(pathYs(markD(container))[2] ?? Number.NaN).toBeCloseTo(fitted(60), 3);
 
     // Reset clears the autoscale AND the zoom: five points again, y pinned. Day 2
     // is now the middle of the five (index 2).

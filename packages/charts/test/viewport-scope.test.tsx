@@ -36,6 +36,7 @@ import {
   expectedYScale,
   markD,
   pathXs,
+  pathXsOnPlot,
   pathYs,
 } from "./support";
 
@@ -88,13 +89,16 @@ describe("the viewport drives a standalone time chart", () => {
         curve="linear"
       />
     ));
-    const xs = pathXs(markD(container));
-    // Only days 1, 2, 3 are inside the window.
-    expect(xs).toHaveLength(3);
+    const d = markD(container);
+    const onPlot = pathXsOnPlot(d, WIDTH);
+    // Only days 1, 2, 3 sit inside the window. Neighbours past each edge are
+    // painted so the segment can leave; they sit outside the plot and are
+    // not this test's count.
+    expect(onPlot).toHaveLength(3);
     // The x domain IS the window: day 1 sits at the left edge and day 3 at the right.
     const x = timeScale({ domain: [MID.start, MID.end], range: [0, WIDTH] });
-    expect(xs[0]).toBeCloseTo(x(MID.start), 3);
-    expect(xs[2]).toBeCloseTo(x(MID.end), 3);
+    expect(onPlot[0]).toBeCloseTo(x(MID.start), 3);
+    expect(onPlot[2]).toBeCloseTo(x(MID.end), 3);
   });
 
   it("narrows the drawn marks but not the table (ADR-0022)", () => {
@@ -109,8 +113,8 @@ describe("the viewport drives a standalone time chart", () => {
         curve="linear"
       />
     ));
-    // Marks: the same three-point window as the test above.
-    expect(pathXs(markD(container))).toHaveLength(3);
+    // Marks: the same three-point window as the test above (on-plot vertices).
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
     // Table: standalone, with no section or dynamic selection above it, so the
     // data scope is the full five readings — the viewport never narrows it.
     expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
@@ -128,14 +132,20 @@ describe("the viewport drives a standalone time chart", () => {
         curve="linear"
       />
     ));
-    const ys = pathYs(markD(container));
-    expect(ys).toHaveLength(3);
+    const d = markD(container);
+    const xs = pathXs(d);
+    const ys = pathYs(d);
+    const onPlotYs = ys.filter((_, i) => {
+      const x = xs[i] ?? Number.NaN;
+      return x >= 0 && x <= WIDTH;
+    });
+    expect(onPlotYs).toHaveLength(3);
 
     // Pinned: the axis is computed from ALL the data ([0, 100] under zero-floor),
-    // not the three visible points ([0, 60]). The first drawn point is day 1, y=40.
+    // not the three visible points ([0, 60]). The first on-plot point is day 1, y=40.
     const pinned = expectedYScale(DATA.map((d) => d.y), "zero-floor", HEIGHT);
     const autoscaled = expectedYScale([40, 60, 50], "zero-floor", HEIGHT);
-    const y0 = ys[0] ?? Number.NaN;
+    const y0 = onPlotYs[0] ?? Number.NaN;
     expect(y0).toBeCloseTo(pinned(40), 3);
     // And it is NOT the autoscaled position — the two oracles genuinely disagree,
     // so this fails the moment a zoom starts moving y.
@@ -163,7 +173,7 @@ describe("the viewport drives a standalone time chart", () => {
     // Zoom in halves the 4-day span about its centre (day 2) → the 2-day window
     // [day 1, day 3], which contains three points.
     commands?.zoomIn();
-    expect(pathXs(markD(container))).toHaveLength(3);
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
 
     // Reset restores the full extent.
     commands?.reset();
@@ -239,12 +249,12 @@ describe("the viewport drives a standalone time chart", () => {
       />
     ));
     commands?.zoomIn();
-    expect(pathXs(markD(container))).toHaveLength(3);
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
 
     // A new reading past the right edge does NOT auto-scroll the viewport to it —
     // following the live edge is a deliberate act, not a default.
     setData([...DATA, { t: day(5), y: 20 }]);
-    expect(pathXs(markD(container))).toHaveLength(3);
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
   });
 
   it("drives a MULTI-series chart's marks from the same viewport", () => {
@@ -259,7 +269,7 @@ describe("the viewport drives a standalone time chart", () => {
         curve="linear"
       />
     ));
-    expect(pathXs(markD(container))).toHaveLength(3);
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
   });
 
   it("narrows a MULTI-series chart's drawn marks but not its table (ADR-0022)", () => {
@@ -274,7 +284,7 @@ describe("the viewport drives a standalone time chart", () => {
         curve="linear"
       />
     ));
-    expect(pathXs(markD(container))).toHaveLength(3);
+    expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
     // The multi-series scope derives its table from the effective-domain series,
     // not the viewport-narrowed drawn series — same claim as the single-series
     // case above, over the `series` prop path.

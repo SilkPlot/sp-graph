@@ -13,8 +13,13 @@
  * It also forwards the whole accessibility relationship set. It used to forward
  * only `title`, which meant `SvgLayer` supported a `<desc>` that no composed
  * chart could ever reach — the chain was broken here and nowhere else.
+ *
+ * Marks, references, and the other children share one SVG `clipPath` whose
+ * rect is the inner plot. Axes and gridlines sit outside that clip so a label
+ * is never cut. This is a paint capability, not a viewport command: the
+ * interval the marks read is unchanged (see `docs/internal/plot-area-clip.md`).
  */
-import { Show, type JSX } from "solid-js";
+import { Show, createUniqueId, type JSX } from "solid-js";
 import type { ScaleLinear } from "@silkplot/core";
 import {
   SvgLayer,
@@ -77,6 +82,12 @@ export const CartesianFrame = <
   props: CartesianFrameProps<XS, YS>,
 ): JSX.Element => {
   const sem = (): ChartSemantics => props.semantics;
+  // One clip path per frame INSTANCE. `createUniqueId` for the same reason the
+  // semantics ids use it: two charts on one page must not share an SVG id, and
+  // a clip keyed on the dimensions would be shared by two charts of the same
+  // size and would also churn on every resize. Sequential, so the markup stays
+  // deterministic for the visual baselines.
+  const clipId = `sp-plot-clip-${createUniqueId()}`;
 
   return (
     <SvgLayer
@@ -113,7 +124,19 @@ export const CartesianFrame = <
           format={props.xFormat}
           labelRotation={props.xLabelRotation}
         />
-        {props.children}
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={0}
+              y={0}
+              width={props.model.bounds().innerWidth}
+              height={props.model.bounds().innerHeight}
+            />
+          </clipPath>
+        </defs>
+        <g data-silkplot-plot-area="" clip-path={`url(#${clipId})`}>
+          {props.children}
+        </g>
       </Show>
     </SvgLayer>
   );

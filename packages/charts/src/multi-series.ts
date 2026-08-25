@@ -39,18 +39,20 @@ import {
   dataExtentMs,
   type ChartViewportProps,
 } from "./viewport-scope";
+import { marksForPlotInterval } from "./plot-area";
 
 /**
  * Narrow one series' data to a viewport interval — the ONE definition of the
- * viewport filter, used by the per-row narrowing in `MultiSeriesBody` (which
- * feeds the marks). Two copies of this predicate would be two ideas of what
- * is on screen.
+ * paint filter, used by the per-row narrowing in `MultiSeriesBody` (which
+ * feeds the marks). Includes one neighbour past each edge so a segment can
+ * enter or leave; the frame's clipPath hides the overflow. Two copies of this
+ * predicate would be two ideas of what is on screen.
  */
 export function dataWithinInterval<M>(
   data: readonly NormalizedDatum<M>[],
   interval: MsInterval,
 ): readonly NormalizedDatum<M>[] {
-  return data.filter((d) => d.time >= interval.start && d.time <= interval.end);
+  return marksForPlotInterval(data, (d) => d.time, interval);
 }
 
 export interface MultiSeriesScope<M = unknown> {

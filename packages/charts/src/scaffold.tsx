@@ -44,6 +44,7 @@ import {
   type ViewportCommands,
 } from "@silkplot/solid";
 import type { TimePoint } from "./types";
+import { marksForPlotInterval } from "./plot-area";
 import {
   createScopeViewport,
   dashboardMemberViewport,
@@ -460,10 +461,12 @@ export interface TimeSeriesScope {
    */
   yData: Accessor<readonly TimePoint[]>;
   /**
-   * The data actually drawn — `yData` further narrowed to the viewport interval.
-   * Feeds the marks and the hit index, so both describe the interval on screen —
-   * NOT the table (ADR-0022). Standalone with no viewport prop this equals
-   * `yData`.
+   * The data actually drawn — `yData` further narrowed to the viewport interval,
+   * plus one neighbour past each edge so a segment can enter or leave the plot
+   * (the frame's clipPath hides the overflow). Feeds the marks. Inspection
+   * windows `yData` separately, so the cursor still describes the interval on
+   * screen and not the overflow neighbours. Standalone with no viewport prop
+   * this equals `yData`.
    */
   visible: Accessor<readonly TimePoint[]>;
   /** Build the x scale for a pixel range, over the viewport interval (or the
@@ -596,17 +599,13 @@ export function createTimeSeriesScope(
   );
 
   // The drawn data: the y-basis narrowed to the viewport interval when the
-  // viewport is applied (standalone AND opted in). Otherwise it is the y-basis
+  // viewport is applied (standalone AND opted in), plus one neighbour past
+  // each edge so a segment can enter or leave. Otherwise it is the y-basis
   // unchanged — a chart at its default, or any dashboard member — so no baseline
-  // moves.
-  const visible = createMemo<readonly TimePoint[]>(() => {
-    const iv = viewportInterval();
-    if (iv === undefined) return yData();
-    return yData().filter((d) => {
-      const t = d.t.getTime();
-      return t >= iv.start && t <= iv.end;
-    });
-  });
+  // moves. One function with the multi-series paint filter (`dataWithinInterval`).
+  const visible = createMemo<readonly TimePoint[]>(() =>
+    marksForPlotInterval(yData(), (d) => d.t.getTime(), viewportInterval()),
+  );
 
   // The viewport the chart's GESTURES drive. An unsectioned dashboard member
   // drives the shared dynamic selection (dashboard-linked selection); a sectioned member (isolated)

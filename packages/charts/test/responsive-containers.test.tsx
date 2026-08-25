@@ -14,7 +14,7 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, expectNoNaN, markD, pathXs } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, expectNoNaN, markD, pathXsOnPlot } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -83,12 +83,12 @@ describe("zero size and resize", () => {
         curve="linear"
       />
     ));
-    // The controlled window [day1, day3] draws three points at 400px wide.
-    expect(pathXs(markD(container))).toHaveLength(3);
+    // The controlled window [day1, day3] draws three on-plot points at 400px wide.
+    expect(pathXsOnPlot(markD(container), 400)).toHaveLength(3);
     // A resize changes only the pixel mapping — the DATA interval is unchanged, so
     // the same three points are drawn, now spread across the wider plot.
     setW(800);
-    const xs = pathXs(markD(container));
+    const xs = pathXsOnPlot(markD(container), 800);
     expect(xs).toHaveLength(3);
     expect(xs[2] ?? 0).toBeGreaterThan(700); // day 3 now sits near the wider right edge
   });

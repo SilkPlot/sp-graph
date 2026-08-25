@@ -353,8 +353,8 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
         {/*
           AFTER the series, so a threshold stays legible on a dense chart. The
           full reasoning — including why "above the marks" is achieved by paint
-          order while "never over the axes" is achieved by clipping — is on
-          `ReferenceOverlay` itself.
+          order while "never over the axes" is achieved by the frame's shared
+          plot-area clip — is on `ReferenceOverlay` itself.
         */}
         <ReferenceOverlay
           references={props.scope.references()}

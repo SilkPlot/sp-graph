@@ -61,7 +61,7 @@ function rowCounts(container: HTMLElement): number[] {
  * regardless of curve.
  */
 function markPointCounts(container: HTMLElement): number[] {
-  return [...container.querySelectorAll("svg > g > path")]
+  return [...container.querySelectorAll("svg path")]
     .filter((p) => !p.closest("[data-silkplot-axis]"))
     .map((p) => (p.getAttribute("d")?.match(/[MLC]/g) ?? []).length);
 }
