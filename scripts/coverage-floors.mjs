@@ -87,12 +87,11 @@ export const COVERAGE_FLOORS = {
   // observed 99.58 / 91.95 / 100 / 100
   "packages/charts/src/**": { statements: 98, branches: 90, functions: 100, lines: 100 },
 
-  // `calendar` is NOT in the alpha release set: its public `buildTimeGrid` entry
-  // point throws, so publishing it would advertise an implementation that does
-  // not exist. Its floor is 0 and that is not an oversight — it is the stub being
-  // named out loud instead of being averaged into someone else's percentage. When
-  // the calendar work lands, this line is replaced by observed numbers like the
-  // rest, and until then a zero here is a true statement.
+  // `calendar` is still held back from the alpha publish set (the public page
+  // names it a stub). `buildTimeGrid` is implemented and tested; the overlap
+  // resolver remains a later-phase wrapper and keeps package-level observed
+  // coverage below the other packages. The floor stays 0 until a full observed
+  // run replaces these numbers the same way the rest were chosen.
   "packages/calendar/src/**": { statements: 0, branches: 0, functions: 0, lines: 0 },
 };
 

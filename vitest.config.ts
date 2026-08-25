@@ -75,6 +75,19 @@ export default defineConfig({
           environment: "node",
         },
       },
+      {
+        // `calendar` is zoned civil-time geometry — Temporal, no DOM — so node
+        // is sufficient. A browser project would not make the DST cases more
+        // honest; they are IANA-zone fixtures, not layout.
+        resolve: {
+          conditions: ["source", "development"],
+        },
+        test: {
+          name: "calendar",
+          include: ["packages/calendar/test/**/*.test.ts"],
+          environment: "node",
+        },
+      },
       browserProject("solid", "solid"),
       browserProject("charts", "charts"),
       // The playground is where the reference interaction surface lives, so it
