@@ -34,7 +34,8 @@ export interface ChartRootProps {
   /** Insets for axes and labels. Partial values merge over the defaults. */
   margins?: Partial<Margins>;
   /**
-   * Extra room a chart must keep — rotated category labels today.
+   * Extra room a chart must keep — rotated category labels, or an opted-in
+   * measured left for horizontal category labels.
    * Applied through `resolveMargins`, the same path every chart already uses.
    */
   reserved?: MarginReservation;

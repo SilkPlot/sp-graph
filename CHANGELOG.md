@@ -39,6 +39,13 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ### Added
 
+- **Caller-opted measured left margin on horizontal category labels** —
+  `measureCategoryLeftMargin` on `BarChart` sizes `margins.left` from the
+  painted label width plus the tick/gap Axis already uses on the left. Off by
+  default: the 40px constant and current pictures stay put. Vertical
+  orientation is a no-op. Font metrics are the explicit trade-off the caller
+  accepts; they are not read on the default path.
+
 - **Explicit decimation for dense time series** — a `decimation` prop on
   `LineChart` and `AreaChart` naming the maximum drawn points per series.
   Min/max per bucket: the painted envelope survives structurally (an excursion

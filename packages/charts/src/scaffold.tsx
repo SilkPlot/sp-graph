@@ -213,8 +213,8 @@ export interface ChartShellProps {
   referenceList?: JSX.Element;
   /**
    * Extra inset reserved through the shared `ChartRoot` margin path.
-   * Category-label rotation uses this so the extra bottom is not a bar-only
-   * layout fork.
+   * Category-label rotation and opted-in measured left use this so neither
+   * is a bar-only layout fork.
    */
   reserved?: MarginReservation;
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */

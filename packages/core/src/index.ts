@@ -58,6 +58,18 @@ export type {
   CategoryLabelRotation,
 } from "./category-label-layout";
 
+// Opt-in measured left margin for horizontal category labels. The measure
+// function is supplied by the render layer; this module never touches the DOM.
+export {
+  CATEGORY_LABEL_LEFT_TICK_GAP_PX,
+  reservedMeasuredCategoryLeft,
+  resolveMeasuredCategoryLeft,
+} from "./category-left-margin";
+export type {
+  MeasuredCategoryLeftInput,
+  MeasuredCategoryLeft,
+} from "./category-left-margin";
+
 // Shape — line/area path builders over d3-shape.
 export { linePath, areaPath, curves } from "./shape";
 export type {
