@@ -14,7 +14,7 @@ import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, expectNoNaN, markD, pathXs, pathXsOnPlot } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, expectNoNaN, markD, pathXsOnPlot } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
