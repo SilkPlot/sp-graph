@@ -42,6 +42,7 @@ import {
   createBandIndex,
   normalizeCategories,
   resolveCategoryLabelRotation,
+  resolveMeasuredCategoryLeft,
   type ActivePoint,
   type NormalizedCategory,
   type RankedCategory,
@@ -54,6 +55,7 @@ import {
   type ChartSemanticsProps,
   type ChartTableRow,
   type MarginReservation,
+  type Margins,
   type RankedModel,
   type RankedOrientation,
 } from "@silkplot/solid";
@@ -66,6 +68,7 @@ import {
   assertOneInput,
   type CartesianChartProps,
 } from "./scaffold";
+import { measurePaintedAxisLabelWidth } from "./measure-axis-label";
 import type { CategoryPoint } from "./types";
 
 /**
@@ -99,6 +102,18 @@ interface BarLayoutProps extends CartesianChartProps {
    * for long labels, and its category axis is not the bottom edge.
    */
   rotateCategoryLabels?: boolean;
+  /**
+   * Opt in to sizing `margins.left` from the measured width of the painted
+   * horizontal category labels (longest label + the tick/gap Axis already
+   * uses on the left).
+   *
+   * Default off: the left edge stays the 40px constant (or the caller's
+   * explicit `margins.left`), and nothing on this path reads font metrics.
+   * Vertical orientation is a no-op — those labels are not on the left.
+   * Measured mode may vary with the runtime font; that is the explicit
+   * trade-off the caller accepts.
+   */
+  measureCategoryLeftMargin?: boolean;
 }
 
 /**
@@ -196,6 +211,8 @@ function displayedCategoryLabels(
  * Shared decide-to-rotate answer: same labels, inner width, padding, and
  * opt-in flag in → same rotate-or-not and reserved bottom out. Horizontal
  * orientation never rotates; its category labels already live one-per-row.
+ *
+ * Measured left-margin is a different opt-in, composed in `reserved` below.
  */
 function categoryLabelRotationFor(
   props: {
@@ -436,11 +453,21 @@ export const BarChart: Component<BarChartProps> = (props) => {
     );
 
   const reserved: MarginReservation = (inner) => {
-    const decision = categoryLabelRotationFor(
-      { ...(props as ResolvedBarProps), categories: resolved() },
-      inner.width,
-    );
-    return decision.rotate ? { bottom: decision.reservedBottom } : undefined;
+    const resolvedProps = {
+      ...(props as ResolvedBarProps),
+      categories: resolved(),
+    };
+    const rotation = categoryLabelRotationFor(resolvedProps, inner.width);
+    const left = resolveMeasuredCategoryLeft({
+      optedIn: resolvedProps.measureCategoryLeftMargin === true,
+      orientation: resolvedProps.orientation ?? "vertical",
+      labels: displayedCategoryLabels(resolvedProps.categories, resolvedProps.categoryTickFormat),
+      measureWidth: measurePaintedAxisLabelWidth,
+    });
+    const reservation: Partial<Margins> = {};
+    if (rotation.rotate) reservation.bottom = rotation.reservedBottom;
+    if (left.reservedLeft > 0) reservation.left = left.reservedLeft;
+    return rotation.rotate || left.reservedLeft > 0 ? reservation : undefined;
   };
 
   return (
