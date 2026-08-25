@@ -19,7 +19,8 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
+      "source": "./src/index.tsx",
+      "solid": "./src/index.tsx",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -29,11 +30,16 @@
     "build:dist": "tsup && tsc -p tsconfig.dist.json",
     "prepack": "npm run build:dist"
   },
+  "peerDependencies": {
+    "solid-js": "^1.9.15"
+  },
   "dependencies": {
     "@silkplot/core": "0.3.0-next.0",
+    "@silkplot/theme": "0.3.0-next.0",
     "temporal-polyfill": "^1.0.4"
   },
   "devDependencies": {
+    "solid-js": "^1.9.15",
     "typescript": "^7.0.2"
   }
 }

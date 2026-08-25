@@ -3,8 +3,8 @@
   // See `packages/core/tsconfig.test.json` for why `test/` needs its own config
   // and why `src` is included alongside it.
   //
-  // `calendar` is pure compute with no DOM, so it keeps the DOM-free `lib`
-  // its package tsconfig uses.
+  // Node suites stay Temporal-only. The week-grid browser suite is TSX and
+  // needs the DOM lib the package tsconfig now carries for Solid.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
@@ -12,8 +12,7 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
-    "lib": ["ES2022"],
     "types": []
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"]
 }

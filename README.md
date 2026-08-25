@@ -165,13 +165,14 @@ npm test              # all projects
 npm test -- --project core   # just the pure-math project
 ```
 
-Vitest runs eight projects, split by what each package actually needs:
+Vitest runs nine projects, split by what each package actually needs:
 
 | Project | Environment | Why |
 |---|---|---|
 | `core` | node | Pure math — no DOM, so node is fastest and sufficient. |
 | `theme` | node | Emits CSS as strings and reads no DOM — same reasoning as `core`. |
 | `calendar` | node | Zoned civil-time geometry — Temporal, no DOM. |
+| `calendar-browser` | real chromium | Week-grid Solid layout. Rendered block positions are measured against the same `buildTimeGrid` / `resolveEventLanes` / `positionOf` calls; jsdom cannot measure SVG. |
 | `solid` | real chromium | `createResize` uses `ResizeObserver` and `el.clientWidth`; jsdom implements neither (`clientWidth` is always `0`), so the measurement path can only be exercised honestly in a real browser. |
 | `charts` | real chromium | Composed charts render Solid components. |
 | `playground` | real chromium | The reference composition is where the visible-focus contract is proven end to end. A focus ring is a computed style resolved under `:focus-visible`, a media query, and a custom-property cascade — none of which node resolves. |

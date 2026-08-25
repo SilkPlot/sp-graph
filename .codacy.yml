@@ -216,6 +216,7 @@ engines:
     exclude_paths:
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
+      - "packages/calendar/test/week-grid.test.tsx"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"
@@ -329,6 +330,7 @@ engines:
     exclude_paths:
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
+      - "packages/calendar/test/week-grid.test.tsx"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"
@@ -450,6 +452,7 @@ engines:
     exclude_paths:
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
+      - "packages/calendar/test/week-grid.test.tsx"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"
