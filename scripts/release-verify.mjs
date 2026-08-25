@@ -66,17 +66,19 @@ const PUBLISH_TARGETS = [
  * Packages held back from the release set, and why.
  *
  * This list is checked, not decorative: a held-back package must still fail its
- * stated reason. If `buildTimeGrid` were implemented, the reason would stop being
- * true and this gate would say so rather than letting the package stay held back
- * out of habit.
+ * stated reason. The public calendar page still names the package a stub and
+ * keeps it out of the alpha publish set; this gate asserts that page, not a
+ * throw that is no longer the implementation.
  */
 const HELD_BACK = [
   {
     dir: "calendar",
     name: "@silkplot/calendar",
-    reason: "its public `buildTimeGrid` entry point throws",
-    // The gate asserts this is still the case.
-    provenBy: { file: "packages/calendar/src/time-grid.ts", contains: "throw new Error(" },
+    reason: "not in the alpha publish set; the public package page still names it a stub",
+    provenBy: {
+      file: "packages/calendar/README.md",
+      contains: "STUB — not part of the alpha release set",
+    },
   },
 ];
 

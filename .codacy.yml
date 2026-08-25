@@ -214,6 +214,7 @@ engines:
   # the same reason.
   duplication:
     exclude_paths:
+      - "packages/calendar/test/time-grid.test.ts"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"
@@ -325,6 +326,7 @@ engines:
   # covered by the gate.
   metric:
     exclude_paths:
+      - "packages/calendar/test/time-grid.test.ts"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"
@@ -444,6 +446,7 @@ engines:
   # "Analysis scope". Nothing here excludes production code.
   lizard:
     exclude_paths:
+      - "packages/calendar/test/time-grid.test.ts"
       - "packages/charts/test/AreaChart-reactive.test.tsx"
       - "packages/charts/test/AreaChart.test.tsx"
       - "packages/charts/test/BarChart-reactive.test.tsx"

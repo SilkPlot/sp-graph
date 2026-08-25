@@ -191,8 +191,15 @@ jobs:
       # scripts/coverage-floors.mjs; vitest.config.ts imports them so the numbers
       # and their justification cannot drift apart. Per package rather than one
       # aggregate: a single repository-wide percentage is exactly where a stub
-      # hides, and `calendar` sits at 0%.
+      # hides.
+      #
+      # TZ is a floor only: the runner is not UTC, so a host-local Date assumption
+      # cannot hide behind GitHub's default zone. This is not DST evidence —
+      # spring-forward / fall-back geometry is asserted in the calendar fixtures
+      # against named IANA zones, not against this process TZ.
       - name: Test (coverage floors enforced per package)
+        env:
+          TZ: America/New_York
         run: npm run test:coverage
 
       # Ships the run above to Codacy so the dashboard reports a real coverage
