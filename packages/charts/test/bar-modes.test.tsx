@@ -628,13 +628,7 @@ describe("wording and lookup helpers", () => {
     expect(valueLabel(4, "Inlet", { ...bare, tableValueFormat: (y, label) => `${label}:${y}` })).toBe(
       "Inlet:4",
     );
-    expect(
-      valueLabel(4, "Inlet", {
-        ...bare,
-        tableValueFormat: () => undefined,
-        valueTickFormat: (n) => `${n}|`,
-      }),
-    ).toBe("4|");
+    expect(valueLabel(4, "Inlet", { ...bare, valueTickFormat: (n) => `${n}|` })).toBe("4|");
     expect(valueLabel(4, "Inlet", bare)).toBe("4");
   });
 

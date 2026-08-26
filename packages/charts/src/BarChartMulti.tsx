@@ -88,8 +88,7 @@ export function categoryLabel(time: number, props: MultiSeriesBarProps): string 
 }
 
 export function valueLabel(value: number, seriesLabel: string, props: MultiSeriesBarProps): string {
-  const formatted = props.tableValueFormat?.(value, seriesLabel);
-  if (formatted !== undefined) return String(formatted);
+  if (props.tableValueFormat) return String(props.tableValueFormat(value, seriesLabel));
   if (props.valueTickFormat) return props.valueTickFormat(value);
   return String(value);
 }
