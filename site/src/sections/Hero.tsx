@@ -8,7 +8,8 @@
  * image's alt); swapping the h1's text for a bare <img> would have traded the
  * page's document outline for a picture. The under-construction statement is
  * in the hero deliberately: honesty is the brand, so it belongs on the first
- * screen, specific and unhedged.
+ * screen, specific and unhedged. The hue field lives here, clipped to this
+ * band, so the blobs sit behind the hero rather than the whole document.
  *
  * The nav is a sticky glass bar — the design language's material — with the
  * S-spline mark, the section links, and the scheme switcher.
@@ -23,71 +24,79 @@ import LiveNavigate from "../examples/06-navigate";
 const FEATURE_REQUEST_URL = `${REPO_URL}/issues/new/choose`;
 
 export const Hero: Component = () => (
-  <header class="hero">
-    <div class="hero__copy">
-      <p class="hero__eyebrow">Alpha · the 0.3.0-next line</p>
-      <h1 class="hero__title">
-        <img src={logoUrl} alt="SilkPlot" width="440" height="126" />
-      </h1>
-      <p class="hero__tagline">
-        Fast, fluid data visualization for{" "}
-        <a href="https://www.solidjs.com/">Solid</a>.{" "}
-        <strong>D3 computes. Solid renders.</strong>
-      </p>
-      <p class="hero__body">
-        D3's math modules do the arithmetic — scales, tick positions, path
-        geometry, spatial indexes — inside pure functions and memos. Every
-        element on screen is a Solid element, updated by Solid's fine-grained
-        reactivity. No second renderer competes for ownership of the DOM,
-        which is what <code>d3-selection</code>, <code>d3-transition</code>,
-        and <code>d3-axis</code> would be; they are banned from the render
-        path.
-      </p>
-      <p class="hero__links">
-        <a class="button sp-focusable" href="#quickstart">Get started</a>
-        <a class="button button--ghost sp-focusable" href="#roadmap">Roadmap</a>
-        <a class="button button--ghost sp-focusable" href={REPO_URL}>GitHub</a>
-      </p>
+  <div class="hero-band">
+    {/* Pure decoration: hidden from AT and removed when glass degrades. */}
+    <div class="field" aria-hidden="true">
+      <div class="blob blob--violet" />
+      <div class="blob blob--teal" />
+      <div class="blob blob--cyan" />
     </div>
+    <header class="hero">
+      <div class="hero__copy">
+        <p class="hero__eyebrow">Alpha · the 0.3.0-next line</p>
+        <h1 class="hero__title">
+          <img src={logoUrl} alt="SilkPlot" width="440" height="126" />
+        </h1>
+        <p class="hero__tagline">
+          Fast, fluid data visualization for{" "}
+          <a href="https://www.solidjs.com/">Solid</a>.{" "}
+          <strong class="pull-quote">D3 computes. Solid renders.</strong>
+        </p>
+        <p class="hero__body">
+          D3's math modules do the arithmetic — scales, tick positions, path
+          geometry, spatial indexes — inside pure functions and memos. Every
+          element on screen is a Solid element, updated by Solid's fine-grained
+          reactivity. No second renderer competes for ownership of the DOM,
+          which is what <code>d3-selection</code>, <code>d3-transition</code>,
+          and <code>d3-axis</code> would be; they are banned from the render
+          path.
+        </p>
+        <p class="hero__links">
+          <a class="button sp-focusable" href="#quickstart">Get started</a>
+          <a class="button button--ghost sp-focusable" href="#roadmap">Roadmap</a>
+          <a class="button button--ghost sp-focusable" href={REPO_URL}>GitHub</a>
+        </p>
+      </div>
 
-    <div class="hero__demo panel">
-      <LiveNavigate />
-      <p class="hero__demo-caption">
-        Live, not a screenshot — zoom with Ctrl/Cmd+wheel, drag to brush,
-        or press + − 0 with the chart focused.
-      </p>
-    </div>
+      <div class="hero__demo panel">
+        <LiveNavigate />
+        <p class="hero__demo-caption">
+          Live, not a screenshot — zoom with Ctrl/Cmd+wheel, drag to brush,
+          or press + − 0 with the chart focused.
+        </p>
+      </div>
 
-    <aside class="construction panel" aria-labelledby="construction-h">
-      <h2 id="construction-h">Under construction — plainly</h2>
-      <ul>
-        <li>
-          Alpha packages on the <code>0.3.0-next</code> line, installed with{" "}
-          <code>@next</code>. This is 0.x: a minor bump may contain breaking
-          changes, and every breaking change ships with a migration note.
-        </li>
-        <li>
-          <strong>No assistive technology has been verified yet.</strong> The
-          accessibility contract is implemented and gated in CI; screen-reader
-          verification is still ahead, and{" "}
-          <a href={repoFile("docs/accessibility.md")}>
-            the accessibility guide
-          </a>{" "}
-          says exactly what is and is not claimed.
-        </li>
-        <li>
-          No performance number is claimed anywhere on this site — none has
-          been measured under the project's frozen protocol yet. Fast and
-          smooth is the bar the code is built against, not a benchmark result.
-        </li>
-      </ul>
-      <p>
-        Missing a capability you need?{" "}
-        <a href={FEATURE_REQUEST_URL}>Ask for it</a> — the{" "}
-        <a href="#roadmap">roadmap</a> shows what is already planned.
-      </p>
-    </aside>
-  </header>
+      <aside class="construction panel" aria-labelledby="construction-h">
+        <h2 id="construction-h">Under construction — plainly</h2>
+        <ul>
+          <li>
+            Alpha packages on the <code>0.3.0-next</code> line, installed with{" "}
+            <code>@next</code>. This is 0.x: a minor bump may contain breaking
+            changes, and every breaking change ships with a migration note.
+          </li>
+          <li>
+            <strong>No assistive technology has been verified yet.</strong> The
+            accessibility contract is implemented and gated in CI; screen-reader
+            verification is still ahead, and{" "}
+            <a href={repoFile("docs/accessibility.md")}>
+              the accessibility guide
+            </a>{" "}
+            says exactly what is and is not claimed.
+          </li>
+          <li>
+            No performance number is claimed anywhere on this site — none has
+            been measured under the project's frozen protocol yet. Fast and
+            smooth is the bar the code is built against, not a benchmark result.
+          </li>
+        </ul>
+        <p>
+          Missing a capability you need?{" "}
+          <a href={FEATURE_REQUEST_URL}>Ask for it</a> — the{" "}
+          <a href="#roadmap">roadmap</a> shows what is already planned.
+        </p>
+      </aside>
+    </header>
+  </div>
 );
 
 export const Nav: Component = () => (

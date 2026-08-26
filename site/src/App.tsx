@@ -26,15 +26,6 @@ import { REPO_URL } from "./content";
 
 export const App: Component = () => (
   <>
-    {/* The hue field behind the glass — pure decoration, so it is hidden from
-        assistive technology and removed entirely when the design language's
-        glass degrades to opaque surfaces. */}
-    <div class="field" aria-hidden="true">
-      <div class="blob blob--violet" />
-      <div class="blob blob--teal" />
-      <div class="blob blob--cyan" />
-    </div>
-
     {/* First focusable element on the page, and deliberately not hidden with
         `display: none` — that would take it out of the tab order and defeat
         the only thing it is for. */}
@@ -51,6 +42,8 @@ export const App: Component = () => (
       <Environments />
       <Limits />
       <Roadmap />
+      {/* Visual-only docs/community break. No public copy. Hidden from AT. */}
+      <div class="section-break" aria-hidden="true" />
       <Contribute />
     </main>
 

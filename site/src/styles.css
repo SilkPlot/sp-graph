@@ -188,11 +188,24 @@ main,
 
 /* ── The hue field and glass material (docs/design-language.md) ─────────── */
 
+/* Full-bleed band so the blobs can reach the viewport edges, then clip so
+   they sit behind the hero only — not the rest of the document. */
+.hero-band {
+  position: relative;
+  isolation: isolate;
+}
+
 .field {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
+  overflow: hidden;
   pointer-events: none;
+}
+
+.hero-band > .hero {
+  position: relative;
+  z-index: 1;
 }
 
 .blob {
@@ -203,26 +216,26 @@ main,
 }
 
 .blob--violet {
-  width: 34rem;
-  height: 34rem;
-  left: -8rem;
-  top: -6rem;
+  width: 32rem;
+  height: 32rem;
+  left: -6rem;
+  top: -5rem;
   background: radial-gradient(circle, var(--sp-brand-violet), transparent 70%);
 }
 
 .blob--teal {
-  width: 40rem;
-  height: 40rem;
-  right: -12rem;
-  top: 18rem;
+  width: 36rem;
+  height: 36rem;
+  right: -10rem;
+  top: 12%;
   background: radial-gradient(circle, var(--sp-brand-teal), transparent 70%);
 }
 
 .blob--cyan {
-  width: 28rem;
-  height: 28rem;
-  left: 30%;
-  bottom: -10rem;
+  width: 26rem;
+  height: 26rem;
+  left: 28%;
+  bottom: -8rem;
   background: radial-gradient(circle, var(--sp-brand-cyan), transparent 70%);
 }
 
@@ -237,9 +250,9 @@ main,
 }
 
 .hero {
-  padding-block: clamp(2.5rem, 7vw, 4.5rem) var(--sp-space-xl);
+  padding-block: clamp(3.5rem, 10vw, 7rem) clamp(2.5rem, 6vw, 4.5rem);
   display: grid;
-  gap: var(--sp-space-xl);
+  gap: clamp(1.75rem, 4vw, 3.25rem);
   align-items: center;
 }
 
@@ -255,7 +268,7 @@ main,
 
 .hero__title img {
   display: block;
-  width: min(440px, 100%);
+  width: min(36rem, 100%);
   height: auto;
 }
 
@@ -326,21 +339,59 @@ main,
 }
 
 .hero__title {
-  margin: var(--sp-space-md) 0 0;
+  margin: var(--sp-space-lg) 0 0;
 }
 
 .hero__tagline {
   margin: var(--sp-space-md) 0 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   color: var(--sp-color-muted);
 }
 
-.hero__tagline strong {
+/* Visual pull-quote of the shipped philosophy sentence. The words are the
+   ones already in the tagline — not a second sentence. */
+.pull-quote {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  position: relative;
+  margin: var(--sp-space-xl) 0 0;
+  padding-inline-start: 1.15rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 4.4vw, 2.85rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
   color: var(--sp-color-text);
+  transition: color 200ms ease;
+}
+
+.pull-quote::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0.12em 0.08em;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--sp-brand-violet),
+    var(--sp-brand-cyan) 55%,
+    var(--sp-brand-teal)
+  );
+  opacity: 0.85;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.pull-quote:hover::before {
+  opacity: 1;
+  transform: scaleY(1.08);
 }
 
 .hero__body {
-  margin: var(--sp-space-lg) 0 0;
+  margin: var(--sp-space-xl) 0 0;
   max-width: 46rem;
 }
 
@@ -499,18 +550,62 @@ main,
    twice, and `<pre>` cannot be named at all). A bare `section` rule would give
    every one of them page-section padding and a rule line. */
 main > section {
-  /* The glass recipe WITHOUT backdrop-filter: the hue-field blobs behind the
-     page are already gaussian-blurred, so a translucent panel over them reads
-     as glass at zero per-frame compositing cost. Live backdrop blur is
-     reserved for the small, layered surfaces (nav, hero demo) — a page that
-     sells smoothness does not spend blur on eight full-width sections. */
+  scroll-margin-top: 5rem;
+}
+
+/* Dense vs open: nth-of-type so a sibling break does not shift the count.
+   Glass stays presentation (no backdrop-filter on page sections — live blur
+   is reserved for small layered surfaces). */
+main > section:nth-of-type(odd) {
   background: var(--glass-bg);
   border: 1px solid var(--glass-edge);
   border-radius: var(--glass-radius);
   box-shadow: var(--glass-highlight);
-  padding: clamp(1.5rem, 4vw, 2.75rem);
+  padding: clamp(1.25rem, 3.2vw, 2.15rem);
+  margin-block: var(--sp-space-lg);
+}
+
+main > section:nth-of-type(even) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: clamp(2.5rem, 6vw, 4.25rem) 0;
   margin-block: var(--sp-space-xl);
-  scroll-margin-top: 5rem;
+}
+
+/* Visual-only break between the docs half and the community half
+   (after Roadmap, before Contribute). No public copy. */
+.section-break {
+  display: block;
+  height: 2.75rem;
+  margin-block: clamp(1.5rem, 4vw, 3rem);
+  position: relative;
+}
+
+.section-break::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--sp-brand-violet),
+    var(--sp-brand-cyan) 55%,
+    var(--sp-brand-teal)
+  );
+  opacity: 0.55;
+  transform-origin: center;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+.section-break:hover::after {
+  opacity: 1;
+  transform: scaleY(1.5);
 }
 
 main > section > h2::before {
