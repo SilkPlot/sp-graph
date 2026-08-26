@@ -595,8 +595,17 @@ p {
    only a mouse can reach is unreachable for a keyboard-only reader. */
 .table-scroll {
   overflow-x: auto;
-  border: 1px solid var(--rule);
-  border-radius: var(--sp-radius-lg);
+  /* Same glass recipe as `.panel`. These are small layered surfaces, so
+     they keep live backdrop blur; page sections skip it. */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--glass-radius);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  box-shadow: var(--glass-highlight);
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
 }
 
 table {
@@ -657,15 +666,23 @@ thead th {
 .code {
   min-width: 0;
   margin: var(--sp-space-lg) 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--sp-radius-lg);
+  /* Same glass recipe as `.panel`. Small layered surface. */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--glass-radius);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  box-shadow: var(--glass-highlight);
   overflow: hidden;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
 }
 
 .code__caption {
   padding: var(--sp-space-md) var(--sp-space-lg);
   background: color-mix(in srgb, var(--sp-color-grid) 45%, transparent);
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--glass-edge);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--sp-color-muted);
@@ -700,9 +717,37 @@ thead th {
 
 .example {
   min-width: 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--sp-radius-lg);
+  /* Same glass recipe as `.panel`. Small layered surface. */
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--glass-radius);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  box-shadow: var(--glass-highlight);
   padding: var(--sp-space-xl);
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease;
+}
+
+/* Hover/focus lift on leftover chrome only — not nav, hero, or showcase. */
+.example:hover,
+.example:focus-within,
+.table-scroll:hover,
+.table-scroll:focus-visible,
+.code:hover,
+.code:focus-within {
+  transform: translateY(-2px);
+  box-shadow:
+    var(--glass-highlight),
+    0 10px 28px color-mix(in srgb, var(--sp-color-text) 10%, transparent);
+}
+
+/* Nested source listings ride the card lift; do not stack a second one. */
+.example .code:hover,
+.example .code:focus-within {
+  transform: none;
+  box-shadow: var(--glass-highlight);
 }
 
 .example__title {
