@@ -79,6 +79,23 @@ export type {
   CurveFactory,
 } from "./shape";
 
+// Grouped and stacked bar layout — compute only, over the shared series model.
+export {
+  categoryTimesOf,
+  groupSeries,
+  stackSeries,
+  stackedValueDomain,
+  groupInnerBand,
+  layoutBarRects,
+  locateBarRect,
+} from "./bar-layout";
+export type {
+  BarMode,
+  BarSegment,
+  BarRect,
+  LayoutBarRectsOptions,
+} from "./bar-layout";
+
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
 export type { Interval, PackedInterval, PackOptions } from "./overlap";

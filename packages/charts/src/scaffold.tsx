@@ -369,6 +369,65 @@ export function assertOneInput(
   (options.onIssue ?? ((m: string) => console.warn(m)))(message);
 }
 
+export type BarInputIssueOptions = {
+  /** Throw rather than warn. Defaults to `isDevelopmentBuild()`. */
+  strict?: boolean;
+  /** Diagnostic sink. Defaults to `console.warn`. */
+  onIssue?: (message: string) => void;
+};
+
+/**
+ * BarChart's exclusivity backstop: `data`, `categories`, and `series`/`mode`
+ * cannot silently fight.
+ *
+ * The single-series path (`data` or `categories`) is unchanged and is still
+ * the default. `mode` is grouped or stacked and only applies with `series`.
+ * Untyped callers that pass both a single-series input and `series` would
+ * otherwise draw one picture while the prop they think they set did nothing.
+ */
+export function assertBarInputs(
+  props: {
+    data?: unknown;
+    categories?: unknown;
+    series?: unknown;
+    mode?: unknown;
+  },
+  options: BarInputIssueOptions = {},
+): void {
+  const emit = (message: string): void => {
+    if (options.strict ?? isDevelopmentBuild()) throw new Error(message);
+    (options.onIssue ?? ((m: string) => console.warn(m)))(message);
+  };
+
+  if (props.data !== undefined && props.categories !== undefined) {
+    assertOneInput(
+      { data: props.data, series: props.categories },
+      { ...options, inputName: "categories" },
+    );
+  }
+
+  if (props.series !== undefined && (props.data !== undefined || props.categories !== undefined)) {
+    emit(
+      "SilkPlot: a bar chart was given both a single-series input (`data` or `categories`) and `series`. " +
+        "They cannot both apply. `series` is used and the single-series input is ignored.",
+    );
+  }
+
+  if (props.mode !== undefined && props.series === undefined) {
+    emit(
+      "SilkPlot: a bar chart was given `mode` without `series`. Grouped and stacked bars require both. " +
+        "`mode` is ignored.",
+    );
+  }
+
+  if (props.series !== undefined && props.mode === undefined) {
+    emit(
+      'SilkPlot: a bar chart was given `series` without `mode`. Grouped and stacked bars require `mode: "grouped" | "stacked"`. ' +
+        "`series` is ignored.",
+    );
+  }
+}
+
 /**
  * The mark-level finite check, AND-ed with the caller's own `defined`.
  *

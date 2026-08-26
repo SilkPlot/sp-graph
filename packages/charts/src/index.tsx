@@ -39,7 +39,12 @@ export type {
 export { seriesColorToken, seriesDashToken, SERIES_PALETTE_SIZE } from "@silkplot/core";
 
 export { BarChart } from "./BarChart";
-export type { BarChartProps, BarChartBaseProps } from "./BarChart";
+export type {
+  BarChartProps,
+  BarChartBaseProps,
+  BarMode,
+  MultiSeriesBarInput,
+} from "./BarChart";
 
 export { AreaChart } from "./AreaChart";
 export type { AreaChartProps, AreaChartBaseProps } from "./AreaChart";

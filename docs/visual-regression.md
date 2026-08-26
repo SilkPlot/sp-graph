@@ -52,12 +52,13 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
 | Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps`, `multi-ref-one`, `multi-ref-three` — **Line and Area only** |
 | Ranked-bar cases | `ranked-horizontal`, `ranked-long-label` — **Bar only**, both horizontal |
+| Bar-mode cases | `grouped-signed`, `stacked-signed` — **Bar only**, mixed signs over `series` |
 | Workload case | `w1-dense` — **Line only**, the W1 dense picture (22 series + 3 references) |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**200 baselines**: 168 geometry, 20 focus, 12 reduced-motion.
+**208 baselines**: 176 geometry, 20 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -67,9 +68,10 @@ operable *without clipping focused items*, and a focus ring is a computed style
 no structural assertion reaches.
 
 The multi-series cases break the otherwise-uniform chart × case product, and
-that is a property of the library rather than an inconvenience: Bar and Scatter
-have no `series` prop, so a baseline for them would be a picture of nothing
-under a confident name. They are generated separately and counted separately.
+that is a property of the library rather than an inconvenience: Scatter has no
+`series` prop, and Bar's `series` surface is grouped/stacked (`grouped-signed`,
+`stacked-signed`) rather than the time-series `multi-*` cases. Those products
+are generated separately and counted separately.
 
 Each case earns its place by being a shape that has broken before, or one whose
 breakage is invisible to a structural assertion:
@@ -112,6 +114,11 @@ breakage is invisible to a structural assertion:
   live in the left margin, which the caller sizes (ADR-0013 §5), and the default
   40px fits only a numeric value. The three names past 20 characters truncate
   with an ellipsis exactly as §5 specifies.
+- **`grouped-signed`** — three series, four days, mixed signs, grouped. Each
+  series hangs from the zero baseline inside a shared category band.
+- **`stacked-signed`** — the same fixture, stacked. Positives accumulate up
+  from zero; negatives accumulate down. Same data as grouped so the two
+  pictures are comparable.
 - **`w1-dense`** — the W1 composition-workload picture: 22 series AND
   three references in one line chart. Its halves are pinned separately —
   `multi-22` (22 series, no references) and `multi-ref-three` (references over
@@ -143,7 +150,7 @@ therefore asserts, as tests in their own right:
 1. The chart, case, and theme lists equal literals written out a second time in
    the spec — so a deletion has to be made twice, in a diff a reviewer sees.
    (Comparing an array to itself proves only that it equals itself.)
-2. The frozen totals: 168 geometry / 12 focus / 12 reduced-motion / 192 all.
+2. The frozen totals: 176 geometry / 20 focus / 12 reduced-motion / 208 all.
 3. That the committed baseline files are **exactly** the declared ids — a
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.

@@ -255,3 +255,45 @@ export const RANKED_LONG_LABEL: readonly RankedCategory[] = ranked(
   CLINIC_LABELS,
   (i) => 128 - i * 7 - i * i * 0.3,
 );
+
+/* -------------------------------------------------------------------------- */
+/* Grouped / stacked bars                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Three series, four days, mixed signs. Grouped hangs each series from zero;
+ * stacked accumulates positives up and negatives down. Same fixture for both
+ * pictures so the two modes are comparable.
+ */
+export const SERIES_BAR_SIGNED: readonly Series[] = [
+  {
+    id: "inlet",
+    label: "Inlet",
+    data: [
+      { t: new Date(EPOCH), y: 12 },
+      { t: new Date(EPOCH + DAY_MS), y: -8 },
+      { t: new Date(EPOCH + 2 * DAY_MS), y: 6 },
+      { t: new Date(EPOCH + 3 * DAY_MS), y: -3 },
+    ],
+  },
+  {
+    id: "outlet",
+    label: "Outlet",
+    data: [
+      { t: new Date(EPOCH), y: 5 },
+      { t: new Date(EPOCH + DAY_MS), y: 9 },
+      { t: new Date(EPOCH + 2 * DAY_MS), y: -11 },
+      { t: new Date(EPOCH + 3 * DAY_MS), y: 4 },
+    ],
+  },
+  {
+    id: "bypass",
+    label: "Bypass",
+    data: [
+      { t: new Date(EPOCH), y: -4 },
+      { t: new Date(EPOCH + DAY_MS), y: 3 },
+      { t: new Date(EPOCH + 2 * DAY_MS), y: 7 },
+      { t: new Date(EPOCH + 3 * DAY_MS), y: -6 },
+    ],
+  },
+];

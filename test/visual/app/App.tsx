@@ -27,6 +27,7 @@ import {
   CATEGORY_NEGATIVE,
   RANKED_DEFAULT,
   RANKED_LONG_LABEL,
+  SERIES_BAR_SIGNED,
   REFERENCES_ONE,
   REFERENCES_THREE,
   SERIES_22,
@@ -53,14 +54,16 @@ type Case =
   | MultiCase
   | LegendCase
   | RankedCase
+  | BarModeCase
   | WorkloadCase;
 
 /**
- * The multi-series cases (ADR-0008), which only `line` and `area` can render —
- * `bar` and `scatter` have no multi-series surface. The acceptance set is what
- * keeps a bar+multi request from ever being made; `ChartFor` renders nothing
- * for that pair rather than inventing a fallback, and a blank baseline would be
- * caught by the declared-versus-on-disk inventory.
+ * The time-series multi cases (ADR-0008), which only `line` and `area` render.
+ * Bar's `series` surface is grouped/stacked (`grouped-signed`, `stacked-signed`)
+ * rather than those `multi-*` products; scatter has no `series` prop. The
+ * acceptance set is what keeps a bar+multi request from ever being made;
+ * `ChartFor` renders nothing for that pair rather than inventing a fallback,
+ * and a blank baseline would be caught by the declared-versus-on-disk inventory.
  */
 type MultiCase =
   | "multi-one"
@@ -112,6 +115,13 @@ const RANKED_CASES: readonly RankedCase[] = ["ranked-horizontal", "ranked-long-l
 const isRanked = (kase: Case): kase is RankedCase =>
   (RANKED_CASES as readonly string[]).includes(kase);
 
+type BarModeCase = "grouped-signed" | "stacked-signed";
+
+const BAR_MODE_CASES: readonly BarModeCase[] = ["grouped-signed", "stacked-signed"];
+
+const isBarMode = (kase: Case): kase is BarModeCase =>
+  (BAR_MODE_CASES as readonly string[]).includes(kase);
+
 /** The composition-workload cases, carried by `line` only. */
 type WorkloadCase = "w1-dense";
 
@@ -130,6 +140,7 @@ const CASES: readonly Case[] = [
   ...MULTI_CASES,
   ...LEGEND_CASES,
   ...RANKED_CASES,
+  ...BAR_MODE_CASES,
   ...WORKLOAD_CASES,
 ];
 
@@ -341,7 +352,8 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         props.chart === "bar" &&
         !isMulti(props.case) &&
         !isLegend(props.case) &&
-        !isRanked(props.case)
+        !isRanked(props.case) &&
+        !isBarMode(props.case)
       }
     >
       <BarChart
@@ -369,6 +381,15 @@ const ChartFor: Component<{ chart: Chart; case: Case }> = (props) => (
         title="Ranked totals by category"
         desc="Deterministic ranked categorical totals, drawn horizontally so long labels stay readable."
         fill={seriesChannel(2).color}
+      />
+    </Show>
+    <Show when={props.chart === "bar" && isBarMode(props.case)}>
+      <BarChart
+        tableHidden
+        mode={props.case === "stacked-signed" ? "stacked" : "grouped"}
+        series={SERIES_BAR_SIGNED}
+        title="Signed totals by sensor"
+        desc="Deterministic multi-series categorical totals with mixed signs, grouped or stacked."
       />
     </Show>
     <Show

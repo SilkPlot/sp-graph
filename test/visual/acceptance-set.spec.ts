@@ -26,6 +26,8 @@ import {
   MULTI_CHARTS,
   RANKED_CASES,
   RANKED_CHARTS,
+  BAR_MODE_CASES,
+  BAR_MODE_CHARTS,
   WORKLOAD_CASES,
   WORKLOAD_CHARTS,
   FOCUS_RATIONALE,
@@ -45,7 +47,7 @@ test.describe("the acceptance set is explicit", () => {
     expect([...CHARTS]).toEqual(["line", "area", "bar", "scatter"]);
   });
 
-  test("covers exactly the fifteen rendering cases", () => {
+  test("covers exactly the seventeen rendering cases", () => {
     expect([...CASES]).toEqual([
       "default",
       "empty",
@@ -61,6 +63,8 @@ test.describe("the acceptance set is explicit", () => {
       "multi-ref-three",
       "ranked-horizontal",
       "ranked-long-label",
+      "grouped-signed",
+      "stacked-signed",
       "w1-dense",
     ]);
   });
@@ -105,6 +109,11 @@ test.describe("the acceptance set is explicit", () => {
     expect([...RANKED_CASES]).toEqual(["ranked-horizontal", "ranked-long-label"]);
   });
 
+  test("declares which chart composes grouped and stacked bars", () => {
+    expect([...BAR_MODE_CHARTS]).toEqual(["bar"]);
+    expect([...BAR_MODE_CASES]).toEqual(["grouped-signed", "stacked-signed"]);
+  });
+
   test("declares which chart carries the composition-workload picture", () => {
     // One line chart, one case. The dense W1 picture (22 series + 3 references)
     // is line-only by design — an area version overlaps 22 fills into a band.
@@ -138,7 +147,7 @@ test.describe("the acceptance set is explicit", () => {
       "reduced-motion": EXPECTED_TOTALS["reduced-motion"],
       all: EXPECTED_TOTALS.all,
     });
-    expect(EXPECTED_TOTALS.all).toBe(200);
+    expect(EXPECTED_TOTALS.all).toBe(208);
   });
 
   test("never lists a surface as excluded AND captures it", () => {
