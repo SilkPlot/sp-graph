@@ -52,6 +52,8 @@ export const CASES = [
   "multi-ref-three",
   "ranked-horizontal",
   "ranked-long-label",
+  "grouped-signed",
+  "stacked-signed",
   "w1-dense",
 ] as const;
 export type Case = (typeof CASES)[number];
@@ -135,6 +137,24 @@ export const RANKED_CASES = [
   "ranked-long-label",
 ] as const satisfies readonly Case[];
 export type RankedCase = (typeof RANKED_CASES)[number];
+
+/**
+ * Grouped and stacked bars over the shared series model. Bar only — these
+ * are not the time-series `multi-*` cases, and they are not the ranked
+ * single-series `categories` cases.
+ *
+ * Both use mixed signs so the negative-below-baseline geometry is in the
+ * picture: grouped hangs each series from zero; stacked accumulates
+ * positives up and negatives down.
+ */
+export const BAR_MODE_CASES = [
+  "grouped-signed",
+  "stacked-signed",
+] as const satisfies readonly Case[];
+export type BarModeCase = (typeof BAR_MODE_CASES)[number];
+
+/** Only `bar` composes grouped and stacked `mode` + `series`. */
+export const BAR_MODE_CHARTS = ["bar"] as const satisfies readonly Chart[];
 
 /**
  * The legend is a PRIMITIVE, not a chart family, and it gets its own axis here
@@ -282,11 +302,18 @@ const isRankedCase = (kase: Case): kase is RankedCase =>
 const isWorkloadCase = (kase: Case): kase is WorkloadCase =>
   (WORKLOAD_CASES as readonly Case[]).includes(kase);
 
-/** The uniform product: every chart x every case that is not multi, ranked, or workload x every theme. */
+const isBarModeCase = (kase: Case): kase is BarModeCase =>
+  (BAR_MODE_CASES as readonly Case[]).includes(kase);
+
+/** The uniform product: every chart x every case that is not multi, ranked, mode, or workload x every theme. */
 const geometry = (): Baseline[] =>
   CHARTS.flatMap((chart) =>
     CASES.filter(
-      (kase) => !isMultiCase(kase) && !isRankedCase(kase) && !isWorkloadCase(kase),
+      (kase) =>
+        !isMultiCase(kase) &&
+        !isRankedCase(kase) &&
+        !isBarModeCase(kase) &&
+        !isWorkloadCase(kase),
     ).flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
@@ -329,6 +356,22 @@ const multiSeries = (): Baseline[] =>
 const rankedBars = (): Baseline[] =>
   RANKED_CHARTS.flatMap((chart) =>
     RANKED_CASES.flatMap((kase) =>
+      THEME_STATES.map((theme) => ({
+        id: `${chart}--${kase}--${theme}`,
+        kind: "geometry" as const,
+        chart,
+        case: kase,
+        theme,
+        reducedMotion: false,
+        focus: false,
+        viewport: viewportFor(kase),
+      })),
+    ),
+  );
+
+const barModes = (): Baseline[] =>
+  BAR_MODE_CHARTS.flatMap((chart) =>
+    BAR_MODE_CASES.flatMap((kase) =>
       THEME_STATES.map((theme) => ({
         id: `${chart}--${kase}--${theme}`,
         kind: "geometry" as const,
@@ -451,6 +494,7 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
   ...geometry(),
   ...multiSeries(),
   ...rankedBars(),
+  ...barModes(),
   ...workload(),
   ...legend(),
   ...focus(),
@@ -467,21 +511,22 @@ export const ACCEPTANCE_SET: readonly Baseline[] = [
  * 4 charts x 5 single-series cases x 4 scheme/contrast   =  80
  * 2 multi-capable charts x 7 multi cases x 4 combinations =  56
  * 1 ranked-capable chart x 2 ranked cases x 4 combinations =   8
+ * 1 bar-mode chart x 2 mode cases x 4 combinations         =   8
  * 1 workload chart x 1 workload case x 4 combinations      =   4
  * 5 legend cases x 4 combinations                          =  20
- *                                              geometry    = 168
- * 2 focusable charts x 4 scheme/contrast combinations      =   8
+ *                                              geometry    = 176
+ * 4 focusable charts x 4 scheme/contrast combinations      =  16
  * the legend, focused, x 4 combinations                    =   4
- *                                                 focus    =  12
+ *                                                 focus    =  20
  * 4 charts x 2 schemes, reduced motion                     =   8
  * 2 multi-capable charts x 2 schemes, reduced motion       =   4
  *                                        reduced-motion    =  12
  */
 export const EXPECTED_TOTALS = {
-  geometry: 168,
+  geometry: 176,
   focus: 20,
   "reduced-motion": 12,
-  all: 200,
+  all: 208,
 } as const;
 
 /**

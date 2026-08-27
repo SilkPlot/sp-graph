@@ -52,12 +52,13 @@ test is generated from it. It is not "whichever baseline files happen to exist".
 | Cases | `default`, `empty`, `negative`, `dense-label`, `responsive-mobile` |
 | Multi-series cases | `multi-one`, `multi-four`, `multi-22`, `multi-22-narrow`, `multi-gaps`, `multi-ref-one`, `multi-ref-three` — **Line and Area only** |
 | Ranked-bar cases | `ranked-horizontal`, `ranked-long-label` — **Bar only**, both horizontal |
+| Bar-mode cases | `grouped-signed`, `stacked-signed` — **Bar only**, mixed signs over `series` |
 | Workload case | `w1-dense` — **Line only**, the W1 dense picture (22 series + 3 references) |
 | Theme | light, dark, light-high-contrast, dark-high-contrast |
 | Focus | every chart that owns a focus stop, in all four theme combinations |
 | Motion | reduced motion, on both schemes, plus the multi-series surface |
 
-**200 baselines**: 168 geometry, 20 focus, 12 reduced-motion.
+**208 baselines**: 176 geometry, 20 focus, 12 reduced-motion.
 
 The **Legend** is captured as its own surface rather than as a fifth chart
 family. It has no data, no axes, and no y-domain policy, so the cases that
@@ -67,9 +68,10 @@ operable *without clipping focused items*, and a focus ring is a computed style
 no structural assertion reaches.
 
 The multi-series cases break the otherwise-uniform chart × case product, and
-that is a property of the library rather than an inconvenience: Bar and Scatter
-have no `series` prop, so a baseline for them would be a picture of nothing
-under a confident name. They are generated separately and counted separately.
+that is a property of the library rather than an inconvenience: Scatter has no
+`series` prop, and Bar's `series` surface is grouped/stacked (`grouped-signed`,
+`stacked-signed`) rather than the time-series `multi-*` cases. Those products
+are generated separately and counted separately.
 
 Each case earns its place by being a shape that has broken before, or one whose
 breakage is invisible to a structural assertion:
@@ -112,6 +114,11 @@ breakage is invisible to a structural assertion:
   live in the left margin, which the caller sizes (ADR-0013 §5), and the default
   40px fits only a numeric value. The three names past 20 characters truncate
   with an ellipsis exactly as §5 specifies.
+- **`grouped-signed`** — three series, four days, mixed signs, grouped. Each
+  series hangs from the zero baseline inside a shared category band.
+- **`stacked-signed`** — the same fixture, stacked. Positives accumulate up
+  from zero; negatives accumulate down. Same data as grouped so the two
+  pictures are comparable.
 - **`w1-dense`** — the W1 composition-workload picture: 22 series AND
   three references in one line chart. Its halves are pinned separately —
   `multi-22` (22 series, no references) and `multi-ref-three` (references over
@@ -143,7 +150,7 @@ therefore asserts, as tests in their own right:
 1. The chart, case, and theme lists equal literals written out a second time in
    the spec — so a deletion has to be made twice, in a diff a reviewer sees.
    (Comparing an array to itself proves only that it equals itself.)
-2. The frozen totals: 168 geometry / 12 focus / 12 reduced-motion / 192 all.
+2. The frozen totals: 176 geometry / 20 focus / 12 reduced-motion / 208 all.
 3. That the committed baseline files are **exactly** the declared ids — a
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.
@@ -390,6 +397,12 @@ Ids are baseline file names without `.png` (`area--negative--dark`, not
 `test/visual/baselines/area--negative--dark.png`).
 
 <!-- Entries below, newest first. -->
+
+### 2026-08-26 — bar--grouped-signed--light, bar--grouped-signed--dark, bar--grouped-signed--light-high-contrast, bar--grouped-signed--dark-high-contrast, bar--stacked-signed--light, bar--stacked-signed--dark, bar--stacked-signed--light-high-contrast, bar--stacked-signed--dark-high-contrast
+
+- **Why:** NEW baselines, not re-pins. Grouped and stacked bars over the shared series model now have their own pictures — the same four-day mixed-sign fixture, so the two modes are comparable. Grouped hangs each series from zero inside a category band; stacked accumulates positives up and negatives down. Nothing existing moved — verified with `git status`: 8 added, 0 modified, 0 deleted. Existing `ranked-*` files are untouched.
+- **Inspected by:** Cursor Grok 4.6 (cursor-grok-4.6) # 4 of 8 opened — `bar--grouped-signed--light`, `bar--grouped-signed--dark`, `bar--stacked-signed--light`, `bar--stacked-signed--dark`. Grouped shows three side-by-side series per day about a zero baseline; stacked shows positives stacked up and negatives stacked down from the same zero. The four high-contrast variants were NOT opened and differ from an inspected sibling only in palette.
+- **Accepted by:** Adam Claassens
 
 ### 2026-08-25 — area--default--dark, area--default--dark-high-contrast, area--default--light, area--default--light-high-contrast, area--focus--dark, area--focus--dark-high-contrast, area--focus--light, area--focus--light-high-contrast, area--multi-22--dark, area--multi-22--dark-high-contrast, area--multi-22--light, area--multi-22--light-high-contrast, area--multi-22-narrow--dark, area--multi-22-narrow--dark-high-contrast, area--multi-22-narrow--light, area--multi-22-narrow--light-high-contrast, area--multi-four--dark, area--multi-four--dark-high-contrast, area--multi-four--light, area--multi-four--light-high-contrast, area--multi-four-reduced-motion--dark, area--multi-four-reduced-motion--light, area--multi-gaps--dark, area--multi-gaps--dark-high-contrast, area--multi-gaps--light, area--multi-gaps--light-high-contrast, area--multi-one--dark, area--multi-one--dark-high-contrast, area--multi-one--light, area--multi-one--light-high-contrast, area--multi-ref-one--dark, area--multi-ref-one--dark-high-contrast, area--multi-ref-one--light, area--multi-ref-one--light-high-contrast, area--multi-ref-three--dark, area--multi-ref-three--dark-high-contrast, area--multi-ref-three--light, area--multi-ref-three--light-high-contrast, area--negative--dark, area--negative--dark-high-contrast, area--negative--light, area--negative--light-high-contrast, area--reduced-motion--dark, area--reduced-motion--light, area--responsive-mobile--dark, area--responsive-mobile--dark-high-contrast, area--responsive-mobile--light, area--responsive-mobile--light-high-contrast, line--default--dark, line--default--dark-high-contrast, line--default--light, line--default--light-high-contrast, line--focus--dark, line--focus--dark-high-contrast, line--focus--light, line--focus--light-high-contrast, line--multi-22--dark, line--multi-22--dark-high-contrast, line--multi-22--light, line--multi-22--light-high-contrast, line--multi-22-narrow--dark, line--multi-22-narrow--dark-high-contrast, line--multi-22-narrow--light, line--multi-22-narrow--light-high-contrast, line--multi-four--dark, line--multi-four--dark-high-contrast, line--multi-four--light, line--multi-four--light-high-contrast, line--multi-four-reduced-motion--dark, line--multi-four-reduced-motion--light, line--multi-gaps--dark, line--multi-gaps--dark-high-contrast, line--multi-gaps--light, line--multi-gaps--light-high-contrast, line--multi-one--dark, line--multi-one--dark-high-contrast, line--multi-one--light, line--multi-one--light-high-contrast, line--multi-ref-one--dark, line--multi-ref-one--dark-high-contrast, line--multi-ref-one--light, line--multi-ref-one--light-high-contrast, line--multi-ref-three--dark, line--multi-ref-three--dark-high-contrast, line--multi-ref-three--light, line--multi-ref-three--light-high-contrast, line--negative--dark, line--negative--dark-high-contrast, line--negative--light, line--negative--light-high-contrast, line--reduced-motion--dark, line--reduced-motion--light, line--responsive-mobile--light-high-contrast, line--w1-dense--dark, line--w1-dense--dark-high-contrast, line--w1-dense--light, line--w1-dense--light-high-contrast
 

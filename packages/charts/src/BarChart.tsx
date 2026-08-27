@@ -1,13 +1,14 @@
 /**
  * BarChart — categorical bars, vertical or horizontal.
  *
- * Two input shapes, mutually exclusive, exactly as Line and Area take `data` or
- * `series` (ADR-0008 §12):
+ * Three input shapes, mutually exclusive, exactly as Line and Area take `data`
+ * or `series` (ADR-0008 §12):
  *
  *   - `data`  — the original `{ label, y }[]`. Vertical, unformatted, no
  *     activation. Unchanged, and kept because it is published 0.x surface.
  *   - `categories` — the ranked shape `{ id, label, value }[]`, with
  *     orientation, formatters, and a caller activation seam.
+ *   - `mode` + `series` — grouped or stacked, over the shared series model.
  *
  * **There is ONE render path.** `data` is adapted into `categories` on the way
  * in rather than branching the body, so the legacy shape cannot drift from the
@@ -33,8 +34,8 @@
  * D3 does all the math inside memos; Solid renders every bar with `<For>`. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
- * TODO(grouped/stacked extension): grouped and stacked variants over
- * `d3-shape` stack after consumer evidence justifies them.
+ * Grouped and stacked variants take `mode` plus `series` (the shared series
+ * model). They are a sibling path: this adapter is not rewritten for them.
  */
 import { For, Show, createMemo, type Component, type JSX } from "solid-js";
 import {
@@ -65,11 +66,14 @@ import {
   ChartShell,
   CATEGORY_COLUMNS,
   createInspectableSemantics,
-  assertOneInput,
+  assertBarInputs,
   type CartesianChartProps,
 } from "./scaffold";
+import { BarChartMulti, type MultiSeriesBarInput } from "./BarChartMulti";
 import { measurePaintedAxisLabelWidth } from "./measure-axis-label";
 import type { CategoryPoint } from "./types";
+
+export type { BarMode, MultiSeriesBarInput } from "./BarChartMulti";
 
 /**
  * Where a category label is truncated on the axis, before an ellipsis.
@@ -136,6 +140,9 @@ export interface SingleCategoryInput extends BarLayoutProps {
   announce?: never;
   tooltip?: never;
   onActivePointChange?: never;
+  series?: never;
+  mode?: never;
+  visibleSeries?: never;
 }
 
 export interface RankedInput extends BarLayoutProps, RankedFormatProps, KeyboardHoverProps {
@@ -170,9 +177,12 @@ export interface RankedInput extends BarLayoutProps, RankedFormatProps, Keyboard
   /** Fires on every active-category CHANGE — a hover, a keyboard step, a clear. */
   onActivePointChange?: (active: ActivePoint<RankedCategory> | undefined) => void;
   data?: never;
+  series?: never;
+  mode?: never;
+  visibleSeries?: never;
 }
 
-export type BarChartBaseProps = SingleCategoryInput | RankedInput;
+export type BarChartBaseProps = SingleCategoryInput | RankedInput | MultiSeriesBarInput;
 
 /**
  * A bar chart is informative by default and must be named — see
@@ -427,16 +437,9 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
   );
 };
 
-export const BarChart: Component<BarChartProps> = (props) => {
-  const semantics = createInspectableSemantics(props);
-
-  // ADR-0008 §12's runtime backstop, for callers arriving untyped. The typed
-  // props already make both-at-once unrepresentable.
-  assertOneInput(
-    { data: props.data, series: props.categories },
-    { inputName: "categories" },
-  );
-
+const BarChartSingle: Component<
+  (SingleCategoryInput | RankedInput) & { semantics: ChartSemantics }
+> = (props) => {
   const resolved = (): readonly RankedCategory[] =>
     props.categories ?? adaptLegacy(props.data ?? []);
 
@@ -474,15 +477,38 @@ export const BarChart: Component<BarChartProps> = (props) => {
     <ChartShell
       layout={props}
       reserved={reserved}
-      semantics={semantics}
+      semantics={props.semantics}
       rows={rows}
       columns={CATEGORY_COLUMNS}
     >
       <BarChartBody
         {...(props as ResolvedBarProps)}
         categories={resolved()}
-        semantics={semantics}
+        semantics={props.semantics}
       />
     </ChartShell>
+  );
+};
+
+export const BarChart: Component<BarChartProps> = (props) => {
+  const semantics = createInspectableSemantics(props);
+
+  // ADR-0008 §12's runtime backstop, for callers arriving untyped. The typed
+  // props already make both-at-once unrepresentable. Extended so `mode` /
+  // `series` cannot silently fight the single-series path.
+  assertBarInputs(props);
+
+  return (
+    <Show
+      when={props.series !== undefined && props.mode !== undefined}
+      fallback={
+        <BarChartSingle
+          {...(props as SingleCategoryInput | RankedInput)}
+          semantics={semantics}
+        />
+      }
+    >
+      <BarChartMulti {...(props as MultiSeriesBarInput)} semantics={semantics} />
+    </Show>
   );
 };
