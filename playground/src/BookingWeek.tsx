@@ -1,6 +1,7 @@
 /**
- * Thin host for the week-grid demo. The playground owns the dataset and calls
- * `buildTimeGrid` + `resolveEventLanes`; `WeekGrid` only consumes the results.
+ * Thin host for the week-grid / agenda demo. The playground owns the dataset
+ * and calls `buildTimeGrid` + `resolveEventLanes`; `CalendarWeek` consumes
+ * those results. The named "Agenda view" control is HTML, not a second SVG week.
  *
  * Deterministic clinic week in America/New_York: named rooms, overlapping
  * appointments, one overnight lock-in, and the US spring-forward Sunday.
@@ -9,7 +10,7 @@
 import { createMemo, type Component } from "solid-js";
 import { Temporal } from "temporal-polyfill";
 import {
-  WeekGrid,
+  CalendarWeek,
   buildTimeGrid,
   resolveEventLanes,
   type CalendarEvent,
@@ -71,6 +72,7 @@ function clinicWeek(): CalendarEvent[] {
 export const BookingWeek: Component = () => {
   const model = createMemo(() => {
     const start = zoned(WEEK_START, 0);
+    const events = clinicWeek();
     const grid = buildTimeGrid({
       start: start.toInstant(),
       end: start.add({ days: 7 }).toInstant(),
@@ -79,7 +81,7 @@ export const BookingWeek: Component = () => {
       timeZone: NY,
       weekStart: 1,
     });
-    return { grid, rects: resolveEventLanes(clinicWeek(), grid) };
+    return { grid, events, rects: resolveEventLanes(events, grid) };
   });
 
   return (
@@ -92,8 +94,9 @@ export const BookingWeek: Component = () => {
         background: cssVar("color-surface"),
       }}
     >
-      <WeekGrid
+      <CalendarWeek
         grid={model().grid}
+        events={model().events}
         rects={model().rects}
         width={760}
         title="North clinic, week of 2 March 2026, America/New_York"
