@@ -144,9 +144,9 @@ export const LIMITATIONS: readonly Limitation[] = [
       "Crosshair, active mark, and tooltip share the same active-datum state the keyboard writes; the tooltip is a render-prop you supply.",
   },
   {
-    headline: "No grouped or stacked bars",
+    headline: "Grouped and stacked bars exist in source, not on the published alpha",
     detail:
-      "Multi-series line and area charts ship, as does a legend with controlled visibility. What is not implemented is grouped and stacked bars.",
+      "Multi-series line and area charts ship, as does a legend with controlled visibility.",
   },
   {
     headline: "SVG only",
