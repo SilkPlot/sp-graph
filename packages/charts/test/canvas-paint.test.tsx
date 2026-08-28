@@ -15,6 +15,7 @@ import {
   layoutTreeFromObservations,
   layoutTreemapFromObservations,
   linearScale,
+  type BubbleMark,
   type NormalizedCategory,
 } from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
@@ -55,6 +56,13 @@ import {
   paintTreemapLayout,
 } from "../src/hierarchy-paint";
 import { pieFill, paintPieSlice } from "../src/pie-paint";
+import {
+  bubbleFill,
+  bubbleSymbol,
+  paintBubbleMark,
+  paintBubbleMarks,
+  paintBubbleSizeLegend,
+} from "../src/bubble-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -714,5 +722,71 @@ describe("hierarchy node paint", () => {
     for (let pattern = 0; pattern < CATEGORICAL_PATTERN_COUNT; pattern += 1) {
       paintCategoricalPattern(ctx, 12, pattern, resolve);
     }
+  });
+});
+
+describe("bubble mark paint", () => {
+  const mark: BubbleMark = {
+    series: "North",
+    seriesIndex: 0,
+    x: 1,
+    y: 2,
+    size: 4,
+    sourceIndex: 0,
+    px: 20,
+    py: 20,
+    r: 8,
+  };
+
+  it("fills a sized symbol, records magnitude, and outlines the active point", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const quiet = paintBubbleMark(ctx, mark, {}, resolve);
+    expect(quiet?.kind).toBe("path");
+    expect(quiet?.symbol).toBe(bubbleSymbol(0));
+    expect(quiet?.r).toBe("8");
+    expect(quiet?.size).toBe("4");
+    expect(quiet?.stroke).toBe("none");
+    expect(bubbleFill(0)).not.toBe(bubbleFill(1));
+    expect(bubbleSymbol(0)).not.toBe(bubbleSymbol(1));
+    const active = paintBubbleMark(ctx, mark, { active: true, fillOpacity: 0.4 }, resolve);
+    expect(active?.strokeWidth).toBe("2");
+    expect(active?.fillOpacity).toBe("0.4");
+    expect(paintBubbleMark(ctx, { ...mark, r: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintBubbleMarks(ctx, [], undefined, resolve)).toEqual([]);
+    expect(paintBubbleMarks(ctx, [mark], 0, resolve).some((m) => m.kind === "path" && m.strokeWidth === "2")).toBe(
+      true,
+    );
+  });
+
+  it("paints every series symbol and a size legend", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    for (let seriesIndex = 0; seriesIndex < 8; seriesIndex += 1) {
+      const painted = paintBubbleMark(ctx, { ...mark, seriesIndex }, {}, resolve);
+      expect(painted?.symbol).toBe(bubbleSymbol(seriesIndex));
+    }
+    expect(paintBubbleSizeLegend(ctx, [], { width: 40, height: 40 }, resolve)).toEqual([]);
+    expect(paintBubbleSizeLegend(ctx, [{ size: 4, r: 8 }], { width: 40, height: 0 }, resolve)).toEqual(
+      [],
+    );
+    expect(paintBubbleSizeLegend(ctx, [{ size: 4, r: 0 }], { width: 40, height: 40 }, resolve)).toEqual(
+      [],
+    );
+    const legend = paintBubbleSizeLegend(
+      ctx,
+      [
+        { size: 1, r: 4 },
+        { size: 4, r: 8 },
+      ],
+      { width: 40, height: 40 },
+      resolve,
+    );
+    expect(legend.some((m) => m.kind === "circle" && m.role === "size-legend" && m.size === "1")).toBe(
+      true,
+    );
+    expect(legend.some((m) => m.kind === "text" && m.role === "size-legend" && m.text === "4")).toBe(
+      true,
+    );
   });
 });

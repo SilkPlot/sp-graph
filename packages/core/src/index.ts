@@ -147,6 +147,35 @@ export type {
   PieLayout,
 } from "./pie-layout";
 
+// Bubble layout — scatter with a numeric size channel. Area encodes magnitude.
+export {
+  resolveBubbleRadiusRange,
+  bubbleRadius,
+  computeBubble,
+  layoutBubble,
+  layoutBubbleFromObservations,
+  bubbleSizeTicks,
+  pointInBubble,
+  locateBubble,
+  createBubbleIndex,
+  DEFAULT_BUBBLE_MIN_RADIUS,
+  DEFAULT_BUBBLE_MAX_RADIUS,
+  DEFAULT_BUBBLE_SERIES,
+  BUBBLE_SIZE_LEGEND_RIGHT,
+} from "./bubble-layout";
+export type {
+  BubbleObservation,
+  BubbleDatum,
+  BubblePart,
+  ComputeBubbleOptions,
+  ComputedBubble,
+  LayoutBubbleOptions,
+  LayoutBubbleFromObservationsOptions,
+  BubbleMark,
+  BubbleLayout,
+  BubbleSizeTick,
+} from "./bubble-layout";
+
 // Hierarchy layout — tree, treemap, pack over d3-hierarchy. No DOM.
 export {
   hierarchyPatternIndex,
