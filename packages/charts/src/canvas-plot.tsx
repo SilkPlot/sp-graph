@@ -12,6 +12,7 @@ import {
   rememberCanvasMarks,
   type CanvasMark,
   type LineMark,
+  type PathMark,
   type TextMark,
 } from "./canvas-marks";
 import { createStyleResolver, type StyleResolver } from "./canvas-style";
@@ -50,7 +51,9 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
     (m): m is TextMark => m.kind === "text" && m.role === "axis-label" && m.rotation !== undefined,
   );
   const axisLabels = marks.filter((m) => m.kind === "text" && m.role === "axis-label").length;
-  const series = marks.find((m) => m.kind === "path" && m.stroke !== "none" && m.d !== "");
+  const series = marks.find(
+    (m): m is PathMark => m.kind === "path" && m.stroke !== "none" && m.d !== "",
+  );
   toggleAttr(el, "data-silkplot-crosshair", hasCross);
   toggleAttr(el, "data-silkplot-brush", hasBrush);
   toggleAttr(el, "data-silkplot-references", hasRefs);
