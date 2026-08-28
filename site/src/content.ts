@@ -62,13 +62,13 @@ export const PACKAGES: readonly PackageRow[] = [
   },
   {
     name: "@silkplot/solid",
-    purpose: "Primitives — chart root, SVG layer, axes, gridlines, legend, crosshair, keyboard surface",
+    purpose: "Primitives — chart root, Canvas layer, axes, gridlines, legend, crosshair, keyboard surface",
     status: "Alpha",
-    note: "Compose these when a preset chart is not the graph you want.",
+    note: "Canvas layer exists in source, not on the published alpha.",
   },
   {
     name: "@silkplot/charts",
-    purpose: "Composed charts — Line, Area, Bar, Scatter",
+    purpose: "Composed charts — Line, Area, Bar, Scatter. Heatmap exists in source and is unpublished.",
     status: "Alpha",
     note: "Each one composes the same Cartesian model the primitives expose.",
   },
@@ -149,9 +149,9 @@ export const LIMITATIONS: readonly Limitation[] = [
       "Multi-series line and area charts ship, as does a legend with controlled visibility.",
   },
   {
-    headline: "SVG only",
+    headline: "Canvas exists in source, not on the published alpha",
     detail:
-      "There is no Canvas or WebGL substrate yet. Density beyond a few thousand marks is untested, and that is where the rendering approach is expected to have to change.",
+      "WebGL remains excluded. Density beyond a few thousand marks is untested.",
   },
   {
     headline: "The calendar package is not published",
