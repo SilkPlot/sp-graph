@@ -6,7 +6,7 @@ This is an internal note, not a numbered ADR and not part of the public site.
 
 Does a representative hierarchy/network laid out with `d3-force` hold the
 16.7 ms frame budget (ADR-0002) so force-directed can ship on Canvas in
-S017-P01 item 3? Tree, treemap, and pack are not this question. Sunburst,
+item 3? Tree, treemap, and pack are not this question. Sunburst,
 icicle, and sankey stay unknown on the ingested map and are not replacements.
 
 ## Protocol
