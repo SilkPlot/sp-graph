@@ -61,8 +61,11 @@ describe("bubbleRadius encodes area, not diameter", () => {
   it("returns NaN for a non-positive size and the mid-range for a collapsed domain", () => {
     expect(Number.isNaN(bubbleRadius(0, domain, range))).toBe(true);
     expect(Number.isNaN(bubbleRadius(-3, domain, range))).toBe(true);
-    expect(Number.isNaN(bubbleRadius(8, domain, range))).toBe(false);
     expect(Number.isNaN(bubbleRadius(8, domain, [Number.NaN, 20]))).toBe(true);
+    expect(Number.isNaN(bubbleRadius(8, domain, [10, Number.NaN]))).toBe(true);
+    expect(bubbleRadius(8, [4, 4], range)).toBe(15);
+    expect(bubbleRadius(8, domain, [12, 12])).toBe(12);
+    expect(bubbleRadius(8, [0, 4], range)).toBe(15);
   });
 });
 
@@ -122,6 +125,12 @@ describe("layoutBubble and layoutBubbleFromObservations", () => {
     expect(laid.marks[1]?.r).toBeCloseTo(15);
   });
 
+  it("drops a zero-radius mark", () => {
+    const computed = computeBubble([{ x: 0, y: 0, size: 1 }]);
+    const laid = layoutBubble(computed, { px: () => 0, py: () => 0, minRadius: 0, maxRadius: 0 });
+    expect(laid.marks).toEqual([]);
+  });
+
   it("drops a point whose pixel is not finite", () => {
     const computed = computeBubble([{ x: 0, y: 0, size: 1 }]);
     const laid = layoutBubble(computed, {
@@ -162,6 +171,9 @@ describe("locateBubble", () => {
     expect(locateBubble([large, small], 20, 0)).toBe(0);
     expect(locateBubble([large, small], 80, 80)).toBe(-1);
     expect(locateBubble([], 0, 0)).toBe(-1);
+    const twin = { ...small, sourceIndex: 2, px: 6, py: 0, r: 10 };
+    expect(locateBubble([small, twin], 3, 0)).toBe(0);
+    expect(locateBubble([small, twin], 5, 0)).toBe(1);
   });
 });
 
@@ -180,5 +192,14 @@ describe("createBubbleIndex", () => {
     const ordinal = index.locate(hit.px, hit.py);
     expect(index.at(ordinal)?.datum.size).toBe(4);
     expect(index.locate(1000, 1000)).toBe(-1);
+  });
+
+  it("falls back to the index series id when a point's series is empty", () => {
+    const laid = layoutBubbleFromObservations([{ x: 0, y: 0, size: 1, series: "" }], {
+      width: 10,
+      height: 10,
+    });
+    const index = createBubbleIndex(laid.marks, "cloud");
+    expect(index.at(0)?.seriesId).toBe("cloud");
   });
 });
