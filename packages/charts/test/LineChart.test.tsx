@@ -28,6 +28,7 @@ import {
   expectNoNaN,
   expectedTimeXScale,
   expectedYScale,
+  hasAxis,
   markD,
   markPaths as getPaths,
   pathYs,
@@ -84,8 +85,8 @@ describe("LineChart — structure", () => {
 
   it("renders both a left and a bottom axis", () => {
     const { container } = render(() => <LineChart title="Daily readings" data={DATA} width={WIDTH} height={HEIGHT} />);
-    expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
-    expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
+    expect(hasAxis(container, "left")).toBe(true);
+    expect(hasAxis(container, "bottom")).toBe(true);
   });
 
   it("applies the accessible title as an <svg><title>", () => {

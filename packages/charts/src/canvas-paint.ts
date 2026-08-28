@@ -12,7 +12,16 @@
  * pattern closes into a solid line (ADR-0005 §5).
  */
 
-import type { CanvasMark, CircleMark, PathMark, RectMark } from "./canvas-marks";
+import type {
+  CanvasMark,
+  CircleMark,
+  LineMark,
+  LineRole,
+  PathMark,
+  RectMark,
+  TextMark,
+  TextRole,
+} from "./canvas-marks";
 import type { StyleResolver } from "./canvas-style";
 
 export interface StrokeSpec {
@@ -43,10 +52,9 @@ const ACTIVE_BAR_STROKE = "var(--sp-color-cursor, currentColor)";
 const ACTIVE_BAR_WIDTH = 2;
 
 /**
- * Clip subsequent drawing to the inner plot. The canvas bitmap is already
- * that rect when the plot is positioned on the inner origin; `clip` is the
- * named Canvas equivalent of the old SVG `clipPath`, so a neighbour vertex
- * past the edge is painted and then hidden rather than stopping short.
+ * Clip subsequent drawing to the inner plot. Neighbour vertices past a plot
+ * edge are painted and then hidden rather than stopping short. Axes live
+ * outside this clip so tick labels can occupy the margins.
  */
 export function clipPlotArea(
   ctx: CanvasRenderingContext2D,
@@ -194,4 +202,135 @@ export function paintBar(
 /** Push a painted mark when the painter produced one. */
 export function pushMark(into: CanvasMark[], mark: CanvasMark | undefined): void {
   if (mark !== undefined) into.push(mark);
+}
+
+export interface LinePaintSpec {
+  stroke?: string;
+  strokeWidth?: number;
+  dash?: string;
+  opacity?: number;
+}
+
+/** Stroke a single segment. Butt caps: these are grid, axis, and chrome rules. */
+export function paintLine(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  spec: LinePaintSpec,
+  resolve: StyleResolver,
+  role: LineRole,
+  extra?: Pick<LineMark, "axis" | "referenceId">,
+): LineMark {
+  ctx.save();
+  ctx.strokeStyle = resolve.color(spec.stroke ?? "currentColor");
+  ctx.lineWidth = spec.strokeWidth ?? 1;
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+  ctx.setLineDash(spec.dash !== undefined ? resolve.dash(spec.dash) : []);
+  if (spec.opacity !== undefined) ctx.globalAlpha = spec.opacity;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.restore();
+  return {
+    kind: "line",
+    x1: String(x1),
+    y1: String(y1),
+    x2: String(x2),
+    y2: String(y2),
+    stroke: spec.stroke ?? "currentColor",
+    strokeWidth: String(spec.strokeWidth ?? 1),
+    dash: spec.dash,
+    role,
+    axis: extra?.axis,
+    referenceId: extra?.referenceId,
+  };
+}
+
+export interface TextPaintSpec {
+  fill?: string;
+  fontSize?: string;
+  anchor?: CanvasTextAlign;
+  baseline?: CanvasTextBaseline;
+  rotate?: number;
+}
+
+/** Fill a label. Rotation is degrees about (x, y), matching Axis. */
+export function paintText(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  spec: TextPaintSpec,
+  resolve: StyleResolver,
+  role: TextRole,
+  extra?: Pick<TextMark, "axis" | "referenceId">,
+): TextMark {
+  const fontSize = spec.fontSize ?? "11px";
+  const anchor = spec.anchor ?? "start";
+  ctx.save();
+  ctx.fillStyle = resolve.color(spec.fill ?? "currentColor");
+  ctx.font = resolve.font(fontSize);
+  ctx.textAlign = anchor;
+  ctx.textBaseline = spec.baseline ?? "alphabetic";
+  if (spec.rotate !== undefined && spec.rotate !== 0) {
+    ctx.translate(x, y);
+    ctx.rotate((spec.rotate * Math.PI) / 180);
+    ctx.fillText(text, 0, 0);
+  } else {
+    ctx.fillText(text, x, y);
+  }
+  ctx.restore();
+  return {
+    kind: "text",
+    x: String(x),
+    y: String(y),
+    text,
+    fill: spec.fill ?? "currentColor",
+    anchor,
+    role,
+    axis: extra?.axis,
+    referenceId: extra?.referenceId,
+    rotation: spec.rotate !== undefined && spec.rotate !== 0 ? String(spec.rotate) : undefined,
+  };
+}
+
+export interface RingSpec {
+  stroke?: string;
+  strokeWidth?: number;
+  radius?: number;
+}
+
+/** Stroke a circle (the active-point rings). */
+export function paintRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  spec: RingSpec,
+  resolve: StyleResolver,
+): CircleMark {
+  const r = spec.radius ?? 7;
+  const stroke = spec.stroke ?? "currentColor";
+  const strokeWidth = spec.strokeWidth ?? 2;
+  ctx.save();
+  ctx.strokeStyle = resolve.color(stroke);
+  ctx.lineWidth = strokeWidth;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  return {
+    kind: "circle",
+    cx: String(cx),
+    cy: String(cy),
+    r: String(r),
+    fill: "none",
+    fillOpacity: "0",
+    stroke,
+    strokeWidth: String(strokeWidth),
+    role: "cursor",
+  };
 }

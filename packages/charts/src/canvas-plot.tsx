@@ -1,23 +1,31 @@
 /**
- * CanvasPlot — the inner-plot bitmap cartesian marks paint onto.
+ * CanvasPlot — the bitmap a cartesian chart paints onto.
  *
- * Positioned on the inner origin, sized to the inner plot. Neighbour vertices
- * past a plot edge are computed by `marksForPlotInterval` and then hidden by
- * `clipPlotArea` (`ctx.clip`), not by an SVG `clipPath`. Pointer events pass
- * through so the existing keyboard/hover surface keeps capturing.
- *
- * D3 still computes; this component only hosts the context and re-paints when
- * the caller’s paint function reads a reactive input.
+ * Sized to the full chart so axes can occupy the margins. Inner drawing is
+ * translated to the plot origin. Marks and chrome clip via `ctx.clip` inside
+ * the paint pass; this host only clears, translates, and records. Pointer
+ * events pass through so the keyboard/hover surface keeps capturing.
  */
 import { createEffect, createSignal, type JSX } from "solid-js";
 import { useChartBounds } from "@silkplot/solid";
-import { rememberCanvasMarks, type CanvasMark } from "./canvas-marks";
-import { clipPlotArea } from "./canvas-paint";
+import {
+  rememberCanvasMarks,
+  type CanvasMark,
+  type LineMark,
+  type TextMark,
+} from "./canvas-marks";
 import { createStyleResolver, type StyleResolver } from "./canvas-style";
 
 export interface PlotSize {
   width: number;
   height: number;
+}
+
+export interface PlotLayout extends PlotSize {
+  originX?: number;
+  originY?: number;
+  outerWidth?: number;
+  outerHeight?: number;
 }
 
 export type PlotPaint = (
@@ -30,36 +38,63 @@ export interface CanvasPlotProps {
   paint: PlotPaint;
 }
 
+function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): void {
+  const hasCross = marks.some(
+    (m): m is LineMark =>
+      m.kind === "line" && (m.role === "crosshair-x" || m.role === "crosshair-y"),
+  );
+  const hasBrush = marks.some((m) => m.kind === "rect" && m.role === "brush");
+  const hasRefs = marks.some((m) => m.kind === "line" && m.role === "reference");
+  const empty = marks.find((m): m is TextMark => m.kind === "text" && m.role === "empty");
+  const rotated = marks.find(
+    (m): m is TextMark => m.kind === "text" && m.role === "axis-label" && m.rotation !== undefined,
+  );
+  toggleAttr(el, "data-silkplot-crosshair", hasCross);
+  toggleAttr(el, "data-silkplot-brush", hasBrush);
+  toggleAttr(el, "data-silkplot-references", hasRefs);
+  if (empty !== undefined) el.setAttribute("data-silkplot-empty", empty.text);
+  else el.removeAttribute("data-silkplot-empty");
+  if (rotated !== undefined) el.setAttribute("data-silkplot-label-rotation", rotated.rotation ?? "");
+  else el.removeAttribute("data-silkplot-label-rotation");
+}
+
+function toggleAttr(el: HTMLCanvasElement, name: string, on: boolean): void {
+  if (on) el.setAttribute(name, "");
+  else el.removeAttribute(name);
+}
+
 /**
  * Paint one Canvas plot, or no-op when the element is not yet attached or
- * the inner size has collapsed. Exported so the two guards are unit-testable:
- * `CartesianFrame` only mounts this when `hasArea()` is true, so a zero-size
- * plot never reaches the component from production, and Solid assigns `ref`
- * before the first effect, so `el === undefined` is the same shape of gap.
+ * the inner size has collapsed. Exported so the two guards are unit-testable.
  */
 export function syncCanvasPlot(
   el: HTMLCanvasElement | undefined,
-  plot: PlotSize,
+  layout: PlotLayout,
   paint: PlotPaint,
 ): void {
   if (el === undefined) return;
-  el.setAttribute("data-silkplot-plot-width", String(plot.width));
-  el.setAttribute("data-silkplot-plot-height", String(plot.height));
-  if (plot.width <= 0 || plot.height <= 0) {
+  el.setAttribute("data-silkplot-plot-width", String(layout.width));
+  el.setAttribute("data-silkplot-plot-height", String(layout.height));
+  if (layout.width <= 0 || layout.height <= 0) {
     rememberCanvasMarks(el, []);
     return;
   }
+  const originX = layout.originX ?? 0;
+  const originY = layout.originY ?? 0;
+  const outerW = layout.outerWidth ?? layout.width + originX;
+  const outerH = layout.outerHeight ?? layout.height + originY;
   const dpr = window.devicePixelRatio;
-  el.width = Math.round(plot.width * dpr);
-  el.height = Math.round(plot.height * dpr);
+  el.width = Math.round(outerW * dpr);
+  el.height = Math.round(outerH * dpr);
   const ctx = el.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, plot.width, plot.height);
+  ctx.clearRect(0, 0, outerW, outerH);
   ctx.save();
-  clipPlotArea(ctx, plot.width, plot.height);
-  const marks = paint(ctx, plot, createStyleResolver(el));
+  ctx.translate(originX, originY);
+  const marks = paint(ctx, { width: layout.width, height: layout.height }, createStyleResolver(el));
   ctx.restore();
   rememberCanvasMarks(el, marks);
+  annotateChrome(el, marks);
 }
 
 export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
@@ -69,7 +104,18 @@ export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
   createEffect(() => {
     const el = canvas();
     const b = bounds();
-    syncCanvasPlot(el, { width: b.innerWidth, height: b.innerHeight }, props.paint);
+    syncCanvasPlot(
+      el,
+      {
+        width: b.innerWidth,
+        height: b.innerHeight,
+        originX: b.margins.left,
+        originY: b.margins.top,
+        outerWidth: b.width,
+        outerHeight: b.height,
+      },
+      props.paint,
+    );
   });
 
   return (
@@ -79,10 +125,10 @@ export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
       data-silkplot-clip="canvas"
       style={{
         position: "absolute",
-        left: `${bounds().margins.left}px`,
-        top: `${bounds().margins.top}px`,
-        width: `${bounds().innerWidth}px`,
-        height: `${bounds().innerHeight}px`,
+        left: "0px",
+        top: "0px",
+        width: `${bounds().width}px`,
+        height: `${bounds().height}px`,
         "pointer-events": "none",
         display: "block",
       }}

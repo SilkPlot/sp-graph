@@ -5,8 +5,9 @@
  * surface. This file proves the substrate contract those suites assume:
  * one Canvas plot per chart, clip named as Canvas, hover and keyboard still
  * writing the same active-datum state, a data replacement moving the bitmap's
- * recorded path, and grouped bars painting on the same surface. Overlay SVG
- * (the active point, references) stays SVG; cartesian marks do not.
+ * recorded path, and grouped bars painting on the same surface. Axes, grid,
+ * references, brush, and the active point paint on that Canvas. The named
+ * graphic carries title/desc only.
  */
 import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
@@ -20,9 +21,12 @@ import {
   NO_MARGINS,
   WIDTH,
   bars,
+  canvasMarksOf,
   circles,
+  hasAxis,
   markD,
   markPaths,
+  paintedSvgInGraphic,
   plotCanvases,
 } from "./support";
 
@@ -103,9 +107,9 @@ describe("every cartesian family paints on one Canvas plot", () => {
       const canvas = canvasOf(container);
       expect(canvas.getAttribute("data-silkplot-clip")).toBe("canvas");
       expect(canvas.style.pointerEvents).toBe("none");
-      for (const path of Array.from(container.querySelectorAll("svg path"))) {
-        expect(path.closest("[data-silkplot-axis]"), "no SVG cartesian mark path").not.toBeNull();
-      }
+      expect(container.querySelector("[data-silkplot-plot-overlay]")).toBeNull();
+      expect(container.querySelector("clipPath")).toBeNull();
+      expect(paintedSvgInGraphic(container), "no painted SVG on the named graphic").toEqual([]);
       unmount();
     }
   });
@@ -125,8 +129,8 @@ describe("every cartesian family paints on one Canvas plot", () => {
 
     const scatter = render(() => <ScatterChart title="Cloud" data={XY} {...SIZE} />);
     expect(circles(scatter.container)).toHaveLength(XY.length);
-    // PointMark rings stay SVG overlay; they are not Canvas circles.
     expect(scatter.container.querySelectorAll("svg circle")).toHaveLength(0);
+    expect(paintedSvgInGraphic(scatter.container)).toEqual([]);
 
     const grouped = render(() => (
       <BarChart title="Grouped" desc="Two series" mode="grouped" series={GROUPED} {...SIZE} />
@@ -136,7 +140,7 @@ describe("every cartesian family paints on one Canvas plot", () => {
 });
 
 describe("interaction still writes one active-datum state", () => {
-  it("hover drives the overlay crosshair without needing an SVG mark path", async () => {
+  it("hover drives the Canvas crosshair without needing an SVG mark path", async () => {
     const { container } = render(() => (
       <LineChart
         title="Weekly bookings"
@@ -160,10 +164,10 @@ describe("interaction still writes one active-datum state", () => {
     await frame();
     expect(container.querySelector("[data-silkplot-crosshair]")).not.toBeNull();
     expect(container.querySelector("[data-testid='tt']")?.textContent).toBeTruthy();
-    // The active ring is overlay SVG, sitting in the plot-area clip.
-    expect(container.querySelectorAll("[data-silkplot-plot-overlay] circle").length).toBeGreaterThan(
-      0,
-    );
+    const canvas = canvasOf(container);
+    expect(canvas.hasAttribute("data-silkplot-crosshair")).toBe(true);
+    expect(container.querySelector("[data-silkplot-plot-overlay]")).toBeNull();
+    expect(paintedSvgInGraphic(container)).toEqual([]);
   });
 
   it("keyboard selection still steps, and a ranked bar records the active outline on Canvas", async () => {
@@ -176,6 +180,7 @@ describe("interaction still writes one active-datum state", () => {
     await userEvent.keyboard("{ArrowRight}");
     expect(line.container.querySelector('[role="option"]')?.getAttribute("aria-posinset")).toBe("1");
     expect(line.container.querySelector("[data-silkplot-crosshair]")).not.toBeNull();
+    expect(paintedSvgInGraphic(line.container)).toEqual([]);
 
     const bar = render(() => (
       <BarChart title="Spend" desc="By programme" categories={[...CATS]} {...SIZE} />
@@ -226,5 +231,16 @@ describe("data updates and empty paint", () => {
       />
     ));
     expect(markPaths(container)).toHaveLength(1);
+  });
+
+  it("omits grid lines when gridlines is false, and still paints axes on Canvas", () => {
+    const { container } = render(() => (
+      <LineChart title="Readings" data={TIME} {...SIZE} gridlines={false} curve="linear" />
+    ));
+    const marks = canvasMarksOf(container);
+    expect(marks.some((m) => m.kind === "line" && m.role === "grid")).toBe(false);
+    expect(hasAxis(container, "left")).toBe(true);
+    expect(hasAxis(container, "bottom")).toBe(true);
+    expect(paintedSvgInGraphic(container)).toEqual([]);
   });
 });

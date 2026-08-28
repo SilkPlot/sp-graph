@@ -36,7 +36,6 @@ import type {
   SeriesDatum,
 } from "@silkplot/core";
 import {
-  ChartEmptyMark,
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
@@ -49,10 +48,9 @@ import {
 import { CartesianFrame } from "./CartesianFrame";
 import type { CanvasMark } from "./canvas-marks";
 import type { StyleResolver } from "./canvas-style";
-import { BrushRect, InteractionLayer, PointMark } from "./inspection";
+import { InteractionLayer } from "./inspection";
 import type { CartesianChartProps } from "./scaffold";
 import { dataWithinInterval, type MultiSeriesScope } from "./multi-series";
-import { ReferenceOverlay } from "./ReferenceOverlay";
 
 
 /** What a chart needs to draw one series' marks. */
@@ -339,38 +337,22 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
             paintSeries: props.paintSeries,
           })
         }
-      >
-        {/*
-          AFTER the series, so a threshold stays legible on a dense chart. The
-          full reasoning — including why "above the marks" is achieved by paint
-          order while "never over the axes" is achieved by the frame's shared
-          plot-area clip — is on `ReferenceOverlay` itself.
-        */}
-        <ReferenceOverlay
-          references={props.scope.references()}
-          position={(reference) =>
-            reference.axis === "value"
-              ? model.y()(reference.at)
-              : model.x()(new Date(reference.at))
-          }
-          innerWidth={model.bounds().innerWidth}
-          innerHeight={model.bounds().innerHeight}
-        />
-
-        <Show when={gestures.brush()}>
-          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
-        </Show>
-
-        {/* The active mark, painted above the series and references so the
-            cursor is never hidden behind a dense line. */}
-        <Show when={active()}>
-          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
-        </Show>
-
-        <Show when={props.scope.isEmpty()}>
-          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
-        </Show>
-      </CartesianFrame>
+        chrome={() => {
+          const a = active();
+          return {
+            references: props.scope.references(),
+            position: (reference) =>
+              reference.axis === "value"
+                ? model.y()(reference.at)
+                : model.x()(new Date(reference.at)),
+            brush: gestures.brush(),
+            point: a === undefined ? undefined : { cx: a.position.x, cy: a.position.y },
+            empty: props.scope.isEmpty()
+              ? (props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE)
+              : undefined,
+          };
+        }}
+      />
 
       <ChartEmptyState when={props.scope.isEmpty()} message={props.emptyMessage} />
 

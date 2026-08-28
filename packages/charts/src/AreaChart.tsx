@@ -22,7 +22,6 @@ import {
   type SeriesDatum,
 } from "@silkplot/core";
 import {
-  ChartEmptyMark,
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
@@ -31,9 +30,7 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import {
-  BrushRect,
   InteractionLayer,
-  PointMark,
   createTimeChartInspection,
   type TimeChartInspectionProps,
 } from "./inspection";
@@ -208,17 +205,15 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
           );
           return painted;
         }}
-      >
-        <Show when={gestures.brush()}>
-          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
-        </Show>
-        <Show when={active()}>
-          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
-        </Show>
-        <Show when={scope.isEmpty()}>
-          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
-        </Show>
-      </CartesianFrame>
+        chrome={() => {
+          const a = active();
+          return {
+            brush: gestures.brush(),
+            point: a === undefined ? undefined : { cx: a.position.x, cy: a.position.y },
+            empty: scope.isEmpty() ? (props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE) : undefined,
+          };
+        }}
+      />
       <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
 
       <Show when={insp.enabled() || insp.pointer()}>

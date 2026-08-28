@@ -35,6 +35,9 @@ import {
   axisLabels,
   expectNoNaN,
   chartSvgs,
+  referenceLines,
+  plotCanvases,
+  marksOnCanvas,
 } from "./support";
 import {
   W1_SERIES_COUNT,
@@ -98,7 +101,7 @@ describe("W1 — one chart composes 22 series with three references", () => {
 
   it("renders all three references — two on the value axis, one temporal — and lists them accessibly", () => {
     const { container } = mountDense();
-    expect(container.querySelectorAll("[data-silkplot-reference] line")).toHaveLength(3);
+    expect(referenceLines(container)).toHaveLength(3);
     expect(container.querySelectorAll("[data-silkplot-reference-item]")).toHaveLength(3);
   });
 
@@ -210,9 +213,11 @@ describe("W1 — 48 charts mount in one dashboard", () => {
 
     // Each revealed panel drew geometry rather than staying at zero width.
     await vi.waitFor(() => {
-      const revealed = chartSvgs(container).slice(3);
-      for (const svg of revealed) {
-        expect(svg.querySelector("path, rect, circle")).not.toBeNull();
+      const canvases = plotCanvases(container);
+      expect(canvases.length).toBeGreaterThanOrEqual(6);
+      for (const canvas of canvases.slice(3)) {
+        expect(Number(canvas.getAttribute("data-silkplot-plot-width"))).toBeGreaterThan(0);
+        expect(marksOnCanvas(canvas).length).toBeGreaterThan(0);
       }
     });
   });
@@ -379,8 +384,8 @@ describe("W3 — ranked analysis keeps meaning across orientation, format, and a
 
   it("truncates a long axis label but keeps the full text in the table", () => {
     const { container } = mountRanked({ categories: w3Ranked(), orientation: "horizontal" });
-    const ticks = [...container.querySelectorAll("text")].map((t) => t.textContent ?? "");
-    expect(ticks.some((t) => t.includes("…"))).toBe(true);
+    const ticks = [...axisLabels(container, "left"), ...axisLabels(container, "bottom")];
+    expect(ticks.some((t) => t?.includes("…"))).toBe(true);
     // The category is a row header (`<th scope="row">`), not a `<td>`, so read the
     // whole table: the FULL label must survive there, untruncated — the ellipsis
     // is an axis-only fallback (ADR-0013 §5).
@@ -391,12 +396,12 @@ describe("W3 — ranked analysis keeps meaning across orientation, format, and a
 
   it("threads currency and percentage formatters through the value axis", () => {
     const currency = mountRanked({ categories: w3Ranked(), valueTickFormat: w3Currency });
-    const cTicks = [...currency.container.querySelectorAll("text")].map((t) => t.textContent ?? "");
-    expect(cTicks.some((t) => t.includes("R"))).toBe(true);
+    const cTicks = [...axisLabels(currency.container, "bottom"), ...axisLabels(currency.container, "left")];
+    expect(cTicks.some((t) => t?.includes("R"))).toBe(true);
 
     const percent = mountRanked({ categories: w3Signed(), valueTickFormat: w3Percent });
-    const pTicks = [...percent.container.querySelectorAll("text")].map((t) => t.textContent ?? "");
-    expect(pTicks.some((t) => t.includes("%"))).toBe(true);
+    const pTicks = [...axisLabels(percent.container, "bottom"), ...axisLabels(percent.container, "left")];
+    expect(pTicks.some((t) => t?.includes("%"))).toBe(true);
   });
 
   it("crosses zero on a signed ranked set without non-finite geometry", () => {

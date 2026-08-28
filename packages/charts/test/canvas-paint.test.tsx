@@ -9,7 +9,7 @@
  * what its comment says.
  */
 import { describe, expect, it } from "vitest";
-import type { NormalizedCategory } from "@silkplot/core";
+import { linearScale, type NormalizedCategory } from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
 import {
   canvasMarksOf,
@@ -23,10 +23,21 @@ import {
   paintBar,
   paintCircle,
   paintFill,
+  paintLine,
+  paintRing,
   paintStroke,
+  paintText,
   pushMark,
 } from "../src/canvas-paint";
 import { syncCanvasPlot } from "../src/canvas-plot";
+import { paintAxis, paintGridlines } from "../src/canvas-frame";
+import {
+  paintBrush,
+  paintEmptyMark,
+  paintPointMark,
+  paintReferences,
+} from "../src/canvas-chrome";
+import { paintCartesianSurface } from "../src/canvas-surface";
 import { createStyleResolver, parseDash } from "../src/canvas-style";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
@@ -71,6 +82,7 @@ describe("createStyleResolver", () => {
     expect(resolve.dash("4 2")).toEqual([4, 2]);
     expect(resolve.dash(undefined)).toEqual([]);
     expect(resolve.dash("none")).toEqual([]);
+    expect(resolve.font("11px")).toBe("11px sans-serif");
   });
 
   it("resolves against a live host, including var() and a dash list, and caches the result", () => {
@@ -91,6 +103,9 @@ describe("createStyleResolver", () => {
     expect(dashed[1]).toBe(2);
     expect(resolve.dash("4 2")).toBe(dashed);
     expect(resolve.dash(undefined)).toEqual([]);
+    const font = resolve.font("11px");
+    expect(font).toMatch(/\d+px/);
+    expect(resolve.font("11px")).toBe(font);
     host.remove();
   });
 });
@@ -291,7 +306,7 @@ describe("syncCanvasPlot", () => {
     expect(canvas.getAttribute("data-silkplot-plot-height")).toBe("0");
   });
 
-  it("paints, clips, and remembers when the plot has area", () => {
+  it("paints and remembers when the plot has area", () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     syncCanvasPlot(canvas, { width: 20, height: 16 }, (ctx, plot, resolve) => {
@@ -301,6 +316,22 @@ describe("syncCanvasPlot", () => {
     });
     expect(canvas.width).toBe(Math.round(20 * window.devicePixelRatio));
     expect(marksOnCanvas(canvas)).toHaveLength(1);
+  });
+
+  it("translates to the plot origin and sizes the bitmap to the outer chart", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    syncCanvasPlot(
+      canvas,
+      { width: 20, height: 10, originX: 8, originY: 4, outerWidth: 40, outerHeight: 24 },
+      (_ctx, plot) => {
+        expect(plot.width).toBe(20);
+        expect(plot.height).toBe(10);
+        return [];
+      },
+    );
+    expect(canvas.width).toBe(Math.round(40 * window.devicePixelRatio));
+    expect(canvas.height).toBe(Math.round(24 * window.devicePixelRatio));
   });
 });
 
@@ -339,5 +370,152 @@ describe("rankedBarRect", () => {
     expect(vertical).toEqual({ x: 8, y: 60, width: 20, height: 40 });
     const horizontal = rankedBarRect(model(12, "horizontal"), present);
     expect(horizontal).toEqual({ x: 60, y: 12, width: 40, height: 20 });
+  });
+});
+
+describe("paintLine / paintText / paintRing", () => {
+  it("records a dashed line, a rotated label, and a cursor ring", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const line = paintLine(
+      ctx,
+      0,
+      1,
+      10,
+      1,
+      { stroke: "#111", strokeWidth: 2, dash: "3 2", opacity: 0.5 },
+      resolve,
+      "grid",
+      { axis: "x" },
+    );
+    expect(line.role).toBe("grid");
+    expect(line.dash).toBe("3 2");
+    const upright = paintText(
+      ctx,
+      4,
+      5,
+      "ok",
+      { fill: "#222", rotate: 0, anchor: "center" },
+      resolve,
+      "axis-label",
+      { axis: "bottom" },
+    );
+    expect(upright.rotation).toBeUndefined();
+    const rotated = paintText(
+      ctx,
+      4,
+      5,
+      "ok",
+      { fill: "#222", rotate: -45, anchor: "end" },
+      resolve,
+      "axis-label",
+      { axis: "bottom" },
+    );
+    expect(rotated.rotation).toBe("-45");
+    const ring = paintRing(ctx, 8, 9, { stroke: "#333", strokeWidth: 3, radius: 5 }, resolve);
+    expect(ring.role).toBe("cursor");
+    expect(ring.r).toBe("5");
+    expect(ring.fill).toBe("none");
+  });
+});
+
+describe("canvas frame and chrome", () => {
+  const plot = { width: 100, height: 80 };
+
+  function scale() {
+    return linearScale({ domain: [0, 10], range: [0, 100] });
+  }
+
+  it("paints top and right axes as well as the left/bottom pair the frame uses", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const into: CanvasMark[] = [];
+    paintAxis(ctx, { scale: scale(), orientation: "top", plot }, resolve, into);
+    paintAxis(ctx, { scale: scale(), orientation: "right", plot }, resolve, into);
+    paintGridlines(ctx, scale(), "x", plot, resolve, into);
+    expect(into.some((m) => m.kind === "line" && m.role === "axis-domain" && m.axis === "top")).toBe(
+      true,
+    );
+    expect(into.some((m) => m.kind === "line" && m.role === "axis-domain" && m.axis === "right")).toBe(
+      true,
+    );
+    expect(into.some((m) => m.kind === "line" && m.role === "grid" && m.axis === "x")).toBe(true);
+  });
+
+  it("paints references, brush, point, and empty chrome, and no-ops a collapsed plot", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const into: CanvasMark[] = [];
+    const valueRef = {
+      id: "sla",
+      label: "SLA",
+      axis: "value" as const,
+      at: 20,
+      includeInDomain: true,
+      style: {},
+      sourceIndex: 0,
+    };
+    const timeRef = {
+      id: "deploy",
+      label: "Deploy",
+      axis: "time" as const,
+      at: 50,
+      includeInDomain: true,
+      style: { dash: [2, 2] },
+      sourceIndex: 1,
+    };
+    paintReferences(ctx, [valueRef, timeRef], (r) => r.at, plot, resolve, into);
+    expect(into.filter((m) => m.kind === "line" && m.role === "reference")).toHaveLength(2);
+    paintReferences(ctx, [valueRef], () => 10, { width: 0, height: 10 }, resolve, into);
+    paintBrush(ctx, 10, 40, plot.height, resolve, into);
+    expect(into.some((m) => m.kind === "rect" && m.role === "brush")).toBe(true);
+    paintPointMark(ctx, 12, 14, plot, resolve, into);
+    expect(into.filter((m) => m.kind === "circle" && m.role === "cursor")).toHaveLength(2);
+    paintEmptyMark(ctx, "Nothing here", plot, resolve, into);
+    expect(into.some((m) => m.kind === "text" && m.role === "empty")).toBe(true);
+  });
+
+  it("paints a cartesian surface with and without grid and chrome", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const xScale = linearScale({ domain: [0, 10], range: [0, 100] });
+    const yScale = linearScale({ domain: [0, 10], range: [80, 0] });
+    const bare = paintCartesianSurface(ctx, plot, resolve, {
+      grid: false,
+      xScale,
+      yScale,
+      paintMarks: () => [],
+    });
+    expect(bare.some((m) => m.kind === "line" && m.role === "grid")).toBe(false);
+    expect(bare.some((m) => m.kind === "line" && m.role === "axis-domain")).toBe(true);
+    const withChrome = paintCartesianSurface(ctx, plot, resolve, {
+      grid: true,
+      xScale,
+      yScale,
+      xFormat: (v: number) => String(v),
+      yFormat: (v: number) => String(v),
+      xLabelRotation: -45,
+      paintMarks: () => [],
+      chrome: {
+        references: [
+          {
+            id: "sla",
+            label: "SLA",
+            axis: "value",
+            at: 5,
+            includeInDomain: true,
+            style: {},
+            sourceIndex: 0,
+          },
+        ],
+        position: () => 40,
+        brush: { x0: 10, x1: 30 },
+        point: { cx: 20, cy: 20 },
+        empty: "empty",
+      },
+    });
+    expect(withChrome.some((m) => m.kind === "line" && m.role === "grid")).toBe(true);
+    expect(withChrome.some((m) => m.kind === "line" && m.role === "reference")).toBe(true);
+    expect(withChrome.some((m) => m.kind === "rect" && m.role === "brush")).toBe(true);
   });
 });

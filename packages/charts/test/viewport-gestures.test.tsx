@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathXsOnPlot, pathYs } from "./support";
+import { HEIGHT, NO_MARGINS, WIDTH, expectedYScale, markD, pathXs, pathXsOnPlot, pathYs, plotCanvases } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -90,8 +90,8 @@ function pointer(
 }
 
 /** The live brush rectangle, if one is being drawn. */
-function brushRect(container: HTMLElement): SVGRectElement | null {
-  return container.querySelector<SVGRectElement>("[data-silkplot-brush]");
+function brushRect(container: HTMLElement): HTMLCanvasElement | null {
+  return plotCanvases(container).find((el) => el.hasAttribute("data-silkplot-brush")) ?? null;
 }
 
 /** Dispatch one finger of a multi-touch gesture at a plot-x. */

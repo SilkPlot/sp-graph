@@ -17,7 +17,7 @@ import { render } from "@solidjs/testing-library";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
-import { chartSvgs } from "./support";
+import { chartSvgs, markD } from "./support";
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 2, 1);
@@ -171,9 +171,7 @@ describe("A member revealed after being hidden", () => {
     // `createResize` exists for exactly this: a container that was not
     // measurable when the chart mounted. A chart that stayed at zero width
     // renders an svg with no marks, which looks like an empty dataset.
-    await expect
-      .poll(() => container.querySelector("path")?.getAttribute("d") ?? "")
-      .not.toBe("");
+    await expect.poll(() => markD(container)).not.toBe("");
     expect(charts(container)).toHaveLength(1);
   });
 });

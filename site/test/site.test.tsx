@@ -21,6 +21,7 @@ import { render, cleanup } from "@solidjs/testing-library";
 import { examples } from "../src/examples/registry";
 import { installThemeStyles } from "../src/install-styles";
 import { App } from "../src/App";
+import { canvasMarksOf } from "../../packages/charts/src/canvas-marks";
 // The site stylesheet, loaded exactly as the entry point loads it. Without it
 // the layout assertions below measure unstyled markup — no `overflow-x` on the
 // scroll containers, no `min-width: 0` on the grid items — and report a page
@@ -77,10 +78,21 @@ describe("each example renders", () => {
 
       // Marks, not merely a frame. An empty chart still has an <svg> and axes,
       // so counting those would pass on a chart that draws no data at all.
-      const marks = container.querySelectorAll(
+      // Cartesian marks paint on Canvas; the named graphic carries title/desc
+      // only. Read the recorded Canvas descriptors the same way showcase does.
+      const svgMarks = container.querySelectorAll(
         "path[d]:not([d='']), rect[width], circle",
       );
-      expect(marks.length, `${ex.file} drew no marks`).toBeGreaterThan(0);
+      const canvasMarks = canvasMarksOf(container).filter((m) => {
+        if (m.kind === "path") return m.d !== "";
+        if (m.kind === "rect") return m.role !== "brush";
+        if (m.kind === "circle") return m.role !== "cursor";
+        return false;
+      });
+      expect(
+        svgMarks.length + canvasMarks.length,
+        `${ex.file} drew no marks`,
+      ).toBeGreaterThan(0);
 
       // Every example is informative, so every one must reach the accessibility
       // tree with a name. This is the contract the library enforces at compile

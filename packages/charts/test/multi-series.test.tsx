@@ -29,6 +29,7 @@ import {
   pathXs,
   pathYs,
   plotCanvases,
+  axisLabels,
 } from "./support";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
@@ -652,11 +653,9 @@ describe("an area chart's empty state", () => {
  * two surfaces could be crossed, that the other one is unchanged.
  */
 describe("caller formatting reaches the surface it names", () => {
-  /** Tick labels for one axis. `data-silkplot-axis` carries the orientation. */
+  /** Tick labels for one axis, from the Canvas recorded surface. */
   const tickText = (container: HTMLElement, orientation: "bottom" | "left"): string[] =>
-    [...container.querySelectorAll(`[data-silkplot-axis="${orientation}"] text`)].map(
-      (t) => t.textContent ?? "",
-    );
+    axisLabels(container, orientation).filter((t): t is string => t !== null);
 
   const cellText = (container: HTMLElement): string[] =>
     [...container.querySelectorAll("tbody td")].map((td) => td.textContent ?? "");

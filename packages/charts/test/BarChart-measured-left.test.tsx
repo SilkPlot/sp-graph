@@ -13,6 +13,7 @@ import type { RankedCategory } from "@silkplot/core";
 import { CATEGORY_LABEL_LEFT_TICK_GAP_PX } from "@silkplot/core";
 import { BarChart } from "../src/index";
 import { HEIGHT, WIDTH, axisLabels } from "./support";
+import { measurePaintedAxisLabelWidth } from "../src/measure-axis-label";
 
 const NAME = "Spend by programme";
 const DESC = "Programme spend, in rand, ranked by amount.";
@@ -39,11 +40,10 @@ function plotTranslateX(container: HTMLElement): number {
 }
 
 function paintedLeftLabelMaxWidth(container: HTMLElement): number {
-  const axis = container.querySelector('g[data-silkplot-axis="left"]');
-  const texts = Array.from(axis?.querySelectorAll("text") ?? []);
   let max = 0;
-  for (const text of texts) {
-    const width = (text as SVGGraphicsElement).getBBox().width;
+  for (const label of axisLabels(container, "left")) {
+    if (label === null || label === "") continue;
+    const width = measurePaintedAxisLabelWidth(label);
     if (width > max) max = width;
   }
   return max;

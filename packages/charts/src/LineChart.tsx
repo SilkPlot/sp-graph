@@ -2,7 +2,7 @@
  * LineChart — a time series drawn as a single `linePath` stroke.
  *
  * The scaffolding — bounds, pixel ranges, the y-domain policy — comes from
- * `createCartesianModel`; the axes and the SVG frame from `CartesianFrame`.
+ * `createCartesianModel`; the axes and the Canvas frame from `CartesianFrame`.
  * What is written here is only what makes this chart a line chart:
  *
  *   - a time x-domain covering the data's extent;
@@ -22,7 +22,6 @@ import {
   type Series,
 } from "@silkplot/core";
 import {
-  ChartEmptyMark,
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
@@ -30,9 +29,7 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import {
-  BrushRect,
   InteractionLayer,
-  PointMark,
   createTimeChartInspection,
   type TimeChartInspectionProps,
 } from "./inspection";
@@ -274,18 +271,15 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
           );
           return marks;
         }}
-      >
-        <Show when={gestures.brush()}>
-          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
-        </Show>
-        {/* Solid's `<Show>` render-prop yields the narrowed `when` value itself. */}
-        <Show when={active()}>
-          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
-        </Show>
-        <Show when={scope.isEmpty()}>
-          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
-        </Show>
-      </CartesianFrame>
+        chrome={() => {
+          const a = active();
+          return {
+            brush: gestures.brush(),
+            point: a === undefined ? undefined : { cx: a.position.x, cy: a.position.y },
+            empty: scope.isEmpty() ? (props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE) : undefined,
+          };
+        }}
+      />
 
       <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
 

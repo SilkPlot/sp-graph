@@ -5,7 +5,7 @@
  * is why the series contract writes those strings: the theme cascade is the
  * colour, not a computed hex. A Canvas plot has to resolve the same strings
  * against a live element so a themed chart and an unthemed one still agree
- * with the tokens the SVG axes beside them inherit.
+ * with the tokens the rest of the page inherits.
  *
  * Resolution is a probe `<path>` appended to the host — `getComputedStyle`
  * on a Canvas element has no `stroke` / `stroke-dasharray` used-value. The
@@ -15,6 +15,8 @@
 export interface StyleResolver {
   color: (specified: string | undefined) => string;
   dash: (specified: string | undefined) => number[];
+  /** Canvas `font` shorthand for a CSS size (token or px). */
+  font: (size: string) => string;
 }
 
 const NONE = "none";
@@ -66,6 +68,18 @@ function resolveDash(host: Element, specified: string | undefined): number[] {
   return parseDash(readUsed(host, specified, "stroke-dasharray"));
 }
 
+function resolveFont(host: Element, size: string): string {
+  if (!host.isConnected) return `${size} sans-serif`;
+  const probe = document.createElement("span");
+  probe.style.fontSize = size;
+  probe.style.position = "absolute";
+  host.appendChild(probe);
+  const computed = getComputedStyle(probe);
+  const font = `${computed.fontSize} ${computed.fontFamily}`;
+  probe.remove();
+  return font;
+}
+
 /**
  * A resolver bound to one host element, with a per-paint cache so 22 series
  * sharing eight palette tokens do not each mount a probe.
@@ -73,6 +87,7 @@ function resolveDash(host: Element, specified: string | undefined): number[] {
 export function createStyleResolver(host: Element): StyleResolver {
   const colors = new Map<string, string>();
   const dashes = new Map<string, number[]>();
+  const fonts = new Map<string, string>();
   return {
     color: (specified) => {
       const key = specified ?? "currentColor";
@@ -88,6 +103,13 @@ export function createStyleResolver(host: Element): StyleResolver {
       if (hit !== undefined) return hit;
       const resolved = resolveDash(host, specified);
       dashes.set(key, resolved);
+      return resolved;
+    },
+    font: (size) => {
+      const hit = fonts.get(size);
+      if (hit !== undefined) return hit;
+      const resolved = resolveFont(host, size);
+      fonts.set(size, resolved);
       return resolved;
     },
   };

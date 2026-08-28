@@ -1,13 +1,25 @@
 /**
- * The mark descriptors a Canvas plot records after each paint — the test
- * surface for geometry that used to live on SVG `path` / `circle` / `rect`
- * attributes. Production paint writes the same numbers it stroked, so a
- * helper that reads these is reading the Canvas surface, not a parallel SVG
- * that no longer exists.
+ * The descriptors a Canvas plot records after each paint — the test surface
+ * for geometry that used to live on SVG attributes.
  *
- * A WeakMap, not a data-attribute: a dense path `d` can be large, and the
- * live element is the natural key. Tests reach this through `support.ts`.
+ * Production paint writes the same numbers it stroked, so a helper that reads
+ * these is reading the Canvas surface. Cartesian charts paint marks, axes,
+ * grid, and plot chrome (references, brush, active point) onto one bitmap;
+ * `role` tells those channels apart. A WeakMap, not a data-attribute: a dense
+ * path `d` can be large, and the live element is the natural key.
  */
+
+export type MarkRole = "mark" | "cursor";
+export type LineRole =
+  | "grid"
+  | "axis-tick"
+  | "axis-domain"
+  | "reference"
+  | "crosshair-x"
+  | "crosshair-y";
+export type TextRole = "axis-label" | "reference-label" | "empty";
+export type RectRole = "mark" | "brush";
+export type AxisSide = "left" | "bottom" | "top" | "right";
 
 export interface PathMark {
   kind: "path";
@@ -26,6 +38,9 @@ export interface CircleMark {
   r: string;
   fill: string;
   fillOpacity: string;
+  stroke?: string;
+  strokeWidth?: string;
+  role?: MarkRole;
 }
 
 export interface RectMark {
@@ -37,9 +52,37 @@ export interface RectMark {
   fill: string;
   stroke: string;
   strokeWidth: string;
+  role?: RectRole;
 }
 
-export type CanvasMark = PathMark | CircleMark | RectMark;
+export interface LineMark {
+  kind: "line";
+  x1: string;
+  y1: string;
+  x2: string;
+  y2: string;
+  stroke: string;
+  strokeWidth: string;
+  dash: string | undefined;
+  role: LineRole;
+  axis?: AxisSide | "x" | "y";
+  referenceId?: string;
+}
+
+export interface TextMark {
+  kind: "text";
+  x: string;
+  y: string;
+  text: string;
+  fill: string;
+  anchor: string;
+  role: TextRole;
+  axis?: AxisSide;
+  referenceId?: string;
+  rotation?: string;
+}
+
+export type CanvasMark = PathMark | CircleMark | RectMark | LineMark | TextMark;
 
 const recorded = new WeakMap<HTMLCanvasElement, readonly CanvasMark[]>();
 

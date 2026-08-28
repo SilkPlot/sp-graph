@@ -29,12 +29,7 @@ import {
   type ChartTableRow,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
-import {
-  InteractionLayer,
-  PointMark,
-  useInspection,
-  type KeyboardHoverProps,
-} from "./inspection";
+import { InteractionLayer, useInspection, type KeyboardHoverProps } from "./inspection";
 import { paintCircle, pushMark } from "./canvas-paint";
 import type { CanvasMark } from "./canvas-marks";
 import {
@@ -156,11 +151,11 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
           }
           return painted;
         }}
-      >
-        <Show when={active()}>
-          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
-        </Show>
-      </CartesianFrame>
+        chrome={() => {
+          const a = active();
+          return a === undefined ? {} : { point: { cx: a.position.x, cy: a.position.y } };
+        }}
+      />
 
       <Show when={insp.enabled() || insp.pointer()}>
         <InteractionLayer

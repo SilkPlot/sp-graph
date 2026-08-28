@@ -24,12 +24,16 @@ import {
   HEIGHT,
   NO_MARGINS,
   WIDTH,
+  canvasMarksOf,
   expectNoNaN,
   expectedYScale,
   markPaths,
   num,
   pathXs,
   pathYs,
+  referenceLabels,
+  referenceLine,
+  referenceLines,
 } from "./support";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
@@ -60,19 +64,12 @@ function mount(props: Record<string, unknown> = {}) {
   ));
 }
 
-const refLines = (c: HTMLElement): SVGLineElement[] =>
-  Array.from(c.querySelectorAll("[data-silkplot-reference] line"));
+const refLines = (c: HTMLElement) => referenceLines(c);
 
-const refLine = (c: HTMLElement, id: string): SVGLineElement => {
-  const el = c.querySelector<SVGLineElement>(`[data-silkplot-reference="${id}"] line`);
-  expect(el, `no reference line rendered for id "${id}"`).not.toBeNull();
-  return el as SVGLineElement;
-};
+const refLine = (c: HTMLElement, id: string) => referenceLine(c, id);
 
 const refLabels = (c: HTMLElement): string[] =>
-  Array.from(c.querySelectorAll("[data-silkplot-reference-label]")).map(
-    (t) => t.textContent ?? "",
-  );
+  referenceLabels(c).map((t) => t.getAttribute("text") ?? "");
 
 const listItems = (c: HTMLElement): string[] =>
   Array.from(c.querySelectorAll("[data-silkplot-reference-item]")).map(
@@ -256,13 +253,9 @@ describe("labels — collision, and what happens when one cannot be placed", () 
         { id: "warn", value: 20.0001, label: "Warning" },
       ],
     });
-    const labels = Array.from(
-      container.querySelectorAll<SVGTextElement>("[data-silkplot-reference-label]"),
-    );
+    const labels = referenceLabels(container);
     expect(labels).toHaveLength(2);
-    const [a, b] = labels as [SVGTextElement, SVGTextElement];
-    // Same y band, so they must have been separated on x.
-    expect(num(a, "x")).not.toBeCloseTo(num(b, "x"), 1);
+    expect(num(labels[0]!, "x")).not.toBeCloseTo(num(labels[1]!, "x"), 1);
   });
 
   it("keeps both labels when the values are far apart", () => {
@@ -274,9 +267,7 @@ describe("labels — collision, and what happens when one cannot be placed", () 
         { id: "hi", value: 28, label: "High" },
       ],
     });
-    const xs = Array.from(
-      container.querySelectorAll<SVGTextElement>("[data-silkplot-reference-label]"),
-    ).map((t) => num(t, "x"));
+    const xs = referenceLabels(container).map((t) => num(t, "x"));
     expect(xs).toHaveLength(2);
     expect(xs[0]).toBeCloseTo(xs[1] as number, 6);
   });
@@ -448,7 +439,9 @@ describe("reactivity — references are dynamic", () => {
     expect(refLines(container)).toHaveLength(2);
     setRefs([{ id: "b", value: 18, label: "B" }]);
     expect(refLines(container)).toHaveLength(1);
-    expect(container.querySelector('[data-silkplot-reference="a"]')).toBeNull();
+    expect(
+      canvasMarksOf(container).some((m) => "referenceId" in m && m.referenceId === "a"),
+    ).toBe(false);
     expect(listItems(container)).toEqual(["B: 18"]);
   });
 

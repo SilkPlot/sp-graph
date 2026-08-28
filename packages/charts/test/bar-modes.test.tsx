@@ -41,6 +41,7 @@ import {
   bars as getBars,
   expectNoNaN,
   num,
+  axisLabels,
 } from "./support";
 
 const RECT_ATTRS = ["x", "y", "width", "height"] as const;
@@ -356,7 +357,7 @@ describe("formatters and opt-ins", () => {
         categoryTickFormat={(label) => `d:${label.slice(8)}`}
       />
     ));
-    expect(container.textContent).toContain("d:");
+    expect(axisLabels(container, "bottom").some((t) => t?.startsWith("d:"))).toBe(true);
   });
 
   it("falls back to xTickFormat and yTickFormat when the ranked names are absent", () => {
