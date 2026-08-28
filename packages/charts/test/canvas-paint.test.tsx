@@ -316,6 +316,27 @@ describe("syncCanvasPlot", () => {
     });
     expect(canvas.width).toBe(Math.round(20 * window.devicePixelRatio));
     expect(marksOnCanvas(canvas)).toHaveLength(1);
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBe("M0,0L20,16");
+  });
+
+  it("annotates axis-label count and clears the series path when none was painted", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, (ctx, _plot, resolve) => {
+      const mark = paintText(
+        ctx,
+        0,
+        0,
+        "0",
+        { fill: "#000", fontSize: "11px" },
+        resolve,
+        "axis-label",
+        { axis: "left" },
+      );
+      return mark === undefined ? [] : [mark];
+    });
+    expect(canvas.getAttribute("data-silkplot-axis-labels")).toBe("1");
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBeNull();
   });
 
   it("translates to the plot origin and sizes the bitmap to the outer chart", () => {

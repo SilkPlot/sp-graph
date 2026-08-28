@@ -49,6 +49,8 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   const rotated = marks.find(
     (m): m is TextMark => m.kind === "text" && m.role === "axis-label" && m.rotation !== undefined,
   );
+  const axisLabels = marks.filter((m) => m.kind === "text" && m.role === "axis-label").length;
+  const series = marks.find((m) => m.kind === "path" && m.stroke !== "none" && m.d !== "");
   toggleAttr(el, "data-silkplot-crosshair", hasCross);
   toggleAttr(el, "data-silkplot-brush", hasBrush);
   toggleAttr(el, "data-silkplot-references", hasRefs);
@@ -56,6 +58,10 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   else el.removeAttribute("data-silkplot-empty");
   if (rotated !== undefined) el.setAttribute("data-silkplot-label-rotation", rotated.rotation ?? "");
   else el.removeAttribute("data-silkplot-label-rotation");
+  if (axisLabels > 0) el.setAttribute("data-silkplot-axis-labels", String(axisLabels));
+  else el.removeAttribute("data-silkplot-axis-labels");
+  if (series !== undefined) el.setAttribute("data-silkplot-mark-d", series.d);
+  else el.removeAttribute("data-silkplot-mark-d");
 }
 
 function toggleAttr(el: HTMLCanvasElement, name: string, on: boolean): void {
