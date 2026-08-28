@@ -68,7 +68,7 @@ export const PACKAGES: readonly PackageRow[] = [
   },
   {
     name: "@silkplot/charts",
-    purpose: "Composed charts — Line, Area, Bar, Scatter. Heatmap exists in source and is unpublished.",
+    purpose: "Composed charts — Line, Area, Bar, Scatter. Heatmap exists in source and is unpublished. Pie, donut, tree, treemap, pack, bubble, and histogram exist in source and are unpublished.",
     status: "Alpha",
     note: "Each one composes the same Cartesian model the primitives expose.",
   },

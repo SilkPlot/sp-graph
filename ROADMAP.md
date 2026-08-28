@@ -86,7 +86,10 @@ Explored, deliberately not committed:
 - Grouped and stacked bars exist in source and are unpublished.
 - Canvas is the named renderer ([ADR-0025](docs/decisions/adr-0025-canvas-promoted-for-s016-sequence.md)); a density-layer promotion still waits on measurement.
 - Heatmaps and calendar virtualization exist in source and are unpublished.
-- Pie/donut and hierarchy/force layouts, when real consumers justify them.
+- Pie and donut exist in source and are unpublished.
+- Tree, treemap, and pack exist in source and are unpublished.
+- Bubble exists in source and is unpublished.
+- Histogram exists in source and is unpublished.
 
 ## Non-goals
 
