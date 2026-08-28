@@ -28,6 +28,52 @@ export type { CalendarEvent, EventRect } from "./overlap-resolver";
 export { WeekGrid } from "./week-grid";
 export type { WeekGridProps } from "./week-grid";
 
+export {
+  eventBlockBox,
+  weekCanvasSize,
+  WEEK_HEADER_HEIGHT,
+} from "./canvas-week-geometry";
+export type { EventBlockBox, WeekCanvasSize } from "./canvas-week-geometry";
+
+export { paintCanvasWeek, syncCanvasWeek } from "./canvas-week-paint";
+export type { CanvasWeekPaintArgs } from "./canvas-week-paint";
+
+export {
+  marksOnCanvasWeek,
+  canvasWeekPlotsOf,
+} from "./canvas-week-marks";
+export type { CanvasWeekMark, CanvasWeekRectMark } from "./canvas-week-marks";
+
+export { CanvasWeek } from "./canvas-week";
+export type { CanvasWeekProps } from "./canvas-week";
+
+export {
+  ACCEPTANCE_MS,
+  BOOKING_DENSITY,
+  BOOKING_DENSITY_RECORD,
+  FRAME_BUDGET_MS,
+  bookingBoard,
+  bookingEvents,
+  bookingHours,
+  boardCanvasSize,
+  boardPaintArgs,
+  boardPaintArgsUnfiltered,
+  keepBookingSlot,
+  paintPassStats,
+  timePaintPasses,
+  timeSyncPasses,
+} from "./canvas-week-budget";
+export type { BookingBoard, BookingDensityRecord, PaintPassStats } from "./canvas-week-budget";
+
+export {
+  DEFAULT_OVERSCAN_PX,
+  inflateViewport,
+  visibleEventRects,
+  visibleDays,
+  boxesIntersect,
+} from "./canvas-week-visible";
+export type { PixelViewport } from "./canvas-week-visible";
+
 export { buildAgenda } from "./agenda";
 export type { AgendaDay, AgendaEventItem, AgendaItem, AgendaSlotItem } from "./agenda";
 

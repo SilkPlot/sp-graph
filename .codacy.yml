@@ -215,6 +215,8 @@ engines:
   duplication:
     exclude_paths:
       - "packages/calendar/test/agenda-view.test.tsx"
+      - "packages/calendar/test/canvas-week-geometry.test.ts"
+      - "packages/calendar/test/canvas-week.test.tsx"
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
       - "packages/calendar/test/week-grid.test.tsx"
@@ -338,6 +340,8 @@ engines:
   metric:
     exclude_paths:
       - "packages/calendar/test/agenda-view.test.tsx"
+      - "packages/calendar/test/canvas-week-geometry.test.ts"
+      - "packages/calendar/test/canvas-week.test.tsx"
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
       - "packages/calendar/test/week-grid.test.tsx"
@@ -469,6 +473,8 @@ engines:
   lizard:
     exclude_paths:
       - "packages/calendar/test/agenda-view.test.tsx"
+      - "packages/calendar/test/canvas-week-geometry.test.ts"
+      - "packages/calendar/test/canvas-week.test.tsx"
       - "packages/calendar/test/overlap-resolver.test.ts"
       - "packages/calendar/test/time-grid.test.ts"
       - "packages/calendar/test/week-grid.test.tsx"
