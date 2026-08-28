@@ -19,6 +19,7 @@ import type {
 } from "@silkplot/core";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { TimePoint, XYPoint } from "../src/index";
+import { bars } from "./support";
 
 const SIZE = { width: 400, height: 300 };
 
@@ -35,6 +36,9 @@ const surfaceOf = (c: HTMLElement) =>
 const crosshairOf = (c: HTMLElement) => c.querySelector("[data-silkplot-crosshair]");
 const tooltipOf = (c: HTMLElement) => c.querySelector("[data-silkplot-tooltip]");
 const announcerOf = (c: HTMLElement) => c.querySelector("[data-silkplot-announcer]");
+/** The active bar's outline — recorded on the Canvas rect, not an SVG stroke. */
+const emphasisedBar = (c: HTMLElement) =>
+  bars(c).find((r) => r.getAttribute("stroke-width") === "2");
 
 /** Two frames: the pointer path schedules one rAF, and layout settles in the next. */
 const frame = (): Promise<void> =>
@@ -196,9 +200,8 @@ describe("other families hover", () => {
     const active = onChange.mock.calls.at(-1)?.[0] as ActivePoint<RankedCategory> | undefined;
     expect(active).toBeDefined();
     expect(active?.at.kind).toBe("category");
-    // The active bar is emphasised with a stroke.
-    const emphasised = container.querySelector('rect[stroke-width="2"]');
-    expect(emphasised).not.toBeNull();
+    // The active bar is emphasised with a stroke on the Canvas rect.
+    expect(emphasisedBar(container)).toBeTruthy();
   });
 });
 
@@ -274,8 +277,8 @@ describe("hover wording and configuration", () => {
       expect(bare, "a bare pointer surface should stand in for the keyboard one").not.toBeNull();
       await hoverAt(bare!, 0.5, 0.5);
       // A hover resolves even without the keyboard composite.
-      const hit = container.querySelector("[data-silkplot-crosshair]") ?? container.querySelector('rect[stroke-width="2"]');
-      expect(hit).not.toBeNull();
+      const hit = crosshairOf(container) ?? emphasisedBar(container);
+      expect(hit).toBeTruthy();
       unmount();
     }
   });
@@ -291,7 +294,7 @@ describe("hover wording and configuration", () => {
     ));
     const surface = surfaceOf(container)!;
     await hoverAt(surface, 0.5, 0.5);
-    expect(container.querySelector('rect[stroke-width="2"]')).not.toBeNull();
+    expect(emphasisedBar(container)).toBeTruthy();
   });
 
   it("announces a bar with no finite value as 'no value'", async () => {
