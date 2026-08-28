@@ -175,19 +175,27 @@ describe("syncCanvasWeek", () => {
   });
 });
 
-describe("CanvasWeek host — bitmap plus named graphic, not WeekGrid", () => {
-  it("paints on Canvas and keeps title/desc off the bitmap", () => {
+describe("CanvasWeek host — bitmap plus HTML name, not WeekGrid", () => {
+  it("paints on Canvas and keeps title/desc off the bitmap without an SVG", () => {
     const grid = clinicGrid();
     const rects = resolveEventLanes(clinicEvents(), grid);
     const { container } = render(() => (
       <CanvasWeek grid={grid} rects={rects} width={WIDTH} title="Clinic week" desc="Spring-forward Sunday" />
     ));
+    const host = container.querySelector("[data-silkplot-canvas-week]");
     const plot = container.querySelector<HTMLCanvasElement>("[data-silkplot-canvas-week-plot]");
     expect(plot, "expected a Canvas week plot").toBeTruthy();
     expect(plot?.getAttribute("data-silkplot-clip")).toBe("canvas");
     const named = container.querySelector("[data-silkplot-canvas-week-name]");
-    expect(named?.querySelector("title")?.textContent).toBe("Clinic week");
-    expect(named?.querySelector("desc")?.textContent).toBe("Spring-forward Sunday");
+    const described = container.querySelector("[data-silkplot-canvas-week-desc]");
+    expect(named?.tagName).not.toBe("svg");
+    expect(named?.textContent).toBe("Clinic week");
+    expect(described?.textContent).toBe("Spring-forward Sunday");
+    expect(host?.getAttribute("role")).toBe("img");
+    expect(host?.getAttribute("aria-labelledby")).toBe(named?.id);
+    expect(host?.getAttribute("aria-describedby")).toBe(described?.id);
+    expect(container.querySelector("svg[data-silkplot-canvas-week-name]")).toBeNull();
+    expect(host?.querySelector("svg")).toBeNull();
     expect(named?.querySelector("[data-silkplot-event]")).toBeNull();
     expect(container.querySelector("[data-silkplot-week-grid]")).toBeNull();
     expect(container.querySelector("canvas")).toBe(plot);

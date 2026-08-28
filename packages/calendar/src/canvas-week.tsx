@@ -1,9 +1,9 @@
 /**
  * Canvas week host — paints `TimeGrid` / `EventRect` onto one bitmap.
  *
- * This is not a rewrite of `WeekGrid`. `WeekGrid` stays SVG. The named graphic
- * here carries title/desc only; marks live on the Canvas. Geometry is
- * consumed, never packed here.
+ * This is not a rewrite of `WeekGrid`. `WeekGrid` stays SVG. Title and desc
+ * live on HTML so this surface does not mount an SVG at all. Marks live on
+ * the Canvas. Geometry is consumed, never packed here.
  */
 import { createEffect, createSignal, createUniqueId, type Component, type JSX } from "solid-js";
 import { cssVar, tokens } from "@silkplot/theme";
@@ -11,6 +11,22 @@ import { weekCanvasSize } from "./canvas-week-geometry";
 import { syncCanvasWeek } from "./canvas-week-paint";
 import type { EventRect } from "./overlap-resolver";
 import type { TimeGrid } from "./time-grid";
+
+/**
+ * Clip an element out of view while leaving it in the accessibility tree.
+ * `display: none` / `visibility: hidden` would drop title/desc from AT.
+ */
+const VISUALLY_HIDDEN: JSX.CSSProperties = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  padding: "0",
+  margin: "-1px",
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  "white-space": "nowrap",
+  "border-width": "0",
+};
 
 export interface CanvasWeekProps {
   /** Zoned civil-time geometry from {@link buildTimeGrid}. */
@@ -56,20 +72,22 @@ export const CanvasWeek: Component<CanvasWeekProps> = (props) => {
   });
 
   return (
-    <div class={props.class} data-silkplot-canvas-week="" style={wrapStyle()}>
-      <svg
-        width={size().width}
-        height={size().height}
-        viewBox={`0 0 ${size().width} ${size().height}`}
-        role="img"
-        aria-labelledby={titleId}
-        aria-describedby={props.desc ? descId : undefined}
-        data-silkplot-canvas-week-name=""
-        style={{ position: "absolute", left: "0px", top: "0px", "pointer-events": "none" }}
-      >
-        <title id={titleId}>{props.title ?? "Week view"}</title>
-        {props.desc ? <desc id={descId}>{props.desc}</desc> : null}
-      </svg>
+    <div
+      class={props.class}
+      data-silkplot-canvas-week=""
+      role="img"
+      aria-labelledby={titleId}
+      aria-describedby={props.desc ? descId : undefined}
+      style={wrapStyle()}
+    >
+      <p id={titleId} data-silkplot-canvas-week-name="" style={VISUALLY_HIDDEN}>
+        {props.title ?? "Week view"}
+      </p>
+      {props.desc ? (
+        <p id={descId} data-silkplot-canvas-week-desc="" style={VISUALLY_HIDDEN}>
+          {props.desc}
+        </p>
+      ) : null}
       <canvas
         ref={setCanvas}
         data-silkplot-canvas-week-plot=""
