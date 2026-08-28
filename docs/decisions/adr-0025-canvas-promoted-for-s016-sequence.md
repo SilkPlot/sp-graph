@@ -12,7 +12,7 @@ This file is the superseding record for one scoped override.
 
 On 2026-08-28 Adam signed in chat: override ADR-0023 and promote Canvas
 for the S016 wanted-implement sequence. Canvas is the named renderer.
-WebGL stays excluded. S007-P09 quiet-host measurement stays parked.
+WebGL stays excluded. Quiet-host density measurement stays parked.
 
 This file is the durable record so implementers do not re-ask. It is
 the decision, not the implementation. No `src` change lands with this
@@ -26,15 +26,15 @@ ADR.
    sequence.
 
 2. **Scope.** Shipped cartesian (line / area / bar / scatter,
-   including the S012-P03 `clipPath` surface) and S016 heatmap /
+   including the landed plot-area clip) and S016 heatmap /
    calendar-heatmap / any S016 view that would otherwise be SVG.
    Interactive and dynamic (hover, selection, data updates). No SVG
    anywhere in new S016 work.
 
 3. **WebGL remains excluded.**
 
-4. **P09 quiet-host measurement stays parked.** This override is a
-   product renderer decision, not a P09 density-exit run.
+4. **Quiet-host density measurement stays parked.** This override is a
+   product renderer decision, not a density-exit run.
 
 5. **This ADR ships no implementation.** Feature work is sequenced in
    planning. Accepting this file does not change `src`.
@@ -48,8 +48,8 @@ ADR.
 - **Leave the renderer unnamed.** Rejected: Canvas is the named
   renderer for this sequence.
 - **Promote WebGL.** Rejected: WebGL remains excluded.
-- **Treat this as a P09 density-exit.** Rejected: P09 stays parked;
-  this is a product renderer decision.
+- **Treat this as a density-exit run.** Rejected: quiet-host density
+  measurement stays parked; this is a product renderer decision.
 
 ## Consequences
 
@@ -61,5 +61,5 @@ ADR.
   view that would otherwise be SVG is Canvas.
 - Calendar virtualization leftover in S016 sits on the Canvas
   cartesian/calendar stack. The SVG `WeekGrid` path stays stopped.
-- S007-P09 remains parked.
+- Quiet-host density measurement remains parked.
 - WebGL remains excluded.

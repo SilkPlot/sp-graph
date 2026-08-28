@@ -39,7 +39,7 @@ arrived at.
   without a specificity war, the new dark-high-contrast palette and its
   legibility ladder, and why the contract is now verified on computed styles in
   a real browser. Extends ADR-0001.
-- [ADR-0005 — The accessibility contract](adr-0005-accessibility-contract.md):
+- [ADR-0005 — The accessibility contract](adr-0005-the-accessibility-contract.md):
   informative-vs-decorative posture with no silent downgrade, required name and
   a forwarded description channel, an always-shipped overview plus data
   alternative, the single-entry composite keyboard model (not `role="application"`,
@@ -217,12 +217,12 @@ arrived at.
   Adam 2026-08-28 signed override of ADR-0023 decision 1 for the S016
   wanted-implement sequence only. Canvas is the named renderer. “Canvas is
   not promoted” / “decimation over corrected SVG” do not bind this sequence.
-  Scope is shipped cartesian (line/area/bar/scatter, including S012-P03
-  clipPath) and S016 heatmap / calendar-heatmap / any S016 view that would
-  otherwise be SVG. Interactive and dynamic. No SVG in new S016 work. WebGL
-  remains excluded. P09 quiet-host stays parked (product renderer decision,
-  not a P09 density-exit). Overturn is a later signed ADR. ADR-0023 is not
-  edited.
+  Scope is shipped cartesian (line/area/bar/scatter, including the landed
+  plot-area clip) and S016 heatmap / calendar-heatmap / any S016 view that
+  would otherwise be SVG. Interactive and dynamic. No SVG in new S016 work.
+  WebGL remains excluded. Quiet-host density measurement stays parked
+  (product renderer decision, not a density-exit run). Overturn is a later
+  signed ADR. ADR-0023 is not edited.
 
 ## Migrations
 
