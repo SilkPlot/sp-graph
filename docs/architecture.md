@@ -20,7 +20,7 @@ owns every rendered element and updates it with fine-grained reactivity.
 `d3-hierarchy` / `d3-force` for specific layout problems only.
 
 That is the **permitted** set, not the used set. Today the source actually imports
-`d3-scale`, `d3-shape`, `d3-format`, `d3-time-format`, `d3-delaunay` and
+`d3-scale`, `d3-shape`, `d3-array`, `d3-format`, `d3-time-format`, `d3-delaunay` and
 `d3-hierarchy` in `@silkplot/core`, and `d3-scale-chromatic` in `@silkplot/theme`.
 The rest are allowed when a real need arrives.
 
@@ -29,7 +29,7 @@ dependencies — so consumers do not manage a `d3-*` peer set. Note that
 `d3-scale-chromatic` belongs to `@silkplot/theme`, not to `core`: palettes are a
 theming concern, and `core` should not drag a colour ramp into a consumer that
 only wanted a scale. Each manifest now declares exactly what its
-package imports — `core` declares and imports the six modules listed above,
+package imports — `core` declares and imports the seven modules listed above,
 `theme` declares and imports only `d3-scale-chromatic` — so there is nothing
 left to narrow.
 

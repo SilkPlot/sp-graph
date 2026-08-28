@@ -2,8 +2,9 @@
  * @silkplot/charts — composed chart components.
  *
  * `LineChart`, `BarChart`, `AreaChart`, `ScatterChart`, `HeatmapChart`,
- * `PieChart`, `DonutChart`, `TreeChart`, `TreemapChart`, `PackChart`, and
- * `BubbleChart` are all implemented and covered by browser-mode tests.
+ * `PieChart`, `DonutChart`, `TreeChart`, `TreemapChart`, `PackChart`,
+ * `BubbleChart`, and `HistogramChart` are all implemented and covered by
+ * browser-mode tests.
  */
 export { LineChart } from "./LineChart";
 export type { LineChartProps, LineChartBaseProps } from "./LineChart";
@@ -78,6 +79,10 @@ export type { HierarchyObservation, HierarchyDatum } from "./HierarchyChart";
 export { BubbleChart } from "./BubbleChart";
 export type { BubbleChartProps, BubbleChartBaseProps } from "./BubbleChart";
 export type { BubbleObservation, BubbleDatum } from "./BubbleChart";
+
+export { HistogramChart } from "./HistogramChart";
+export type { HistogramChartProps, HistogramChartBaseProps } from "./HistogramChart";
+export type { HistogramObservation, HistogramDatum, HistogramValue } from "./HistogramChart";
 
 export type { TimePoint, CategoryPoint, XYPoint } from "./types";
 

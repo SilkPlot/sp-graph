@@ -176,6 +176,35 @@ export type {
   BubbleSizeTick,
 } from "./bubble-layout";
 
+// Histogram layout — D3 bin of raw values onto a Cartesian bar of bins.
+export {
+  histogramPatternIndex,
+  histogramThresholds,
+  histogramDensity,
+  histogramEncoded,
+  computeHistogram,
+  layoutHistogram,
+  layoutHistogramFromObservations,
+  pointInHistogramBar,
+  locateHistogramBar,
+  createHistogramIndex,
+  DEFAULT_HISTOGRAM_SERIES,
+  HISTOGRAM_PATTERN_COUNT,
+  HISTOGRAM_GROUP_PADDING,
+} from "./histogram-layout";
+export type {
+  HistogramObservation,
+  HistogramDatum,
+  HistogramPart,
+  ComputeHistogramOptions,
+  ComputedHistogram,
+  HistogramValue,
+  LayoutHistogramOptions,
+  LayoutHistogramFromObservationsOptions,
+  HistogramBar,
+  HistogramLayout,
+} from "./histogram-layout";
+
 // Hierarchy layout — tree, treemap, pack over d3-hierarchy. No DOM.
 export {
   hierarchyPatternIndex,

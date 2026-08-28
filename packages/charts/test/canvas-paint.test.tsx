@@ -10,12 +10,14 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  layoutHistogramFromObservations,
   layoutPackFromObservations,
   layoutPieFromObservations,
   layoutTreeFromObservations,
   layoutTreemapFromObservations,
   linearScale,
   type BubbleMark,
+  type HistogramBar,
   type NormalizedCategory,
 } from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
@@ -63,6 +65,7 @@ import {
   paintBubbleMarks,
   paintBubbleSizeLegend,
 } from "../src/bubble-paint";
+import { histogramFill, paintHistogramBar, paintHistogramMarks } from "../src/histogram-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -788,5 +791,60 @@ describe("bubble mark paint", () => {
     expect(legend.some((m) => m.kind === "text" && m.role === "size-legend" && m.text === "4")).toBe(
       true,
     );
+  });
+});
+
+describe("histogram bar paint", () => {
+  const bar: HistogramBar = {
+    series: "North",
+    seriesIndex: 0,
+    pattern: 0,
+    x0: 0,
+    x1: 2.5,
+    count: 3,
+    density: 0.12,
+    x: 4,
+    y: 8,
+    width: 12,
+    height: 16,
+  };
+
+  it("fills a bin rect and outlines the active bar", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const quiet = paintHistogramBar(ctx, bar, {}, resolve);
+    expect(quiet?.kind).toBe("rect");
+    expect(quiet?.pattern).toBeUndefined();
+    expect(quiet?.stroke).toBe("none");
+    expect(histogramFill(0)).not.toBe(histogramFill(1));
+    const active = paintHistogramBar(ctx, bar, { active: true }, resolve);
+    expect(active?.strokeWidth).toBe("2");
+    expect(paintHistogramBar(ctx, { ...bar, width: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintHistogramBar(ctx, { ...bar, height: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintHistogramMarks(ctx, [], undefined, resolve, false)).toEqual([]);
+    expect(
+      paintHistogramMarks(ctx, [bar], 0, resolve, false).some(
+        (m) => m.kind === "rect" && m.strokeWidth === "2",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a fill pattern when multi-series asks for one", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const patterned = paintHistogramBar(ctx, bar, { pattern: true }, resolve);
+    expect(patterned?.kind === "rect" && patterned.pattern).toBe("0");
+    const laid = layoutHistogramFromObservations(
+      [
+        { value: 1, series: "North" },
+        { value: 8, series: "South" },
+      ],
+      { width: 40, height: 40, thresholds: 2, domain: [0, 10] },
+    );
+    const marks = paintHistogramMarks(ctx, laid.marks, undefined, resolve, true);
+    expect(marks.some((m) => m.kind === "rect" && m.pattern !== undefined)).toBe(true);
+    for (let pattern = 0; pattern < CATEGORICAL_PATTERN_COUNT; pattern += 1) {
+      paintHistogramBar(ctx, { ...bar, pattern, seriesIndex: pattern }, { pattern: true }, resolve);
+    }
   });
 });
