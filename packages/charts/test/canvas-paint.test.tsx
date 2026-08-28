@@ -9,7 +9,7 @@
  * what its comment says.
  */
 import { describe, expect, it } from "vitest";
-import { linearScale, type NormalizedCategory } from "@silkplot/core";
+import { layoutPieFromObservations, linearScale, type NormalizedCategory } from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
 import {
   canvasMarksOf,
@@ -40,6 +40,7 @@ import {
 import { paintCartesianSurface } from "../src/canvas-surface";
 import { createStyleResolver, parseDash } from "../src/canvas-style";
 import { heatmapFill, paintHeatmapCell } from "../src/heatmap-paint";
+import { pieFill, paintPieSlice } from "../src/pie-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -607,5 +608,51 @@ describe("heatmap cell paint", () => {
     expect(hot.stroke).not.toBe("none");
     expect(heatmapFill(-1)).toBe(heatmapFill(0));
     expect(heatmapFill(2)).toBe(heatmapFill(1));
+  });
+});
+
+describe("pie slice paint", () => {
+  it("fills, records pattern and label, and outlines the active slice", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const laid = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0,
+    });
+    const slice = laid.slices[0]!;
+    const quiet = paintPieSlice(ctx, slice, {}, resolve);
+    const path = quiet.find((m) => m.kind === "path");
+    const label = quiet.find((m) => m.kind === "text");
+    expect(path?.kind === "path" && path.pattern).toBe("0");
+    expect(path?.kind === "path" && path.stroke).toBe("none");
+    expect(label?.kind === "text" && label.text).toBe("A");
+    expect(pieFill(0)).not.toBe(pieFill(1));
+    const active = paintPieSlice(ctx, slice, { active: true }, resolve);
+    expect(active.some((m) => m.kind === "path" && m.strokeWidth === "2")).toBe(true);
+    expect(paintPieSlice(ctx, { ...slice, d: "" }, {}, resolve)).toEqual([]);
+    expect(paintPieSlice(ctx, { ...slice, outerRadius: 0 }, {}, resolve)).toEqual([]);
+  });
+
+  it("paints every pattern slot and a donut ring", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const pie = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0,
+    });
+    const base = pie.slices[0]!;
+    for (let pattern = 0; pattern < 8; pattern += 1) {
+      const marks = paintPieSlice(ctx, { ...base, pattern }, {}, resolve);
+      expect(marks.some((m) => m.kind === "path" && m.pattern === String(pattern))).toBe(true);
+    }
+    const donut = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0.5,
+    });
+    const ring = paintPieSlice(ctx, donut.slices[0]!, { active: true }, resolve);
+    expect(ring.some((m) => m.kind === "path" && Number(m.innerRadius) > 0)).toBe(true);
   });
 });

@@ -122,6 +122,31 @@ export type {
   HeatmapBands,
 } from "./heatmap-layout";
 
+// Pie layout — polar part-to-whole. Donut is the same layout with a hole.
+export {
+  piePatternIndex,
+  pieHole,
+  resolveDonutHole,
+  computePie,
+  layoutPie,
+  layoutPieFromObservations,
+  piePointAngle,
+  angleInSlice,
+  pointInPieSlice,
+  locatePieSlice,
+  createPieIndex,
+  PIE_PATTERN_COUNT,
+  DEFAULT_DONUT_HOLE,
+} from "./pie-layout";
+export type {
+  PieObservation,
+  PieDatum,
+  PiePart,
+  LayoutPieOptions,
+  PieSlice,
+  PieLayout,
+} from "./pie-layout";
+
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
 export type { Interval, PackedInterval, PackOptions } from "./overlap";

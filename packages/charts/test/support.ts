@@ -92,6 +92,9 @@ function markAttr(mark: CanvasMark, name: string): string | null {
       if (name === "stroke-width") return mark.strokeWidth;
       if (name === "stroke-dasharray") return mark.dash ?? null;
       if (name === "fill-opacity") return mark.fillOpacity ?? null;
+      if (name === "data-silkplot-pattern") return mark.pattern ?? null;
+      if (name === "data-silkplot-inner-radius") return mark.innerRadius ?? null;
+      if (name === "data-silkplot-outer-radius") return mark.outerRadius ?? null;
       return null;
     case "circle":
       if (name === "cx") return mark.cx;

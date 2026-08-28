@@ -17,7 +17,7 @@ export type LineRole =
   | "reference"
   | "crosshair-x"
   | "crosshair-y";
-export type TextRole = "axis-label" | "reference-label" | "empty";
+export type TextRole = "axis-label" | "reference-label" | "empty" | "slice-label";
 export type RectRole = "mark" | "brush";
 export type AxisSide = "left" | "bottom" | "top" | "right";
 
@@ -29,6 +29,10 @@ export interface PathMark {
   strokeWidth: string;
   dash: string | undefined;
   fillOpacity: string | undefined;
+  /** Fill-pattern slot for a pie/donut slice — the non-colour channel. */
+  pattern?: string;
+  innerRadius?: string;
+  outerRadius?: string;
 }
 
 export interface CircleMark {
