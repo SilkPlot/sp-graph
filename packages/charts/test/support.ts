@@ -110,6 +110,7 @@ function markAttr(mark: CanvasMark, name: string): string | null {
       if (name === "fill") return mark.fill;
       if (name === "stroke") return mark.stroke;
       if (name === "stroke-width") return mark.strokeWidth;
+      if (name === "data-silkplot-hatch") return mark.hatch ?? null;
       return null;
     case "line":
       if (name === "x1") return mark.x1;

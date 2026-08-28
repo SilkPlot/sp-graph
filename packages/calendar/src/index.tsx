@@ -82,3 +82,19 @@ export type { AgendaViewProps } from "./agenda-view";
 
 export { CalendarWeek } from "./calendar-week";
 export type { CalendarWeekProps } from "./calendar-week";
+
+export { binOntoTimeGrid, assignTimeGridCell, timeGridColumns, timeGridRows, clockKey } from "./calendar-heatmap-bin";
+export type { TimeGridObservation } from "./calendar-heatmap-bin";
+
+export { CalendarHeatmap } from "./calendar-heatmap";
+export type { CalendarHeatmapProps, CalendarHeatmapBaseProps } from "./calendar-heatmap";
+
+export {
+  paintCalendarHeatmap,
+  paintCalendarHeatmapCell,
+  calendarHeatmapFill,
+  syncCalendarHeatmap,
+  marksOnCalendarHeatmap,
+  calendarHeatmapPlotsOf,
+} from "./calendar-heatmap-paint";
+export type { CalendarHeatmapMark, CalendarHeatmapRectMark } from "./calendar-heatmap-paint";

@@ -53,6 +53,8 @@ export interface RectMark {
   stroke: string;
   strokeWidth: string;
   role?: RectRole;
+  /** Hatch density recorded for the non-colour heatmap channel. */
+  hatch?: string;
 }
 
 export interface LineMark {

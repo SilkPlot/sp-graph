@@ -39,6 +39,7 @@ import {
 } from "../src/canvas-chrome";
 import { paintCartesianSurface } from "../src/canvas-surface";
 import { createStyleResolver, parseDash } from "../src/canvas-style";
+import { heatmapFill, paintHeatmapCell } from "../src/heatmap-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -580,5 +581,31 @@ describe("canvas frame and chrome", () => {
     expect(withChrome.some((m) => m.kind === "line" && m.role === "grid")).toBe(true);
     expect(withChrome.some((m) => m.kind === "line" && m.role === "reference")).toBe(true);
     expect(withChrome.some((m) => m.kind === "rect" && m.role === "brush")).toBe(true);
+  });
+});
+
+describe("heatmap cell paint", () => {
+  it("fills, records hatch, and outlines the active cell", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const cold = paintHeatmapCell(
+      ctx,
+      { column: "a", row: "n", value: 0, x: 0, y: 0, width: 10, height: 10, t: 0, hatch: 0 },
+      {},
+      resolve,
+    );
+    expect(cold.hatch).toBe("0");
+    expect(cold.stroke).toBe("none");
+    expect(heatmapFill(0)).not.toBe(heatmapFill(1));
+    const hot = paintHeatmapCell(
+      ctx,
+      { column: "b", row: "s", value: 8, x: 10, y: 0, width: 10, height: 10, t: 1, hatch: 4 },
+      { active: true },
+      resolve,
+    );
+    expect(hot.hatch).toBe("4");
+    expect(hot.stroke).not.toBe("none");
+    expect(heatmapFill(-1)).toBe(heatmapFill(0));
+    expect(heatmapFill(2)).toBe(heatmapFill(1));
   });
 });

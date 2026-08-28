@@ -10,5 +10,5 @@
     "types": []
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "references": [{ "path": "../core" }, { "path": "../solid" }]
+  "references": [{ "path": "../core" }, { "path": "../solid" }, { "path": "../theme" }]
 }

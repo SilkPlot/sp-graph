@@ -54,7 +54,9 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   const series = marks.find(
     (m): m is PathMark => m.kind === "path" && m.stroke !== "none" && m.d !== "",
   );
+  const hatched = marks.some((m) => m.kind === "rect" && m.hatch !== undefined && m.hatch !== "0");
   toggleAttr(el, "data-silkplot-crosshair", hasCross);
+  toggleAttr(el, "data-silkplot-hatch", hatched);
   toggleAttr(el, "data-silkplot-brush", hasBrush);
   toggleAttr(el, "data-silkplot-references", hasRefs);
   if (empty !== undefined) el.setAttribute("data-silkplot-empty", empty.text);
