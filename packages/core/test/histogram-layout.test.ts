@@ -187,6 +187,21 @@ describe("computeHistogram", () => {
     ]);
   });
 
+  it("freezes D3 default thresholds from the combined sample so series share edges", () => {
+    const computed = computeHistogram([
+      { value: 1, series: "A" },
+      { value: 2, series: "B" },
+      { value: 8, series: "A" },
+    ]);
+    expect(computed.edges.length).toBeGreaterThan(1);
+    const a = computed.bins.filter((b) => b.series === "A");
+    const b = computed.bins.filter((b) => b.series === "B");
+    expect(a.map((bin) => bin.x0)).toEqual(b.map((bin) => bin.x0));
+    expect(a.map((bin) => bin.x1)).toEqual(b.map((bin) => bin.x1));
+    expect(a.reduce((n, bin) => n + bin.count, 0)).toBe(2);
+    expect(b.reduce((n, bin) => n + bin.count, 0)).toBe(1);
+  });
+
   it("swaps an inverted domain and ignores a non-finite one", () => {
     const swapped = computeHistogram([{ value: 3 }], { domain: [10, 0], thresholds: 2 });
     expect(swapped.xDomain).toEqual([0, 10]);
@@ -240,6 +255,15 @@ describe("layoutHistogram and layoutHistogramFromObservations", () => {
     expect(laid.marks[0]?.x).toBeCloseTo(0);
     expect(laid.marks[0]?.width).toBeCloseTo(80);
     expect(laid.marks[0]?.height).toBeGreaterThan(0);
+    const grouped = layoutHistogramFromObservations(
+      [
+        { value: 5, series: "North" },
+        { value: 5, series: "South" },
+      ],
+      { width: 80, height: 40, thresholds: 1 },
+    );
+    expect(grouped.marks).toHaveLength(2);
+    expect(grouped.marks[0]!.width + grouped.marks[1]!.width).toBeLessThan(80);
   });
 
   it("encodes density as bar height when asked", () => {
@@ -255,12 +279,20 @@ describe("layoutHistogram and layoutHistogramFromObservations", () => {
 
   it("drops a bar whose pixel is not finite", () => {
     const computed = computeHistogram([{ value: 1 }], { thresholds: 1 });
-    const laid = layoutHistogram(computed, {
-      x: () => Number.NaN,
-      y: () => 0,
-      width: 10,
-    });
-    expect(laid.marks).toEqual([]);
+    expect(
+      layoutHistogram(computed, {
+        x: () => Number.NaN,
+        y: () => 0,
+        width: 10,
+      }).marks,
+    ).toEqual([]);
+    expect(
+      layoutHistogram(computed, {
+        x: () => 0,
+        y: () => Number.NaN,
+        width: 10,
+      }).marks,
+    ).toEqual([]);
   });
 });
 
