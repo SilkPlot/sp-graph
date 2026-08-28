@@ -213,6 +213,12 @@ arrived at.
   at the calendar boundary and `Date` only at the D3 seam, library owns grid
   meaning and the application owns booking validity. Does not reopen ADR-0017.
   Ships no implementation.
+- [ADR-0025 — Canvas promoted for the S016 sequence](adr-0025-canvas-promoted-for-s016-sequence.md):
+  overrides ADR-0023 decision 1 for S016 only — Canvas is the named renderer;
+  no SVG in new S016 work; Cartesian (line, area, bar, scatter, including
+  S012-P03 `clipPath`) plus heatmap and calendar-heatmap move off SVG onto
+  Canvas; interactive and dynamic; WebGL excluded; P09 is not this override.
+  Overturn is a later signed ADR.
 
 ## Migrations
 
