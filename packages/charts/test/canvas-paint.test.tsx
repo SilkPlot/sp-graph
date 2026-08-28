@@ -89,24 +89,66 @@ describe("createStyleResolver", () => {
     const host = document.createElement("div");
     host.style.color = "rgb(1, 2, 3)";
     host.style.setProperty("--sp-test", "#ff0000");
+    host.style.setProperty("--sp-cat-dash-test", "6 3");
     document.body.appendChild(host);
     const resolve = createStyleResolver(host);
     const current = resolve.color("currentColor");
     expect(current).toMatch(/rgb/);
     expect(resolve.color("currentColor")).toBe(current);
+    expect(host.style.color).toBe("rgb(1, 2, 3)");
     expect(resolve.color("none")).toBe("rgba(0, 0, 0, 0)");
     const token = resolve.color("var(--sp-test)");
     expect(token === "rgb(255, 0, 0)" || token === "#ff0000" || token.includes("255")).toBe(true);
+    expect(host.style.color).toBe("rgb(1, 2, 3)");
     expect(resolve.dash("4 2")).toEqual(parseDash(resolve.dash("4 2").join(" ")));
     const dashed = resolve.dash("4 2");
     expect(dashed[0]).toBe(4);
     expect(dashed[1]).toBe(2);
     expect(resolve.dash("4 2")).toBe(dashed);
     expect(resolve.dash(undefined)).toEqual([]);
+    expect(resolve.dash("")).toEqual([]);
+    expect(resolve.dash("var(--sp-cat-dash-test, none)")).toEqual([6, 3]);
+    expect(resolve.dash("var(--silkplot-no-such-dash, 5 3)")).toEqual([5, 3]);
+    expect(resolve.dash("var(--sp-cat-dash-test, 8 2)")).toEqual([6, 3]);
+    host.style.setProperty("--sp-cat-dash-none", "none");
+    expect(resolve.dash("var(--sp-cat-dash-none, 8 2)")).toEqual([8, 2]);
+    expect(resolve.dash("var(not-a-custom, 4 2)")).toEqual([4, 2]);
     const font = resolve.font("11px");
     expect(font).toMatch(/\d+px/);
     expect(resolve.font("11px")).toBe(font);
     host.remove();
+  });
+
+  it("does not create SVG elements to resolve colour or dash", () => {
+    const namespaces: string[] = [];
+    const original = document.createElementNS.bind(document);
+    document.createElementNS = ((ns: string, name: string) => {
+      namespaces.push(`${ns} ${name}`);
+      return original(ns, name);
+    }) as typeof document.createElementNS;
+    try {
+      const host = document.createElement("div");
+      host.style.setProperty("--sp-test", "#00ff00");
+      document.body.appendChild(host);
+      const resolve = createStyleResolver(host);
+      resolve.color("currentColor");
+      resolve.color("var(--sp-test, currentColor)");
+      resolve.dash("var(--sp-cat-dash-missing, 4 2)");
+      resolve.font("11px");
+      expect(namespaces).toEqual([]);
+      expect(host.querySelector("svg")).toBeNull();
+      host.remove();
+    } finally {
+      document.createElementNS = original;
+    }
+  });
+
+  it("uses a var() dash fallback on a disconnected host rather than parsing the var() string", () => {
+    const host = document.createElement("div");
+    const resolve = createStyleResolver(host);
+    expect(resolve.dash("var(--sp-cat-dash-1, 6 3)")).toEqual([6, 3]);
+    expect(resolve.dash("var(--sp-cat-dash-1)")).toEqual([]);
+    expect(resolve.dash("not-a-pattern")).toEqual([]);
   });
 });
 

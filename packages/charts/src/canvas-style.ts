@@ -1,15 +1,16 @@
 /**
  * Resolve CSS paint values for a Canvas 2D context.
  *
- * Canvas does not understand `currentColor` or `var(--sp-…)`. SVG did, which
- * is why the series contract writes those strings: the theme cascade is the
- * colour, not a computed hex. A Canvas plot has to resolve the same strings
- * against a live element so a themed chart and an unthemed one still agree
- * with the tokens the rest of the page inherits.
+ * Canvas does not understand `currentColor` or `var(--sp-…)`. The series
+ * contract writes those strings so the theme cascade is the colour, not a
+ * computed hex. A Canvas plot resolves the same strings against a live host
+ * (`color` for paint, custom properties for dash) so a themed chart and an
+ * unthemed one still agree with the tokens the rest of the page inherits.
  *
- * Resolution is a probe `<path>` appended to the host — `getComputedStyle`
- * on a Canvas element has no `stroke` / `stroke-dasharray` used-value. The
- * probe is removed before this function returns.
+ * No SVG is mounted. `getComputedStyle` on the host's `color` is the used
+ * paint; a dash token is the custom property the `var()` names, or its
+ * fallback. A font size still needs a short-lived HTML span — Canvas has no
+ * `font-size` used-value either — and that span is not an SVG element.
  */
 
 export interface StyleResolver {
@@ -39,50 +40,53 @@ export function parseDash(specified: string | undefined): number[] {
   return out;
 }
 
-function readUsed(host: Element, specified: string, attr: "stroke" | "stroke-dasharray"): string {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute(attr, specified);
-  svg.appendChild(path);
-  svg.setAttribute("width", "0");
-  svg.setAttribute("height", "0");
-  svg.style.position = "absolute";
-  svg.style.overflow = "hidden";
-  host.appendChild(svg);
-  const used =
-    attr === "stroke" ? getComputedStyle(path).stroke : getComputedStyle(path).strokeDasharray;
-  svg.remove();
-  return used;
-}
-
 function resolveColor(host: Element, specified: string | undefined): string {
   const raw = specified ?? "currentColor";
   if (raw === NONE) return "rgba(0, 0, 0, 0)";
-  if (!host.isConnected) return raw === "currentColor" || raw.includes("var(") ? "#000000" : raw;
-  return readUsed(host, raw, "stroke");
+  if (!host.isConnected || !(host instanceof HTMLElement)) {
+    return raw === "currentColor" || raw.includes("var(") ? "#000000" : raw;
+  }
+  // `currentColor` is already the host's used colour. Assigning it would
+  // replace a set `style.color` with the parent's colour instead.
+  if (raw === "currentColor") return getComputedStyle(host).color;
+  const previous = host.style.color;
+  host.style.color = raw;
+  const used = getComputedStyle(host).color;
+  host.style.color = previous;
+  return used;
 }
 
 function resolveDash(host: Element, specified: string | undefined): number[] {
-  if (specified === undefined || specified === NONE) return [];
-  if (!host.isConnected) return parseDash(specified);
-  return parseDash(readUsed(host, specified, "stroke-dasharray"));
+  if (specified === undefined || specified === NONE || specified === "") return [];
+  // A `var(--token, 6 3)` string contains numbers. Parsing it first would take
+  // the fallback and skip the custom property that is the actual dash.
+  if (!specified.includes("var(")) return parseDash(specified);
+  if (host.isConnected) {
+    const name = specified.match(/--[a-z0-9-]+/i);
+    if (name !== null) {
+      const used = getComputedStyle(host).getPropertyValue(name[0]).trim();
+      if (used !== "" && used !== NONE) return parseDash(used);
+    }
+  }
+  const fallback = specified.match(/var\([^,]+,\s*([^)]+)\)/);
+  return parseDash(fallback?.[1]?.trim());
 }
 
 function resolveFont(host: Element, size: string): string {
   if (!host.isConnected) return `${size} sans-serif`;
-  const probe = document.createElement("span");
-  probe.style.fontSize = size;
-  probe.style.position = "absolute";
-  host.appendChild(probe);
-  const computed = getComputedStyle(probe);
+  const span = document.createElement("span");
+  span.style.fontSize = size;
+  span.style.position = "absolute";
+  host.appendChild(span);
+  const computed = getComputedStyle(span);
   const font = `${computed.fontSize} ${computed.fontFamily}`;
-  probe.remove();
+  span.remove();
   return font;
 }
 
 /**
  * A resolver bound to one host element, with a per-paint cache so 22 series
- * sharing eight palette tokens do not each mount a probe.
+ * sharing eight palette tokens do not each re-resolve.
  */
 export function createStyleResolver(host: Element): StyleResolver {
   const colors = new Map<string, string>();
