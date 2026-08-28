@@ -206,7 +206,7 @@ arrived at.
   tooltip, table, CSV — resolves against the RAW series at the resolved instant,
   so the path is the envelope and the active point is the truth. Canvas is not
   promoted; its promotion still requires measured evidence that this is not
-  enough.
+  enough. Overridden for the S016 sequence by ADR-0025.
 - [ADR-0024 — Zoned civil time for calendar grids](adr-0024-zoned-civil-time-for-calendar-grids.md):
   the calendar-grid contract before any grid is built — one IANA display zone
   per view, truthful DST geometry (23h spring-forward, 25h fall-back), Temporal
@@ -214,11 +214,15 @@ arrived at.
   meaning and the application owns booking validity. Does not reopen ADR-0017.
   Ships no implementation.
 - [ADR-0025 — Canvas promoted for the S016 sequence](adr-0025-canvas-promoted-for-s016-sequence.md):
-  overrides ADR-0023 decision 1 for S016 only — Canvas is the named renderer;
-  no SVG in new S016 work; Cartesian (line, area, bar, scatter, including
-  S012-P03 `clipPath`) plus heatmap and calendar-heatmap move off SVG onto
-  Canvas; interactive and dynamic; WebGL excluded; P09 is not this override.
-  Overturn is a later signed ADR.
+  Adam 2026-08-28 signed override of ADR-0023 decision 1 for the S016
+  wanted-implement sequence only. Canvas is the named renderer. “Canvas is
+  not promoted” / “decimation over corrected SVG” do not bind this sequence.
+  Scope is shipped cartesian (line/area/bar/scatter, including S012-P03
+  clipPath) and S016 heatmap / calendar-heatmap / any S016 view that would
+  otherwise be SVG. Interactive and dynamic. No SVG in new S016 work. WebGL
+  remains excluded. P09 quiet-host stays parked (product renderer decision,
+  not a P09 density-exit). Overturn is a later signed ADR. ADR-0023 is not
+  edited.
 
 ## Migrations
 
