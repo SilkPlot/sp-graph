@@ -155,6 +155,7 @@ export const CATEGORY_COLUMNS: readonly string[] = ["Category", "Value"];
 export const XY_COLUMNS: readonly string[] = ["X", "Y"];
 export const HEATMAP_COLUMNS: readonly string[] = ["Column", "Row", "Value"];
 export const PIE_COLUMNS: readonly string[] = ["Label", "Value", "Percent"];
+export const HIERARCHY_COLUMNS: readonly string[] = ["Id", "Parent", "Value"];
 
 /**
  * Resolve chart semantics with a table present by default.

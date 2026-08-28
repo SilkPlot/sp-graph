@@ -9,7 +9,14 @@
  * what its comment says.
  */
 import { describe, expect, it } from "vitest";
-import { layoutPieFromObservations, linearScale, type NormalizedCategory } from "@silkplot/core";
+import {
+  layoutPackFromObservations,
+  layoutPieFromObservations,
+  layoutTreeFromObservations,
+  layoutTreemapFromObservations,
+  linearScale,
+  type NormalizedCategory,
+} from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
 import {
   canvasMarksOf,
@@ -29,6 +36,7 @@ import {
   paintText,
   pushMark,
 } from "../src/canvas-paint";
+import { CATEGORICAL_PATTERN_COUNT, paintCategoricalPattern } from "../src/canvas-pattern";
 import { syncCanvasPlot } from "../src/canvas-plot";
 import { paintAxis, paintGridlines } from "../src/canvas-frame";
 import {
@@ -40,6 +48,12 @@ import {
 import { paintCartesianSurface } from "../src/canvas-surface";
 import { createStyleResolver, parseDash } from "../src/canvas-style";
 import { heatmapFill, paintHeatmapCell } from "../src/heatmap-paint";
+import {
+  hierarchyFill,
+  paintPackLayout,
+  paintTreeLayout,
+  paintTreemapLayout,
+} from "../src/hierarchy-paint";
 import { pieFill, paintPieSlice } from "../src/pie-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
@@ -654,5 +668,51 @@ describe("pie slice paint", () => {
     });
     const ring = paintPieSlice(ctx, donut.slices[0]!, { active: true }, resolve);
     expect(ring.some((m) => m.kind === "path" && Number(m.innerRadius) > 0)).toBe(true);
+  });
+});
+
+describe("hierarchy node paint", () => {
+  const ORG = [
+    { id: "clinic", value: 0 },
+    { id: "leaf", parent: "clinic", value: 4 },
+  ];
+
+  it("paints tree links, patterned nodes, labels, and an active outline", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const tree = layoutTreeFromObservations(ORG, { width: 80, height: 80 });
+    const quiet = paintTreeLayout(ctx, tree, undefined, resolve);
+    expect(quiet.some((m) => m.kind === "line" && m.role === "link")).toBe(true);
+    expect(quiet.some((m) => m.kind === "circle" && m.pattern === "0")).toBe(true);
+    expect(quiet.some((m) => m.kind === "text" && m.role === "node-label" && m.text === "clinic")).toBe(
+      true,
+    );
+    expect(hierarchyFill(0)).not.toBe(hierarchyFill(1));
+    const active = paintTreeLayout(ctx, tree, tree.nodes[0]!.sourceIndex, resolve);
+    expect(active.some((m) => m.kind === "circle" && m.strokeWidth === "2")).toBe(true);
+    expect(paintTreeLayout(ctx, { nodes: [], links: [] }, undefined, resolve)).toEqual([]);
+  });
+
+  it("paints treemap rects and pack circles, including every pattern slot", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const treemap = layoutTreemapFromObservations(ORG, { width: 80, height: 80 });
+    const pack = layoutPackFromObservations(ORG, { width: 80, height: 80 });
+    const cells = paintTreemapLayout(ctx, treemap, treemap[0]!.sourceIndex, resolve);
+    expect(cells.some((m) => m.kind === "rect" && m.pattern !== undefined)).toBe(true);
+    expect(cells.some((m) => m.kind === "rect" && m.strokeWidth === "2")).toBe(true);
+    const circles = paintPackLayout(ctx, pack, pack[0]!.sourceIndex, resolve);
+    expect(circles.some((m) => m.kind === "circle" && Number(m.r) > 0)).toBe(true);
+    expect(
+      paintPackLayout(ctx, pack, undefined, resolve).some((m) => m.kind === "circle" && m.stroke === "none"),
+    ).toBe(true);
+    expect(
+      paintTreemapLayout(ctx, treemap, undefined, resolve).some((m) => m.kind === "rect" && m.stroke === "none"),
+    ).toBe(true);
+    expect(paintTreemapLayout(ctx, [], undefined, resolve)).toEqual([]);
+    expect(paintPackLayout(ctx, [], undefined, resolve)).toEqual([]);
+    for (let pattern = 0; pattern < CATEGORICAL_PATTERN_COUNT; pattern += 1) {
+      paintCategoricalPattern(ctx, 12, pattern, resolve);
+    }
   });
 });

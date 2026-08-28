@@ -55,7 +55,10 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
     (m): m is PathMark => m.kind === "path" && m.stroke !== "none" && m.d !== "",
   );
   const hatched = marks.some((m) => m.kind === "rect" && m.hatch !== undefined && m.hatch !== "0");
-  const patterned = marks.some((m) => m.kind === "path" && m.pattern !== undefined);
+  const patterned = marks.some(
+    (m) =>
+      (m.kind === "path" || m.kind === "rect" || m.kind === "circle") && m.pattern !== undefined,
+  );
   toggleAttr(el, "data-silkplot-crosshair", hasCross);
   toggleAttr(el, "data-silkplot-hatch", hatched);
   toggleAttr(el, "data-silkplot-pattern", patterned);

@@ -147,6 +147,41 @@ export type {
   PieLayout,
 } from "./pie-layout";
 
+// Hierarchy layout — tree, treemap, pack over d3-hierarchy. No DOM.
+export {
+  hierarchyPatternIndex,
+  hierarchyValue,
+  computeHierarchy,
+  layoutTreeFromObservations,
+  layoutTreemapFromObservations,
+  layoutPackFromObservations,
+  pointInTreemapNode,
+  pointInPackNode,
+  locateTreeNode,
+  locateTreemapNode,
+  locatePackNode,
+  createTreeIndex,
+  createTreemapIndex,
+  createPackIndex,
+  HIERARCHY_PATTERN_COUNT,
+  TREE_PADDING,
+  TREE_HIT_RADIUS,
+  TREEMAP_PADDING_INNER,
+  TREEMAP_PADDING_TOP,
+  PACK_PADDING,
+} from "./hierarchy-layout";
+export type {
+  HierarchyObservation,
+  HierarchyDatum,
+  HierarchyPart,
+  LayoutHierarchyOptions,
+  TreeNode,
+  TreeLink,
+  TreeLayout,
+  TreemapNode,
+  PackNode,
+} from "./hierarchy-layout";
+
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
 export type { Interval, PackedInterval, PackOptions } from "./overlap";

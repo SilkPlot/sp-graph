@@ -16,8 +16,9 @@ export type LineRole =
   | "axis-domain"
   | "reference"
   | "crosshair-x"
-  | "crosshair-y";
-export type TextRole = "axis-label" | "reference-label" | "empty" | "slice-label";
+  | "crosshair-y"
+  | "link";
+export type TextRole = "axis-label" | "reference-label" | "empty" | "slice-label" | "node-label";
 export type RectRole = "mark" | "brush";
 export type AxisSide = "left" | "bottom" | "top" | "right";
 
@@ -45,6 +46,8 @@ export interface CircleMark {
   stroke?: string;
   strokeWidth?: string;
   role?: MarkRole;
+  /** Fill-pattern slot for a hierarchy node — the non-colour channel. */
+  pattern?: string;
 }
 
 export interface RectMark {
@@ -59,6 +62,8 @@ export interface RectMark {
   role?: RectRole;
   /** Hatch density recorded for the non-colour heatmap channel. */
   hatch?: string;
+  /** Fill-pattern slot for a hierarchy node — the non-colour channel. */
+  pattern?: string;
 }
 
 export interface LineMark {
