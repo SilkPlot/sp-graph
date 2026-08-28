@@ -62,8 +62,8 @@ export const INNER_HEIGHT = HEIGHT - MARGINS.top - MARGINS.bottom;
 
 /**
  * The named graphic. Overlay SVG is gone; this is every `<svg>` in the
- * container. Multi-series legends also carry a tiny swatch svg — suites that
- * need only the chart graphic filter on `role="img"`.
+ * container. Legend swatches paint on Canvas, so a multi-series chart's
+ * only `<svg>` is the empty named graphic.
  */
 export function chartSvgs(container: ParentNode): SVGSVGElement[] {
   return Array.from(container.querySelectorAll("svg")) as SVGSVGElement[];

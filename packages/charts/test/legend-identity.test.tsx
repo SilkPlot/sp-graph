@@ -38,9 +38,19 @@ const series = (id: string): Series => ({
 
 const FOUR: readonly Series[] = [series("a"), series("b"), series("c"), series("d")];
 
-/** Swatch lines, in legend order. */
-const swatches = (container: HTMLElement): SVGLineElement[] =>
-  Array.from(container.querySelectorAll<SVGLineElement>("button[data-sp-legend-item] svg line"));
+/** Swatch canvases, in legend order. */
+const swatches = (container: HTMLElement): HTMLCanvasElement[] =>
+  Array.from(
+    container.querySelectorAll<HTMLCanvasElement>(
+      "button[data-sp-legend-item] [data-silkplot-legend-swatch]",
+    ),
+  );
+
+const swatchStroke = (el: HTMLCanvasElement): string | null =>
+  el.getAttribute("data-silkplot-swatch-stroke");
+
+const swatchDash = (el: HTMLCanvasElement): string | null =>
+  el.getAttribute("data-silkplot-swatch-dash");
 
 function mountBoth(props: Record<string, unknown> = {}) {
   return render(() => (
@@ -64,7 +74,7 @@ describe("legend swatches match their own marks", () => {
   it("uses the same stroke colour for each series", () => {
     const { container } = mountBoth();
 
-    const legendStrokes = swatches(container).map((l) => l.getAttribute("stroke"));
+    const legendStrokes = swatches(container).map(swatchStroke);
     const markStrokes = markPaths(container).map((p) => p.getAttribute("stroke"));
 
     expect(legendStrokes).toHaveLength(4);
@@ -78,7 +88,7 @@ describe("legend swatches match their own marks", () => {
   it("uses the same dash pattern for each series", () => {
     const { container } = mountBoth();
 
-    const legendDashes = swatches(container).map((l) => l.getAttribute("stroke-dasharray"));
+    const legendDashes = swatches(container).map(swatchDash);
     const markDashes = markPaths(container).map((p) => p.getAttribute("stroke-dasharray"));
 
     expect(legendDashes).toEqual(markDashes);
@@ -110,7 +120,7 @@ describe("legend swatches match their own marks", () => {
     // Colour follows array POSITION by ADR-0009, so both sides recolour — the
     // point is that they recolour together. A legend keyed differently from the
     // marks would drift apart exactly here.
-    expect(swatches(container).map((l) => l.getAttribute("stroke"))).toEqual(
+    expect(swatches(container).map(swatchStroke)).toEqual(
       markPaths(container).map((p) => p.getAttribute("stroke")),
     );
   });
@@ -125,7 +135,7 @@ describe("legend swatches match their own marks", () => {
       container.querySelectorAll<HTMLButtonElement>("button[data-sp-legend-item]"),
     )
       .filter((b) => b.getAttribute("aria-pressed") === "true")
-      .map((b) => b.querySelector("line")?.getAttribute("stroke"));
+      .map((b) => swatchStroke(b.querySelector("[data-silkplot-legend-swatch]") as HTMLCanvasElement));
 
     expect(markPaths(container)).toHaveLength(3);
     expect(shown).toEqual(markPaths(container).map((p) => p.getAttribute("stroke")));

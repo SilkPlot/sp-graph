@@ -12,9 +12,9 @@
  *     in hue passes every structural assertion ever written about it. The
  *     swatch's dash pattern and the entry's label are asserted directly.
  *
- * Real browser, not jsdom: focus, tab order, roving `tabindex`, and computed
- * `stroke-dasharray` are browser behaviour, and a fake DOM would let all of
- * them pass while being wrong.
+ * Real browser, not jsdom: focus, tab order, roving `tabindex`, and Canvas
+ * swatch paint are browser behaviour, and a fake DOM would let all of them
+ * pass while being wrong.
  */
 import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
@@ -22,6 +22,7 @@ import { render } from "@solidjs/testing-library";
 import { userEvent } from "@vitest/browser/context";
 import type { Series } from "@silkplot/core";
 import { Legend, MIN_TARGET_PX } from "../src/index";
+import { paintLegendSwatch, parseSwatchDash } from "../src/LegendSwatch";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
 
@@ -39,11 +40,26 @@ const THREE: readonly Series[] = [series("a"), series("b"), series("c")];
 const items = (container: HTMLElement): HTMLButtonElement[] =>
   Array.from(container.querySelectorAll<HTMLButtonElement>("button[data-sp-legend-item]"));
 
+const swatches = (container: HTMLElement): HTMLCanvasElement[] =>
+  Array.from(
+    container.querySelectorAll<HTMLCanvasElement>("[data-silkplot-legend-swatch]"),
+  );
+
 const labels = (container: HTMLElement): string[] =>
   items(container).map((b) => b.textContent?.trim() ?? "");
 
 const pressed = (container: HTMLElement): (string | null)[] =>
   items(container).map((b) => b.getAttribute("aria-pressed"));
+
+const canvasHasInk = (canvas: HTMLCanvasElement): boolean => {
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) return false;
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < pixels.length; i += 4) {
+    if (pixels[i]! > 0) return true;
+  }
+  return false;
+};
 
 describe("structure", () => {
   it("is a toolbar with one entry per series, in the caller's order", () => {
@@ -84,13 +100,14 @@ describe("structure", () => {
 describe("colour is never the only channel (ADR-0005 §5)", () => {
   it("gives each swatch a dash pattern as well as a colour", () => {
     const { container } = render(() => <Legend series={THREE} />);
-    const lines = container.querySelectorAll("svg line");
+    const canvases = swatches(container);
 
-    expect(lines).toHaveLength(3);
+    expect(canvases).toHaveLength(3);
+    expect(container.querySelector("svg")).toBeNull();
     // Index 0 is deliberately solid, so an ordinary one-series legend is not
     // gratuitously dashed. Entries beyond it must carry a distinct pattern —
     // this is what separates two series a colour-blind reader sees as one hue.
-    const dashes = Array.from(lines).map((l) => l.getAttribute("stroke-dasharray"));
+    const dashes = canvases.map((el) => el.getAttribute("data-silkplot-swatch-dash"));
     expect(new Set(dashes).size).toBe(3);
   });
 
@@ -110,11 +127,20 @@ describe("colour is never the only channel (ADR-0005 §5)", () => {
 
   it("hollows a hidden swatch as well as dimming the entry", () => {
     const { container } = render(() => <Legend series={THREE} visibleSeries={["a"]} />);
-    const opacities = Array.from(container.querySelectorAll("svg line")).map((l) =>
-      Number(l.getAttribute("stroke-opacity")),
+    const opacities = swatches(container).map((el) =>
+      Number(el.getAttribute("data-silkplot-swatch-opacity")),
     );
     expect(opacities[0]).toBe(1);
     expect(opacities[1]).toBeLessThan(1);
+  });
+
+  it("strokes the swatch onto a Canvas bitmap, with no SVG in the toolbar", () => {
+    const { container } = render(() => <Legend series={THREE} />);
+    expect(container.querySelector("svg")).toBeNull();
+    const canvas = swatches(container)[0];
+    expect(canvas).toBeInstanceOf(HTMLCanvasElement);
+    expect(canvasHasInk(canvas as HTMLCanvasElement)).toBe(true);
+    expect(canvas?.closest("[aria-hidden='true']")).not.toBeNull();
   });
 });
 
@@ -432,9 +458,7 @@ describe("rapid toggling", () => {
 describe("theme", () => {
   it("resolves swatch colour through a token, not a baked literal", () => {
     const { container } = render(() => <Legend series={THREE} />);
-    const strokes = Array.from(container.querySelectorAll("svg line")).map((l) =>
-      l.getAttribute("stroke"),
-    );
+    const strokes = swatches(container).map((el) => el.getAttribute("data-silkplot-swatch-stroke"));
 
     // `var(--sp-cat-N, currentColor)` — the scheme x contrast cascade resolves
     // it. A hex literal here would freeze one surface's palette into the markup
@@ -460,12 +484,12 @@ describe("theme", () => {
       series("b"),
     ];
     const { container } = render(() => <Legend series={branded} />);
-    const lines = Array.from(container.querySelectorAll("svg line"));
+    const first = swatches(container)[0];
 
     // Per-property override: picking a brand colour must not silently discard
     // the non-colour channel, which is the most likely thing a caller does.
-    expect(lines[0]?.getAttribute("stroke")).toBe("#ff0000");
-    expect(lines[0]?.getAttribute("stroke-dasharray")).toMatch(/--sp-cat-dash-/);
+    expect(first?.getAttribute("data-silkplot-swatch-stroke")).toBe("#ff0000");
+    expect(first?.getAttribute("data-silkplot-swatch-dash")).toMatch(/--sp-cat-dash-/);
   });
 });
 
@@ -507,5 +531,92 @@ describe("several charts, one legend", () => {
     // that kept private state alongside the controlled prop would leave the two
     // disagreeing, each individually plausible.
     expect(pressed(container)).toEqual(["true", "false", "true", "true", "false", "true"]);
+  });
+});
+
+describe("legend swatch paint", () => {
+  it("parses a dash list the way Canvas setLineDash does", () => {
+    expect(parseSwatchDash(undefined)).toEqual([]);
+    expect(parseSwatchDash("none")).toEqual([]);
+    expect(parseSwatchDash("")).toEqual([]);
+    expect(parseSwatchDash("4 2")).toEqual([4, 2]);
+    expect(parseSwatchDash("4,2")).toEqual([4, 2]);
+    expect(parseSwatchDash("4px, 2px")).toEqual([4, 2]);
+    expect(parseSwatchDash("4, foo, 2")).toEqual([4, 2]);
+  });
+
+  it("paints a disconnected canvas with a literal stroke and a numeric dash", () => {
+    const canvas = document.createElement("canvas");
+    paintLegendSwatch(canvas, {
+      stroke: "#ff0000",
+      dash: "4 2",
+      strokeWidth: 2,
+      opacity: 0.4,
+    });
+    const ctx = canvas.getContext("2d");
+    expect(ctx).not.toBeNull();
+    expect(ctx!.getLineDash()).toEqual([4, 2]);
+    expect(ctx!.globalAlpha).toBe(0.4);
+    expect(canvasHasInk(canvas)).toBe(true);
+
+    paintLegendSwatch(canvas, {
+      stroke: "currentColor",
+      dash: "none",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([]);
+
+    paintLegendSwatch(canvas, {
+      stroke: "var(--sp-cat-0)",
+      dash: "",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([]);
+    expect(canvas.width).toBeGreaterThan(0);
+  });
+
+  it("uses a var() dash fallback when the custom property is empty", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+    expect(ctx).not.toBeNull();
+
+    paintLegendSwatch(canvas, {
+      stroke: "none",
+      dash: "var(--silkplot-no-such-dash, 5 3)",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([5, 3]);
+    expect(canvasHasInk(canvas)).toBe(false);
+
+    paintLegendSwatch(canvas, {
+      stroke: "currentColor",
+      dash: "not-a-pattern",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([]);
+
+    canvas.style.setProperty("--sp-cat-dash-none", "none");
+    paintLegendSwatch(canvas, {
+      stroke: "#111111",
+      dash: "var(--sp-cat-dash-none, 8 2)",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([8, 2]);
+
+    canvas.style.setProperty("--sp-cat-dash-test", "6 3");
+    paintLegendSwatch(canvas, {
+      stroke: "#111111",
+      dash: "var(--sp-cat-dash-test, none)",
+      strokeWidth: 2,
+      opacity: 1,
+    });
+    expect(ctx!.getLineDash()).toEqual([6, 3]);
+    canvas.remove();
   });
 });
