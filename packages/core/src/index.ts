@@ -122,6 +122,124 @@ export type {
   HeatmapBands,
 } from "./heatmap-layout";
 
+// Pie layout — polar part-to-whole. Donut is the same layout with a hole.
+export {
+  piePatternIndex,
+  pieHole,
+  resolveDonutHole,
+  computePie,
+  layoutPie,
+  layoutPieFromObservations,
+  piePointAngle,
+  angleInSlice,
+  pointInPieSlice,
+  locatePieSlice,
+  createPieIndex,
+  PIE_PATTERN_COUNT,
+  DEFAULT_DONUT_HOLE,
+} from "./pie-layout";
+export type {
+  PieObservation,
+  PieDatum,
+  PiePart,
+  LayoutPieOptions,
+  PieSlice,
+  PieLayout,
+} from "./pie-layout";
+
+// Bubble layout — scatter with a numeric size channel. Area encodes magnitude.
+export {
+  resolveBubbleRadiusRange,
+  bubbleRadius,
+  computeBubble,
+  layoutBubble,
+  layoutBubbleFromObservations,
+  bubbleSizeTicks,
+  pointInBubble,
+  locateBubble,
+  createBubbleIndex,
+  DEFAULT_BUBBLE_MIN_RADIUS,
+  DEFAULT_BUBBLE_MAX_RADIUS,
+  DEFAULT_BUBBLE_SERIES,
+  BUBBLE_SIZE_LEGEND_RIGHT,
+} from "./bubble-layout";
+export type {
+  BubbleObservation,
+  BubbleDatum,
+  BubblePart,
+  ComputeBubbleOptions,
+  ComputedBubble,
+  LayoutBubbleOptions,
+  LayoutBubbleFromObservationsOptions,
+  BubbleMark,
+  BubbleLayout,
+  BubbleSizeTick,
+} from "./bubble-layout";
+
+// Histogram layout — D3 bin of raw values onto a Cartesian bar of bins.
+export {
+  histogramPatternIndex,
+  histogramThresholds,
+  histogramDensity,
+  histogramEncoded,
+  computeHistogram,
+  layoutHistogram,
+  layoutHistogramFromObservations,
+  pointInHistogramBar,
+  locateHistogramBar,
+  createHistogramIndex,
+  DEFAULT_HISTOGRAM_SERIES,
+  HISTOGRAM_PATTERN_COUNT,
+  HISTOGRAM_GROUP_PADDING,
+} from "./histogram-layout";
+export type {
+  HistogramObservation,
+  HistogramDatum,
+  HistogramPart,
+  ComputeHistogramOptions,
+  ComputedHistogram,
+  HistogramValue,
+  LayoutHistogramOptions,
+  LayoutHistogramFromObservationsOptions,
+  HistogramBar,
+  HistogramLayout,
+} from "./histogram-layout";
+
+// Hierarchy layout — tree, treemap, pack over d3-hierarchy. No DOM.
+export {
+  hierarchyPatternIndex,
+  hierarchyValue,
+  computeHierarchy,
+  layoutTreeFromObservations,
+  layoutTreemapFromObservations,
+  layoutPackFromObservations,
+  pointInTreemapNode,
+  pointInPackNode,
+  locateTreeNode,
+  locateTreemapNode,
+  locatePackNode,
+  createTreeIndex,
+  createTreemapIndex,
+  createPackIndex,
+  HIERARCHY_PATTERN_COUNT,
+  TREE_PADDING,
+  TREE_HIT_RADIUS,
+  TREEMAP_PADDING_INNER,
+  TREEMAP_PADDING_TOP,
+  PACK_PADDING,
+} from "./hierarchy-layout";
+export type {
+  HierarchyObservation,
+  HierarchyDatum,
+  HierarchyPart,
+  LayoutHierarchyOptions,
+  TreeNode,
+  TreeLink,
+  TreeLayout,
+  TreemapNode,
+  PackNode,
+} from "./hierarchy-layout";
+
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
 export type { Interval, PackedInterval, PackOptions } from "./overlap";

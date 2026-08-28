@@ -9,7 +9,17 @@
  * what its comment says.
  */
 import { describe, expect, it } from "vitest";
-import { linearScale, type NormalizedCategory } from "@silkplot/core";
+import {
+  layoutHistogramFromObservations,
+  layoutPackFromObservations,
+  layoutPieFromObservations,
+  layoutTreeFromObservations,
+  layoutTreemapFromObservations,
+  linearScale,
+  type BubbleMark,
+  type HistogramBar,
+  type NormalizedCategory,
+} from "@silkplot/core";
 import { rankedBarRect } from "../src/BarChart";
 import {
   canvasMarksOf,
@@ -29,6 +39,7 @@ import {
   paintText,
   pushMark,
 } from "../src/canvas-paint";
+import { CATEGORICAL_PATTERN_COUNT, paintCategoricalPattern } from "../src/canvas-pattern";
 import { syncCanvasPlot } from "../src/canvas-plot";
 import { paintAxis, paintGridlines } from "../src/canvas-frame";
 import {
@@ -40,6 +51,21 @@ import {
 import { paintCartesianSurface } from "../src/canvas-surface";
 import { createStyleResolver, parseDash } from "../src/canvas-style";
 import { heatmapFill, paintHeatmapCell } from "../src/heatmap-paint";
+import {
+  hierarchyFill,
+  paintPackLayout,
+  paintTreeLayout,
+  paintTreemapLayout,
+} from "../src/hierarchy-paint";
+import { pieFill, paintPieSlice } from "../src/pie-paint";
+import {
+  bubbleFill,
+  bubbleSymbol,
+  paintBubbleMark,
+  paintBubbleMarks,
+  paintBubbleSizeLegend,
+} from "../src/bubble-paint";
+import { histogramFill, paintHistogramBar, paintHistogramMarks } from "../src/histogram-paint";
 
 function context2d(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -607,5 +633,218 @@ describe("heatmap cell paint", () => {
     expect(hot.stroke).not.toBe("none");
     expect(heatmapFill(-1)).toBe(heatmapFill(0));
     expect(heatmapFill(2)).toBe(heatmapFill(1));
+  });
+});
+
+describe("pie slice paint", () => {
+  it("fills, records pattern and label, and outlines the active slice", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const laid = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0,
+    });
+    const slice = laid.slices[0]!;
+    const quiet = paintPieSlice(ctx, slice, {}, resolve);
+    const path = quiet.find((m) => m.kind === "path");
+    const label = quiet.find((m) => m.kind === "text");
+    expect(path?.kind === "path" && path.pattern).toBe("0");
+    expect(path?.kind === "path" && path.stroke).toBe("none");
+    expect(label?.kind === "text" && label.text).toBe("A");
+    expect(pieFill(0)).not.toBe(pieFill(1));
+    const active = paintPieSlice(ctx, slice, { active: true }, resolve);
+    expect(active.some((m) => m.kind === "path" && m.strokeWidth === "2")).toBe(true);
+    expect(paintPieSlice(ctx, { ...slice, d: "" }, {}, resolve)).toEqual([]);
+    expect(paintPieSlice(ctx, { ...slice, outerRadius: 0 }, {}, resolve)).toEqual([]);
+  });
+
+  it("paints every pattern slot and a donut ring", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const pie = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0,
+    });
+    const base = pie.slices[0]!;
+    for (let pattern = 0; pattern < 8; pattern += 1) {
+      const marks = paintPieSlice(ctx, { ...base, pattern }, {}, resolve);
+      expect(marks.some((m) => m.kind === "path" && m.pattern === String(pattern))).toBe(true);
+    }
+    const donut = layoutPieFromObservations([{ label: "A", value: 1 }], {
+      width: 40,
+      height: 40,
+      hole: 0.5,
+    });
+    const ring = paintPieSlice(ctx, donut.slices[0]!, { active: true }, resolve);
+    expect(ring.some((m) => m.kind === "path" && Number(m.innerRadius) > 0)).toBe(true);
+  });
+});
+
+describe("hierarchy node paint", () => {
+  const ORG = [
+    { id: "clinic", value: 0 },
+    { id: "leaf", parent: "clinic", value: 4 },
+  ];
+
+  it("paints tree links, patterned nodes, labels, and an active outline", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const tree = layoutTreeFromObservations(ORG, { width: 80, height: 80 });
+    const quiet = paintTreeLayout(ctx, tree, undefined, resolve);
+    expect(quiet.some((m) => m.kind === "line" && m.role === "link")).toBe(true);
+    expect(quiet.some((m) => m.kind === "circle" && m.pattern === "0")).toBe(true);
+    expect(quiet.some((m) => m.kind === "text" && m.role === "node-label" && m.text === "clinic")).toBe(
+      true,
+    );
+    expect(hierarchyFill(0)).not.toBe(hierarchyFill(1));
+    const active = paintTreeLayout(ctx, tree, tree.nodes[0]!.sourceIndex, resolve);
+    expect(active.some((m) => m.kind === "circle" && m.strokeWidth === "2")).toBe(true);
+    expect(paintTreeLayout(ctx, { nodes: [], links: [] }, undefined, resolve)).toEqual([]);
+  });
+
+  it("paints treemap rects and pack circles, including every pattern slot", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const treemap = layoutTreemapFromObservations(ORG, { width: 80, height: 80 });
+    const pack = layoutPackFromObservations(ORG, { width: 80, height: 80 });
+    const cells = paintTreemapLayout(ctx, treemap, treemap[0]!.sourceIndex, resolve);
+    expect(cells.some((m) => m.kind === "rect" && m.pattern !== undefined)).toBe(true);
+    expect(cells.some((m) => m.kind === "rect" && m.strokeWidth === "2")).toBe(true);
+    const circles = paintPackLayout(ctx, pack, pack[0]!.sourceIndex, resolve);
+    expect(circles.some((m) => m.kind === "circle" && Number(m.r) > 0)).toBe(true);
+    expect(
+      paintPackLayout(ctx, pack, undefined, resolve).some((m) => m.kind === "circle" && m.stroke === "none"),
+    ).toBe(true);
+    expect(
+      paintTreemapLayout(ctx, treemap, undefined, resolve).some((m) => m.kind === "rect" && m.stroke === "none"),
+    ).toBe(true);
+    expect(paintTreemapLayout(ctx, [], undefined, resolve)).toEqual([]);
+    expect(paintPackLayout(ctx, [], undefined, resolve)).toEqual([]);
+    for (let pattern = 0; pattern < CATEGORICAL_PATTERN_COUNT; pattern += 1) {
+      paintCategoricalPattern(ctx, 12, pattern, resolve);
+    }
+  });
+});
+
+describe("bubble mark paint", () => {
+  const mark: BubbleMark = {
+    series: "North",
+    seriesIndex: 0,
+    x: 1,
+    y: 2,
+    size: 4,
+    sourceIndex: 0,
+    px: 20,
+    py: 20,
+    r: 8,
+  };
+
+  it("fills a sized symbol, records magnitude, and outlines the active point", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const quiet = paintBubbleMark(ctx, mark, {}, resolve);
+    expect(quiet?.kind).toBe("path");
+    expect(quiet?.symbol).toBe(bubbleSymbol(0));
+    expect(quiet?.r).toBe("8");
+    expect(quiet?.size).toBe("4");
+    expect(quiet?.stroke).toBe("none");
+    expect(bubbleFill(0)).not.toBe(bubbleFill(1));
+    expect(bubbleSymbol(0)).not.toBe(bubbleSymbol(1));
+    const active = paintBubbleMark(ctx, mark, { active: true, fillOpacity: 0.4 }, resolve);
+    expect(active?.strokeWidth).toBe("2");
+    expect(active?.fillOpacity).toBe("0.4");
+    expect(paintBubbleMark(ctx, { ...mark, r: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintBubbleMarks(ctx, [], undefined, resolve)).toEqual([]);
+    expect(paintBubbleMarks(ctx, [mark], 0, resolve).some((m) => m.kind === "path" && m.strokeWidth === "2")).toBe(
+      true,
+    );
+  });
+
+  it("paints every series symbol and a size legend", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    for (let seriesIndex = 0; seriesIndex < 8; seriesIndex += 1) {
+      const painted = paintBubbleMark(ctx, { ...mark, seriesIndex }, {}, resolve);
+      expect(painted?.symbol).toBe(bubbleSymbol(seriesIndex));
+    }
+    expect(paintBubbleSizeLegend(ctx, [], { width: 40, height: 40 }, resolve)).toEqual([]);
+    expect(paintBubbleSizeLegend(ctx, [{ size: 4, r: 8 }], { width: 40, height: 0 }, resolve)).toEqual(
+      [],
+    );
+    expect(paintBubbleSizeLegend(ctx, [{ size: 4, r: 0 }], { width: 40, height: 40 }, resolve)).toEqual(
+      [],
+    );
+    const legend = paintBubbleSizeLegend(
+      ctx,
+      [
+        { size: 1, r: 4 },
+        { size: 4, r: 8 },
+      ],
+      { width: 40, height: 40 },
+      resolve,
+    );
+    expect(legend.some((m) => m.kind === "circle" && m.role === "size-legend" && m.size === "1")).toBe(
+      true,
+    );
+    expect(legend.some((m) => m.kind === "text" && m.role === "size-legend" && m.text === "4")).toBe(
+      true,
+    );
+  });
+});
+
+describe("histogram bar paint", () => {
+  const bar: HistogramBar = {
+    series: "North",
+    seriesIndex: 0,
+    pattern: 0,
+    x0: 0,
+    x1: 2.5,
+    count: 3,
+    density: 0.12,
+    x: 4,
+    y: 8,
+    width: 12,
+    height: 16,
+  };
+
+  it("fills a bin rect and outlines the active bar", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const quiet = paintHistogramBar(ctx, bar, {}, resolve);
+    expect(quiet?.kind).toBe("rect");
+    expect(quiet?.pattern).toBeUndefined();
+    expect(quiet?.stroke).toBe("none");
+    expect(histogramFill(0)).not.toBe(histogramFill(1));
+    const active = paintHistogramBar(ctx, bar, { active: true }, resolve);
+    expect(active?.strokeWidth).toBe("2");
+    expect(paintHistogramBar(ctx, { ...bar, width: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintHistogramBar(ctx, { ...bar, height: 0 }, {}, resolve)).toBeUndefined();
+    expect(paintHistogramMarks(ctx, [], undefined, resolve, false)).toEqual([]);
+    expect(
+      paintHistogramMarks(ctx, [bar], 0, resolve, false).some(
+        (m) => m.kind === "rect" && m.strokeWidth === "2",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a fill pattern when multi-series asks for one", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const patterned = paintHistogramBar(ctx, bar, { pattern: true }, resolve);
+    expect(patterned?.kind === "rect" && patterned.pattern).toBe("0");
+    const laid = layoutHistogramFromObservations(
+      [
+        { value: 1, series: "North" },
+        { value: 8, series: "South" },
+      ],
+      { width: 40, height: 40, thresholds: 2, domain: [0, 10] },
+    );
+    const marks = paintHistogramMarks(ctx, laid.marks, undefined, resolve, true);
+    expect(marks.some((m) => m.kind === "rect" && m.pattern !== undefined)).toBe(true);
+    for (let pattern = 0; pattern < CATEGORICAL_PATTERN_COUNT; pattern += 1) {
+      paintHistogramBar(ctx, { ...bar, pattern, seriesIndex: pattern }, { pattern: true }, resolve);
+    }
   });
 });

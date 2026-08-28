@@ -154,6 +154,23 @@ export const TIME_SERIES_COLUMNS: readonly string[] = ["Time", "Value"];
 export const CATEGORY_COLUMNS: readonly string[] = ["Category", "Value"];
 export const XY_COLUMNS: readonly string[] = ["X", "Y"];
 export const HEATMAP_COLUMNS: readonly string[] = ["Column", "Row", "Value"];
+export const PIE_COLUMNS: readonly string[] = ["Label", "Value", "Percent"];
+export const HIERARCHY_COLUMNS: readonly string[] = ["Id", "Parent", "Value"];
+export const BUBBLE_COLUMNS: readonly string[] = ["Series", "X", "Y", "Size"];
+export const HISTOGRAM_COLUMNS: readonly string[] = ["Bin start", "Bin end", "Count"];
+
+/** Headings for a histogram table: interval, count, and density if drawn. */
+export function histogramTableColumns(options: {
+  series?: boolean;
+  density?: boolean;
+}): readonly string[] {
+  if (options.series !== true && options.density !== true) return HISTOGRAM_COLUMNS;
+  const columns: string[] = [];
+  if (options.series === true) columns.push("Series");
+  columns.push("Bin start", "Bin end", "Count");
+  if (options.density === true) columns.push("Density");
+  return columns;
+}
 
 /**
  * Resolve chart semantics with a table present by default.

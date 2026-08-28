@@ -92,6 +92,12 @@ function markAttr(mark: CanvasMark, name: string): string | null {
       if (name === "stroke-width") return mark.strokeWidth;
       if (name === "stroke-dasharray") return mark.dash ?? null;
       if (name === "fill-opacity") return mark.fillOpacity ?? null;
+      if (name === "data-silkplot-pattern") return mark.pattern ?? null;
+      if (name === "data-silkplot-inner-radius") return mark.innerRadius ?? null;
+      if (name === "data-silkplot-outer-radius") return mark.outerRadius ?? null;
+      if (name === "data-silkplot-symbol") return mark.symbol ?? null;
+      if (name === "r") return mark.r ?? null;
+      if (name === "data-silkplot-size") return mark.size ?? null;
       return null;
     case "circle":
       if (name === "cx") return mark.cx;
@@ -101,6 +107,8 @@ function markAttr(mark: CanvasMark, name: string): string | null {
       if (name === "fill-opacity") return mark.fillOpacity;
       if (name === "stroke") return mark.stroke ?? null;
       if (name === "stroke-width") return mark.strokeWidth ?? null;
+      if (name === "data-silkplot-pattern") return mark.pattern ?? null;
+      if (name === "data-silkplot-size") return mark.size ?? null;
       return null;
     case "rect":
       if (name === "x") return mark.x;
@@ -111,6 +119,7 @@ function markAttr(mark: CanvasMark, name: string): string | null {
       if (name === "stroke") return mark.stroke;
       if (name === "stroke-width") return mark.strokeWidth;
       if (name === "data-silkplot-hatch") return mark.hatch ?? null;
+      if (name === "data-silkplot-pattern") return mark.pattern ?? null;
       return null;
     case "line":
       if (name === "x1") return mark.x1;

@@ -1,8 +1,10 @@
 /**
  * @silkplot/charts — composed chart components.
  *
- * `LineChart`, `BarChart`, `AreaChart`, `ScatterChart`, and `HeatmapChart`
- * are all implemented and covered by browser-mode tests.
+ * `LineChart`, `BarChart`, `AreaChart`, `ScatterChart`, `HeatmapChart`,
+ * `PieChart`, `DonutChart`, `TreeChart`, `TreemapChart`, `PackChart`,
+ * `BubbleChart`, and `HistogramChart` are all implemented and covered by
+ * browser-mode tests.
  */
 export { LineChart } from "./LineChart";
 export type { LineChartProps, LineChartBaseProps } from "./LineChart";
@@ -55,6 +57,32 @@ export type { ScatterChartProps, ScatterChartBaseProps } from "./ScatterChart";
 export { HeatmapChart } from "./HeatmapChart";
 export type { HeatmapChartProps, HeatmapChartBaseProps } from "./HeatmapChart";
 export type { HeatmapObservation, HeatmapBin } from "./HeatmapChart";
+
+export { PieChart, DonutChart } from "./PieChart";
+export type {
+  PieChartProps,
+  PieChartBaseProps,
+  DonutChartProps,
+  DonutChartBaseProps,
+} from "./PieChart";
+export type { PieObservation, PieDatum } from "./PieChart";
+
+export { TreeChart, TreemapChart, PackChart } from "./HierarchyChart";
+export type {
+  TreeChartProps,
+  TreemapChartProps,
+  PackChartProps,
+  HierarchyChartBaseProps,
+} from "./HierarchyChart";
+export type { HierarchyObservation, HierarchyDatum } from "./HierarchyChart";
+
+export { BubbleChart } from "./BubbleChart";
+export type { BubbleChartProps, BubbleChartBaseProps } from "./BubbleChart";
+export type { BubbleObservation, BubbleDatum } from "./BubbleChart";
+
+export { HistogramChart } from "./HistogramChart";
+export type { HistogramChartProps, HistogramChartBaseProps } from "./HistogramChart";
+export type { HistogramObservation, HistogramDatum, HistogramValue } from "./HistogramChart";
 
 export type { TimePoint, CategoryPoint, XYPoint } from "./types";
 

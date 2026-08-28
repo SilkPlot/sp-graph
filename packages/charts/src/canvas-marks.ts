@@ -9,15 +9,22 @@
  * path `d` can be large, and the live element is the natural key.
  */
 
-export type MarkRole = "mark" | "cursor";
+export type MarkRole = "mark" | "cursor" | "size-legend";
 export type LineRole =
   | "grid"
   | "axis-tick"
   | "axis-domain"
   | "reference"
   | "crosshair-x"
-  | "crosshair-y";
-export type TextRole = "axis-label" | "reference-label" | "empty";
+  | "crosshair-y"
+  | "link";
+export type TextRole =
+  | "axis-label"
+  | "reference-label"
+  | "empty"
+  | "slice-label"
+  | "node-label"
+  | "size-legend";
 export type RectRole = "mark" | "brush";
 export type AxisSide = "left" | "bottom" | "top" | "right";
 
@@ -29,6 +36,16 @@ export interface PathMark {
   strokeWidth: string;
   dash: string | undefined;
   fillOpacity: string | undefined;
+  /** Fill-pattern slot for a pie/donut slice — the non-colour channel. */
+  pattern?: string;
+  innerRadius?: string;
+  outerRadius?: string;
+  /** Marker shape name for a bubble — the series channel. Size is magnitude. */
+  symbol?: string;
+  /** Pixel radius of a bubble mark. */
+  r?: string;
+  /** Encoded magnitude of a bubble mark. */
+  size?: string;
 }
 
 export interface CircleMark {
@@ -41,6 +58,10 @@ export interface CircleMark {
   stroke?: string;
   strokeWidth?: string;
   role?: MarkRole;
+  /** Fill-pattern slot for a hierarchy node — the non-colour channel. */
+  pattern?: string;
+  /** Encoded magnitude of a size-legend swatch. */
+  size?: string;
 }
 
 export interface RectMark {
@@ -55,6 +76,8 @@ export interface RectMark {
   role?: RectRole;
   /** Hatch density recorded for the non-colour heatmap channel. */
   hatch?: string;
+  /** Fill-pattern slot for a hierarchy node — the non-colour channel. */
+  pattern?: string;
 }
 
 export interface LineMark {
