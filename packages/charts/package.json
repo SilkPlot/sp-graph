@@ -35,10 +35,10 @@
   },
   "dependencies": {
     "@silkplot/core": "0.3.0-next.0",
-    "@silkplot/solid": "0.3.0-next.0"
+    "@silkplot/solid": "0.3.0-next.0",
+    "@silkplot/theme": "0.3.0-next.0"
   },
   "devDependencies": {
-    "@silkplot/theme": "0.3.0-next.0",
     "solid-js": "^1.9.15",
     "typescript": "^7.0.2"
   }

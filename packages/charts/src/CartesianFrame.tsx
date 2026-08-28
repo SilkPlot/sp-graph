@@ -1,7 +1,7 @@
 /**
- * CartesianFrame — the scaffolding every cartesian chart in this package drew
- * identically: an `SvgLayer`, a guard against a collapsed drawing area, and the
- * left/bottom axis pair. The marks are the caller's, passed as children.
+ * CartesianFrame — scaffolding every cartesian chart in this package shares:
+ * a named (empty) SVG for title/desc, and one Canvas that paints grid, axes,
+ * marks, and plot chrome. There is no overlay SVG and no SVG clipPath.
  *
  * Internal to `@silkplot/charts` on purpose. It is composition, not a base
  * chart — it owns no marks and no scales, and a chart that wants a different
@@ -10,27 +10,25 @@
  * package's composed charts, not a contract worth freezing in the public
  * primitive layer before a second consumer asks for it.
  *
- * It also forwards the whole accessibility relationship set. It used to forward
- * only `title`, which meant `SvgLayer` supported a `<desc>` that no composed
- * chart could ever reach — the chain was broken here and nowhere else.
- *
- * Marks, references, and the other children share one SVG `clipPath` whose
- * rect is the inner plot. Axes and gridlines sit outside that clip so a label
- * is never cut. This is a paint capability, not a viewport command: the
- * interval the marks read is unchanged (see `docs/internal/plot-area-clip.md`).
+ * It also forwards the whole accessibility relationship set. The `SvgLayer`
+ * carries `role="img"`, title, and desc, and paints nothing. Clip for marks
+ * and chrome is Canvas (`ctx.clip`). The inclusion rule that feeds the marks
+ * is unchanged (`docs/internal/plot-area-clip.md`).
  */
-import { Show, createUniqueId, type JSX } from "solid-js";
+import { Show } from "solid-js";
 import type { ScaleLinear } from "@silkplot/core";
 import {
   SvgLayer,
-  Axis,
-  Gridlines,
   type AxisPairModel,
   type AxisScale,
   type ChartSemantics,
   type TickFormat,
 } from "@silkplot/solid";
 import type { CartesianChartProps } from "./scaffold";
+import { CanvasPlot, type PlotPaint } from "./canvas-plot";
+import { paintCartesianSurface, type PlotChrome } from "./canvas-surface";
+
+export type { PlotPaint, PlotChrome };
 
 export interface CartesianFrameProps<
   XS extends AxisScale,
@@ -68,11 +66,17 @@ export interface CartesianFrameProps<
   xFormat?: TickFormat;
   yFormat?: TickFormat;
   /**
-   * Degrees to rotate the bottom-axis labels. Forwarded to `Axis`; the
-   * decide-to-rotate path stays with the chart that opted in.
+   * Degrees to rotate the bottom-axis labels. Forwarded to the Canvas axis;
+   * the decide-to-rotate path stays with the chart that opted in.
    */
   xLabelRotation?: number;
-  children?: JSX.Element;
+  /** Paint cartesian marks onto the Canvas plot (already clipped). */
+  paint: PlotPaint;
+  /**
+   * References, brush, active point, empty wording. Read inside the paint
+   * pass so each field stays tracked. Absent chrome paints nothing extra.
+   */
+  chrome?: () => PlotChrome;
 }
 
 export const CartesianFrame = <
@@ -80,64 +84,39 @@ export const CartesianFrame = <
   YS extends AxisScale = ScaleLinear<number, number>,
 >(
   props: CartesianFrameProps<XS, YS>,
-): JSX.Element => {
+) => {
   const sem = (): ChartSemantics => props.semantics;
-  // One clip path per frame INSTANCE. `createUniqueId` for the same reason the
-  // semantics ids use it: two charts on one page must not share an SVG id, and
-  // a clip keyed on the dimensions would be shared by two charts of the same
-  // size and would also churn on every resize. Sequential, so the markup stays
-  // deterministic for the visual baselines.
-  const clipId = `sp-plot-clip-${createUniqueId()}`;
 
   return (
-    <SvgLayer
-      role="img"
-      decorative={sem().decorative()}
-      title={sem().name() || undefined}
-      titleId={sem().ids.title}
-      desc={sem().desc()}
-      descId={sem().ids.desc}
-      ariaLabelledBy={sem().labelledBy()}
-      ariaDescribedBy={sem().describedBy()}
-      ariaDetails={sem().details()}
-      class={props.layout.class}
-    >
+    <>
+      <SvgLayer
+        role="img"
+        decorative={sem().decorative()}
+        title={sem().name() || undefined}
+        titleId={sem().ids.title}
+        desc={sem().desc()}
+        descId={sem().ids.desc}
+        ariaLabelledBy={sem().labelledBy()}
+        ariaDescribedBy={sem().describedBy()}
+        ariaDetails={sem().details()}
+        class={props.layout.class}
+      />
       <Show when={props.model.hasArea()}>
-        {/*
-          Gridlines are drawn first so the axes and marks paint over them —
-          SVG has no z-index, so paint order IS stacking order.
-
-          They take the same scale objects as the axes below and no tick hints,
-          exactly as the axes take none. Both resolve through the same function,
-          so the lines land on the labels. Passing a tick hint to one and not
-          the other is the one way to break that, which is why this frame passes
-          neither rather than offering a knob that only reaches half of them.
-        */}
-        <Show when={props.layout.gridlines ?? true}>
-          <Gridlines scale={props.model.y()} axis="y" />
-          <Gridlines scale={props.model.x()} axis="x" />
-        </Show>
-        <Axis scale={props.model.y()} orientation="left" format={props.yFormat} />
-        <Axis
-          scale={props.model.x()}
-          orientation="bottom"
-          format={props.xFormat}
-          labelRotation={props.xLabelRotation}
+        <CanvasPlot
+          paint={(ctx, plot, resolve) =>
+            paintCartesianSurface(ctx, plot, resolve, {
+              grid: props.layout.gridlines ?? true,
+              xScale: props.model.x(),
+              yScale: props.model.y(),
+              xFormat: props.xFormat,
+              yFormat: props.yFormat,
+              xLabelRotation: props.xLabelRotation,
+              paintMarks: props.paint,
+              chrome: props.chrome?.(),
+            })
+          }
         />
-        <defs>
-          <clipPath id={clipId}>
-            <rect
-              x={0}
-              y={0}
-              width={props.model.bounds().innerWidth}
-              height={props.model.bounds().innerHeight}
-            />
-          </clipPath>
-        </defs>
-        <g data-silkplot-plot-area="" clip-path={`url(#${clipId})`}>
-          {props.children}
-        </g>
       </Show>
-    </SvgLayer>
+    </>
   );
 };

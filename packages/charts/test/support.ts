@@ -5,6 +5,12 @@
  * single test is *about*: the canvas size, how to find a mark among the axis
  * elements, how to read points back out of a path `d`.
  *
+ * Cartesian marks, axes, grid, and plot chrome paint on Canvas. Geometry
+ * assertions read the descriptors recorded on that surface (`canvas-marks.ts`),
+ * presented as attribute nodes so a test that used to call `getAttribute("d")`
+ * still names the same properties. The named graphic (`role="img"`) carries
+ * title/desc only — no painted marks or chrome.
+ *
  * What deliberately does NOT belong here is any test's assertions. A helper that
  * absorbs the checks is how a suite gets quietly weaker — twelve real
  * expectations become one, every test starts failing for the same reason, and
@@ -23,6 +29,20 @@
  */
 import { expect } from "vitest";
 import { linearScale, timeScale } from "@silkplot/core";
+import {
+  canvasMarksOf,
+  canvasPlotsOf,
+  marksOnCanvas,
+  type CanvasMark,
+  type CircleMark,
+  type LineMark,
+  type PathMark,
+  type RectMark,
+  type TextMark,
+} from "../src/canvas-marks";
+
+export { canvasMarksOf, canvasPlotsOf, marksOnCanvas };
+export type { CanvasMark, CircleMark, LineMark, PathMark, RectMark, TextMark };
 
 export const WIDTH = 400;
 export const HEIGHT = 300;
@@ -41,15 +61,95 @@ export const INNER_WIDTH = WIDTH - MARGINS.left - MARGINS.right;
 export const INNER_HEIGHT = HEIGHT - MARGINS.top - MARGINS.bottom;
 
 /**
- * The chart's own `<path>` marks.
- *
- * Axis domain paths are `<path>` elements too; a chart's marks are the ones
- * without a `data-silkplot-axis` ancestor.
+ * The named graphic. Overlay SVG is gone; this is every `<svg>` in the
+ * container. Legend swatches paint on Canvas, so a multi-series chart's
+ * only `<svg>` is the empty named graphic.
  */
-export function markPaths(container: HTMLElement): SVGPathElement[] {
-  return Array.from(container.querySelectorAll("svg path")).filter(
-    (p) => !p.closest("[data-silkplot-axis]"),
-  ) as SVGPathElement[];
+export function chartSvgs(container: ParentNode): SVGSVGElement[] {
+  return Array.from(container.querySelectorAll("svg")) as SVGSVGElement[];
+}
+
+/** The Canvas plot(s) cartesian marks paint onto. */
+export function plotCanvases(container: ParentNode): HTMLCanvasElement[] {
+  return canvasPlotsOf(container);
+}
+
+/**
+ * An attribute-shaped view of a Canvas mark, so existing `getAttribute`
+ * assertions keep naming `d`, `stroke`, `cx`, and so on.
+ */
+export interface MarkNode {
+  tagName: string;
+  getAttribute(name: string): string | null;
+}
+
+function markAttr(mark: CanvasMark, name: string): string | null {
+  switch (mark.kind) {
+    case "path":
+      if (name === "d") return mark.d;
+      if (name === "fill") return mark.fill;
+      if (name === "stroke") return mark.stroke;
+      if (name === "stroke-width") return mark.strokeWidth;
+      if (name === "stroke-dasharray") return mark.dash ?? null;
+      if (name === "fill-opacity") return mark.fillOpacity ?? null;
+      return null;
+    case "circle":
+      if (name === "cx") return mark.cx;
+      if (name === "cy") return mark.cy;
+      if (name === "r") return mark.r;
+      if (name === "fill") return mark.fill;
+      if (name === "fill-opacity") return mark.fillOpacity;
+      if (name === "stroke") return mark.stroke ?? null;
+      if (name === "stroke-width") return mark.strokeWidth ?? null;
+      return null;
+    case "rect":
+      if (name === "x") return mark.x;
+      if (name === "y") return mark.y;
+      if (name === "width") return mark.width;
+      if (name === "height") return mark.height;
+      if (name === "fill") return mark.fill;
+      if (name === "stroke") return mark.stroke;
+      if (name === "stroke-width") return mark.strokeWidth;
+      if (name === "data-silkplot-hatch") return mark.hatch ?? null;
+      return null;
+    case "line":
+      if (name === "x1") return mark.x1;
+      if (name === "y1") return mark.y1;
+      if (name === "x2") return mark.x2;
+      if (name === "y2") return mark.y2;
+      if (name === "stroke") return mark.stroke;
+      if (name === "stroke-width") return mark.strokeWidth;
+      if (name === "stroke-dasharray") return mark.dash ?? null;
+      if (name === "data-silkplot-reference") return mark.referenceId ?? null;
+      return null;
+    case "text":
+      if (name === "x") return mark.x;
+      if (name === "y") return mark.y;
+      if (name === "text") return mark.text;
+      if (name === "fill") return mark.fill;
+      if (name === "text-anchor") return mark.anchor;
+      if (name === "data-silkplot-reference") return mark.referenceId ?? null;
+      if (name === "data-silkplot-label-rotation") return mark.rotation ?? null;
+      return null;
+  }
+}
+
+function asNode(mark: CanvasMark): MarkNode {
+  return {
+    tagName: mark.kind.toUpperCase(),
+    getAttribute: (name) => markAttr(mark, name),
+  };
+}
+
+/**
+ * The chart's own path marks, from the Canvas surface.
+ *
+ * Axis domain, grid, and chrome are recorded as `line` / `text`, not paths.
+ */
+export function markPaths(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is PathMark => m.kind === "path")
+    .map(asNode);
 }
 
 /** The `d` of the nth chart mark, or "" when there is none. */
@@ -57,26 +157,111 @@ export function markD(container: HTMLElement, index = 0): string {
   return markPaths(container)[index]?.getAttribute("d") ?? "";
 }
 
-export function circles(container: HTMLElement): SVGCircleElement[] {
-  return Array.from(container.querySelectorAll("svg circle")) as SVGCircleElement[];
+export function circles(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is CircleMark => m.kind === "circle" && m.role !== "cursor")
+    .map(asNode);
 }
 
-export function bars(container: HTMLElement): SVGRectElement[] {
-  return Array.from(container.querySelectorAll("rect")).filter(
-    (r) => !r.closest("clipPath"),
-  ) as SVGRectElement[];
+export function bars(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is RectMark => m.kind === "rect" && m.role !== "brush")
+    .map(asNode);
 }
 
-/** The text of every label on one axis, in document order. */
+function axisLabelMarks(container: HTMLElement, side: "left" | "bottom"): TextMark[] {
+  return canvasMarksOf(container).filter(
+    (m): m is TextMark => m.kind === "text" && m.role === "axis-label" && m.axis === side,
+  );
+}
+
+/** The text of every label on one axis, in paint order. */
 export function axisLabels(container: HTMLElement, side: "left" | "bottom"): (string | null)[] {
-  const axis = container.querySelector(`g[data-silkplot-axis="${side}"]`);
-  return Array.from(axis?.querySelectorAll("text") ?? []).map((t) => t.textContent);
+  return axisLabelMarks(container, side).map((m) => m.text);
 }
 
-/** The tick groups on one axis — one `<g>` per tick. */
-export function axisTicks(container: HTMLElement, side: "left" | "bottom"): Element[] {
-  const axis = container.querySelector(`g[data-silkplot-axis="${side}"]`);
-  return Array.from(axis?.querySelectorAll(":scope > g") ?? []);
+/** Bottom-axis labels per Canvas plot — one row per chart in a dashboard. */
+export function axisLabelsPerPlot(
+  container: HTMLElement,
+  side: "left" | "bottom",
+): string[][] {
+  return plotCanvases(container).map((canvas) =>
+    marksOnCanvas(canvas)
+      .filter((m): m is TextMark => m.kind === "text" && m.role === "axis-label" && m.axis === side)
+      .map((m) => m.text),
+  );
+}
+
+/** The tick marks on one axis — one recorded line per tick. */
+export function axisTicks(container: HTMLElement, side: "left" | "bottom"): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter(
+      (m): m is LineMark => m.kind === "line" && m.role === "axis-tick" && m.axis === side,
+    )
+    .map(asNode);
+}
+
+export function hasAxis(container: HTMLElement, side: "left" | "bottom"): boolean {
+  return canvasMarksOf(container).some(
+    (m) => m.kind === "line" && m.role === "axis-domain" && m.axis === side,
+  );
+}
+
+export function axisDomainLine(
+  container: HTMLElement,
+  side: "left" | "bottom",
+): LineMark | undefined {
+  return canvasMarksOf(container).find(
+    (m): m is LineMark => m.kind === "line" && m.role === "axis-domain" && m.axis === side,
+  );
+}
+
+export function labelRotationOf(container: HTMLElement): string | null {
+  return plotCanvases(container)[0]?.getAttribute("data-silkplot-label-rotation") ?? null;
+}
+
+export function referenceLines(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is LineMark => m.kind === "line" && m.role === "reference")
+    .map(asNode);
+}
+
+export function referenceLine(container: HTMLElement, id: string): MarkNode {
+  const mark = canvasMarksOf(container).find(
+    (m): m is LineMark => m.kind === "line" && m.role === "reference" && m.referenceId === id,
+  );
+  expect(mark, `no reference line rendered for id "${id}"`).toBeDefined();
+  return asNode(mark as LineMark);
+}
+
+export function referenceLabels(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is TextMark => m.kind === "text" && m.role === "reference-label")
+    .map(asNode);
+}
+
+export function brushPresent(container: HTMLElement): boolean {
+  return plotCanvases(container).some((el) => el.hasAttribute("data-silkplot-brush"));
+}
+
+/** Drawn empty-state wording on the Canvas, or null when the chart has data. */
+export function emptyMessageOf(container: HTMLElement): string | null {
+  for (const canvas of plotCanvases(container)) {
+    const value = canvas.getAttribute("data-silkplot-empty");
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+/** Geometry elements inside the named graphic — must stay empty on cartesian charts. */
+export function paintedSvgInGraphic(container: HTMLElement): Element[] {
+  const out: Element[] = [];
+  for (const svg of container.querySelectorAll("svg")) {
+    const role = svg.getAttribute("role");
+    if (role !== "img" && role !== "presentation") continue;
+    out.push(...Array.from(svg.querySelectorAll("path, line, circle, rect")));
+  }
+  return out;
 }
 
 const POINT = /[ML](-?[\d.]+),(-?[\d.]+)/g;
@@ -136,10 +321,21 @@ export function expectNoNaN(
       }
     }
   }
+  for (const mark of canvasMarksOf(container)) {
+    for (const attr of attrs) {
+      const value = markAttr(mark, attr);
+      if (value !== null) {
+        expect(value, `canvas ${mark.kind} ${attr} contains NaN`).not.toContain("NaN");
+      }
+    }
+  }
 }
 
 /** Read a numeric attribute, failing loudly if it is absent or unparseable. */
-export function num(el: Element, attr: string): number {
+export function num(
+  el: { tagName: string; getAttribute: (name: string) => string | null },
+  attr: string,
+): number {
   const raw = el.getAttribute(attr);
   expect(raw, `expected <${el.tagName}> to have a numeric "${attr}" attribute`).not.toBeNull();
   const value = Number(raw);

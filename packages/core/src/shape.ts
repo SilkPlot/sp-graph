@@ -1,10 +1,8 @@
 /**
  * Shape — line/area path builders over `d3-shape`.
  *
- * These produce SVG path `d` strings (compute-only). Solid renders the
- * `<path>`; d3 only computes the geometry. The same generators can target a
- * Canvas 2D context later, if representative density profiling selects that
- * conditional path, by passing a context.
+ * These produce path `d` strings (compute-only). Charts paint those strings
+ * onto a Canvas 2D context via `Path2D`; d3 only computes the geometry.
  */
 import { line as d3Line, area as d3Area, curveLinear, curveMonotoneX } from "d3-shape";
 import type { CurveFactory } from "d3-shape";

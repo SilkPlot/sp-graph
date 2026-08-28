@@ -46,6 +46,7 @@
 import { For, createMemo, createSignal, type Accessor, type JSX } from "solid-js";
 import { resolveSeriesStyle, type Series } from "@silkplot/core";
 import { SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
+import { LegendSwatch } from "./LegendSwatch";
 
 /**
  * Minimum interactive target, in CSS px.
@@ -240,24 +241,17 @@ export function Legend(props: LegendProps): JSX.Element {
               {/*
                 A line, not a block: a block cannot show a dash pattern, and the
                 dash is the non-colour channel that separates two series a
-                colour-blind reader sees as one hue. `aria-hidden` because the
-                button's own label already names the series — announcing the
-                swatch too would read the series name twice.
+                colour-blind reader sees as one hue. Canvas, not SVG: this
+                cartesian item has no residual painted SVG. The swatch is
+                `aria-hidden` because the button's own label already names the
+                series — announcing it too would read the series name twice.
               */}
-              <svg width="20" height="12" aria-hidden="true">
-                <line
-                  x1="1"
-                  y1="6"
-                  x2="19"
-                  y2="6"
-                  stroke={style().stroke}
-                  stroke-width={Math.max(style().strokeWidth, 2)}
-                  stroke-dasharray={style().dash}
-                  // A hidden series' swatch loses its fill weight as well as
-                  // dimming, so the state survives a monochrome rendering.
-                  stroke-opacity={shown() ? 1 : 0.4}
-                />
-              </svg>
+              <LegendSwatch
+                stroke={style().stroke}
+                dash={style().dash ?? "none"}
+                strokeWidth={Math.max(style().strokeWidth, 2)}
+                opacity={shown() ? 1 : 0.4}
+              />
               {series.label}
             </button>
           );

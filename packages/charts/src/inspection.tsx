@@ -3,15 +3,16 @@
  *
  * The RESOLUTION seam is `createChartInspection` in `@silkplot/solid`; this is
  * the RENDER seam beside it: the one interaction surface (keyboard composite,
- * doubling as the pointer-capture element), the caller's tooltip, the
- * announcement channel, and the point-and-crosshair mark the time and scatter
- * families share. A chart supplies its family index and its label wording and
- * composes these; what a chart draws for its ACTIVE mark that is not a point —
- * a highlighted bar — it draws itself, because that is where the families
- * legitimately differ (engineering-priorities: share the computation and the
- * marks that must not disagree, not the ones that legitimately do).
+ * doubling as the pointer-capture element), the caller's tooltip, and the
+ * announcement channel. The active-point mark paints on Canvas with the
+ * rest of the cartesian surface. A chart supplies its family index and its
+ * label wording and composes these; what a chart draws for its ACTIVE mark
+ * that is not a point — a highlighted bar — it draws itself, because that is
+ * where the families legitimately differ (engineering-priorities: share the
+ * computation and the marks that must not disagree, not the ones that
+ * legitimately do).
  */
-import { type Accessor, type Component, type JSX, Show, createMemo, createSignal } from "solid-js";
+import { type Accessor, type JSX, Show, createMemo, createSignal } from "solid-js";
 import {
   createTimeSeriesIndex,
   windowActivePointIndex,
@@ -24,7 +25,6 @@ import {
 import {
   ChartAnnouncer,
   ChartKeyboardSurface,
-  Crosshair,
   TooltipAnchor,
   createChartInspection,
   type CartesianModel,
@@ -217,68 +217,6 @@ export function createTimeChartInspection(spec: TimeChartInspectionSpec) {
     },
   };
 }
-
-/**
- * The active-point mark for a time or scatter chart: a ring at the active
- * position with a crosshair through it.
- *
- * Drawn in SIZE and OUTLINE as well as colour so it survives a monochrome
- * rendering (ADR-0005 §5) — a keyboard or pointer user who can see the screen
- * gets nothing from an announcement alone. The surface-coloured under-ring keeps
- * it legible where it crosses a gridline.
- */
-export const PointMark: Component<{ cx: number; cy: number }> = (props) => (
-  <>
-    <circle
-      cx={props.cx}
-      cy={props.cy}
-      r="7"
-      fill="none"
-      stroke="var(--sp-color-surface, #ffffff)"
-      stroke-width="4"
-    />
-    <circle
-      cx={props.cx}
-      cy={props.cy}
-      r="7"
-      fill="none"
-      stroke="var(--sp-color-cursor, currentColor)"
-      stroke-width="2"
-    />
-    <Crosshair x={props.cx} y={props.cy} />
-  </>
-);
-
-/**
- * The live brush rectangle, drawn while a drag-to-brush is in flight (ADR-0018
- * §3). A shaded band across the full plot height between the drag's start and the
- * pointer, drawn in the cursor colour with a dashed edge — the non-colour channel
- * that keeps it legible in a monochrome rendering (ADR-0005 §5). `pointer-events`
- * is off so the band never intercepts the drag that draws it.
- *
- * Coordinates are inner (plot) px, the same space `PointMark` and the marks use,
- * so it lands exactly where the pointer is.
- */
-export const BrushRect: Component<{ x0: number; x1: number; height: number }> = (props) => {
-  const x = (): number => Math.min(props.x0, props.x1);
-  const width = (): number => Math.abs(props.x1 - props.x0);
-  return (
-    <rect
-      data-silkplot-brush=""
-      x={x()}
-      y={0}
-      width={width()}
-      height={props.height}
-      fill="var(--sp-color-cursor, currentColor)"
-      fill-opacity="0.12"
-      stroke="var(--sp-color-cursor, currentColor)"
-      stroke-opacity="0.5"
-      stroke-width="1"
-      stroke-dasharray="3 2"
-      pointer-events="none"
-    />
-  );
-};
 
 /**
  * The hover affordance's wording — the previously missing signifier. A hovered chart

@@ -1,8 +1,8 @@
 /**
  * @silkplot/charts — composed chart components.
  *
- * `LineChart`, `BarChart`, `AreaChart`, and `ScatterChart` are all implemented
- * and covered by browser-mode tests.
+ * `LineChart`, `BarChart`, `AreaChart`, `ScatterChart`, and `HeatmapChart`
+ * are all implemented and covered by browser-mode tests.
  */
 export { LineChart } from "./LineChart";
 export type { LineChartProps, LineChartBaseProps } from "./LineChart";
@@ -51,6 +51,10 @@ export type { AreaChartProps, AreaChartBaseProps } from "./AreaChart";
 
 export { ScatterChart } from "./ScatterChart";
 export type { ScatterChartProps, ScatterChartBaseProps } from "./ScatterChart";
+
+export { HeatmapChart } from "./HeatmapChart";
+export type { HeatmapChartProps, HeatmapChartBaseProps } from "./HeatmapChart";
+export type { HeatmapObservation, HeatmapBin } from "./HeatmapChart";
 
 export type { TimePoint, CategoryPoint, XYPoint } from "./types";
 

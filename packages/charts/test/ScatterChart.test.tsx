@@ -23,6 +23,7 @@ import {
   expectNoNaN,
   expectedLinearXScale,
   expectedYScale,
+  hasAxis,
 } from "./support";
 
 const DATA: XYPoint[] = [
@@ -60,8 +61,8 @@ describe("ScatterChart — structure", () => {
 
   it("renders both a left and a bottom axis", () => {
     const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
-    expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
-    expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
+    expect(hasAxis(container, "left")).toBe(true);
+    expect(hasAxis(container, "bottom")).toBe(true);
   });
 
   it("applies the accessible title as an <svg><title>", () => {

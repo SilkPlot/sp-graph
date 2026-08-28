@@ -549,9 +549,9 @@ export const EXCLUSIONS: ReadonlyArray<{ surface: string; reason: string }> = [
     reason: "not built — the calendar layout engine is deferred to a backlog item",
   },
   {
-    surface: "Canvas rendering substrate",
+    surface: "A parallel SVG mark substrate",
     reason:
-      "not built — SVG is the only substrate today; Canvas is selected only if representative profiling calls for it",
+      "cartesian marks (line / area / bar / scatter) paint on Canvas; the existing chart baselines are those pictures. Heatmap and WebGL Canvas work are not shipped",
   },
   {
     surface: "The HTML data alternative (`<table>`)",

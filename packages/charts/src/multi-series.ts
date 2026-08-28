@@ -45,7 +45,7 @@ import { marksForPlotInterval } from "./plot-area";
  * Narrow one series' data to a viewport interval — the ONE definition of the
  * paint filter, used by the per-row narrowing in `MultiSeriesBody` (which
  * feeds the marks). Includes one neighbour past each edge so a segment can
- * enter or leave; the frame's clipPath hides the overflow. Two copies of this
+ * enter or leave; the frame's Canvas clip hides the overflow. Two copies of this
  * predicate would be two ideas of what is on screen.
  */
 export function dataWithinInterval<M>(

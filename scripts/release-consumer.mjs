@@ -32,14 +32,16 @@ import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 
 /**
- * The LineChart's series mark, as distinct from the axis domain lines.
+ * The LineChart's series path, read from the Canvas plot.
  *
- * `stroke-linecap="round"` is on the mark and on neither axis. Selecting on
- * `path[stroke]` instead picks up the y-axis domain — the first `<path>` in the
- * document — whose `d` is a perfectly valid `M0,0V288` that passes any check for
- * "a path with geometry" while the series is absent.
+ * Cartesian marks, axes, and chrome paint on Canvas. The a11y `<svg>` carries
+ * title/desc only, so `svg path[stroke-linecap="round"]` is empty on a correct
+ * chart. The first stroked path `d` is mirrored onto `data-silkplot-mark-d`
+ * after each paint — the same number the Canvas stroked.
  */
-const SERIES_MARK = '[stroke-linecap="round"]';
+const CANVAS_PLOT = "[data-silkplot-canvas-plot]";
+const SERIES_PATH = "data-silkplot-mark-d";
+const AXIS_LABELS = "data-silkplot-axis-labels";
 
 /** Enough of a static server to load a Vite build. */
 const MIME = {
@@ -321,24 +323,37 @@ async function smoke(root, path) {
       failures.push(`[${path.id}] the rendered chart has no accessible name`);
     }
 
-    // Tick labels come from @silkplot/core's tick computation via
-    // @silkplot/solid's Axis, so their presence exercises all three packages.
-    const ticks = await page.locator("svg text").count();
-    if (ticks === 0) failures.push(`[${path.id}] the chart rendered no axis tick labels`);
+    // The named graphic must not paint marks or chrome. Those live on Canvas.
+    const paintedSvg = await page
+      .locator("svg[role='img'] path, svg[role='img'] line, svg[role='img'] circle, svg[role='img'] rect")
+      .count();
+    if (paintedSvg > 0) {
+      failures.push(
+        `[${path.id}] the accessibility SVG still paints ${paintedSvg} mark(s) or chrome; cartesian charts use Canvas`,
+      );
+    }
 
-    // NOT `path[stroke]`. Both axis domain lines are stroked, fill-none paths
-    // too, and the y-axis domain is the first `<path>` in document order — an
-    // assertion on it reads `M0,0V288` and passes happily while the series is
-    // missing entirely. `stroke-linecap="round"` is the mark's own attribute.
-    const linePath = page.locator(`svg path${SERIES_MARK}`).first();
-    if ((await linePath.count()) === 0) {
-      failures.push(`[${path.id}] no series mark was rendered (svg path${SERIES_MARK})`);
+    const canvas = page.locator(CANVAS_PLOT).first();
+    if ((await canvas.count()) === 0) {
+      failures.push(`[${path.id}] no Canvas plot was rendered from the packed tarballs`);
       return failures;
     }
-    const before = await linePath.getAttribute("d");
+
+    // Tick labels come from @silkplot/core's tick computation via the Canvas
+    // axis, so their presence exercises all three packages.
+    const ticks = Number(await canvas.getAttribute(AXIS_LABELS));
+    if (!Number.isFinite(ticks) || ticks === 0) {
+      failures.push(`[${path.id}] the chart rendered no axis tick labels`);
+    }
+
+    const before = await canvas.getAttribute(SERIES_PATH);
+    if (before === null || before === "") {
+      failures.push(`[${path.id}] no series mark was rendered (canvas ${SERIES_PATH})`);
+      return failures;
+    }
     // Five points in, so four line segments out. A single-segment `d` is an axis
     // or a collapsed chart, and both would satisfy a bare "is it non-empty" check.
-    const segments = (before?.match(/L/g) ?? []).length;
+    const segments = (before.match(/L/g) ?? []).length;
     if (segments < 4) {
       failures.push(
         `[${path.id}] the series mark has ${segments} line segments, expected 4 for a 5-point series (d=${before})`,
@@ -350,9 +365,9 @@ async function smoke(root, path) {
     // with the old one under any domain policy.
     await page.evaluate(() => globalThis.__silkplotReplace());
     await page.waitForFunction(
-      ({ previous, selector }) =>
-        document.querySelector(`svg path${selector}`)?.getAttribute("d") !== previous,
-      { previous: before, selector: SERIES_MARK },
+      ({ previous, plot, attr }) =>
+        document.querySelector(plot)?.getAttribute(attr) !== previous,
+      { previous: before, plot: CANVAS_PLOT, attr: SERIES_PATH },
       { timeout: 5_000 },
     ).catch(() => {
       failures.push(

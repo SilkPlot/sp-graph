@@ -33,6 +33,7 @@ import { createSignal, type JSX } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { CategoryPoint, TimePoint, XYPoint } from "../src/index";
+import { chartSvgs } from "./support";
 
 const W = 400;
 const H = 300;
@@ -461,7 +462,7 @@ describe("multiple charts on one page — ids do not collide", () => {
       </>
     ));
 
-    const svgs = Array.from(container.querySelectorAll("svg")) as SVGSVGElement[];
+    const svgs = chartSvgs(container);
     expect(svgs).toHaveLength(2);
     expect(computedName(svgs[0] as SVGSVGElement)).toBe("First chart");
     expect(computedName(svgs[1] as SVGSVGElement)).toBe("Second chart");
@@ -483,7 +484,7 @@ describe("multiple charts on one page — ids do not collide", () => {
       </>
     ));
 
-    const svgs = Array.from(container.querySelectorAll("svg")) as SVGSVGElement[];
+    const svgs = chartSvgs(container);
     expect(computedName(svgs[0] as SVGSVGElement)).toBe("Left");
     expect(computedName(svgs[1] as SVGSVGElement)).toBe("Right");
     expect(svgs[0]?.getAttribute("aria-labelledby")).not.toBe(

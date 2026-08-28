@@ -2,7 +2,7 @@
  * LineChart — a time series drawn as a single `linePath` stroke.
  *
  * The scaffolding — bounds, pixel ranges, the y-domain policy — comes from
- * `createCartesianModel`; the axes and the SVG frame from `CartesianFrame`.
+ * `createCartesianModel`; the axes and the Canvas frame from `CartesianFrame`.
  * What is written here is only what makes this chart a line chart:
  *
  *   - a time x-domain covering the data's extent;
@@ -22,7 +22,6 @@ import {
   type Series,
 } from "@silkplot/core";
 import {
-  ChartEmptyMark,
   ChartEmptyState,
   DEFAULT_EMPTY_MESSAGE,
   createCartesianModel,
@@ -30,9 +29,7 @@ import {
   type ChartSemanticsProps,
 } from "@silkplot/solid";
 import {
-  BrushRect,
   InteractionLayer,
-  PointMark,
   createTimeChartInspection,
   type TimeChartInspectionProps,
 } from "./inspection";
@@ -42,7 +39,6 @@ import { MultiSeriesBody } from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import {
   ChartShell,
-  StrokedLine,
   assertOneInput,
   TIME_SERIES_COLUMNS,
   createInspectableSemantics,
@@ -53,6 +49,8 @@ import {
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
+import { paintStroke, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import { createViewportGestures } from "@silkplot/solid";
 import type { TimePoint } from "./types";
@@ -256,19 +254,32 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 
   return (
     <>
-      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-        <StrokedLine d={pathD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
-        <Show when={gestures.brush()}>
-          {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
-        </Show>
-        {/* Solid's `<Show>` render-prop yields the narrowed `when` value itself. */}
-        <Show when={active()}>
-          {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
-        </Show>
-        <Show when={scope.isEmpty()}>
-          <ChartEmptyMark message={props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE} />
-        </Show>
-      </CartesianFrame>
+      <CartesianFrame
+        model={model}
+        layout={props}
+        semantics={props.semantics}
+        paint={(ctx, _plot, resolve) => {
+          const marks: CanvasMark[] = [];
+          pushMark(
+            marks,
+            paintStroke(
+              ctx,
+              pathD(),
+              { stroke: props.stroke, strokeWidth: props.strokeWidth },
+              resolve,
+            ),
+          );
+          return marks;
+        }}
+        chrome={() => {
+          const a = active();
+          return {
+            brush: gestures.brush(),
+            point: a === undefined ? undefined : { cx: a.position.x, cy: a.position.y },
+            empty: scope.isEmpty() ? (props.emptyMessage ?? DEFAULT_EMPTY_MESSAGE) : undefined,
+          };
+        }}
+      />
 
       <ChartEmptyState when={scope.isEmpty()} message={props.emptyMessage} />
 
@@ -342,19 +353,28 @@ const LineChartMulti: Component<
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
         pinchZoom={props.pinchZoom}
-        renderSeries={(ctx) => (
-          <StrokedLine
-            d={linePath(ctx.points, {
-              x: ctx.x,
-              y: ctx.y,
-              defined: finiteDefined(ctx.x, ctx.y, ctx.defined),
-              curve: props.curve ?? "monotoneX",
-            })}
-            stroke={ctx.style.stroke}
-            strokeWidth={ctx.style.strokeWidth}
-            dash={ctx.style.dash}
-          />
-        )}
+        paintSeries={(ctx, seriesCtx, resolve) => {
+          const marks: CanvasMark[] = [];
+          pushMark(
+            marks,
+            paintStroke(
+              ctx,
+              linePath(seriesCtx.points, {
+                x: seriesCtx.x,
+                y: seriesCtx.y,
+                defined: finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined),
+                curve: props.curve ?? "monotoneX",
+              }),
+              {
+                stroke: seriesCtx.style.stroke,
+                strokeWidth: seriesCtx.style.strokeWidth,
+                dash: seriesCtx.style.dash,
+              },
+              resolve,
+            ),
+          );
+          return marks;
+        }}
       />
     </ChartShell>
   );

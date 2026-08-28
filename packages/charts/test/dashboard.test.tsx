@@ -30,6 +30,7 @@ import type { DashboardTime } from "@silkplot/solid";
 import type { EffectiveDomain } from "@silkplot/core";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
+import { axisLabelsPerPlot, chartSvgs, emptyMessageOf, expectNoNaN } from "./support";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** 2026-03-01T00:00:00Z, so every instant below is a readable offset from it. */
@@ -53,19 +54,15 @@ function tableTimestamps(container: Element): string[][] {
 /**
  * The X-axis tick labels each chart rendered, per chart.
  *
- * Scoped to `[data-silkplot-axis="bottom"]` rather than every `<text>` in the
- * svg, and that is load-bearing. The y axis is EXPECTED to differ between
+ * Scoped to the bottom-axis recorded labels rather than every string on the
+ * page, and that is load-bearing. The y axis is EXPECTED to differ between
  * members: y follows the visible data, so three members holding different values
  * legitimately carry different y labels. Comparing all text would fail on
  * correct behaviour — and, worse, would then be "fixed" by weakening the
  * assertion that catches the real defect.
  */
-function xAxisLabels(container: Element): string[][] {
-  return [...container.querySelectorAll("svg")].map((svg) =>
-    [...svg.querySelectorAll('[data-silkplot-axis="bottom"] text')].map(
-      (t) => t.textContent ?? "",
-    ),
-  );
+function xAxisLabels(container: HTMLElement): string[][] {
+  return axisLabelsPerPlot(container, "bottom");
 }
 
 /**
@@ -144,7 +141,7 @@ describe("Dashboard — one selection drives every member", () => {
     // Drawn: exactly one member is empty, and it says so rather than going blank.
     const marks = container.querySelectorAll("[data-silkplot-empty]");
     expect(marks).toHaveLength(1);
-    expect(marks[0]?.textContent).toBe("No data in the selected range");
+    expect(emptyMessageOf(container)).toBe("No data in the selected range");
 
     // Announced: a polite live region carries the same wording, so the state is
     // not visual-only. An empty chart and a broken one look identical without it.
@@ -181,12 +178,12 @@ describe("Dashboard — changing the range", () => {
     // Identity captured BEFORE the change. Fine-grained reactivity should update
     // these nodes in place; a re-created tree would hand back different objects
     // and silently discard any internal state a chart was holding.
-    const before = [...container.querySelectorAll("svg")];
+    const before = chartSvgs(container);
     expect(before).toHaveLength(2);
 
     setRange({ start: new Date(T0 + 6 * DAY), end: new Date(T0 + 12 * DAY) });
 
-    const after = [...container.querySelectorAll("svg")];
+    const after = chartSvgs(container);
     expect(after[0]).toBe(before[0]);
     expect(after[1]).toBe(before[1]);
 
@@ -287,12 +284,7 @@ describe("A chart handed a resolution nothing supplies yet", () => {
 
     expect(tableTimestamps(container)[0]).toEqual([]);
     expect(container.querySelectorAll("[data-silkplot-empty]")).toHaveLength(1);
-    // An `empty` resolution carries no interval of its own, so the x scale has
-    // nothing to span. It must still produce a drawable chart rather than a
-    // NaN-strewn one.
-    for (const path of container.querySelectorAll("path")) {
-      expect(path.getAttribute("d") ?? "").not.toContain("NaN");
-    }
+    expectNoNaN(container, "path", ["d"]);
   });
 
   it("can suppress the announcement without suppressing the drawn message", () => {

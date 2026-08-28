@@ -27,6 +27,7 @@ import {
   bars as getBars,
   expectNoNaN,
   num,
+  axisLabels,
 } from "./support";
 
 /** The geometry attributes a `<rect>` can silently render nothing from. */
@@ -291,10 +292,9 @@ describe("long labels", () => {
       orientation: "horizontal",
     });
 
-    const text = container.textContent ?? "";
-    // Truncation is only defensible because the full text survives somewhere.
-    expect(text).toContain(LONG);
-    expect(text).toContain("…");
+    const ticks = axisLabels(container, "left");
+    expect(ticks.some((t) => t?.includes("…"))).toBe(true);
+    expect(container.textContent).toContain(LONG);
   });
 
   it("lets categoryTickFormat override the truncation entirely", () => {
@@ -303,10 +303,8 @@ describe("long labels", () => {
       categoryTickFormat: (label: string) => label.slice(0, 4),
     });
 
-    const ticks = [...container.querySelectorAll("text")].map((t) => t.textContent);
+    const ticks = [...axisLabels(container, "bottom"), ...axisLabels(container, "left")];
     expect(ticks).toContain("Regi");
-    // The default ellipsis must be gone: the override replaces the policy, it
-    // does not stack with it.
     expect(ticks.some((t) => t?.includes("…"))).toBe(false);
   });
 });

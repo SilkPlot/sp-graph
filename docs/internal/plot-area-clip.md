@@ -8,10 +8,10 @@ This is an internal note, not a numbered ADR and not part of the public site.
 surface, the interval math in `@silkplot/core`) is interval arithmetic. It
 answers which time window is in force. It does not decide how paint is clipped.
 
-**Plot-area clip** is a paint capability of `CartesianFrame`. One SVG `clipPath`
-whose rect is the inner plot bounds. Line, area, multi-series marks, and
-reference overlays are children of that frame, so they share the clip. Axes and
-gridlines sit outside it.
+**Plot-area clip** is a paint capability of `CartesianFrame`. Cartesian marks
+and chrome clip via Canvas (`ctx.clip` on the inner plot after translating to
+the plot origin). Axes and gridlines sit outside that clip so labels occupy
+the margins. There is no overlay SVG and no SVG `clipPath` on this surface.
 
 The two are composed, not fused. A viewport change does not grow a one-off clip
 flag, and the clip does not move the interval.
@@ -30,8 +30,12 @@ Inspection still windows the raw data-scope set. The table is unchanged
 
 ## Canvas
 
-The same clip semantics apply when a Canvas substrate exists. Canvas is not
-built. This note does not implement it and does not describe a second clip.
+The same clip semantics apply on the Canvas substrate cartesian charts use.
+Neighbour inclusion is unchanged (`marksForPlotInterval`). The clip itself is
+`ctx.clip` on the inner plot (after the bitmap is translated to the plot
+origin), not an SVG `clipPath`. References, the active point, and the brush
+paint on that same Canvas pass, inside the clip, so a threshold cannot paint
+over an axis.
 
 ## What this is not
 

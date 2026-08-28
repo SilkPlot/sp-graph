@@ -96,6 +96,32 @@ export type {
   LayoutBarRectsOptions,
 } from "./bar-layout";
 
+// Heatmap layout — bin onto a grid, then map bins to pixels. No DOM.
+export {
+  firstSeenKeys,
+  numericBinIndex,
+  numericBinKey,
+  heatmapT,
+  heatmapHatch,
+  heatmapBands,
+  binHeatmap,
+  layoutHeatmapCells,
+  heatmapHatchLines,
+  locateHeatmapCell,
+  createHeatmapIndex,
+  HEATMAP_HATCH_LEVELS,
+} from "./heatmap-layout";
+export type {
+  HeatmapObservation,
+  HeatmapBin,
+  BinHeatmapInput,
+  HeatmapGrid,
+  LayoutHeatmapOptions,
+  HeatmapCell,
+  HatchSegment,
+  HeatmapBands,
+} from "./heatmap-layout";
+
 // Overlap packing — calendar (deterministic lane assignment).
 export { packOverlaps } from "./overlap";
 export type { Interval, PackedInterval, PackOptions } from "./overlap";

@@ -7,7 +7,7 @@
  * visibility, missing values, the legend, and the derived table cannot drift
  * from Line and Area.
  */
-import { For, Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component, type JSX } from "solid-js";
 import {
   CATEGORY_LABEL_ROTATION_DEG,
   bandScale,
@@ -41,6 +41,8 @@ import {
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import { InteractionLayer, useInspection } from "./inspection";
+import { paintBar, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import { measurePaintedAxisLabelWidth } from "./measure-axis-label";
 import {
   ChartShell,
@@ -151,22 +153,6 @@ export function announceMultiBar(
 function displayedLabels(times: readonly number[], props: MultiSeriesBarProps): readonly string[] {
   return times.map((time) => categoryLabel(time, props));
 }
-
-const SegmentBar: Component<{
-  rect: BarRect;
-  fill: string;
-  active: boolean;
-}> = (props) => (
-  <rect
-    x={props.rect.x}
-    y={props.rect.y}
-    width={props.rect.width}
-    height={props.rect.height}
-    fill={props.fill}
-    stroke={props.active ? "var(--sp-color-cursor, currentColor)" : "none"}
-    stroke-width={props.active ? 2 : 0}
-  />
-);
 
 const MultiBarBody: Component<MultiSeriesBarProps> = (props) => {
   const bounds = useChartBounds();
@@ -287,20 +273,29 @@ const MultiBarBody: Component<MultiSeriesBarProps> = (props) => {
         xFormat={isVertical() ? categoryFormat : valueFormat}
         yFormat={isVertical() ? valueFormat : categoryFormat}
         xLabelRotation={xLabelRotation()}
-      >
-        <For each={rects()}>
-          {(r) => (
-            <SegmentBar
-              rect={r}
-              fill={seriesFillOf(fills(), r.seriesId)}
-              active={
-                active()?.seriesId === r.seriesId &&
-                active()?.datum.t.getTime() === r.time
-              }
-            />
-          )}
-        </For>
-      </CartesianFrame>
+        paint={(ctx, _plot, resolve) => {
+          const painted: CanvasMark[] = [];
+          const current = active();
+          const fillMap = fills();
+          for (const r of rects()) {
+            pushMark(
+              painted,
+              paintBar(
+                ctx,
+                r,
+                {
+                  fill: seriesFillOf(fillMap, r.seriesId),
+                  active:
+                    current?.seriesId === r.seriesId &&
+                    current?.datum.t.getTime() === r.time,
+                },
+                resolve,
+              ),
+            );
+          }
+          return painted;
+        }}
+      />
 
       <Show when={insp.enabled() || insp.pointer()}>
         <InteractionLayer

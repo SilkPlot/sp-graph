@@ -22,6 +22,7 @@ import NavigateExample from "../src/examples/06-navigate";
 import RangeControlExample from "../src/examples/07-range-control";
 import LinkedDashboardExample from "../src/examples/08-linked-dashboard";
 import { installThemeStyles } from "../src/install-styles";
+import { canvasMarksOf } from "../../packages/charts/src/canvas-marks";
 import "../src/styles.css";
 
 installThemeStyles();
@@ -50,8 +51,10 @@ function rowCounts(container: HTMLElement): number[] {
 
 /**
  * The count of drawn points in the chart's own mark — mirrors
- * `markD`/`pathXs` in `packages/charts/test/support.ts`, reimplemented here
- * because a site test cannot import from another package's test directory.
+ * `markD`/`pathXs` in `packages/charts/test/support.ts`. A site test cannot
+ * import from another package's test directory, so it reads the recorded
+ * Canvas mark descriptors (the same surface those helpers wrap) from charts
+ * source.
  *
  * Unlike `support.ts`'s `pathXs`, this counts command LETTERS (`M`/`L`/`C`)
  * rather than parsing coordinate pairs, because these examples use the
@@ -61,9 +64,9 @@ function rowCounts(container: HTMLElement): number[] {
  * regardless of curve.
  */
 function markPointCounts(container: HTMLElement): number[] {
-  return [...container.querySelectorAll("svg path")]
-    .filter((p) => !p.closest("[data-silkplot-axis]"))
-    .map((p) => (p.getAttribute("d")?.match(/[MLC]/g) ?? []).length);
+  return canvasMarksOf(container)
+    .filter((m): m is Extract<typeof m, { kind: "path" }> => m.kind === "path")
+    .map((m) => (m.d.match(/[MLC]/g) ?? []).length);
 }
 
 function press(el: HTMLElement, key: string): void {

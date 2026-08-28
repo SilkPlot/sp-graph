@@ -25,10 +25,14 @@ import {
   INNER_HEIGHT,
   INNER_WIDTH,
   WIDTH,
+  axisDomainLine,
   axisLabels,
   bars as getBars,
+  canvasMarksOf,
   expectNoNaN,
   expectedYScale,
+  hasAxis,
+  labelRotationOf,
   num,
 } from "./support";
 
@@ -165,7 +169,7 @@ describe("BarChart — axes", () => {
     const { x } = expectedScales(ALL_POSITIVE);
     const expectedTicks = computeBandTicks(x);
 
-    expect(container.querySelector('g[data-silkplot-axis="bottom"]')).not.toBeNull();
+    expect(hasAxis(container, "bottom")).toBe(true);
     expect(axisLabels(container, "bottom")).toEqual(expectedTicks.map((t) => t.label));
   });
 
@@ -173,7 +177,7 @@ describe("BarChart — axes", () => {
     const { container } = render(() => (
       <BarChart title="Sales by region" data={ALL_POSITIVE} width={WIDTH} height={HEIGHT} />
     ));
-    expect(container.querySelector('g[data-silkplot-axis="left"]')).not.toBeNull();
+    expect(hasAxis(container, "left")).toBe(true);
   });
 });
 
@@ -228,11 +232,11 @@ describe("BarChart — rotateCategoryLabels opt-in", () => {
     const { container } = render(() => (
       <BarChart title="Clinics" data={LONG} width={WIDTH} height={HEIGHT} />
     ));
-    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
-    expect(axis).not.toBeNull();
-    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBeNull();
-    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
-    expect(d).toContain(`M0,${defaultInnerHeight}H`);
+    expect(hasAxis(container, "bottom")).toBe(true);
+    expect(labelRotationOf(container)).toBeNull();
+    const domain = axisDomainLine(container, "bottom");
+    expect(domain?.y1).toBe(String(defaultInnerHeight));
+    expect(domain?.y2).toBe(String(defaultInnerHeight));
     expect(axisLabels(container, "bottom")).toHaveLength(LONG.length);
   });
 
@@ -246,10 +250,10 @@ describe("BarChart — rotateCategoryLabels opt-in", () => {
         rotateCategoryLabels
       />
     ));
-    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
-    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBeNull();
-    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
-    expect(d).toContain(`M0,${defaultInnerHeight}H`);
+    expect(labelRotationOf(container)).toBeNull();
+    const domain = axisDomainLine(container, "bottom");
+    expect(domain?.y1).toBe(String(defaultInnerHeight));
+    expect(domain?.y2).toBe(String(defaultInnerHeight));
   });
 
   it("rotates ~45° and reserves the collision-test bottom when opted in and labels collide", () => {
@@ -272,16 +276,18 @@ describe("BarChart — rotateCategoryLabels opt-in", () => {
         rotateCategoryLabels
       />
     ));
-    const axis = container.querySelector('g[data-silkplot-axis="bottom"]');
-    expect(axis?.getAttribute("data-silkplot-label-rotation")).toBe("-45");
-    const texts = Array.from(axis?.querySelectorAll("text") ?? []);
+    expect(labelRotationOf(container)).toBe("-45");
+    const texts = canvasMarksOf(container).filter(
+      (m) => m.kind === "text" && m.role === "axis-label" && m.axis === "bottom",
+    );
     expect(texts).toHaveLength(LONG.length);
     for (const text of texts) {
-      expect(text.getAttribute("transform")).toMatch(/rotate\(-45\)/);
+      expect(text.kind === "text" ? text.rotation : undefined).toBe("-45");
     }
     const innerHeight = HEIGHT - 8 - expected.reservedBottom;
-    const d = axis?.querySelector(":scope > path")?.getAttribute("d") ?? "";
-    expect(d).toContain(`M0,${innerHeight}H`);
+    const domain = axisDomainLine(container, "bottom");
+    expect(domain?.y1).toBe(String(innerHeight));
+    expect(domain?.y2).toBe(String(innerHeight));
     expect(axisLabels(container, "bottom")).toHaveLength(LONG.length);
   });
 });
