@@ -1,5 +1,5 @@
 /**
- * ScatterChart — a point cloud of `<circle>` marks over two linear scales.
+ * ScatterChart — a point cloud of Canvas circles over two linear scales.
  *
  * Scaffolding comes from `createCartesianModel` and `CartesianFrame`. What
  * makes this chart a scatter, and the one place it deliberately parts company
@@ -20,7 +20,7 @@
  *   — note that the resolution belongs to a pointer model, not to this chart
  *   and not to the cursor.
  */
-import { For, Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component, type JSX } from "solid-js";
 import { createScatterIndex, extentOf, linearScale, type ActivePoint } from "@silkplot/core";
 import {
   createCartesianModel,
@@ -35,6 +35,8 @@ import {
   useInspection,
   type KeyboardHoverProps,
 } from "./inspection";
+import { paintCircle, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import {
   ChartShell,
   XY_COLUMNS,
@@ -128,18 +130,33 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
 
   return (
     <>
-      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-        <For each={props.data}>
-          {(d) => (
-            <circle
-              cx={model.x()(d.x)}
-              cy={model.y()(d.y)}
-              r={props.radius ?? 3}
-              fill={props.fill ?? "currentColor"}
-              fill-opacity={props.fillOpacity ?? 1}
-            />
-          )}
-        </For>
+      <CartesianFrame
+        model={model}
+        layout={props}
+        semantics={props.semantics}
+        paint={(ctx, _plot, resolve) => {
+          const painted: CanvasMark[] = [];
+          const xs = model.x();
+          const ys = model.y();
+          for (const d of props.data) {
+            pushMark(
+              painted,
+              paintCircle(
+                ctx,
+                xs(d.x),
+                ys(d.y),
+                {
+                  radius: props.radius,
+                  fill: props.fill,
+                  fillOpacity: props.fillOpacity,
+                },
+                resolve,
+              ),
+            );
+          }
+          return painted;
+        }}
+      >
         <Show when={active()}>
           {(a) => <PointMark cx={a().position.x} cy={a().position.y} />}
         </Show>

@@ -170,7 +170,7 @@ is always answerable and an excluded surface can be told from a forgotten one:
 | Surface | Why |
 |---|---|
 | Calendar week grid | not built; deferred to the calendar layout work |
-| Canvas substrate | not built; SVG is the only substrate today |
+| A parallel SVG mark substrate | cartesian marks (line / area / bar / scatter) paint on Canvas; the existing chart baselines are those pictures. Heatmap and WebGL Canvas work are not shipped |
 | The HTML data alternative (`<table>`) | structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels re-tests text layout, where a screenshot gate is most brittle and least informative. Fixtures pass `tableHidden`, so no table is in frame — before 2026-07-19 passing no `table` prop was enough, but charts now render one by default |
 | Cross-platform pixel identity | out of scope by design — see below |
 

@@ -30,6 +30,7 @@ import type { DashboardTime } from "@silkplot/solid";
 import type { EffectiveDomain } from "@silkplot/core";
 import { AreaChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
+import { chartSvgs } from "./support";
 
 const DAY = 24 * 60 * 60 * 1000;
 /** 2026-03-01T00:00:00Z, so every instant below is a readable offset from it. */
@@ -61,7 +62,7 @@ function tableTimestamps(container: Element): string[][] {
  * assertion that catches the real defect.
  */
 function xAxisLabels(container: Element): string[][] {
-  return [...container.querySelectorAll("svg")].map((svg) =>
+  return chartSvgs(container).map((svg) =>
     [...svg.querySelectorAll('[data-silkplot-axis="bottom"] text')].map(
       (t) => t.textContent ?? "",
     ),
@@ -181,12 +182,12 @@ describe("Dashboard — changing the range", () => {
     // Identity captured BEFORE the change. Fine-grained reactivity should update
     // these nodes in place; a re-created tree would hand back different objects
     // and silently discard any internal state a chart was holding.
-    const before = [...container.querySelectorAll("svg")];
+    const before = chartSvgs(container);
     expect(before).toHaveLength(2);
 
     setRange({ start: new Date(T0 + 6 * DAY), end: new Date(T0 + 12 * DAY) });
 
-    const after = [...container.querySelectorAll("svg")];
+    const after = chartSvgs(container);
     expect(after[0]).toBe(before[0]);
     expect(after[1]).toBe(before[1]);
 

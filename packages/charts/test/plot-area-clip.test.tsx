@@ -1,11 +1,13 @@
 /**
- * Shared SVG clipPath on the plot area, and neighbour inclusion so a segment
- * can enter or leave.
+ * Shared plot-area clip, and neighbour inclusion so a segment can enter or
+ * leave.
  *
  * The viewport is interval arithmetic; these tests do not reopen it. They
- * prove the paint side: one clipPath whose rect is the inner plot, used by
- * line, area, multi-series, and references, and a narrowed path that reaches
- * both plot-edge x values because it includes one neighbour past each edge.
+ * prove the paint side: Canvas `ctx.clip` on a bitmap whose rect is the inner
+ * plot, used by line, area, and multi-series marks, and a narrowed path that
+ * reaches both plot-edge x values because it includes one neighbour past each
+ * edge. Overlay SVG (references) keeps the frame's `clipPath` so a threshold
+ * cannot paint over an axis.
  */
 import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
@@ -22,6 +24,7 @@ import {
   markPaths,
   pathXs,
   pathXsOnPlot,
+  plotCanvases,
 } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
@@ -133,8 +136,8 @@ describe("marksForPlotInterval — neighbour-or-all", () => {
   });
 });
 
-describe("shared SVG clipPath on the plot area", () => {
-  it("is an SVG clipPath whose rect is the inner plot, not overflow:hidden", () => {
+describe("Canvas clip on the plot area", () => {
+  it("is a Canvas plot whose bitmap is the inner plot, not overflow:hidden and not an SVG clipPath on the marks", () => {
     const { container } = render(() => (
       <LineChart
         title="Readings"
@@ -150,18 +153,23 @@ describe("shared SVG clipPath on the plot area", () => {
     expect(svg).not.toBeNull();
     expect(svg?.style.overflow).toBe("visible");
 
-    const area = plotArea(container);
-    expect(getComputedStyle(area).overflow).not.toBe("hidden");
-    expect(area.style.overflow).not.toBe("hidden");
+    const canvases = plotCanvases(container);
+    expect(canvases).toHaveLength(1);
+    const canvas = canvases[0]!;
+    expect(canvas.getAttribute("data-silkplot-clip")).toBe("canvas");
+    expect(canvas.getAttribute("data-silkplot-plot-width")).toBe(String(WIDTH));
+    expect(canvas.getAttribute("data-silkplot-plot-height")).toBe(String(HEIGHT));
+    expect(canvas.style.overflow).not.toBe("hidden");
 
-    const rect = clipRectOf(container);
-    expect(rect.getAttribute("x")).toBe("0");
-    expect(rect.getAttribute("y")).toBe("0");
-    expect(rect.getAttribute("width")).toBe(String(WIDTH));
-    expect(rect.getAttribute("height")).toBe(String(HEIGHT));
+    // Marks are not SVG paths, so they cannot be inside an SVG clipPath.
+    expect(container.querySelectorAll("svg path").length).toBeGreaterThan(0); // axes
+    expect(markPaths(container).length).toBeGreaterThan(0);
+    for (const path of Array.from(container.querySelectorAll("svg path"))) {
+      expect(path.closest("[data-silkplot-axis]"), "no SVG cartesian mark path").not.toBeNull();
+    }
   });
 
-  it("is the same clip on line, area, multi-series, and a reference overlay", () => {
+  it("clips line, area, and multi-series marks on Canvas, and keeps overlay references in the plot-area clip", () => {
     const mounts = [
       {
         name: "line",
@@ -208,31 +216,28 @@ describe("shared SVG clipPath on the plot area", () => {
       },
     ] as const;
 
-    const clipIds: string[] = [];
     for (const mount of mounts) {
       const { container, unmount } = render(mount.ui);
-      const area = plotArea(container);
-      const raw = area.getAttribute("clip-path") ?? "";
-      const id = raw.match(/^url\(#(.+)\)$/)?.[1];
-      expect(id, `${mount.name} should use url(#clipId)`).toBeTruthy();
-      clipIds.push(id ?? "");
+      const canvas = plotCanvases(container)[0];
+      expect(canvas, `${mount.name} should paint on Canvas`).toBeTruthy();
+      expect(canvas?.getAttribute("data-silkplot-clip")).toBe("canvas");
+      expect(canvas?.getAttribute("data-silkplot-plot-width"), mount.name).toBe(String(WIDTH));
+      expect(canvas?.getAttribute("data-silkplot-plot-height"), mount.name).toBe(String(HEIGHT));
+      expect(markPaths(container).length, mount.name).toBeGreaterThan(0);
 
-      const rect = clipRectOf(container);
-      expect(rect.getAttribute("width"), mount.name).toBe(String(WIDTH));
-      expect(rect.getAttribute("height"), mount.name).toBe(String(HEIGHT));
-
-      for (const path of markPaths(container)) {
-        expect(area.contains(path), `${mount.name} mark is inside the shared clip`).toBe(true);
-      }
       if (mount.name === "multi-series + references") {
         const refs = container.querySelector("[data-silkplot-references]");
         expect(refs, "reference overlay should render").not.toBeNull();
-        expect(area.contains(refs), "references use the same plot-area clip").toBe(true);
+        expect(plotArea(container).contains(refs), "references use the overlay plot-area clip").toBe(
+          true,
+        );
         expect(refs?.querySelector("clipPath"), "no private reference clip").toBeNull();
+        const rect = clipRectOf(container);
+        expect(rect.getAttribute("width")).toBe(String(WIDTH));
+        expect(rect.getAttribute("height")).toBe(String(HEIGHT));
       }
       unmount();
     }
-    expect(new Set(clipIds).size, "each chart instance has its own clip id").toBe(clipIds.length);
   });
 });
 
@@ -305,7 +310,7 @@ describe("entering/leaving segments reach both plot edges", () => {
       const xs = pathXs(strokedPath?.getAttribute("d") ?? "");
       expect(xs[0] ?? 0).toBeLessThan(0);
       expect(xs[xs.length - 1] ?? 0).toBeGreaterThan(WIDTH);
-      expect(plotArea(container).contains(strokedPath as Node)).toBe(true);
+      expect(plotCanvases(container)).toHaveLength(1);
       unmount();
     }
   });

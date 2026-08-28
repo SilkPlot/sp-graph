@@ -14,6 +14,8 @@ import { render } from "@solidjs/testing-library";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
+import { marksOnCanvas } from "../src/canvas-marks";
+import { plotCanvases } from "./support";
 
 const T0 = Date.UTC(2026, 0, 1);
 const DAY = 86_400_000;
@@ -21,14 +23,12 @@ const day = (n: number): Date => new Date(T0 + n * DAY);
 const DATA: TimePoint[] = Array.from({ length: 10 }, (_, n) => ({ t: day(n), y: 10 + n }));
 const NO_MARGINS = { top: 0, right: 0, bottom: 0, left: 0 } as const;
 
-/** The drawn point count of each chart, in DOM order — one entry per `<svg>`. */
+/** The drawn point count of each chart, in DOM order — one entry per Canvas plot. */
 function pointCounts(container: HTMLElement): number[] {
-  return [...container.querySelectorAll("svg")].map((svg) => {
-    const mark = [...svg.querySelectorAll("g > path")].find(
-      (p) => p.closest("[data-silkplot-axis]") === null,
-    );
-    const d = mark?.getAttribute("d") ?? "";
-    return (d.match(/[ML]/g) ?? []).length;
+  return plotCanvases(container).map((canvas) => {
+    const path = marksOnCanvas(canvas).find((m) => m.kind === "path");
+    const pathD = path?.kind === "path" ? path.d : "";
+    return (pathD.match(/[ML]/g) ?? []).length;
   });
 }
 

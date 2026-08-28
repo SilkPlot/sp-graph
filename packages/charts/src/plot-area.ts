@@ -4,8 +4,8 @@
  *
  * The viewport (`createViewport`, ADR-0014) stays interval arithmetic. This
  * module does not move that interval. It decides which datums a path generator
- * receives so a segment can cross a plot edge; the frame's SVG `clipPath` hides
- * the overflow. Canvas, when it exists, uses the same inclusion rule.
+ * receives so a segment can cross a plot edge; Canvas `ctx.clip` hides
+ * the overflow. The inclusion rule is substrate-independent.
  */
 import type { MsInterval } from "@silkplot/core";
 

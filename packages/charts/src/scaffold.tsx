@@ -303,36 +303,6 @@ function latestReading(props: ChartShellProps): string {
 }
 
 /**
- * A stroked series path — the mark LineChart draws alone and AreaChart draws
- * over its fill. Identical in both, down to the joins: round, because a mitred
- * join on a sharp reversal spikes well past the data it is meant to describe.
- */
-export const StrokedLine: Component<{
-  d: string;
-  stroke?: string;
-  strokeWidth?: number;
-  /**
-   * `stroke-dasharray`. The redundant non-colour channel for a multi-series
-   * chart (ADR-0005 §5) — two series a reader cannot separate by hue are still
-   * separable by dash. Omitted, and on a single-series chart, the line is solid.
-   */
-  dash?: string;
-}> = (props) => (
-  <path
-    d={props.d}
-    fill="none"
-    stroke={props.stroke ?? "currentColor"}
-    stroke-width={props.strokeWidth ?? 1.5}
-    stroke-dasharray={props.dash}
-    stroke-linejoin="round"
-    // `butt`, not `round`, when dashed: a round cap extends each dash by half a
-    // stroke width at both ends, so a fine pattern closes up into a solid line
-    // and the channel silently stops distinguishing anything.
-    stroke-linecap={props.dash === undefined || props.dash === "none" ? "round" : "butt"}
-  />
-);
-
-/**
  * ADR-0008 §12's runtime backstop: `data` and `series` are mutually exclusive.
  *
  * The typed props already make both-at-once unrepresentable, so this exists for
@@ -522,7 +492,7 @@ export interface TimeSeriesScope {
   /**
    * The data actually drawn — `yData` further narrowed to the viewport interval,
    * plus one neighbour past each edge so a segment can enter or leave the plot
-   * (the frame's clipPath hides the overflow). Feeds the marks. Inspection
+   * (the frame's Canvas clip hides the overflow). Feeds the marks. Inspection
    * windows `yData` separately, so the cursor still describes the interval on
    * screen and not the overflow neighbours. Standalone with no viewport prop
    * this equals `yData`.

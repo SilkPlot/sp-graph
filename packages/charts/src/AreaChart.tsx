@@ -44,7 +44,6 @@ import { ReferenceList } from "./ReferenceList";
 import type { MultiSeriesInputWithFormat, SingleSeriesInput } from "./LineChart";
 import {
   ChartShell,
-  StrokedLine,
   assertOneInput,
   TIME_SERIES_COLUMNS,
   createInspectableSemantics,
@@ -55,6 +54,8 @@ import {
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
+import { paintFill, paintStroke, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import type { TimePoint } from "./types";
 import { tableOptions } from "./formatters";
@@ -149,16 +150,6 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
   // The inspection below deliberately keeps reading `scope.visible`.
   const plotted = plottedPoints(scope.visible, () => props.decimation);
 
-  const areaD = createMemo(() => {
-    const { x, defined, curve } = marks();
-    return areaPath(plotted(), { x, y0: baselineY(), y1: marks().y, defined, curve });
-  });
-
-  const lineD = createMemo(() => {
-    const { x, y, defined, curve } = marks();
-    return linePath(plotted(), { x, y, defined, curve });
-  });
-
   // One active-datum state, shared by keyboard and pointer over the same
   // time-series index Line uses — Area and Line differ in their marks and never
   // in this (ADR-0016 §3).
@@ -190,9 +181,34 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 
   return (
     <>
-      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-        <path d={areaD()} fill={props.fill ?? "currentColor"} fill-opacity={props.fillOpacity ?? 0.2} stroke="none" />
-        <StrokedLine d={lineD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+      <CartesianFrame
+        model={model}
+        layout={props}
+        semantics={props.semantics}
+        paint={(ctx, _plot, resolve) => {
+          const { x, defined, curve } = marks();
+          const painted: CanvasMark[] = [];
+          pushMark(
+            painted,
+            paintFill(
+              ctx,
+              areaPath(plotted(), { x, y0: baselineY(), y1: marks().y, defined, curve }),
+              { fill: props.fill, fillOpacity: props.fillOpacity },
+              resolve,
+            ),
+          );
+          pushMark(
+            painted,
+            paintStroke(
+              ctx,
+              linePath(plotted(), { x, y: marks().y, defined, curve }),
+              { stroke: props.stroke, strokeWidth: props.strokeWidth },
+              resolve,
+            ),
+          );
+          return painted;
+        }}
+      >
         <Show when={gestures.brush()}>
           {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
         </Show>
@@ -276,34 +292,47 @@ const AreaChartMulti: Component<
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
         pinchZoom={props.pinchZoom}
-        renderSeries={(ctx) => {
+        paintSeries={(ctx, seriesCtx, resolve) => {
           // ONE defined predicate, built once and shared by both marks. Two
           // separately-built predicates would break the fill and its stroke at
           // different points — which renders, and reads as a drawing bug.
-          const defined = finiteDefined(ctx.x, ctx.y, ctx.defined);
+          const defined = finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined);
           const curve = props.curve ?? "monotoneX";
-          return (
-            <>
-              <path
-                d={areaPath(ctx.points, {
-                  x: ctx.x,
-                  y0: ctx.baseline,
-                  y1: ctx.y,
-                  defined,
-                  curve,
-                })}
-                fill={ctx.style.fill}
-                fill-opacity={ctx.style.fillOpacity}
-                stroke="none"
-              />
-              <StrokedLine
-                d={linePath(ctx.points, { x: ctx.x, y: ctx.y, defined, curve })}
-                stroke={ctx.style.stroke}
-                strokeWidth={ctx.style.strokeWidth}
-                dash={ctx.style.dash}
-              />
-            </>
+          const painted: CanvasMark[] = [];
+          pushMark(
+            painted,
+            paintFill(
+              ctx,
+              areaPath(seriesCtx.points, {
+                x: seriesCtx.x,
+                y0: seriesCtx.baseline,
+                y1: seriesCtx.y,
+                defined,
+                curve,
+              }),
+              { fill: seriesCtx.style.fill, fillOpacity: seriesCtx.style.fillOpacity },
+              resolve,
+            ),
           );
+          pushMark(
+            painted,
+            paintStroke(
+              ctx,
+              linePath(seriesCtx.points, {
+                x: seriesCtx.x,
+                y: seriesCtx.y,
+                defined,
+                curve,
+              }),
+              {
+                stroke: seriesCtx.style.stroke,
+                strokeWidth: seriesCtx.style.strokeWidth,
+                dash: seriesCtx.style.dash,
+              },
+              resolve,
+            ),
+          );
+          return painted;
         }}
       />
     </ChartShell>

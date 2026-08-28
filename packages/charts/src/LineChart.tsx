@@ -42,7 +42,6 @@ import { MultiSeriesBody } from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import {
   ChartShell,
-  StrokedLine,
   assertOneInput,
   TIME_SERIES_COLUMNS,
   createInspectableSemantics,
@@ -53,6 +52,8 @@ import {
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
+import { paintStroke, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import { createViewportGestures } from "@silkplot/solid";
 import type { TimePoint } from "./types";
@@ -256,8 +257,24 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 
   return (
     <>
-      <CartesianFrame model={model} layout={props} semantics={props.semantics}>
-        <StrokedLine d={pathD()} stroke={props.stroke} strokeWidth={props.strokeWidth} />
+      <CartesianFrame
+        model={model}
+        layout={props}
+        semantics={props.semantics}
+        paint={(ctx, _plot, resolve) => {
+          const marks: CanvasMark[] = [];
+          pushMark(
+            marks,
+            paintStroke(
+              ctx,
+              pathD(),
+              { stroke: props.stroke, strokeWidth: props.strokeWidth },
+              resolve,
+            ),
+          );
+          return marks;
+        }}
+      >
         <Show when={gestures.brush()}>
           {(b) => <BrushRect x0={b().x0} x1={b().x1} height={model.bounds().innerHeight} />}
         </Show>
@@ -342,19 +359,28 @@ const LineChartMulti: Component<
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
         pinchZoom={props.pinchZoom}
-        renderSeries={(ctx) => (
-          <StrokedLine
-            d={linePath(ctx.points, {
-              x: ctx.x,
-              y: ctx.y,
-              defined: finiteDefined(ctx.x, ctx.y, ctx.defined),
-              curve: props.curve ?? "monotoneX",
-            })}
-            stroke={ctx.style.stroke}
-            strokeWidth={ctx.style.strokeWidth}
-            dash={ctx.style.dash}
-          />
-        )}
+        paintSeries={(ctx, seriesCtx, resolve) => {
+          const marks: CanvasMark[] = [];
+          pushMark(
+            marks,
+            paintStroke(
+              ctx,
+              linePath(seriesCtx.points, {
+                x: seriesCtx.x,
+                y: seriesCtx.y,
+                defined: finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined),
+                curve: props.curve ?? "monotoneX",
+              }),
+              {
+                stroke: seriesCtx.style.stroke,
+                strokeWidth: seriesCtx.style.strokeWidth,
+                dash: seriesCtx.style.dash,
+              },
+              resolve,
+            ),
+          );
+          return marks;
+        }}
       />
     </ChartShell>
   );

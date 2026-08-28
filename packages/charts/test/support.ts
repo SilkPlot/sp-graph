@@ -5,6 +5,11 @@
  * single test is *about*: the canvas size, how to find a mark among the axis
  * elements, how to read points back out of a path `d`.
  *
+ * Cartesian marks paint on Canvas. Geometry assertions read the descriptors
+ * recorded on that surface (`canvas-marks.ts`), presented as attribute nodes
+ * so a test that used to call `getAttribute("d")` still names the same
+ * properties. Axis ticks, titles, and overlay SVG are still in the DOM.
+ *
  * What deliberately does NOT belong here is any test's assertions. A helper that
  * absorbs the checks is how a suite gets quietly weaker — twelve real
  * expectations become one, every test starts failing for the same reason, and
@@ -23,6 +28,14 @@
  */
 import { expect } from "vitest";
 import { linearScale, timeScale } from "@silkplot/core";
+import {
+  canvasMarksOf,
+  canvasPlotsOf,
+  type CanvasMark,
+  type CircleMark,
+  type PathMark,
+  type RectMark,
+} from "../src/canvas-marks";
 
 export const WIDTH = 400;
 export const HEIGHT = 300;
@@ -41,15 +54,74 @@ export const INNER_WIDTH = WIDTH - MARGINS.left - MARGINS.right;
 export const INNER_HEIGHT = HEIGHT - MARGINS.top - MARGINS.bottom;
 
 /**
- * The chart's own `<path>` marks.
- *
- * Axis domain paths are `<path>` elements too; a chart's marks are the ones
- * without a `data-silkplot-axis` ancestor.
+ * The named graphic (`role="img"`), excluding the plot overlay SVG that sits
+ * above the Canvas. Counting every `<svg>` would double once overlays exist.
  */
-export function markPaths(container: HTMLElement): SVGPathElement[] {
-  return Array.from(container.querySelectorAll("svg path")).filter(
-    (p) => !p.closest("[data-silkplot-axis]"),
-  ) as SVGPathElement[];
+export function chartSvgs(container: ParentNode): SVGSVGElement[] {
+  return Array.from(container.querySelectorAll("svg")).filter(
+    (el) => !el.hasAttribute("data-silkplot-plot-overlay"),
+  ) as SVGSVGElement[];
+}
+
+/** The Canvas plot(s) cartesian marks paint onto. */
+export function plotCanvases(container: ParentNode): HTMLCanvasElement[] {
+  return canvasPlotsOf(container);
+}
+
+/**
+ * An attribute-shaped view of a Canvas mark, so existing `getAttribute`
+ * assertions keep naming `d`, `stroke`, `cx`, and so on.
+ */
+export interface MarkNode {
+  tagName: string;
+  getAttribute(name: string): string | null;
+}
+
+function markAttr(mark: CanvasMark, name: string): string | null {
+  switch (mark.kind) {
+    case "path":
+      if (name === "d") return mark.d;
+      if (name === "fill") return mark.fill;
+      if (name === "stroke") return mark.stroke;
+      if (name === "stroke-width") return mark.strokeWidth;
+      if (name === "stroke-dasharray") return mark.dash ?? null;
+      if (name === "fill-opacity") return mark.fillOpacity ?? null;
+      return null;
+    case "circle":
+      if (name === "cx") return mark.cx;
+      if (name === "cy") return mark.cy;
+      if (name === "r") return mark.r;
+      if (name === "fill") return mark.fill;
+      if (name === "fill-opacity") return mark.fillOpacity;
+      return null;
+    case "rect":
+      if (name === "x") return mark.x;
+      if (name === "y") return mark.y;
+      if (name === "width") return mark.width;
+      if (name === "height") return mark.height;
+      if (name === "fill") return mark.fill;
+      if (name === "stroke") return mark.stroke;
+      if (name === "stroke-width") return mark.strokeWidth;
+      return null;
+  }
+}
+
+function asNode(mark: CanvasMark): MarkNode {
+  return {
+    tagName: mark.kind.toUpperCase(),
+    getAttribute: (name) => markAttr(mark, name),
+  };
+}
+
+/**
+ * The chart's own path marks, from the Canvas surface.
+ *
+ * Axis domain paths are still SVG `<path>` elements; they are not here.
+ */
+export function markPaths(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is PathMark => m.kind === "path")
+    .map(asNode);
 }
 
 /** The `d` of the nth chart mark, or "" when there is none. */
@@ -57,14 +129,16 @@ export function markD(container: HTMLElement, index = 0): string {
   return markPaths(container)[index]?.getAttribute("d") ?? "";
 }
 
-export function circles(container: HTMLElement): SVGCircleElement[] {
-  return Array.from(container.querySelectorAll("svg circle")) as SVGCircleElement[];
+export function circles(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is CircleMark => m.kind === "circle")
+    .map(asNode);
 }
 
-export function bars(container: HTMLElement): SVGRectElement[] {
-  return Array.from(container.querySelectorAll("rect")).filter(
-    (r) => !r.closest("clipPath"),
-  ) as SVGRectElement[];
+export function bars(container: HTMLElement): MarkNode[] {
+  return canvasMarksOf(container)
+    .filter((m): m is RectMark => m.kind === "rect")
+    .map(asNode);
 }
 
 /** The text of every label on one axis, in document order. */
@@ -136,10 +210,21 @@ export function expectNoNaN(
       }
     }
   }
+  for (const mark of canvasMarksOf(container)) {
+    for (const attr of attrs) {
+      const value = markAttr(mark, attr);
+      if (value !== null) {
+        expect(value, `canvas ${mark.kind} ${attr} contains NaN`).not.toContain("NaN");
+      }
+    }
+  }
 }
 
 /** Read a numeric attribute, failing loudly if it is absent or unparseable. */
-export function num(el: Element, attr: string): number {
+export function num(
+  el: { tagName: string; getAttribute: (name: string) => string | null },
+  attr: string,
+): number {
   const raw = el.getAttribute(attr);
   expect(raw, `expected <${el.tagName}> to have a numeric "${attr}" attribute`).not.toBeNull();
   const value = Number(raw);

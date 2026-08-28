@@ -1,8 +1,8 @@
 /**
  * The body every MULTI-SERIES cartesian chart shares: the scope, the model, the
- * frame, and one mark group per visible series. What a series looks like is the
- * caller's — passed as a render function — because that is the only thing a line
- * and an area actually disagree about.
+ * frame, and one Canvas paint pass over the visible series. What a series looks
+ * like is the caller's — passed as a paint function — because that is the only
+ * thing a line and an area actually disagree about.
  *
  * ## Why this exists beside the single-series bodies rather than replacing them
  *
@@ -17,7 +17,7 @@
  * So the paths stay apart, with the reason recorded, until that decision exists.
  * Collapsing them now would bury a deliberate difference behind a shared name.
  */
-import { createMemo, For, Show, type JSX } from "solid-js";
+import { createMemo, Show, type JSX } from "solid-js";
 import {
   createTimeSeriesIndex,
   decimateMinMax,
@@ -47,6 +47,8 @@ import {
   type YDomainPolicy,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import type { CanvasMark } from "./canvas-marks";
+import type { StyleResolver } from "./canvas-style";
 import { BrushRect, InteractionLayer, PointMark } from "./inspection";
 import type { CartesianChartProps } from "./scaffold";
 import { dataWithinInterval, type MultiSeriesScope } from "./multi-series";
@@ -58,8 +60,8 @@ export interface SeriesRenderContext<M = unknown> {
   /**
    * The DATA-SCOPE series — identity, label, style, gap policy. Its `data` is
    * NOT viewport-narrowed; `points` below is. Row identity keys on this, so
-   * it must stay stable across viewport commits (see the `For` note in the
-   * body) — narrowed data lives in `points`, never here.
+   * it must stay stable across viewport commits — narrowed data lives in
+   * `points`, never here.
    */
   series: NormalizedSeries<M>;
   /** Resolved presentation — caller's style over the index-derived default. */
@@ -96,8 +98,12 @@ export interface MultiSeriesBodyProps<M = unknown> {
    */
   xTickFormat?: (value: Date) => string;
   yTickFormat?: (value: number) => string;
-  /** Draw one series. Called once per visible series, in paint order. */
-  renderSeries: (context: SeriesRenderContext<M>) => JSX.Element;
+  /** Paint one series onto the Canvas plot. Called once per visible series, in paint order. */
+  paintSeries: (
+    ctx: CanvasRenderingContext2D,
+    context: SeriesRenderContext<M>,
+    resolve: StyleResolver,
+  ) => readonly CanvasMark[];
   /** Maximum drawn points per series (ADR-0023) — see `TimeSeriesChartProps`.
    *  Painting only: the shared-time index below reads the RAW drawn set. */
   decimation?: number;
@@ -159,6 +165,57 @@ function yContributions<M>(
   }
   out.push(...referenceDomainOf(references, "value"));
   return out;
+}
+
+function paintVisibleSeries<M>(
+  ctx: CanvasRenderingContext2D,
+  resolve: StyleResolver,
+  args: {
+    visible: readonly NormalizedSeries<M>[];
+    interval: ReturnType<MultiSeriesScope<M>["viewportInterval"]>;
+    budget: number | undefined;
+    x: (d: NormalizedDatum<M>) => number;
+    y: (d: NormalizedDatum<M>) => number;
+    baseline: number;
+    area: boolean;
+    fillOpacity: number | undefined;
+    paintSeries: MultiSeriesBodyProps<M>["paintSeries"];
+  },
+): CanvasMark[] {
+  const marks: CanvasMark[] = [];
+  args.visible.forEach((series, i) => {
+    const drawn =
+      args.interval === undefined ? series.data : dataWithinInterval(series.data, args.interval);
+    if (drawn.length === 0) return;
+    const plotted =
+      args.budget === undefined
+        ? drawn
+        : decimateMinMax(drawn, args.budget, {
+            time: (d) => d.time,
+            value: (d) => (d.state === "present" ? (d.y as number) : null),
+          });
+    const geometry = seriesGeometry({ ...series, data: plotted });
+    marks.push(
+      ...args.paintSeries(
+        ctx,
+        {
+          series,
+          style: resolveSeriesStyle(series.style, series.sourceIndex, {
+            area: args.area,
+            fillOpacity: args.fillOpacity,
+          }),
+          points: geometry.points,
+          defined: geometry.defined,
+          x: args.x,
+          y: args.y,
+          baseline: args.baseline,
+          index: i,
+        },
+        resolve,
+      ),
+    );
+  });
+  return marks;
 }
 
 export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JSX.Element {
@@ -269,87 +326,20 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
         semantics={props.semantics}
         xFormat={props.xTickFormat}
         yFormat={props.yTickFormat}
+        paint={(ctx, _plot, resolve) =>
+          paintVisibleSeries(ctx, resolve, {
+            visible: props.scope.visible(),
+            interval: props.scope.viewportInterval(),
+            budget: props.decimation,
+            x: mapping().x,
+            y: mapping().y,
+            baseline: baseline(),
+            area: props.area ?? false,
+            fillOpacity: props.fillOpacity,
+            paintSeries: props.paintSeries,
+          })
+        }
       >
-        {/*
-          `For`, not `Index`: series are keyed by identity, and `For` re-uses a
-          row's DOM when the item is the same reference while `Index` re-uses it
-          by position. Under a reorder, `Index` would keep series 0's rendered
-          path and hand it series 1's data — the exact identity failure ADR-0008
-          §1 exists to prevent, expressed in the DOM instead of the model.
-
-          `visible`, not `drawn`: the row is keyed on the DATA-SCOPE series,
-          whose identity survives a viewport commit, and the viewport narrowing
-          happens INSIDE the row (`drawnData` below). Keying on `drawn` handed
-          `For` four fresh objects per commit, so every zoom step tore down and
-          recreated every row — root, style memo, geometry, path node — which
-          profiling attributed as the shared zoom/brush/range-drag
-          budget miss. With stable rows, a commit re-runs only each row's
-          geometry memos and updates the path attribute in place.
-        */}
-        <For each={props.scope.visible()}>
-          {(series, i) => {
-            const style = createMemo(() =>
-              resolveSeriesStyle(series.style, series.sourceIndex, {
-                area: props.area ?? false,
-                fillOpacity: props.fillOpacity,
-              }),
-            );
-            // The row's drawn points: the series narrowed to the applied
-            // viewport interval, through the scope's ONE filter definition.
-            const drawnData = createMemo(() => {
-              const iv = props.scope.viewportInterval();
-              return iv === undefined ? series.data : dataWithinInterval(series.data, iv);
-            });
-            // What this row PAINTS — the drawn points under the explicit
-            // per-series decimation budget (ADR-0023). The shared-time index
-            // above deliberately reads the RAW drawn set: the path is the
-            // envelope, the active point is the truth. A non-present state
-            // classifies as a gap, so decimation cannot connect across one.
-            const plotted = createMemo(() => {
-              const b = props.decimation;
-              if (b === undefined) return drawnData();
-              return decimateMinMax(drawnData(), b, {
-                time: (d) => d.time,
-                value: (d) => (d.state === "present" ? (d.y as number) : null),
-              });
-            });
-            // Gap policy comes from `core`, not from a copy of it here. An
-            // earlier draft inlined the same two branches, which is precisely
-            // the duplication that disagrees silently: the model's table and
-            // the chart's marks would each have had their own idea of which
-            // points are drawn, and no test would have gone red when they
-            // parted. One function, one answer.
-            const geometry = createMemo(() => seriesGeometry({ ...series, data: plotted() }));
-
-            return (
-              <Show when={drawnData().length > 0}>
-                {props.renderSeries({
-                  series,
-                  get style() {
-                    return style();
-                  },
-                  get points() {
-                    return geometry().points;
-                  },
-                  get defined() {
-                    return geometry().defined;
-                  },
-                  get x() {
-                    return mapping().x;
-                  },
-                  get y() {
-                    return mapping().y;
-                  },
-                  get baseline() {
-                    return baseline();
-                  },
-                  index: i(),
-                })}
-              </Show>
-            );
-          }}
-        </For>
-
         {/*
           AFTER the series, so a threshold stays legible on a dense chart. The
           full reasoning — including why "above the marks" is achieved by paint

@@ -28,6 +28,7 @@ import {
   moveCount,
   pathXs,
   pathYs,
+  plotCanvases,
 } from "./support";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
@@ -1021,28 +1022,28 @@ describe("sizing", () => {
 });
 
 /**
- * The commit path updates rows in place — it does not recreate them.
+ * The commit path updates the Canvas plot in place — it does not recreate it.
  *
  * Profiling attributed the shared zoom/brush/range-drag budget miss
  * to exactly this: rows keyed on the viewport-narrowed `drawn` snapshot were
  * torn down and rebuilt on every commit, because each commit minted fresh
- * series objects and `For` keys by reference. Rows now key on the DATA-SCOPE
- * series and narrow inside the row, so a commit re-runs geometry memos and
- * writes the path attribute on the SAME node.
+ * series objects and `For` keys by reference. There is no per-series DOM row
+ * now: one Canvas plot paints every visible series, and a commit re-paints
+ * that same bitmap.
  *
  * Both halves of the assertion are load-bearing. Node identity alone passes
  * against a chart that ignores the commit entirely (a frozen chart keeps its
- * nodes too); the changed `d` proves the commit landed. The changed `d` alone
- * passes against recreation (a fresh node carries new geometry); the kept
+ * canvas too); the changed `d` proves the commit landed. The changed `d` alone
+ * passes against recreation (a fresh canvas carries new geometry); the kept
  * identity proves no teardown happened.
  */
-describe("viewport commits update series rows in place", () => {
+describe("viewport commits update the Canvas plot in place", () => {
   const DENSE: readonly Series[] = [
     series("a", [1, 5, 3, 4, 2]),
     series("b", [10, 4, 8, 6, 9]),
   ];
 
-  it("zoomIn keeps every series' path node and moves its geometry", () => {
+  it("zoomIn keeps the Canvas plot and moves every series' geometry", () => {
     let commands: { zoomIn: () => void } | undefined;
     const { container } = mountLine({
       series: DENSE,
@@ -1051,16 +1052,18 @@ describe("viewport commits update series rows in place", () => {
       },
     });
 
+    const canvas = plotCanvases(container)[0];
+    expect(canvas, "expected a Canvas plot").toBeTruthy();
     const paths = markPaths(container);
     expect(paths).toHaveLength(2);
     const dBefore = paths.map((p) => p.getAttribute("d"));
 
     commands?.zoomIn();
 
-    // The same two elements are still connected — no row was recreated…
-    expect(paths.map((p) => p.isConnected)).toEqual([true, true]);
-    // …and both moved: the zoom genuinely re-scaled the drawn geometry.
-    paths.forEach((p, i) => {
+    expect(plotCanvases(container)[0]).toBe(canvas);
+    expect(canvas?.isConnected).toBe(true);
+    expect(markPaths(container)).toHaveLength(2);
+    markPaths(container).forEach((p, i) => {
       expect(p.getAttribute("d")).not.toBe(dBefore[i]);
     });
   });

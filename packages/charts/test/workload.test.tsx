@@ -34,6 +34,7 @@ import {
   pathXs,
   axisLabels,
   expectNoNaN,
+  chartSvgs,
 } from "./support";
 import {
   W1_SERIES_COUNT,
@@ -170,7 +171,7 @@ describe("W1 — 48 charts mount in one dashboard", () => {
       <For each={deck}>{(spec) => <Panel spec={spec} width={200} height={120} />}</For>
     ));
 
-    expect(container.querySelectorAll("svg")).toHaveLength(W1_DASHBOARD_CHARTS);
+    expect(chartSvgs(container)).toHaveLength(W1_DASHBOARD_CHARTS);
 
     const names = [...container.querySelectorAll("svg title")].map((t) => t.textContent);
     expect(new Set(names).size).toBe(W1_DASHBOARD_CHARTS);
@@ -202,14 +203,14 @@ describe("W1 — 48 charts mount in one dashboard", () => {
       </>
     ));
 
-    expect(container.querySelectorAll("svg")).toHaveLength(3);
+    expect(chartSvgs(container)).toHaveLength(3);
 
     setShown(true);
-    await vi.waitFor(() => expect(container.querySelectorAll("svg")).toHaveLength(6));
+    await vi.waitFor(() => expect(chartSvgs(container)).toHaveLength(6));
 
     // Each revealed panel drew geometry rather than staying at zero width.
     await vi.waitFor(() => {
-      const revealed = [...container.querySelectorAll("svg")].slice(3);
+      const revealed = chartSvgs(container).slice(3);
       for (const svg of revealed) {
         expect(svg.querySelector("path, rect, circle")).not.toBeNull();
       }

@@ -31,13 +31,13 @@
  * category axis and the value axis are stable under orientation; x and y are
  * not. Same principle, applied to a surface ADR-0010 did not have.
  *
- * D3 does all the math inside memos; Solid renders every bar with `<For>`. No
- * d3-selection, d3-transition, or d3-axis anywhere.
+ * D3 does all the math inside memos; Solid hosts the frame and Canvas paints
+ * every bar. No d3-selection, d3-transition, or d3-axis anywhere.
  *
  * Grouped and stacked variants take `mode` plus `series` (the shared series
  * model). They are a sibling path: this adapter is not rewritten for them.
  */
-import { For, Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component, type JSX } from "solid-js";
 import {
   CATEGORY_LABEL_ROTATION_DEG,
   createBandIndex,
@@ -62,6 +62,8 @@ import {
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
 import { InteractionLayer, useInspection, type KeyboardHoverProps } from "./inspection";
+import { paintBar, pushMark } from "./canvas-paint";
+import type { CanvasMark } from "./canvas-marks";
 import {
   ChartShell,
   CATEGORY_COLUMNS,
@@ -283,53 +285,31 @@ function barLabel(
   return name ? `${name}, ${c.label}, ${value}` : `${c.label}, ${value}`;
 }
 
-/** One bar, positioned for whichever axis its category landed on. */
-const Bar: Component<{
-  model: RankedModel;
-  category: NormalizedCategory;
-  fill?: string;
-  /** Emphasised as the active bar — an outline that survives monochrome (ADR-0005 §5). */
-  active?: boolean;
-}> = (props) => {
-  const band = (): number | undefined => props.model.band()(props.category.id);
-  const zero = (): number => props.model.value()(0);
-  const at = (): number => props.model.value()(props.category.value as number);
-  const stroke = (): string => (props.active ? "var(--sp-color-cursor, currentColor)" : "none");
-  const strokeWidth = (): number => (props.active ? 2 : 0);
-
-  return (
-    // A broken or absent value is drawn as NO BAR rather than as a zero-height
-    // one at the baseline: a zero-height rect at zero is exactly what a real
-    // measurement of zero looks like.
-    <Show when={band() !== undefined && props.category.value !== null}>
-      {props.model.orientation() === "vertical" ? (
-        <rect
-          x={band()}
-          // The smaller pixel coordinate and the absolute distance: a negative
-          // value hangs below the baseline, and SVG rejects a negative height.
-          y={Math.min(zero(), at())}
-          width={props.model.band().bandwidth()}
-          height={Math.abs(at() - zero())}
-          fill={props.fill ?? "currentColor"}
-          stroke={stroke()}
-          stroke-width={strokeWidth()}
-        />
-      ) : (
-        <rect
-          // The horizontal mirror: a negative value runs LEFT of the baseline,
-          // so x is the smaller coordinate and width the absolute distance.
-          x={Math.min(zero(), at())}
-          y={band()}
-          width={Math.abs(at() - zero())}
-          height={props.model.band().bandwidth()}
-          fill={props.fill ?? "currentColor"}
-          stroke={stroke()}
-          stroke-width={strokeWidth()}
-        />
-      )}
-    </Show>
-  );
-};
+/** Pixel rect for one ranked bar, or undefined when the category has no band or no value. */
+export function rankedBarRect(
+  model: RankedModel,
+  category: NormalizedCategory,
+): { x: number; y: number; width: number; height: number } | undefined {
+  const band = model.band()(category.id);
+  if (band === undefined || category.value === null) return undefined;
+  const zero = model.value()(0);
+  const at = model.value()(category.value as number);
+  const bandwidth = model.band().bandwidth();
+  if (model.orientation() === "vertical") {
+    return {
+      x: band,
+      y: Math.min(zero, at),
+      width: bandwidth,
+      height: Math.abs(at - zero),
+    };
+  }
+  return {
+    x: Math.min(zero, at),
+    y: band,
+    width: Math.abs(at - zero),
+    height: bandwidth,
+  };
+}
 
 /**
  * Inner body: runs INSIDE ChartRoot so it can read reactive bounds. All scales
@@ -408,18 +388,28 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
         xFormat={isVertical() ? categoryFormat : props.valueTickFormat}
         yFormat={isVertical() ? props.valueTickFormat : categoryFormat}
         xLabelRotation={xLabelRotation()}
-      >
-        <For each={categories()}>
-          {(c) => (
-            <Bar
-              model={ranked}
-              category={c}
-              fill={props.fill}
-              active={active()?.datum.id === c.id}
-            />
-          )}
-        </For>
-      </CartesianFrame>
+        paint={(ctx, _plot, resolve) => {
+          const painted: CanvasMark[] = [];
+          const current = active();
+          for (const c of categories()) {
+            const rect = rankedBarRect(ranked, c);
+            if (rect === undefined) continue;
+            pushMark(
+              painted,
+              paintBar(
+                ctx,
+                rect,
+                {
+                  fill: props.fill,
+                  active: current?.datum.id === c.id,
+                },
+                resolve,
+              ),
+            );
+          }
+          return painted;
+        }}
+      />
 
       <Show when={insp.enabled() || insp.pointer()}>
         <InteractionLayer

@@ -11,12 +11,9 @@
  * line, which is accepted and is why the default stroke is 1px.
  *
  * It never draws over the axes, and that is achieved by the FRAME's plot-area
- * clip rather than by ordering. The frame paints its axes before its children,
- * so a mark already paints above an axis; ordering could not put references
- * below one. The shared `clipPath` confines every line and label to the inner
- * plot rect, which the axes sit outside of — so the guarantee holds regardless
- * of what the frame does next, and a reference does not carry a private clip
- * of its own.
+ * clip rather than by ordering. Overlay SVG uses the frame's `clipPath` so a
+ * reference stays inside the inner plot; cartesian marks clip via Canvas. A
+ * reference does not carry a private clip of its own.
  *
  * ## Internal to `@silkplot/charts`, like `CartesianFrame`
  *
@@ -184,7 +181,7 @@ export function ReferenceOverlay(props: ReferenceOverlayProps): JSX.Element {
                 stroke-dasharray={p.reference.style.dash?.join(" ") ?? REFERENCE_DASH}
                 // `butt`, not `round`: a round cap extends each dash by half a
                 // stroke width at both ends, closing a fine pattern into a
-                // solid line. Same reasoning as `StrokedLine`.
+                // solid line. Same reasoning as the Canvas stroke painter.
                 stroke-linecap="butt"
               />
               <Show when={p.labelDrawn}>
