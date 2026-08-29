@@ -1,9 +1,9 @@
 /**
  * Force-directed frame-budget protocol. Compute-only: no document.
  *
- * The dated record is the item-3 decision. This suite checks the protocol
- * and that a representative network can tick without a DOM — it does not
- * re-time the 30 cool-down passes on every run.
+ * The dated record is the ship/unbuilt decision. This suite checks the
+ * protocol and that a representative network can tick without a DOM — it
+ * does not re-time the 30 cool-down passes on every run.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -26,12 +26,15 @@ describe("force-directed frame-budget protocol", () => {
     const network = representativeNetwork();
     const treeLinks = network.nodes.length - 1;
     const extraLinks = network.links.length - treeLinks;
+    expect(network.nodes).toHaveLength(341);
+    expect(network.links).toHaveLength(375);
     expect(network.nodes).toHaveLength(FORCE_BUDGET_RECORD.density.nodes);
     expect(network.links).toHaveLength(FORCE_BUDGET_RECORD.density.links);
     expect(treeLinks).toBe(FORCE_BUDGET_RECORD.density.treeLinks);
     expect(extraLinks).toBe(FORCE_BUDGET_RECORD.density.extraLinks);
     expect(FORCE_NETWORK.levels).toBe(5);
     expect(FORCE_NETWORK.branch).toBe(4);
+    expect(FORCE_NETWORK.coolTicks).toBe(300);
   });
 
   it("ticks a simulation without a document", () => {
@@ -57,7 +60,10 @@ describe("force-directed frame-budget protocol", () => {
     expect(record.range.plot.width).toBe(FORCE_NETWORK.width);
     expect(record.density.nodes).toBeGreaterThan(0);
     expect(record.tick.p95Ms).toBeGreaterThanOrEqual(0);
+    expect(record.tick.p95Ms).toBeLessThanOrEqual(record.acceptanceMs);
+    expect(record.coolDown.ticks).toBe(300);
     expect(record.coolDown.p95Ms).toBeGreaterThan(record.acceptanceMs);
+    expect(record.tickBudgetBroke).toBe(false);
     expect(record.coolDownBudgetBroke).toBe(true);
     expect(record.shipped).toBe(false);
   });

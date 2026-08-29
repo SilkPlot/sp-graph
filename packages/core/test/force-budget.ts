@@ -5,8 +5,9 @@
  * representative hierarchy/network and times d3-force ticks against ADR-0002's
  * 16.7 ms / 60 fps bar. It is compute-only: no document, no chart.
  *
- * The dated record is the decision. A live re-run can move by milliseconds;
- * it does not rewrite the recorded outcome.
+ * The dated record is the decision. A live re-run of this protocol on the
+ * same network and costs rewrites the numbers and the ship/unbuilt flag;
+ * it does not invent a new protocol.
  */
 import {
   forceCenter,
@@ -190,15 +191,15 @@ export interface ForceBudgetRecord {
 
 /**
  * Filled from the Node measurement on this branch's hardware. The numbers
- * are a dated measurement, not a live CI gate. `shipped` is the item-3
- * decision: implement force on Canvas only if the sync cool-down holds the
- * interaction budget. It did not.
+ * are a dated measurement, not a live CI gate. `shipped` is the decision:
+ * implement force on Canvas only if both costs hold the interaction budget.
+ * The 2026-08-29 replay of this protocol did not.
  */
 export const FORCE_BUDGET_RECORD: ForceBudgetRecord = {
   protocol: "hierarchy-force-frame-budget",
-  measuredAt: "2026-08-28",
+  measuredAt: "2026-08-29",
   hardware: {
-    os: "Linux 6.12.94 x86_64 (KVM)",
+    os: "Linux 6.12.94+ x86_64 (KVM)",
     cpu: "Intel Xeon Processor @ 2400 MHz",
     cores: 4,
     ramGiB: 15,
@@ -216,13 +217,13 @@ export const FORCE_BUDGET_RECORD: ForceBudgetRecord = {
     extraLinks: 35,
     links: 375,
   },
-  tick: { passes: FORCE_NETWORK.timedPasses, p50Ms: 1.24, p95Ms: 2.02, maxMs: 2.1 },
+  tick: { passes: FORCE_NETWORK.timedPasses, p50Ms: 1.11, p95Ms: 1.57, maxMs: 1.66 },
   coolDown: {
     passes: FORCE_NETWORK.timedPasses,
     ticks: FORCE_NETWORK.coolTicks,
-    p50Ms: 260.54,
-    p95Ms: 288.46,
-    maxMs: 323.01,
+    p50Ms: 249.24,
+    p95Ms: 250.82,
+    maxMs: 278.6,
   },
   budgetMs: FRAME_BUDGET_MS,
   acceptanceMs: ACCEPTANCE_MS,

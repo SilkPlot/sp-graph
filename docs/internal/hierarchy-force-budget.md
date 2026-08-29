@@ -5,13 +5,13 @@ This is an internal note, not a numbered ADR and not part of the public site.
 ## Question
 
 Does a representative hierarchy/network laid out with `d3-force` hold the
-16.7 ms frame budget (ADR-0002) so force-directed can ship on Canvas in
-item 3? Tree, treemap, and pack are not this question. Sunburst,
-icicle, and sankey stay unknown on the ingested map and are not replacements.
+16.7 ms frame budget (ADR-0002) so force-directed can ship on Canvas?
+Tree, treemap, and pack are not this question. Sunburst, icicle, and
+sankey stay unknown on the ingested map and are not replacements.
 
 ## Protocol
 
-- **Hardware (2026-08-28):** Linux 6.12.94 x86_64 KVM, Intel Xeon, 4 cores,
+- **Hardware (2026-08-29):** Linux 6.12.94+ x86_64 KVM, Intel Xeon, 4 cores,
   15 GiB RAM. Node.js v24.20.0. `d3-force` 3.0.0. No document: ticks are
   `simulation.stop()` then `simulation.tick()`, the compute-only path.
 - **Range:** 800×600 plot. Cool-down is 300 ticks (d3-force's default alpha
@@ -29,10 +29,15 @@ icicle, and sankey stay unknown on the ingested map and are not replacements.
 
 ## Result
 
-A single tick held the budget (p95 2.02 ms on this hardware). A synchronous
-cool-down did not (p95 288.46 ms). Force-directed is therefore **unbuilt**.
-Item 3 allows that outcome: record the protocol and leave force unbuilt; do
-not invent replacement types.
+A single tick held the budget (p95 1.57 ms on this hardware). A synchronous
+cool-down did not (p95 250.82 ms). Force-directed is therefore **unbuilt**.
+Item 1 allows that outcome: replay the protocol, record the
+measurement, leave force unbuilt; do not invent replacement types.
+
+The prior dated pass (2026-08-28, same protocol, same 341/375 network)
+was tick p95 2.02 ms and cool-down p95 288.46 ms. This replay is faster
+and still misses the 17.7 ms cool-down acceptance by more than an order
+of magnitude.
 
 A per-frame animation loop (one tick per rAF) would be a second interaction
 contract, not the single-tab-stop listbox the named views already share, and
@@ -44,4 +49,4 @@ Recorded in `packages/core/test/force-budget.ts` as `FORCE_BUDGET_RECORD`.
 
 Not a numbered ADR. Not LIMITATIONS, ROADMAP, README, or site copy. Not
 sunburst, icicle, or sankey. Not WebGL. Not a second series model. Tree,
-treemap, and pack on Canvas are a separate, shipped outcome of the same item.
+treemap, and pack on Canvas already shipped and are not re-opened here.
