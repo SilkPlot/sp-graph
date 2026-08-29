@@ -31,7 +31,7 @@ sankey stay unknown on the ingested map and are not replacements.
 
 A single tick held the budget (p95 1.57 ms on this hardware). A synchronous
 cool-down did not (p95 250.82 ms). Force-directed is therefore **unbuilt**.
-S018-P01 item 1 allows that outcome: replay the protocol, record the
+Item 1 allows that outcome: replay the protocol, record the
 measurement, leave force unbuilt; do not invent replacement types.
 
 The prior dated pass (2026-08-28, same protocol, same 341/375 network)
