@@ -2,6 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-20
+- **Public-surface correction:** 2026-08-31 — private sequencing shorthand was
+  removed; the decision and its scope are unchanged.
 - **Supersedes:** the prop shape declared for ADR-0008 §9. §9's principle —
   formatting is the caller's, library defaults stay generic — is unchanged and
   is restated here rather than replaced.
@@ -79,12 +81,12 @@ Four consequences, stated so none is a surprise:
    formatting "no value" is how a unit gets printed against a measurement nobody
    took.
 
-**`formatTooltip` is NOT superseded and NOT renamed.** It stays declared and
-unbuilt in the §9 example, because the multi-series path still exposes no
-tooltip and no active datum. The many-series active-datum model is a later
-decision, and publishing a formatter for it would pre-empt that decision by
-shipping its signature. When that surface is built, its formatter joins
-`MultiSeriesFormatProps` and is named for its surface like the rest.
+**Superseded for tooltip content by ADR-0016 (2026-07-21).** At this decision's
+date, `formatTooltip` stayed parked because the multi-series active-datum model
+did not exist. ADR-0016 subsequently settled and built that model, replacing the
+string formatter with a typed JSX `tooltip` render-prop. It does not join
+`MultiSeriesFormatProps`: axis and table formatting remain scalar text/number
+surfaces, while tooltip content is caller-owned composition.
 
 **The single-series path is unaffected**, and passing these props to it is a
 compile error rather than a silently ignored prop. It has its own wording
@@ -111,7 +113,7 @@ is a later phase.
   the table constantly or is read once and goes stale. Four flat optional props
   track individually.
 - **Defer all formatting to a later phase** — rejected. §9 has been an accepted
-  promise since Sprint 006 opened, and the surface it describes shipped to npm
+  promise since the formatter work opened, and the surface it describes shipped to npm
   without it.
 
 ## Consequences

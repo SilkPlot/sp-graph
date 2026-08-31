@@ -2,6 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-21
+- **Public-surface correction:** 2026-08-31 — private sequencing shorthand was
+  removed; the decision and its scope are unchanged.
 
 ## Context
 
@@ -34,7 +36,7 @@ estate refuses everywhere else.
 The controlled viewport work forces the question, because the viewport must
 clamp against `resolveEffectiveDomain` (epoch-ms) while presenting a controlled
 prop the ADR-0014 examples type as `Date`. Settling the representation once, now,
-before P05/P06/P11 build more surface on the viewport type, is cheaper than
+before more consumers build surface on the viewport type, is cheaper than
 settling it after — and it is still alpha (`next`), so a correction costs nothing
 a stable release has to carry.
 

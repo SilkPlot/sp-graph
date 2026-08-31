@@ -110,6 +110,8 @@ example in the documentation.
 - [ ] Package manifests list only the dependencies the package actually imports
 - [ ] A packed tarball installs and renders in a consumer project outside this
       workspace
+- [ ] The release gate confirms pie/donut, hierarchy, bubble, and histogram are
+      absent from the `@silkplot/charts` root until renderer authority changes
 
 ## Publication
 
@@ -130,7 +132,8 @@ is permanent.
       `@silkplot/*` dependency is pinned to exactly that version — never `"*"`,
       never a caret. A mixed pair resolves off the registry into a combination
       nobody tested
-- [ ] `@silkplot/calendar` is NOT in the publish set while its entry point throws
+- [ ] `@silkplot/calendar` remains outside the current alpha publish set unless
+      this release explicitly adds and verifies the fifth package
 - [ ] The publish workflow was run with `dry_run: true` first, and its output
       lists exactly the four expected packages at the expected version
 - [ ] A prerelease goes to `next`. **`latest` stays untouched** — `npm install

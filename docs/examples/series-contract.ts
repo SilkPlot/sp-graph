@@ -11,26 +11,22 @@
  * is representable actually is.
  *
  * THE SUBSTITUTION HAS NOW HAPPENED, and it is the point of the whole exercise.
- * The series half of Part 1 is imported from `@silkplot/core` instead of
- * declared, and **Part 2 is byte-identical** — not one example was edited to
- * make it compile. That is evidence the implementation matches the decision
- * rather than a claim that it does.
+ * Model shapes import `@silkplot/core`; the metadata surface imports the real
+ * `LineChartProps<M>`. Examples changed only where later ADRs explicitly
+ * superseded a shape, so this file checks current implementation rather than a
+ * frozen look-alike of the original draft.
  *
  * The reference-overlay and ranked-bar halves have since been substituted too.
- * What remains DECLARED is the chart-level composition state
- * (`CompositionStateProps`) and `formatTooltip`, because no built surface exposes
- * an active datum or a tooltip yet.
+ * ADR-0016 superseded the parked `formatTooltip` proposal with the built JSX
+ * `tooltip` render-prop. The metadata example below therefore checks the real
+ * `LineChartProps<M>` type; it does not declare a look-alike chart contract.
  *
- * The rule stands for those. When they are built, their declarations become
- * imports too, and Part 2 must again compile UNCHANGED. If an example has to be
- * edited, the implementation diverged from the decision — so edit the
- * implementation, or supersede the ADR. Do not edit the example to fit the code.
- *
- * TWO examples HAVE been edited, both under an explicit supersession and neither
- * to accommodate drifted code: `withFormatting` when ADR-0010 replaced §9's
- * prop shape, and `rankedWithLongLabels` when ADR-0013 replaced `formatValue` on
- * the ranked surface. A supersession is a decision changing; bending an example
- * to fit code is the thing this rule forbids, and they are different acts.
+ * Three examples HAVE been edited under explicit supersessions:
+ * `withFormatting` when ADR-0010 replaced §9's formatter names,
+ * `rankedWithLongLabels` when ADR-0013 replaced the ranked formatter shape, and
+ * `withMetadata` when ADR-0016 replaced `formatTooltip` with typed JSX content.
+ * A supersession is a decision changing; silently bending an example to drifted
+ * code is the thing this rule forbids.
  *
  * WHAT IT IS NOT. It is not a test of runtime behaviour: it type-checks shapes
  * and does not call the library. The suites do that.
@@ -39,14 +35,12 @@
 /* ------------------------------------------------------------------------- */
 /* Part 1 — the contract.                                                     */
 /*                                                                            */
-/* The series half is now IMPORTED from the implementation rather than         */
-/* declared. That substitution is the test: every example in Part 2 below      */
-/* compiled against the declarations, and compiles UNCHANGED against the real  */
-/* types. Nothing in Part 2 was edited to make this work.                      */
+/* The series half is IMPORTED from the implementation rather than declared.   */
+/* The metadata example likewise imports the real composed-chart prop type.    */
+/* A green typecheck therefore covers shipped types, not parallel declarations.*/
 /*                                                                            */
-/* What is still declared is what is still undecided or unbuilt — the          */
-/* reference-overlay and chart-level composition props. Each is marked, and    */
-/* each becomes an import when its phase lands, under the same rule.           */
+/* The small `MultiSeriesConfiguration` below is only a compiler fixture for   */
+/* model inputs shared by the remaining examples. It is not a chart API.       */
 /* ------------------------------------------------------------------------- */
 
 // ADR-0008 §1, §3, §4 — implemented. `SeriesDatum`, `Series`, `SeriesStyle`
@@ -58,14 +52,15 @@ export type {
   SeriesStyle,
   NullPolicy,
 } from "@silkplot/core";
-import type { Series, SeriesDatum } from "@silkplot/core";
+import type { Series } from "@silkplot/core";
 
 // ADR-0008 §2 — implemented.
 export { fromRows } from "@silkplot/core";
 import { fromRows } from "@silkplot/core";
 
 // ADR-0008 §9's axis and table formatters — implemented, under ADR-0010's
-// surface-named shape. `formatTooltip` is not here; see `FormatterProps` below.
+// surface-named shape. ADR-0016 superseded `formatTooltip` with the chart's
+// JSX `tooltip` render-prop, exercised against the real type below.
 //
 // From `core` rather than `charts` although `charts` is the package whose
 // components take it: this file's `lib` is deliberately DOM-free, and the
@@ -73,6 +68,7 @@ import { fromRows } from "@silkplot/core";
 // function types. `charts` re-exports it for consumers.
 export type { MultiSeriesFormatProps } from "@silkplot/core";
 import type { MultiSeriesFormatProps } from "@silkplot/core";
+import type { LineChartProps } from "@silkplot/charts";
 
 // ADR-0008 §10 — implemented. THE SUBSTITUTION FOR THIS HALF HAS HAPPENED: what
 // was declared here as a five-field interface is now the shipped type, imported.
@@ -91,44 +87,16 @@ import type { MultiSeriesFormatProps } from "@silkplot/core";
 export type { ReferenceValue } from "@silkplot/core";
 import type { ReferenceValue } from "@silkplot/core";
 
-/** ADR-0008 §6 and §8: controlled state, with an uncontrolled default. */
-export interface CompositionStateProps<M = unknown> {
+/**
+ * Model-only fixture for examples that do not instantiate a chart. It contains
+ * no activation or tooltip fields: those public surfaces are checked against
+ * `LineChartProps<M>` rather than re-declared here.
+ */
+export interface MultiSeriesConfiguration<M = unknown> extends MultiSeriesFormatProps {
+  series: readonly Series<M>[];
   /** Absent → uncontrolled, all series visible. Empty array → nothing visible. */
   visibleSeries?: readonly string[];
   onVisibilityChange?: (visible: readonly string[]) => void;
-  /** Absent → uncontrolled. Exactly one active datum per chart (ADR-0002). */
-  activeDatum?: { seriesId: string; index: number } | undefined;
-  onActivate?: (active: { seriesId: string; index: number; datum: SeriesDatum<M> }) => void;
-}
-
-/**
- * ADR-0008 §9's principle, with the prop shape from
- * [ADR-0010](../decisions/adr-0010-formatter-props-by-surface.md).
- *
- * THE SUBSTITUTION FOR THIS HALF HAS HAPPENED: the axis and table formatters are
- * built, so they are imported rather than declared. What §9 declared as
- * `formatTick` and `formatValue` is now four props named for the SURFACE each
- * reaches — a `Date` reaches both a cramped axis tick and a read-aloud table
- * cell, and one formatter cannot serve both.
- *
- * That divergence is why ADR-0010 exists. Under the rule at the top of this
- * file the example does not bend to the code, so the decision was superseded
- * and this declaration follows the NEW decision — which is a different act from
- * editing an example to make broken code compile.
- *
- * `formatTooltip` stays DECLARED, because the multi-series path still exposes no
- * tooltip and no active datum. When that model is decided and built, this
- * declaration becomes an import too and Part 2 must again compile unchanged.
- */
-export interface FormatterProps<M = unknown> extends MultiSeriesFormatProps {
-  formatTooltip?: (datum: SeriesDatum<M>, series: Series<M>) => string;
-}
-
-/** The composed time-series surface this contract describes. */
-export interface MultiSeriesProps<M = unknown>
-  extends CompositionStateProps<M>,
-    FormatterProps<M> {
-  series: readonly Series<M>[];
   references?: readonly ReferenceValue[];
 }
 
@@ -139,7 +107,7 @@ export interface MultiSeriesProps<M = unknown>
 const t = (iso: string): Date => new Date(iso);
 
 /** ONE SERIES. The ordinary case, and a permanent one — §12 keeps it supported. */
-export const oneSeries: MultiSeriesProps = {
+export const oneSeries: MultiSeriesConfiguration = {
   series: [
     {
       id: "inlet",
@@ -154,7 +122,7 @@ export const oneSeries: MultiSeriesProps = {
 };
 
 /** FOUR SERIES, same unit, one with an area fill and its own null policy. */
-export const fourSeries: MultiSeriesProps = {
+export const fourSeries: MultiSeriesConfiguration = {
   series: [
     { id: "n", label: "North", data: [{ t: t("2026-03-01T00:00:00Z"), y: 12 }] },
     { id: "s", label: "South", data: [{ t: t("2026-03-01T00:00:00Z"), y: 14 }] },
@@ -178,7 +146,7 @@ export const fourSeries: MultiSeriesProps = {
  * no hard-coded series limit and identity is stable because each id is derived
  * from the source, not from a position in this array.
  */
-export const denseOperational: MultiSeriesProps = {
+export const denseOperational: MultiSeriesConfiguration = {
   series: Array.from({ length: 22 }, (_, i) => ({
     id: `sensor-${i + 1}`,
     label: `Sensor ${i + 1}`,
@@ -197,7 +165,7 @@ export const denseOperational: MultiSeriesProps = {
 };
 
 /** NULLABLE VALUES, both policies, and a signed domain crossing zero. */
-export const nullableAndSigned: MultiSeriesProps = {
+export const nullableAndSigned: MultiSeriesConfiguration = {
   series: [
     {
       id: "rate",
@@ -226,7 +194,7 @@ export const nullableAndSigned: MultiSeriesProps = {
 
 /**
  * RAW TOOLTIP METADATA. `M` is the caller's own type and flows through the
- * datum, the tooltip formatter, and the activation callback without a cast —
+ * datum, the tooltip render-prop, and the activation callback without a cast —
  * which is the property this example exists to prove.
  */
 interface Reading {
@@ -235,7 +203,10 @@ interface Reading {
   calibratedAt: Date;
 }
 
-export const withMetadata: MultiSeriesProps<Reading> = {
+export const withMetadata: LineChartProps<Reading> = {
+  title: "Probe readings",
+  width: 640,
+  height: 320,
   series: [
     {
       id: "probe-a",
@@ -253,11 +224,11 @@ export const withMetadata: MultiSeriesProps<Reading> = {
       ],
     },
   ],
-  // `datum.meta` is `Reading | undefined` here, not `unknown` and not `any`.
-  formatTooltip: (datum, series) =>
-    datum.meta === undefined
-      ? `${series.label}: ${datum.y ?? "no reading"}`
-      : `${series.label} (${datum.meta.serial}, fw ${datum.meta.firmware}): ${datum.y ?? "no reading"}`,
+  // `active.datum.meta` is `Reading | undefined`, not `unknown` or `any`.
+  tooltip: (active) =>
+    active.datum.meta === undefined
+      ? `${active.seriesId}: ${active.datum.y ?? "no reading"}`
+      : `${active.seriesId} (${active.datum.meta.serial}, fw ${active.datum.meta.firmware}): ${active.datum.y ?? "no reading"}`,
   onActivate: (active) => {
     // Same type on the way out. No cast, no parallel metadata map.
     const serial: string | undefined = active.datum.meta?.serial;
@@ -266,7 +237,7 @@ export const withMetadata: MultiSeriesProps<Reading> = {
 };
 
 /** HIDDEN SERIES — controlled visibility, and the three states §6 names. */
-export const someHidden: MultiSeriesProps = {
+export const someHidden: MultiSeriesConfiguration = {
   series: fourSeries.series,
   // Isolate: exactly one id. Show-all would be every id — never `undefined`,
   // which reverts the chart to uncontrolled mid-session.
@@ -279,7 +250,7 @@ export const someHidden: MultiSeriesProps = {
  * mean "no filter, show everything" — that reading is the filter bug in which
  * deselecting the last series makes every series reappear.
  */
-export const noneVisible: MultiSeriesProps = {
+export const noneVisible: MultiSeriesConfiguration = {
   series: fourSeries.series,
   visibleSeries: [],
 };
@@ -289,7 +260,7 @@ export const noneVisible: MultiSeriesProps = {
  * arrive from different places and are briefly out of step during every
  * replacement. ADR-0008 §6.
  */
-export const staleVisibilityId: MultiSeriesProps = {
+export const staleVisibilityId: MultiSeriesConfiguration = {
   series: fourSeries.series,
   visibleSeries: ["total", "decommissioned-sensor"],
 };
@@ -307,7 +278,7 @@ export const staleVisibilityId: MultiSeriesProps = {
  * both receive a `Date` and deliberately produce different text, which is the
  * thing §9's single `formatTick` could not express.
  */
-export const withFormatting: MultiSeriesProps = {
+export const withFormatting: MultiSeriesConfiguration = {
   series: fourSeries.series,
   // A cramped axis label — day and month, no year.
   xTickFormat: (value) =>
@@ -325,7 +296,7 @@ export const withFormatting: MultiSeriesProps = {
  * The same contract with a UNIT PER SERIES, which is why the value formatter
  * receives the series' label rather than only the number.
  */
-export const withPerSeriesUnits: MultiSeriesProps = {
+export const withPerSeriesUnits: MultiSeriesConfiguration = {
   series: [
     { id: "load", label: "Load", data: [{ t: t("2026-03-01T00:00:00Z"), y: 812.5 }] },
     { id: "utilisation", label: "Utilisation", data: [{ t: t("2026-03-01T00:00:00Z"), y: 61.2 }] },
@@ -345,7 +316,7 @@ const wideRows: readonly WideRow[] = [
   { time: t("2026-03-01T00:30:00Z"), inlet: 21.9, outlet: 25.2 },
 ];
 
-export const fromWideInput: MultiSeriesProps<WideRow> = {
+export const fromWideInput: MultiSeriesConfiguration<WideRow> = {
   series: fromRows(wideRows, { t: "time", values: ["inlet", "outlet"] }),
 };
 
@@ -406,7 +377,7 @@ export interface RankedBarsProps extends RankedFormatProps {
  * axis and an event read against the x axis, in ONE array, with per-record
  * domain participation and a non-colour style override on each.
  */
-export const referencesOnBothAxes: MultiSeriesProps = {
+export const referencesOnBothAxes: MultiSeriesConfiguration = {
   series: fourSeries.series,
   references: [
     // Horizontal: a limit the values are read against.

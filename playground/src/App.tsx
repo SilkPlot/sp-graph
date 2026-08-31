@@ -1,9 +1,10 @@
 /**
  * Playground app — renders a real @silkplot/charts LineChart from sample data.
  *
- * This is the end-to-end proof: @silkplot/core computes scales/paths/ticks,
- * @silkplot/solid renders the SVG + axes, @silkplot/charts composes them, and
- * @silkplot/theme supplies the tokens — all wired across workspace packages.
+ * This is the end-to-end proof: @silkplot/core computes scales/geometry/ticks,
+ * @silkplot/solid owns reactive state and semantic DOM, @silkplot/charts paints
+ * the composed Canvas surface, and @silkplot/theme supplies the tokens — all
+ * wired across workspace packages.
  */
 import {
   createSignal,
@@ -123,9 +124,10 @@ const InteractiveLineBody: Component<{ data: readonly TimePoint[] }> = (props) =
     y: { accessor: (d) => d.y, domain: "zero-floor" },
   });
 
-  // Delaunay is the wrong index for a monotonic series — a bisector answers the
-  // same question far cheaper — but the bisector does not exist yet. That the
-  // swap will touch nothing below is the point of the ADR's split.
+  // This low-level composition deliberately demonstrates the generic 2-D hit
+  // index. Production monotonic time-series surfaces use core's shipped
+  // `createTimeSeriesIndex` bisector instead. Either index can be exchanged at
+  // this seam without changing the interaction state or rendering below.
   const index = createMemo(() =>
     createHitIndex(props.data, {
       x: (d) => model.x()(d.t),

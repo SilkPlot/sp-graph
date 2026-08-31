@@ -14,11 +14,9 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  *
- * TODO(dynamic interaction): wire `createHitIndex` (d3-delaunay, already in
- *   core/hit-test.ts) for nearest-point cursor/tooltip interaction. The
- *   contracts are settled in docs/decisions/adr-0002-crosshair-and-tooltip-anchor.md
- *   — note that the resolution belongs to a pointer model, not to this chart
- *   and not to the cursor.
+ * Nearest-point interaction is wired through `createScatterIndex`, which owns
+ * the `createHitIndex` composition. Resolution remains in the pointer model;
+ * this chart supplies the scales and draws the resulting active mark.
  */
 import { Show, createMemo, type Component, type JSX } from "solid-js";
 import { createScatterIndex, extentOf, linearScale, type ActivePoint } from "@silkplot/core";

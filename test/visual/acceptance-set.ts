@@ -254,13 +254,11 @@ export const viewportFor = (kase: Case | LegendCase): Viewport =>
 /**
  * Which charts own a focus stop, and why the others do not.
  *
- * This is the half of the acceptance set that a future feature could shrink
- * without anyone noticing. Only `LineChart` composes `ChartKeyboardSurface`
- * today, so only `LineChart` has a `:focus-visible` treatment to capture.
+ * This is the half of the acceptance set that a future regression could shrink
+ * without anyone noticing. All four Cartesian charts compose
+ * `ChartKeyboardSurface` and therefore own a `:focus-visible` treatment.
  * `acceptance-set.spec.ts` asserts this against the rendered DOM in both
- * directions, so the day `BarChart` gains a keyboard composite the guard fails
- * until a focus baseline is declared for it — rather than the suite staying
- * green while an unproven focus indicator ships.
+ * directions, so removing a keyboard surface or a declared baseline fails.
  */
 export const FOCUSABLE: Record<Chart, boolean> = {
   line: true,
@@ -329,8 +327,9 @@ const geometry = (): Baseline[] =>
   );
 
 /**
- * The multi-series product, kept apart because it is not uniform: only `line`
- * and `area` compose the surface, so this is two charts rather than four.
+ * The line/area shared-time visual matrix. Bar also has grouped/stacked
+ * multi-series cases, declared separately because their categorical fixtures
+ * and baseline ids are not members of `MULTI_CASES`.
  */
 const multiSeries = (): Baseline[] =>
   MULTI_CHARTS.flatMap((chart) =>
@@ -546,12 +545,18 @@ export const EXCLUSIONS: ReadonlyArray<{ surface: string; reason: string }> = [
   // after a surface ships is a confident wrong answer, not a harmless leftover.
   {
     surface: "Calendar week grid",
-    reason: "not built — the calendar layout engine is deferred to a backlog item",
+    reason:
+      "implemented and tested in @silkplot/calendar, but outside this chart-only screenshot harness; it needs its own calendar fixture and reviewed baseline before publication",
   },
   {
     surface: "A parallel SVG mark substrate",
     reason:
-      "cartesian marks (line / area / bar / scatter) paint on Canvas; the existing chart baselines are those pictures. Heatmap and WebGL Canvas work are not shipped",
+      "cartesian marks paint on Canvas; a parallel SVG mark substrate and WebGL renderer are not shipped",
+  },
+  {
+    surface: "Heatmap",
+    reason:
+      "implemented and tested on Canvas in source, but outside the four-family chart screenshot matrix; it needs a dedicated fixture and reviewed baseline before publication",
   },
   {
     surface: "The HTML data alternative (`<table>`)",

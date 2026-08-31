@@ -12,7 +12,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
+import { createMemo, Show, type Component, type JSX } from "solid-js";
 import {
   linePath,
   type ActivePoint,
@@ -31,6 +31,7 @@ import {
 import {
   InteractionLayer,
   createTimeChartInspection,
+  type KeyboardHoverProps,
   type TimeChartInspectionProps,
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
@@ -56,7 +57,7 @@ import { createViewportGestures } from "@silkplot/solid";
 import type { TimePoint } from "./types";
 import { tableOptions, type MultiSeriesFormatProps } from "./formatters";
 
-export interface LineChartBaseProps extends TimeSeriesChartProps, TimeChartInspectionProps {
+export interface LineChartBaseProps extends TimeSeriesChartProps, KeyboardHoverProps {
   /** Line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -101,7 +102,8 @@ export interface SingleSeriesInput {
    * would produce a chart whose axis is unchanged and no error anywhere.
    *
    * Extending the formatters to the single-series axes is legitimate work and
-   * is not this phase's — the surface below is what ADR-0008 §9 promised.
+   * is not this phase's — this arm instead carries `pointLabel` for its own
+   * active-point announcement.
    */
   xTickFormat?: never;
   yTickFormat?: never;
@@ -111,23 +113,15 @@ export interface SingleSeriesInput {
   references?: never;
 }
 
-export interface MultiSeriesInput {
+export interface MultiSeriesInput<M = unknown> {
   /**
    * Stable series, each with its own id, label, gap policy, and style.
    *
-   * `Series<unknown>`, deliberately NOT generic on the metadata type. The
-   * generic exists in `core` and flows through the model, but the chart exposes
-   * no callback that hands it back yet — tooltip and activation are a later
-   * contract — so a generic here would buy nothing and cost real compatibility:
-   * a generic function component is not assignable to Solid's `Component<P>`,
-   * which breaks `createComponent(LineChart, …)`, the exact call JSX compiles
-   * to. The packed-consumer release gate caught this outside the workspace,
-   * where the workspace's own JSX call sites could not.
-   *
-   * A caller's `Series<Reading>[]` is assignable here, so no metadata is lost
-   * on the way in. The generic returns when a surface exists that gives it back.
+   * The metadata type flows from this input to tooltip and activation callbacks
+   * (ADR-0016). A caller therefore receives the same `M` it supplied, without a
+   * cast or a parallel lookup map.
    */
-  series: readonly Series[];
+  series: readonly Series<M>[];
   /**
    * Controlled visibility by series id (ADR-0008 §6). Omit for uncontrolled —
    * every series visible. An EMPTY array means nothing is visible, and is a
@@ -155,6 +149,16 @@ export interface MultiSeriesInput {
   data?: never;
 }
 
+/** Typed active-record callbacks for the multi-series arm (ADR-0016). */
+export interface MultiSeriesInspectionProps<M = unknown> {
+  /** Caller-owned tooltip content for the shared-time active record. */
+  tooltip?: (active: ActivePoint<SeriesDatum<M>>) => JSX.Element;
+  /** Drill-down commit — Enter, Space, or click on the active datum. */
+  onActivate?: (active: ActivePoint<SeriesDatum<M>>) => void;
+  /** Every active-record change, including a clear. */
+  onActivePointChange?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
+}
+
 /**
  * The multi-series input, plus the caller formatting ADR-0008 §9 promised.
  *
@@ -162,18 +166,20 @@ export interface MultiSeriesInput {
  * definition with one set of doc comments, reachable from both charts and from
  * whatever consumes the surface next.
  */
-export type MultiSeriesInputWithFormat = MultiSeriesInput & MultiSeriesFormatProps;
+export type MultiSeriesInputWithFormat<M = unknown> = MultiSeriesInput<M> &
+  MultiSeriesFormatProps &
+  MultiSeriesInspectionProps<M>;
 
 /**
  * A line chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out; there is no
  * implicit one.
  */
-export type LineChartProps = LineChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInputWithFormat) &
+export type LineChartProps<M = unknown> = LineChartBaseProps &
+  ((SingleSeriesInput & TimeChartInspectionProps) | MultiSeriesInputWithFormat<M>) &
   ChartSemanticsProps;
 
-type LineChartBodyProps = LineChartBaseProps & {
+type LineChartBodyProps = LineChartBaseProps & TimeChartInspectionProps & {
   data: readonly TimePoint[];
   semantics: ChartSemantics;
   scope: TimeSeriesScope;
@@ -265,7 +271,11 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
             paintStroke(
               ctx,
               pathD(),
-              { stroke: props.stroke, strokeWidth: props.strokeWidth },
+							{
+								stroke: props.stroke,
+								strokeWidth: props.strokeWidth,
+								pointCount: plotted().length,
+							},
               resolve,
             ),
           );
@@ -301,9 +311,9 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
 };
 
 /** The multi-series path: one stroked path per visible series. */
-const LineChartMulti: Component<
-  LineChartBaseProps & MultiSeriesInputWithFormat & { semantics: ChartSemantics }
-> = (props) => {
+function LineChartMulti<M>(
+  props: LineChartBaseProps & MultiSeriesInputWithFormat<M> & { semantics: ChartSemantics },
+): JSX.Element {
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
@@ -369,6 +379,7 @@ const LineChartMulti: Component<
                 stroke: seriesCtx.style.stroke,
                 strokeWidth: seriesCtx.style.strokeWidth,
                 dash: seriesCtx.style.dash,
+								pointCount: seriesCtx.points.length,
               },
               resolve,
             ),
@@ -378,9 +389,21 @@ const LineChartMulti: Component<
       />
     </ChartShell>
   );
+}
+
+/**
+ * Keep both call shapes on the exported value. The generic signature preserves
+ * caller metadata for JSX and direct calls; the non-generic overload remains a
+ * normal Solid `Component<LineChartProps>` so `createComponent(LineChart, …)`
+ * contextually types literal props instead of widening values such as
+ * `curve: "linear"` to `string`.
+ */
+type LineChartComponent = {
+  <M>(props: LineChartProps<M>): JSX.Element;
+  (props: LineChartProps): JSX.Element;
 };
 
-export const LineChart: Component<LineChartProps> = (props) => {
+function LineChartImpl<M = unknown>(props: LineChartProps<M>): JSX.Element {
   // Resolved OUTSIDE ChartRoot — see `ChartShell`, which is where the reason
   // lives now that all four charts share the arrangement.
   const semantics = createInspectableSemantics(props);
@@ -393,16 +416,26 @@ export const LineChart: Component<LineChartProps> = (props) => {
   return (
     <Show
       when={props.series !== undefined}
-      fallback={<LineChartSingle {...(props as LineChartBaseProps & SingleSeriesInput)} semantics={semantics} />}
+      fallback={
+        <LineChartSingle
+          {...(props as LineChartBaseProps & SingleSeriesInput & TimeChartInspectionProps)}
+          semantics={semantics}
+        />
+      }
     >
-      <LineChartMulti {...(props as LineChartBaseProps & MultiSeriesInputWithFormat)} semantics={semantics} />
+      <LineChartMulti
+        {...(props as LineChartBaseProps & MultiSeriesInputWithFormat<M>)}
+        semantics={semantics}
+      />
     </Show>
   );
-};
+}
+
+export const LineChart = LineChartImpl as LineChartComponent;
 
 /** The original single-series surface, unchanged — keyboard model and all. */
 const LineChartSingle: Component<
-  LineChartBaseProps & SingleSeriesInput & { semantics: ChartSemantics }
+  LineChartBaseProps & SingleSeriesInput & TimeChartInspectionProps & { semantics: ChartSemantics }
 > = (props) => {
   // Outside ChartRoot for a second reason: the table is a sibling of the
   // measured box, so the scope has to be readable from both sides of it. The

@@ -5,7 +5,7 @@
 import { describe, expect, it, vi, beforeAll, afterAll } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Temporal } from "temporal-polyfill";
 import { tokensToCss } from "@silkplot/theme";
 import type { ActivePoint, HeatmapBin } from "@silkplot/core";

@@ -26,5 +26,5 @@
     // failure reaches a consumer as a broken install.
     "skipLibCheck": false
   },
-  "include": ["src/main.default.ts", "src/series.ts"]
+  "include": ["src/main.default.ts", "src/metadata-contract.ts", "src/series.ts"]
 }

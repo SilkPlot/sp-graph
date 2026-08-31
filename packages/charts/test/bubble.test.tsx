@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import {
   BUBBLE_SIZE_LEGEND_RIGHT,
   layoutBubbleFromObservations,
@@ -14,7 +14,7 @@ import {
   type BubbleDatum,
   type BubbleObservation,
 } from "@silkplot/core";
-import { BubbleChart } from "../src/index";
+import { BubbleChart } from "../src/BubbleChart";
 import {
   HEIGHT,
   NO_MARGINS,

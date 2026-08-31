@@ -2,8 +2,8 @@
  * Per-package coverage floors.
  *
  * Coverage was reported and gated nothing until now, deliberately: a number that
- * fails the build is a promise about what the tests prove, and until S002 and
- * S003 had added their correctness and accessibility branches there was no
+ * fails the build is a promise about what the tests prove, and until the initial
+ * correctness and accessibility branches landed there was no
  * representative run to make that promise from. There is now, so these floors are
  * SELECTED FROM OBSERVED NUMBERS rather than picked as round targets.
  *
@@ -16,7 +16,7 @@
  *
  * ── How each floor was chosen ───────────────────────────────────────────────
  *
- * Observed on the S003 tip (2026-07-18), 599 tests across five Vitest projects,
+ * Observed on 2026-07-18, 599 tests across five Vitest projects,
  * `vitest run --coverage`, barrel `index` files excluded (they re-export and
  * hold no logic; counting them measures the export list):
  *

@@ -16,14 +16,21 @@
 import { LineChart } from "@silkplot/charts";
 import type { Series } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
-import { createSignal, onMount, type Component } from "solid-js";
+import { createEffect, createSignal, onMount, type Component } from "solid-js";
 import {
   w1DenseSeries,
   w1References,
 } from "../../../packages/charts/test/workload-fixtures";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
-import { noteActive, noteViewport, publish } from "./state";
+import {
+  noteActive,
+  noteViewport,
+  noteVisibility,
+  publish,
+  visibilityStateChanged,
+} from "./state";
 import { isTableSuppressed, tableProp } from "./table-mode";
+import { expectedVisibleLineGeometryPoints } from "./visibility-proof";
 import { selectVisiblePathologicalSeries } from "./workload-fidelity";
 import { countPoints } from "./workloads";
 
@@ -37,9 +44,30 @@ const NARROW = 720;
 
 export const WorkloadB: Component = () => {
   const [visibleSeries, setVisibleSeries] = createSignal<readonly string[]>(ALL_IDS);
+  let observedVisibleSeries = visibleSeries();
   let host: HTMLDivElement | undefined;
-  let toggleAt = 0;
   let isolated = false;
+
+  createEffect(() => {
+    const current = visibleSeries();
+    if (visibilityStateChanged(observedVisibleSeries, current)) {
+      const signature = current.join("\0");
+      const expectedPoints = expectedVisibleLineGeometryPoints(SERIES, current);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const painted = Number(
+            host
+              ?.querySelector("[data-silkplot-canvas-plot]")
+              ?.getAttribute("data-silkplot-drawn-points"),
+          );
+          if (visibleSeries().join("\0") === signature && painted === expectedPoints) {
+            noteVisibility();
+          }
+        });
+      });
+    }
+    observedVisibleSeries = current;
+  });
 
   onMount(() => {
     const root = document.getElementById("root");
@@ -57,16 +85,6 @@ export const WorkloadB: Component = () => {
           on ? selectVisiblePathologicalSeries(SERIES, visibleSeries()) : undefined,
         );
         return pathologicalRebuilds();
-      },
-      // Toggling ONE series at a time, cycling: each call is the commit a user's
-      // legend click produces. The driver calls this repeatedly inside a recorded
-      // pass, so the frames measured are the frames of a user working the legend.
-      legendToggle: () => {
-        const id = ALL_IDS[toggleAt % ALL_IDS.length] as string;
-        toggleAt++;
-        setVisibleSeries((now) =>
-          now.includes(id) ? now.filter((x) => x !== id) : [...now, id],
-        );
       },
       // Isolate is the large commit: twenty-one series leave the domain at once,
       // and come back at once. Alternating rather than latching, so a repeated
@@ -98,7 +116,7 @@ export const WorkloadB: Component = () => {
         height={420}
         wheelZoom
         brushSelect
-        onVisibleDomainChange={() => noteViewport()}
+        onVisibleDomainChange={(_domain, cause) => noteViewport(cause)}
         onActivePointChange={(point) => noteActive(point)}
         table={tableProp()}
         title="W-B — twenty-two sensors with three references"

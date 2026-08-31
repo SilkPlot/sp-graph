@@ -35,6 +35,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { heldChartExportFindings } from "./lib/release-policy.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const stagingDir = join(repoRoot, ".release-staging");
@@ -66,18 +67,18 @@ const PUBLISH_TARGETS = [
  * Packages held back from the release set, and why.
  *
  * This list is checked, not decorative: a held-back package must still fail its
- * stated reason. The public calendar page still names the package a stub and
- * keeps it out of the alpha publish set; this gate asserts that page, not a
- * throw that is no longer the implementation.
+ * stated reason. Calendar is implemented on main but has not been added to the
+ * current alpha publish set; this gate asserts that the public package page
+ * says so instead of preserving the obsolete stub rationale.
  */
 const HELD_BACK = [
   {
     dir: "calendar",
     name: "@silkplot/calendar",
-    reason: "not in the alpha publish set; the public package page still names it a stub",
-    provenBy: {
-      file: "packages/calendar/README.md",
-      contains: "STUB — not part of the alpha release set",
+		reason: "implemented on main but not authorized for the current alpha publish set",
+		provenBy: {
+			file: "packages/calendar/README.md",
+			contains: "Implemented on `main`, not part of the current alpha publish set",
     },
   },
 ];
@@ -408,6 +409,17 @@ for (const held of HELD_BACK) {
   } else {
     console.log(`  ${held.name} held back — ${held.reason} (still true)`);
   }
+}
+
+const chartsEntry = readFileSync(
+  join(repoRoot, "packages/charts/src/index.tsx"),
+  "utf8",
+);
+for (const moduleName of heldChartExportFindings(chartsEntry)) {
+  fail(
+    "@silkplot/charts",
+    `${moduleName} is source-only pending renderer authority and cannot be exported from the publishable package root`,
+  );
 }
 
 // ---------------------------------------------------------------------------

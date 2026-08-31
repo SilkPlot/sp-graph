@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import {
   layoutPackFromObservations,
   layoutTreeFromObservations,
@@ -15,7 +15,7 @@ import {
   type HierarchyDatum,
   type HierarchyObservation,
 } from "@silkplot/core";
-import { PackChart, TreeChart, TreemapChart } from "../src/index";
+import { PackChart, TreeChart, TreemapChart } from "../src/HierarchyChart";
 import {
   HEIGHT,
   NO_MARGINS,

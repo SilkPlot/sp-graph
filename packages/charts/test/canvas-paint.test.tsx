@@ -362,17 +362,51 @@ describe("syncCanvasPlot", () => {
     syncCanvasPlot(undefined, { width: 10, height: 10 }, noop);
   });
 
-  it("records no marks and does not size the bitmap when the inner plot has collapsed", () => {
+  it("records no marks and sizes an initially collapsed bitmap to the current layout", () => {
     const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     syncCanvasPlot(canvas, { width: 0, height: 10 }, () => {
       throw new Error("must not paint a collapsed plot");
     });
     expect(marksOnCanvas(canvas)).toEqual([]);
+    expect(canvas.width).toBe(0);
+    expect(canvas.height).toBe(Math.round(10 * window.devicePixelRatio));
     expect(canvas.getAttribute("data-silkplot-plot-width")).toBe("0");
     expect(canvas.getAttribute("data-silkplot-plot-height")).toBe("10");
     syncCanvasPlot(canvas, { width: 10, height: 0 }, noop);
+    expect(canvas.width).toBe(Math.round(10 * window.devicePixelRatio));
+    expect(canvas.height).toBe(0);
     expect(canvas.getAttribute("data-silkplot-plot-height")).toBe("0");
+  });
+
+  it("clears the bitmap and public evidence when a painted plot collapses", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    let paintCalls = 0;
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, (ctx, _plot, resolve) => {
+      paintCalls += 1;
+      const mark = paintStroke(
+        ctx,
+        "M0,0L20,16",
+        { stroke: "#000", pointCount: 7 },
+        resolve,
+      );
+      return mark === undefined ? [] : [mark];
+    });
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBe("M0,0L20,16");
+    expect(canvas.getAttribute("data-silkplot-drawn-points")).toBe("7");
+
+    syncCanvasPlot(canvas, { width: 0, height: 16 }, () => {
+      paintCalls += 1;
+      throw new Error("must not repaint a collapsed plot");
+    });
+
+    expect(paintCalls).toBe(1);
+    expect(canvas.width).toBe(0);
+    expect(canvas.height).toBe(Math.round(16 * window.devicePixelRatio));
+    expect(marksOnCanvas(canvas)).toEqual([]);
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBeNull();
+    expect(canvas.getAttribute("data-silkplot-drawn-points")).toBeNull();
   });
 
   it("paints and remembers when the plot has area", () => {

@@ -36,16 +36,15 @@ export function repoFile(path: string): string {
 export interface PackageRow {
   name: string;
   purpose: string;
-  status: "Alpha" | "Stub";
+  status: "Alpha" | "Unpublished";
   note: string;
 }
 
 /**
  * The package matrix.
  *
- * `calendar` is listed with its real state rather than omitted. A reader who
- * finds the package in the repository and no mention of it here would reasonably
- * assume it works; saying "stub" is shorter than the support thread.
+ * `calendar` is listed with its real state rather than omitted. It has working
+ * source surfaces but is not on the registry, which is distinct from a stub.
  */
 export const PACKAGES: readonly PackageRow[] = [
   {
@@ -74,9 +73,9 @@ export const PACKAGES: readonly PackageRow[] = [
   },
   {
     name: "@silkplot/calendar",
-    purpose: "Time-grid and calendar layout",
-    status: "Stub",
-    note: "buildTimeGrid is implemented in source. Not published.",
+    purpose: "Zoned time-grid layout, week grid, agenda, heatmap, and virtualization",
+    status: "Unpublished",
+    note: "Implemented and tested in source; the package is not published.",
   },
 ];
 
@@ -155,6 +154,7 @@ export const LIMITATIONS: readonly Limitation[] = [
   },
   {
     headline: "The calendar package is not published",
-    detail: "buildTimeGrid is implemented in source; the package is not published.",
+    detail:
+      "The zoned layout engine, week grid, agenda, heatmap, and virtualization are implemented and tested in source; the package is not published.",
   },
 ];

@@ -9,8 +9,9 @@
 
 SilkPlot is an open-source graphing and visualization library built the idiomatic
 Solid way: D3's battle-tested math and geometry modules are used **compute-only**,
-and every pixel is rendered by Solid's fine-grained reactivity. No second renderer
-fights Solid for ownership of the DOM.
+while Solid owns component state, DOM structure, and the reactive schedule that
+drives SVG primitives or Canvas 2D paint. No D3 DOM renderer fights Solid for
+ownership.
 
 - **License:** Apache-2.0
 - **npm scope:** [`@silkplot/*`](https://www.npmjs.com/org/silkplot)
@@ -18,10 +19,12 @@ fights Solid for ownership of the DOM.
   the quickstart, four live charts with their real source, theming, and what this
   alpha deliberately does not do
 - **Source:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
-- **Status:** alpha, **published under the `next` tag** — see [Install](#install).
-  `LineChart`, `AreaChart`, `BarChart` and `ScatterChart` render end to end over a
-  unit-tested core, with gridlines and the interaction primitives built. The
-  calendar layer remains an honest, typed stub with roadmap-mapped TODOs.
+- **Status:** alpha. The latest registry release is **published under the
+  `next` tag** — see [Install](#install). `main` is ahead of that release: its
+  unpublished source includes Canvas-rendered cartesian, heatmap, pie/donut,
+  hierarchy, bubble, and histogram families plus implemented calendar week,
+  agenda, and heatmap surfaces. [ROADMAP.md](ROADMAP.md) separates registry
+  claims from source that has not yet been published.
 
 ---
 
@@ -34,9 +37,10 @@ DOM** (`d3-selection`, `d3-transition`, `d3-axis`). SilkPlot uses only the first
 - **D3 is the math layer.** Scales, path strings, tick positions, color ramps, overlap
   packing, and hit-test indexes are all computed by D3 modules inside pure functions and
   Solid memos.
-- **Solid owns the tree.** Every `<svg>`, `<g>`, `<path>`, `<line>`, and `<text>` is a
-  Solid element. Updates are targeted and fine-grained — no enter/update/exit joins, no
-  `selection.call(axis)`.
+- **Solid owns the surface lifecycle.** Solid creates the semantic DOM and
+  Canvas elements, tracks their inputs, and schedules paint. Canvas 2D routines
+  receive computed marks; SVG primitives remain Solid elements. There are no
+  enter/update/exit joins and no `selection.call(axis)`.
 
 ### Banned in the render path (non-negotiable)
 
@@ -65,8 +69,8 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 |---|---|---|
 | [`@silkplot/core`](packages/core) | yes | Pure math — no Solid, no DOM. Scales, extents, ticks, shape paths, overlap packing, hit-testing. |
 | [`@silkplot/solid`](packages/solid) | yes | Solid primitives — `ChartRoot`, `SvgLayer`, `Axis` (continuous **and** band scales), `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `createResize`. `solid-js` is a peer dep. |
-| [`@silkplot/charts`](packages/charts) | yes | Composed charts — `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, all composing `createCartesianModel`. Line and area also take a multi-series `series` prop with per-series gap policy and caller formatters (marks; composed hit-test interaction remains roadmap work). |
-| [`@silkplot/calendar`](packages/calendar) | yes | Booking-calendar primitives — time-grid + overlap-resolver (stubs; the overlap packer itself lives in `core` and is done). |
+| [`@silkplot/charts`](packages/charts) | yes | Composed Canvas charts — line, area, bar, scatter, heatmap, pie/donut, tree/treemap/pack, bubble, and histogram — with interaction, semantic alternatives, and shared model composition. |
+| [`@silkplot/calendar`](packages/calendar) | held back | Implemented zoned time-grid geometry, overlap resolution, Canvas week/calendar-heatmap surfaces, agenda view, and virtualization helpers. Present on `main`, not in the current alpha publish set. |
 | [`@silkplot/theme`](packages/theme) | yes | Design tokens — CSS custom properties, palette ramps, motion/contrast-aware. |
 | `playground` | no | Vite + Solid app that proves the architecture end to end. |
 
@@ -131,15 +135,19 @@ const series = [
 export default function App() {
   return (
     <div style={{ width: "640px", height: "320px" }}>
-      <LineChart data={series} />
+      <LineChart
+        data={series}
+        title="Daily readings"
+        desc="Five daily readings, 1–5 January 2026, values 9 to 27."
+      />
     </div>
   );
 }
 ```
 
-`LineChart` measures its container with `ResizeObserver`, computes a time scale, a linear
-scale, a line path, and tick labels via `@silkplot/core`, and renders the SVG line and both
-axes with Solid — no `d3-axis` anywhere.
+`LineChart` measures its container with `ResizeObserver`, computes scales, line
+geometry, and tick labels via `@silkplot/core`, then schedules its Canvas 2D
+plot through Solid — no `d3-axis` or D3-owned DOM anywhere.
 
 ---
 
@@ -152,9 +160,15 @@ capability-phase narrative that used to live in this section, which had gone
 stale — several items it listed as outstanding (pan, zoom, hit-testing, the
 visible-range control, ranked bars) have long since shipped.
 
-Substrate policy is unchanged: **SVG-first** for dashboards, a **Canvas** data
-layer where measured density warrants it, **WebGL** kept off the roadmap until
-a workload demands it.
+Current substrate policy is [ADR-0025](docs/decisions/adr-0025-enumerated-canvas-renderer-program.md):
+**Canvas** for its enumerated cartesian, heatmap, calendar-heatmap, and
+calendar-week virtualization program; SVG primitives remain available outside
+that program; **WebGL** remains excluded.
+
+Pie/donut, hierarchy, bubble, and histogram also paint on Canvas in the current
+source tree, but that is an implementation fact, not an extension of ADR-0025.
+Those families need a later signed ADR or a renderer correction before their
+Canvas substrate can be treated as authorized product policy.
 
 ---
 
@@ -207,6 +221,8 @@ Decisions — what was chosen, what was rejected, and why — are recorded as AD
   how pixel determinism is engineered, and the review workflow a baseline change must go
   through. Read it before running `--update-snapshots`; re-pinning a baseline is a decision
   to change what "correct" means, not a way to clear a red run.
+- [Maintainer evidence](docs/internal/README.md) — dated performance notes and
+  review captures that support implementation history but are not regression baselines.
 
 > **On accessibility claims.** No assistive-technology testing has been performed
 > against SilkPlot — no NVDA, JAWS, VoiceOver, Orca, Narrator, or TalkBack run.

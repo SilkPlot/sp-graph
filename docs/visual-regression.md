@@ -155,12 +155,9 @@ therefore asserts, as tests in their own right:
    declared baseline with no file is coverage that silently stopped, and a file
    with no declaration is a baseline nothing compares against.
 4. That the charts declared to own a focus stop are exactly the charts that
-   render one, **in both directions**. `LineChart` and `BarChart` compose
-   `ChartKeyboardSurface` today, so those two have a `:focus-visible` treatment
-   to pin; Area and Scatter do not. The day another chart gains a keyboard
-   composite this check fails and stays failing until a focus baseline is
-   declared for it — rather than an unproven focus indicator shipping under a
-   green run.
+   render one, **in both directions**. Line, Area, Bar, and Scatter all compose
+   `ChartKeyboardSurface` and each has a `:focus-visible` baseline. Removing a
+   keyboard surface or its declaration fails the gate.
 
 ### Deliberately not covered
 
@@ -169,8 +166,9 @@ is always answerable and an excluded surface can be told from a forgotten one:
 
 | Surface | Why |
 |---|---|
-| Calendar week grid | not built; deferred to the calendar layout work |
-| A parallel SVG mark substrate | cartesian marks (line / area / bar / scatter) paint on Canvas; the existing chart baselines are those pictures. Heatmap and WebGL Canvas work are not shipped |
+| Calendar week grid | implemented and tested in `@silkplot/calendar`, but outside this chart-only screenshot harness; it needs a dedicated calendar fixture and reviewed baseline before publication |
+| A parallel SVG mark substrate | cartesian marks paint on Canvas; a parallel SVG mark substrate and WebGL renderer are not shipped |
+| Heatmap | implemented and tested on Canvas in source, but outside the four-family chart screenshot matrix; it needs a dedicated fixture and reviewed baseline before publication |
 | The HTML data alternative (`<table>`) | structural, and asserted directly by the accessibility suite on its markup and ARIA relationships. Pinning its pixels re-tests text layout, where a screenshot gate is most brittle and least informative. Fixtures pass `tableHidden`, so no table is in frame — before 2026-07-19 passing no `table` prop was enough, but charts now render one by default |
 | Cross-platform pixel identity | out of scope by design — see below |
 
@@ -543,9 +541,11 @@ worth keeping:
    negotiates a count and `computeBandTicks` returns one label per category —
    that asymmetry is the difference between two kinds of axis, not a defect.
 
-Label rotation stays unbuilt and is tracked in the planning backlog: it is the
-second-ranked remedy, and it needs bottom-margin reservation that touches every
-chart's layout.
+At the date of this entry, label rotation was unbuilt. The 2026-08-25 work later
+added the explicit `rotateCategoryLabels` opt-in and shared bottom-margin
+reservation; the entry above records its reviewed baselines. Horizontal
+orientation remains the preferred default rather than silently rotating every
+dense axis.
 
 Truncation is retained because its precondition holds — the full text of every
 category survives in the derived data table, the CSV export, and the keyboard
@@ -619,7 +619,7 @@ composite's announced option text.
   Stated plainly, because the previous two entries did not and it was raised
   both times: this line records the MERGE decision, not an image review. The
   four images named above were opened by the executing session, not by Adam.
-  Whether that is the right convention is an open question the P04 close put to
+  Whether that is the right convention is an open question an earlier close put to
   him and which he merged without changing — so it stands, and this is the
   third time it has been written down.
 

@@ -9,9 +9,10 @@
   // repository would otherwise catch — the suites test the implementation, and
   // documentation is not implementation.
   //
-  // DOM-free `lib`, matching the computation package: none of these examples
-  // renders anything, and one that reached for `document` would be describing a
-  // contract in terms the contract does not have.
+  // The fixtures execute no DOM code, but they import the real composed-chart
+  // prop types so a documentation-only look-alike cannot drift. Those public
+  // types correctly mention DOM/JSX surfaces, so the compiler needs the DOM
+  // declarations even though these examples never call `document`.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
@@ -19,7 +20,7 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": []
   },
   "include": ["**/*.ts"]

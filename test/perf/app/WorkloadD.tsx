@@ -19,7 +19,7 @@
  * two to go after — and they have completely different recoveries.
  */
 import { LineChart } from "@silkplot/charts";
-import type { Series, SeriesDatum } from "@silkplot/core";
+import { timeScale, type Series, type SeriesDatum } from "@silkplot/core";
 import { createSignal, onMount, type Component } from "solid-js";
 import {
   W4_SPIKE_INDICES,
@@ -29,6 +29,7 @@ import {
   decimateSeries,
   decimationError,
   everyNth,
+  expectedInspectionAtFraction,
   minMaxBuckets,
   type Candidate,
   type DecimationError,
@@ -50,6 +51,31 @@ const CANDIDATES: Record<Exclude<DecimationChoice, "raw">, Candidate> = {
   m4: m4Columns,
   lttb,
 };
+const CANDIDATE_DATA = Object.fromEntries(
+  Object.entries(CANDIDATES).map(([name, candidate]) => [
+    name,
+    candidate(RAW_DATA, WD_TARGET_POINTS),
+  ]),
+) as Record<Exclude<DecimationChoice, "raw">, SeriesDatum[]>;
+
+function inspectionTarget(fraction: number) {
+  const first = RAW_DATA[0];
+  const last = RAW_DATA.at(-1);
+  if (!first || !last || fraction < 0 || fraction > 1) return undefined;
+  const targetMs =
+    first.t.getTime() + fraction * (last.t.getTime() - first.t.getTime());
+  const scale = timeScale({ domain: [first.t, last.t], range: [0, 1] });
+  const appliedDomain = scale.domain();
+  const domainStart = appliedDomain[0];
+  const domainEnd = appliedDomain[1];
+  if (!domainStart || !domainEnd) return undefined;
+  return {
+    rawDomainFraction: fraction,
+    plotFraction: scale(new Date(targetMs)),
+    targetTime: new Date(targetMs).toISOString(),
+    appliedDomain: [domainStart.toISOString(), domainEnd.toISOString()] as const,
+  };
+}
 
 /**
  * Score every candidate once, at module scope.
@@ -59,9 +85,9 @@ const CANDIDATES: Record<Exclude<DecimationChoice, "raw">, Candidate> = {
  * reported as the chart's. It is pure and the data is frozen, so once is correct.
  */
 const REPORT: readonly DecimationError[] = (
-    Object.entries(CANDIDATES) as [Exclude<DecimationChoice, "raw">, Candidate][]
-  ).map(([name, candidate]) =>
-    decimationError(name, RAW_DATA, candidate(RAW_DATA, WD_TARGET_POINTS), W4_SPIKE_INDICES),
+    Object.keys(CANDIDATES) as Exclude<DecimationChoice, "raw">[]
+  ).map((name) =>
+    decimationError(name, RAW_DATA, CANDIDATE_DATA[name], W4_SPIKE_INDICES),
   );
 
 export const WorkloadD: Component = () => {
@@ -82,10 +108,33 @@ export const WorkloadD: Component = () => {
       decimate: (choice) =>
         settle(root, () => {
           setSeries(
-            choice === "raw" ? RAW : decimateSeries(RAW, CANDIDATES[choice], WD_TARGET_POINTS),
+            choice === "raw"
+              ? RAW
+              : decimateSeries(
+                  RAW,
+                  () => CANDIDATE_DATA[choice],
+                  WD_TARGET_POINTS,
+                ),
           );
         }),
+      inspectionExpected: (choice, fraction) =>
+        expectedInspectionAtFraction(
+          "raw",
+          RAW_DATA,
+          choice === "raw" ? RAW_DATA : CANDIDATE_DATA[choice],
+          fraction,
+        ),
+      inspectionTarget,
       decimationReport: () => REPORT,
+			paintDecimation: {
+				budget: WD_TARGET_POINTS,
+				drawnPoints: () => {
+					const value = root
+						.querySelector("[data-silkplot-canvas-plot]")
+						?.getAttribute("data-silkplot-drawn-points");
+					return value === null || value === undefined ? null : Number(value);
+				},
+			},
     });
   });
 
@@ -101,14 +150,14 @@ export const WorkloadD: Component = () => {
         wheelZoom
         // The ADR-0023 disposition, mounted: explicit min/max decimation at
         // the same budget the scorer measured. Paint only — the hit index,
-        // announcements, table, and CSV still read the raw 86,400. P08
-        // recorded the pre-disposition raw figures (NOT VIABLE RAW); the P09
+        // announcements, table, and CSV still read the raw 86,400. The earlier
+        // run recorded the pre-disposition raw figures (NOT VIABLE RAW); the
         // exit run judges THIS composition, which is what ships for this
         // density. The data-level candidate swap below stays as the
         // comparison instrument; a swapped 2,000-point candidate is at the
         // budget, so the prop is the identity there.
         decimation={WD_TARGET_POINTS}
-        onVisibleDomainChange={() => noteViewport()}
+        onVisibleDomainChange={(_domain, cause) => noteViewport(cause)}
         onActivePointChange={(point) => noteActive(point)}
         table={tableProp()}
         title="W-D — one day at one-second resolution"

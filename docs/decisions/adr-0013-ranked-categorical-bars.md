@@ -2,6 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-20
+- **Public-surface correction:** 2026-08-31 — private sequencing shorthand was
+  removed; the decision and its scope are unchanged.
 - **Extends:** [ADR-0010](adr-0010-formatter-props-by-surface.md), whose
   surface-naming principle it applies to an orientable chart
 - **Supersedes:** the `RankedBarsProps` declaration in
@@ -82,14 +84,14 @@ only surface-naming on a chart that cannot rotate.
 
 ### 3. `onActivate` hands back the caller's own `RankedCategory`
 
-This is the library's first caller-facing activation callback. Sprint 007 owns
+This is the library's first caller-facing activation callback. The interaction work owns
 the general pointer-to-datum model, and shipping a narrower seam ahead of it
 risks a signature that later has to widen on a published surface.
 
 It is shipped anyway, because the declared signature is the most future-proof one
 available: it returns the caller's OWN object, rebuilt from the normalised
-record, and commits to nothing about the library's internal datum model. Sprint
-007 can widen around it. The alternative — deferring — would have meant
+record, and commits to nothing about the library's internal datum model. A later
+interaction phase can widen around it. The alternative — deferring — would have meant
 superseding a second field of a four-field declaration in the phase meant to
 honour it, which is a signal the declaration was wrong. It was not.
 
@@ -206,7 +208,7 @@ that was passed in. `toCsv` already records the same position.
   value, at the cost of two contradictory formatter idioms in one published
   library decided six weeks apart. ADR-0010 already paid for the knowledge that
   the single-formatter shape does not work.
-- **Defer `onActivate` to Sprint 007** — rejected, and coherent. It would keep
+- **Defer `onActivate` to later interaction work** — rejected, and coherent. It would keep
   the whole activation surface landing at once. It would also leave ranked bars
   analytically complete but non-interactive for a sprint, and unwrite half the
   declared contract in the phase meant to implement it.

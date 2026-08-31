@@ -54,6 +54,12 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   const series = marks.find(
     (m): m is PathMark => m.kind === "path" && m.stroke !== "none" && m.d !== "",
   );
+	const drawnPoints = marks
+		.filter(
+			(mark): mark is PathMark & { pointCount: number } =>
+				mark.kind === "path" && Number.isInteger(mark.pointCount),
+		)
+		.reduce((total, mark) => total + mark.pointCount, 0);
   const hatched = marks.some((m) => m.kind === "rect" && m.hatch !== undefined && m.hatch !== "0");
   const patterned = marks.some(
     (m) =>
@@ -72,6 +78,9 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   else el.removeAttribute("data-silkplot-axis-labels");
   if (series !== undefined) el.setAttribute("data-silkplot-mark-d", series.d);
   else el.removeAttribute("data-silkplot-mark-d");
+	if (drawnPoints > 0)
+		el.setAttribute("data-silkplot-drawn-points", String(drawnPoints));
+	else el.removeAttribute("data-silkplot-drawn-points");
 }
 
 function toggleAttr(el: HTMLCanvasElement, name: string, on: boolean): void {
@@ -91,17 +100,22 @@ export function syncCanvasPlot(
   if (el === undefined) return;
   el.setAttribute("data-silkplot-plot-width", String(layout.width));
   el.setAttribute("data-silkplot-plot-height", String(layout.height));
-  if (layout.width <= 0 || layout.height <= 0) {
-    rememberCanvasMarks(el, []);
-    return;
-  }
+	el.setAttribute("data-silkplot-plot-origin-x", String(layout.originX ?? 0));
+	el.setAttribute("data-silkplot-plot-origin-y", String(layout.originY ?? 0));
   const originX = layout.originX ?? 0;
   const originY = layout.originY ?? 0;
-  const outerW = layout.outerWidth ?? layout.width + originX;
-  const outerH = layout.outerHeight ?? layout.height + originY;
+  const outerW = Math.max(0, layout.outerWidth ?? layout.width + originX);
+  const outerH = Math.max(0, layout.outerHeight ?? layout.height + originY);
   const dpr = window.devicePixelRatio;
+  // Resizing clears the bitmap. Do this before the collapsed-layout guard so a
+  // positive → zero-size transition cannot leave stale pixels behind.
   el.width = Math.round(outerW * dpr);
   el.height = Math.round(outerH * dpr);
+  if (layout.width <= 0 || layout.height <= 0) {
+    rememberCanvasMarks(el, []);
+    annotateChrome(el, []);
+    return;
+  }
   const ctx = el.getContext("2d")!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, outerW, outerH);

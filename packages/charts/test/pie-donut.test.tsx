@@ -6,14 +6,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import {
   layoutPieFromObservations,
   type ActivePoint,
   type PieDatum,
   type PieObservation,
 } from "@silkplot/core";
-import { DonutChart, PieChart } from "../src/index";
+import { DonutChart, PieChart } from "../src/PieChart";
 import {
   HEIGHT,
   NO_MARGINS,

@@ -2,12 +2,14 @@
 # @silkplot/charts
 
 Composed charts for [SilkPlot](https://github.com/SilkPlot/sp-graph) —
-`LineChart`, `AreaChart`, `BarChart`, `ScatterChart`. All four compose the same
-`createCartesianModel` from `@silkplot/solid`, so they cannot disagree about
-scales, bounds, or ticks.
+line, area, bar, scatter, heatmap, pie/donut, tree/treemap/pack, bubble, and
+histogram. The cartesian families compose the same model and Canvas frame, so
+they cannot drift on bounds, ticks, interaction, or semantic alternatives.
 
-> **Alpha.** The API is pre-1.0 and will break. See the
-> [repository](https://github.com/SilkPlot/sp-graph) for current status.
+> **Alpha.** The API is pre-1.0 and will break. `main` is ahead of the current
+> registry prerelease; see the
+> [roadmap](https://github.com/SilkPlot/sp-graph/blob/main/ROADMAP.md) for the
+> exact published/source split.
 
 ## Install
 
@@ -38,7 +40,11 @@ export default function App() {
 
   return (
     <div style={{ width: "640px", height: "320px" }}>
-      <LineChart data={series()} title="Daily volume" />
+      <LineChart
+        data={series()}
+        title="Daily volume"
+        desc="Three daily volume readings, 1–3 January 2026, values 9 to 18."
+      />
     </div>
   );
 }
@@ -48,6 +54,14 @@ The chart measures its container with `ResizeObserver` and fills it; pass
 `width`/`height` to fix the size instead. Replacing the series recomputes the
 domains and moves the marks — `data` is read through Solid's props proxy, so
 passing `series()` keeps it reactive rather than snapshotting it.
+
+Composed marks, axes, grid, references, and interaction chrome paint on Canvas
+2D. Solid owns the Canvas element, reactive update schedule, semantic shell,
+keyboard surface, announcements, table, and other DOM; D3 remains compute-only.
+ADR-0025 authorizes that substrate for cartesian and heatmap, but not for the
+current pie/donut, hierarchy, bubble, or histogram implementations. Those
+source-only families require a later signed renderer ADR or a substrate
+correction before publication; their current paint path is not policy precedent.
 
 An informative chart must be named. "Informative and unnamed" is not
 representable in `ChartSemanticsProps`, so omitting both `title` and

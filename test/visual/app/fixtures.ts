@@ -132,9 +132,9 @@ export const XY_EMPTY: readonly XYPoint[] = [];
  * overlap would hide exactly the palette and identity defects these baselines
  * exist to catch.
  *
- * Labels are plain and short on purpose. The legend is not built, so a label
- * reaches the picture only through the axis and the (hidden) table; long ones
- * would pin text layout, which is where a screenshot gate is least informative.
+ * Labels are plain and short on purpose. Legend visuals have their own fixtures;
+ * these chart-only frames omit the legend, so long labels would merely pin text
+ * layout where a screenshot gate is least informative.
  */
 const multi = (count: number, points = 24): Series[] =>
   Array.from({ length: count }, (_, s) => ({

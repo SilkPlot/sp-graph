@@ -5,10 +5,12 @@ decision, why it was made, what was rejected, and what it costs.
 
 Two rules make them useful:
 
-- **An accepted ADR is never edited.** Supersede it with a new one that links
-  back. The value is the trail, including the decisions that turned out wrong —
-  a record quietly rewritten to match the present cannot tell you the reasoning
-  was ever different.
+- **An accepted ADR is normally superseded, not edited.** A bounded correction
+  is permitted only when the ADR itself dates and explains that correction and
+  the decision, alternatives, scope, and consequences do not change. Every
+  substantive change uses a new ADR that links back. The value is the trail,
+  including decisions that turned out wrong; a record quietly rewritten to
+  match the present cannot preserve that reasoning.
 - **The rationale is self-contained.** An ADR explains itself to a reader who
   has only this repository.
 
@@ -89,7 +91,8 @@ arrived at.
   why a value formatter receives its series' label, why the return type is
   `string | number` and what that means for the CSV export, and why a gap never
   reaches a formatter. Supersedes §9's prop shape only — §9's principle stands,
-  and `formatTooltip` stays declared and unbuilt.
+  while ADR-0016 supersedes §9's parked `formatTooltip` with the typed JSX
+  `tooltip` render-prop.
 
 - [ADR-0011 — The legend is a standalone toolbar, and interactive targets have a floor](adr-0011-legend-toolbar-and-target-size.md):
   why the legend ships as a primitive the application places rather than a prop
@@ -117,7 +120,7 @@ arrived at.
   letter is not a surface, because flipping `orientation` would silently swap
   which formatter applied; why `formatValue` is superseded on the same reasoning
   ADR-0010 used for the time series; why `onActivate` hands back the caller's own
-  object, which is what makes it safe to ship ahead of Sprint 007's general
+  object, which is what makes it safe to ship ahead of the general interaction
   pointer contract; why Enter/Space activation belongs to the keyboard composite
   rather than the chart; why bars become keyboard-reachable on BOTH input shapes;
   and why axis labels truncate by character count rather than measured width.
@@ -206,22 +209,24 @@ arrived at.
   tooltip, table, CSV — resolves against the RAW series at the resolved instant,
   so the path is the envelope and the active point is the truth. Canvas is not
   promoted; its promotion still requires measured evidence that this is not
-  enough. Overridden for the S016 sequence by ADR-0025.
+  enough. Overridden for ADR-0025's enumerated Canvas renderer program.
 - [ADR-0024 — Zoned civil time for calendar grids](adr-0024-zoned-civil-time-for-calendar-grids.md):
   the calendar-grid contract before any grid is built — one IANA display zone
   per view, truthful DST geometry (23h spring-forward, 25h fall-back), Temporal
   at the calendar boundary and `Date` only at the D3 seam, library owns grid
   meaning and the application owns booking validity. Does not reopen ADR-0017.
   Ships no implementation.
-- [ADR-0025 — Canvas promoted for the S016 sequence](adr-0025-canvas-promoted-for-s016-sequence.md):
-  Adam 2026-08-28 signed override of ADR-0023 decision 1 for the S016
-  wanted-implement sequence only. Canvas is the named renderer. “Canvas is
-  not promoted” / “decimation over corrected SVG” do not bind this sequence.
+- [ADR-0025 — Canvas promoted for an enumerated renderer program](adr-0025-enumerated-canvas-renderer-program.md):
+  Adam 2026-08-28 signed override of ADR-0023 decision 1 for the enumerated
+  cartesian, heatmap, calendar-heatmap, and calendar-week virtualization program
+  only. Canvas is the named renderer. “Canvas is not promoted” / “decimation
+  over corrected SVG” do not bind this program.
   Scope is shipped cartesian (line/area/bar/scatter, including the landed
-  plot-area clip) and S016 heatmap / calendar-heatmap / any S016 view that
-  would otherwise be SVG. Interactive and dynamic. No SVG in new S016 work.
-  WebGL remains excluded. Quiet-host density measurement stays parked
-  (product renderer decision, not a density-exit run). Overturn is a later
+  plot-area clip), heatmap, calendar-heatmap, and the Canvas calendar-week /
+  week-virtualization stack. Interactive and dynamic. No SVG in that work;
+  another chart family requires a later signed ADR.
+  WebGL remains excluded. This record neither performs nor authorizes a
+  performance run. Overturn is a later
   signed ADR. ADR-0023 is not edited.
 
 ## Migrations

@@ -41,7 +41,7 @@ export type { ChartInspection, ChartInspectionSpec } from "./createChartInspecti
 // The reactive visible-time viewport holder — ADR-0014 §3/§4 on ADR-0017's
 // representation. Controlled/uncontrolled state over the pure `@silkplot/core`
 // viewport model; the single `Date`↔ms boundary; the navigation commands a
-// range control or a P05 gesture adapter drives.
+// range control or a gesture adapter drives.
 export { createViewport } from "./createViewport";
 export type { Viewport, ViewportCommands, ViewportSpec } from "./createViewport";
 export {

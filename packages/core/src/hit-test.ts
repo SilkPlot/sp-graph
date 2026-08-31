@@ -1,11 +1,11 @@
 /**
  * Hit-testing — nearest-point lookup for pointer interaction.
  *
- * The dynamic-interaction roadmap needs fast nearest-mark lookup for
- * cursor/tooltip and point exploration. For 2-D scatter/point clouds we use
- * `d3-delaunay`
+ * Fast nearest-mark lookup for cursor/tooltip and point exploration. For 2-D
+ * scatter/point clouds we use `d3-delaunay`
  * (Delaunay/Voronoi) to find the nearest point to a pointer in O(log n)-ish
- * time; for 1-D time-series a bisector is cheaper (TODO below).
+ * time. Monotonic 1-D time-series use the owned `nearestSortedIndex` and
+ * `createTimeSeriesIndex` path in `active-point.ts` instead.
  *
  * This is compute-only: it returns an index into the caller's data. Solid owns
  * the pointer events and the rendered cursor.
@@ -45,11 +45,3 @@ export function createHitIndex<T>(
     },
   };
 }
-
-/**
- * TODO(dynamic interaction): `createBisectorIndex` for monotonic 1-D
- * (time-series) lookup —
- * a `d3-array` bisector is cheaper than Delaunay when points are sorted along a
- * single axis. Also a `d3-quadtree` variant for very large point clouds where
- * incremental insertion matters.
- */

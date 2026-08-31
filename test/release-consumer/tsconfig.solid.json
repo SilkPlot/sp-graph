@@ -32,5 +32,10 @@
   // quickstart a claim about the PACKED tarballs rather than about the
   // workspace: inside the workspace it resolves through the "source" condition
   // to `src` next door and would compile even if the tarball shipped nothing.
-  "include": ["src/main.solid.tsx", "src/series.ts", "src/quickstart.tsx"]
+  "include": [
+    "src/main.solid.tsx",
+    "src/metadata-contract.ts",
+    "src/series.ts",
+    "src/quickstart.tsx"
+  ]
 }

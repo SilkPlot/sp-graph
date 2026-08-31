@@ -8,7 +8,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Temporal } from "temporal-polyfill";
 import { tokensToCss } from "@silkplot/theme";
 import { buildTimeGrid, resolveEventLanes, WeekGrid, type CalendarEvent, type EventRect, type TimeGrid } from "../src/index";

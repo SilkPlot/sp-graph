@@ -7,7 +7,7 @@
  * move what a STANDALONE time chart actually draws — its x scale, its marks, and
  * its hit-index point count — while the y axis stays PINNED to the full-data
  * extent (ADR-0014 §3: a zoom of x does not autoscale y; that is an explicit
- * command, wired in a later phase), and the data table stays pinned to the DATA
+ * command wired by the shipped gesture adapter), and the data table stays pinned to the DATA
  * scope, never the viewport (ADR-0022: the table is the alternative
  * representation of the dataset the chart's data scope selects, not of the
  * pixels currently framed).
@@ -58,6 +58,22 @@ const DATA: TimePoint[] = [
   { t: day(4), y: 5 },
 ];
 
+/**
+ * Seven readings for assertions that must distinguish the data scope from the
+ * neighbour-inclusive paint window. With MID applied, painting keeps days 0..4
+ * (one neighbour per edge), while the data scope still owns all seven rows and
+ * the far day-6 maximum still owns the pinned y domain.
+ */
+const WIDE_DATA: TimePoint[] = [
+  { t: day(0), y: 5 },
+  { t: day(1), y: 40 },
+  { t: day(2), y: 60 },
+  { t: day(3), y: 50 },
+  { t: day(4), y: 20 },
+  { t: day(5), y: 30 },
+  { t: day(6), y: 100 },
+];
+
 /** The window over days 1..3 — the three middle points, extremes excluded. */
 const MID: TimeInterval = { start: day(1), end: day(3) };
 
@@ -105,7 +121,7 @@ describe("the viewport drives a standalone time chart", () => {
     const { container } = render(() => (
       <LineChart
         title="Readings"
-        data={DATA}
+        data={WIDE_DATA}
         visibleDomain={MID}
         width={WIDTH}
         height={HEIGHT}
@@ -116,15 +132,16 @@ describe("the viewport drives a standalone time chart", () => {
     // Marks: the same three-point window as the test above (on-plot vertices).
     expect(pathXsOnPlot(markD(container), WIDTH)).toHaveLength(3);
     // Table: standalone, with no section or dynamic selection above it, so the
-    // data scope is the full five readings — the viewport never narrows it.
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
+    // data scope is all seven readings — the neighbour-inclusive five-point
+    // paint window never narrows it.
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(7);
   });
 
   it("pins y to the full-data extent while x is narrowed (no autoscale)", () => {
     const { container } = render(() => (
       <LineChart
         title="Readings"
-        data={DATA}
+        data={WIDE_DATA}
         visibleDomain={MID}
         width={WIDTH}
         height={HEIGHT}
@@ -142,8 +159,9 @@ describe("the viewport drives a standalone time chart", () => {
     expect(onPlotYs).toHaveLength(3);
 
     // Pinned: the axis is computed from ALL the data ([0, 100] under zero-floor),
-    // not the three visible points ([0, 60]). The first on-plot point is day 1, y=40.
-    const pinned = expectedYScale(DATA.map((d) => d.y), "zero-floor", HEIGHT);
+    // including day 6 beyond the paint window, not the framed values ([0, 60]).
+    // The first on-plot point is day 1, y=40.
+    const pinned = expectedYScale(WIDE_DATA.map((d) => d.y), "zero-floor", HEIGHT);
     const autoscaled = expectedYScale([40, 60, 50], "zero-floor", HEIGHT);
     const y0 = onPlotYs[0] ?? Number.NaN;
     expect(y0).toBeCloseTo(pinned(40), 3);
@@ -276,7 +294,7 @@ describe("the viewport drives a standalone time chart", () => {
     const { container } = render(() => (
       <LineChart
         title="Readings"
-        series={[{ id: "a", label: "A", data: DATA }]}
+        series={[{ id: "a", label: "A", data: WIDE_DATA }]}
         visibleDomain={MID}
         width={WIDTH}
         height={HEIGHT}
@@ -288,6 +306,6 @@ describe("the viewport drives a standalone time chart", () => {
     // The multi-series scope derives its table from the effective-domain series,
     // not the viewport-narrowed drawn series — same claim as the single-series
     // case above, over the `series` prop path.
-    expect(container.querySelectorAll("tbody tr")).toHaveLength(5);
+    expect(container.querySelectorAll("tbody tr")).toHaveLength(7);
   });
 });

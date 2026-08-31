@@ -19,7 +19,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { CategoryPoint, TimePoint, XYPoint } from "../src/index";
 

@@ -128,7 +128,7 @@ describe("LineChart hover", () => {
         desc="Two readings"
         {...SIZE}
         tooltip={(a) => {
-          seen = (a.datum.meta as Reading | undefined)?.serial;
+          seen = a.datum.meta?.serial;
           return <span>{String(a.datum.y)}</span>;
         }}
       />
