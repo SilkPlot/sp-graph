@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   ACCEPTANCE_MS,
   DROPPED_GATE_PCT,
+  PROTOCOL_PASSES,
   evaluateCleanIndexBuildInvariant,
   evaluateMutationProof,
 } from "./perf.mjs";
@@ -16,6 +17,18 @@ const exactCounts = (pointerEvents = 4) => ({
   pointerEventsWithOneInjectedRebuild: pointerEvents,
   pointerEventsWithOneLayoutRead: pointerEvents,
   pointerEventsWithOneProductionIndexBuild: pointerEvents,
+});
+
+test("the wide-series workload records reset independently from brush", () => {
+  assert.deepEqual(PROTOCOL_PASSES["w-b"], [
+    "hover",
+    "legend",
+    "isolate",
+    "pan",
+    "zoom",
+    "brush",
+    "reset",
+  ]);
 });
 
 // `w-d` is the only dense-timing workload since 2026-08-15. `w-a` carried these

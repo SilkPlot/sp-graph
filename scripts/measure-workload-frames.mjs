@@ -36,12 +36,20 @@
 import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 import {
+  browserSurfacePlan,
+  inspectBrowserSurface,
+} from "./lib/browser-surface.mjs";
+import {
   ACCEPTANCE_MS,
   BINDING_RATE,
   BUDGET_MS,
+  CONTROL_BURN_MS,
   DEVICE_SCALE_FACTOR,
   DROPPED_GATE_PCT,
+  DROPPED_MS,
   DURATION_MS,
+  PROTOCOL_PASSES,
+  TIMER_TOLERANCE_MS,
   VIEWPORT,
   WARMUP_MS,
   arg,
@@ -62,6 +70,14 @@ import { KEY_REPEAT_GAP_MS, PREPARE, forDuration, gesturesFor, holding } from ".
 const URL_BASE = arg(process.argv, "url", "http://127.0.0.1:5175");
 const RATE = Number(arg(process.argv, "rate", String(BINDING_RATE)));
 const JSON_OUT = arg(process.argv, "json", undefined);
+const BROWSER_PLAN = (() => {
+  try {
+    return browserSurfacePlan(process.argv);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(2);
+  }
+})();
 const REQUESTED = arg(process.argv, "workload", "w-a,w-b,w-c,w-d")
   .split(",")
   .map((w) => w.trim())
@@ -105,14 +121,6 @@ const percentile = (xs, q) => {
 /* -------------------------------------------------------------------------- */
 
 const gestures = gesturesFor(DURATION_MS);
-
-/** Which gestures each workload runs, in order. */
-const PASSES = {
-  "w-a": ["hover", "keyboard", "zoom", "pan", "brush", "rangeDrag"],
-  "w-b": ["hover", "legend", "isolate", "pan", "zoom", "brush"],
-  "w-c": ["hover"],
-  "w-d": ["hover", "keyboard", "zoom"],
-};
 
 /* -------------------------------------------------------------------------- */
 /* Instrument readings                                                         */
@@ -262,7 +270,7 @@ async function runWorkload(browser, workload, query = "") {
   // scanning nothing, five probes that never applied). So a pass that commits
   // nothing is recorded as INERT and is not allowed to count as a pass.
   const countsNow = () => page.evaluate(() => window.__perf?.counts());
-  for (const name of PASSES[workload] ?? []) {
+  for (const name of PROTOCOL_PASSES[workload] ?? []) {
     if (name === "rangeDrag" && !meta.range) continue;
     await PREPARE[name]?.(page, ctx);
     const before = await countsNow();
@@ -329,7 +337,7 @@ async function runWorkload(browser, workload, query = "") {
   /* --- inspected-value read: what a reader lands on --- */
   await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
   await page.waitForTimeout(120);
-  result.inspected.raw = await page.evaluate(() => window.__perf?.lastActive());
+  result.inspected.raw = (await page.evaluate(() => window.__perf?.lastActive())) ?? null;
 
   /* --- settles the protocol names for this workload --- */
   if (workload === "w-a") {
@@ -399,7 +407,8 @@ async function runWorkload(browser, workload, query = "") {
       // data, so the difference is what a reader would misread by.
       await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
       await page.waitForTimeout(120);
-      result.inspected[candidate] = await page.evaluate(() => window.__perf?.lastActive());
+      result.inspected[candidate] =
+        (await page.evaluate(() => window.__perf?.lastActive())) ?? null;
     }
     await page.evaluate(() => window.__perf?.decimate?.("raw"));
   }
@@ -518,12 +527,73 @@ function judge(result) {
 /* Run                                                                         */
 /* -------------------------------------------------------------------------- */
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(BROWSER_PLAN.launchOptions);
+const probePage = await browser.newPage();
+await probePage.goto("data:text/html,<canvas></canvas>");
+const browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN);
+await probePage.close();
+
+console.log(
+  `browser surface: ${browserSurface.requestedMode} · ${browserSurface.classification} · Chrome ${browserSurface.browserVersion}`,
+);
+console.log(`GPU renderer: ${browserSurface.gpu.renderer ?? browserSurface.webgl.renderer ?? "unreported"}`);
+if (!browserSurface.surfaceEligible) {
+  for (const reason of browserSurface.ineligibilityReasons) console.log(`diagnostic: ${reason}`);
+}
+
+const artifactMetadata = {
+  recordedBy: "scripts/measure-workload-frames.mjs",
+  schemaVersion: 3,
+  // Deliberately NOT a hardware description. This script cannot know what
+  // machine it is on; the host runner supplies the measured host record.
+  hardware: "UNRECORDED — fill in from the protocol's frozen parameter table",
+  classification: browserSurface.classification,
+  browserSurface,
+  throttle: RATE,
+  budgetMs: BUDGET_MS,
+  timerToleranceMs: TIMER_TOLERANCE_MS,
+  acceptanceMs: ACCEPTANCE_MS,
+  droppedFrameMs: DROPPED_MS,
+  droppedGatePct: DROPPED_GATE_PCT,
+  warmupMs: WARMUP_MS,
+  durationMs: DURATION_MS,
+  controlBurnMs: CONTROL_BURN_MS,
+  settleRepeats: SETTLE_REPEATS,
+  settleGateMs: SETTLE_GATE_MS,
+  invariantDurationMs: INVARIANT_MS,
+  viewport: VIEWPORT,
+  deviceScaleFactor: DEVICE_SCALE_FACTOR,
+};
+
+// A caller explicitly asking for the headed binding surface should find out
+// before a long seven-run pass if Chrome silently fell back to software.
+if (BROWSER_PLAN.mode === "headed" && !browserSurface.surfaceEligible) {
+  if (JSON_OUT) {
+    writeFileSync(
+      JSON_OUT,
+      `${JSON.stringify(
+        {
+          ...artifactMetadata,
+          abortedBeforeWorkloads: true,
+          results: [],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    console.log(`wrote ${JSON_OUT}`);
+  }
+  console.error("headed browser surface is not hardware-accelerated; refusing a binding-candidate run");
+  await browser.close();
+  process.exit(2);
+}
 const results = [];
 
 for (const workload of REQUESTED) {
-  if (!PASSES[workload]) {
-    console.error(`unknown workload '${workload}' — expected one of ${Object.keys(PASSES).join(", ")}`);
+  if (!PROTOCOL_PASSES[workload]) {
+    console.error(
+      `unknown workload '${workload}' — expected one of ${Object.keys(PROTOCOL_PASSES).join(", ")}`,
+    );
     await browser.close();
     process.exit(1);
   }
@@ -541,7 +611,9 @@ for (const workload of REQUESTED) {
 await browser.close();
 
 /* --- report --- */
-console.log(`\n${conditionsLine(RATE, URL_BASE)}`);
+console.log(
+  `\n${conditionsLine(RATE, URL_BASE, ` · browser: ${browserSurface.requestedMode}/${browserSurface.classification}`)}`,
+);
 
 let aborted = false;
 let missed = 0;
@@ -602,6 +674,12 @@ for (const r of results) {
   }
   if (r.pageErrors.length) console.log("page errors:", r.pageErrors);
 
+	// Every completed workload carries its named verdicts even when a control
+	// subsequently aborts scoring. The abort is the outcome; omission would make
+	// the artifact structurally indistinguishable from a truncated harness run.
+	const verdicts = judge(r);
+	r.verdicts = verdicts;
+
   /* --- self-checks decide whether the numbers above count --- */
   if (!r.selfCheck.controlDegraded) {
     console.error(
@@ -619,12 +697,10 @@ for (const r of results) {
     console.log(`\n${label} MUTATION PROOF PASS (${r.selfCheck.mutationProof.mode})`);
   }
 
-  const verdicts = judge(r);
   for (const v of verdicts) {
     console.log(`  ${v.pass ? "PASS" : "MISS"}  ${v.criterion.padEnd(52)} ${v.detail}`);
     if (!v.pass) missed++;
   }
-  r.verdicts = verdicts;
 }
 
 if (JSON_OUT) {
@@ -632,16 +708,7 @@ if (JSON_OUT) {
     JSON_OUT,
     `${JSON.stringify(
       {
-        recordedBy: "scripts/measure-workload-frames.mjs",
-        // Deliberately NOT a hardware description. This script cannot know what
-        // machine it is on, and a guessed one in a results appendix is worse
-        // than a blank the operator has to fill in.
-        hardware: "UNRECORDED — fill in from the protocol's frozen parameter table",
-        throttle: RATE,
-        budgetMs: BUDGET_MS,
-        acceptanceMs: ACCEPTANCE_MS,
-        viewport: VIEWPORT,
-        deviceScaleFactor: DEVICE_SCALE_FACTOR,
+        ...artifactMetadata,
         results,
       },
       null,

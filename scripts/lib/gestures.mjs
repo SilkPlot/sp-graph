@@ -45,6 +45,13 @@ export async function forDuration(ms, step, gap = 0) {
  */
 export const KEY_REPEAT_GAP_MS = 33;
 
+async function engageViewport(page, box) {
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await holding(page, "Control", async () => {
+    for (let step = 0; step < 5; step++) await page.mouse.wheel(0, -120);
+  });
+}
+
 /**
  * Build the gesture table for one pass duration.
  *
@@ -124,6 +131,26 @@ export function gesturesFor(durationMs) {
       });
     },
 
+    /**
+     * Reset through the shipped `0` key after real viewport navigation.
+     *
+     * A reset on the full extent is inert. Re-engaging the viewport between
+     * resets keeps every cycle user-reachable and makes this conservative: the
+     * named pass includes the navigation needed to create resettable state.
+     */
+    reset: async (page, ctx) => {
+      await page.locator(ctx.surface).first().focus();
+      await forDuration(
+        durationMs,
+        async () => {
+          await page.keyboard.press("0");
+          await page.waitForTimeout(60);
+          await engageViewport(page, ctx.box);
+          await page.waitForTimeout(60);
+        },
+      );
+    },
+
     /** Drag the range control's end thumb back and forth. */
     rangeDrag: async (page, ctx) => {
       const thumb = page.locator(ctx.range).last();
@@ -166,10 +193,11 @@ export function gesturesFor(durationMs) {
  */
 export const PREPARE = {
   pan: async (page, ctx) => {
-    await page.mouse.move(ctx.box.x + ctx.box.width / 2, ctx.box.y + ctx.box.height / 2);
-    await holding(page, "Control", async () => {
-      for (let s = 0; s < 5; s++) await page.mouse.wheel(0, -120);
-    });
+    await engageViewport(page, ctx.box);
+    await page.waitForTimeout(300);
+  },
+  reset: async (page, ctx) => {
+    await engageViewport(page, ctx.box);
     await page.waitForTimeout(300);
   },
 };

@@ -939,7 +939,7 @@ const PROBES = [
     project: "charts",
     browser: true,
     breaks:
-      "a navigated time chart's x scale is the viewport interval, not the data extent (S007-P04b). " +
+      "a navigated time chart's x scale is the viewport interval, not the data extent. " +
       "Ignore the interval and paint over the full extent instead, and a controlled `visibleDomain` " +
       "no longer positions the marks where the window says they are.",
     anchor: "return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });",
@@ -972,7 +972,7 @@ const PROBES = [
     project: "charts",
     browser: true,
     breaks:
-      "the drawn marks are narrowed to the viewport interval (S007-P04b). Return the whole y-basis " +
+      "the drawn marks are narrowed to the viewport interval. Return the whole y-basis " +
       "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
       "was told to show.",
     // Re-anchored when the scope moved to the shared `viewportInterval`
@@ -1014,7 +1014,7 @@ const PROBES = [
     browser: true,
     breaks:
       "the y axis is computed from the effective-domain data (`yData`), so a zoom of x leaves y " +
-      "pinned (ADR-0014 §3; S007-P04b). Feed the viewport-narrowed `visible` to the model instead " +
+      "pinned (ADR-0014 §3). Feed the viewport-narrowed `visible` to the model instead " +
       "and zooming x silently autoscales y — the very coupling P04b decouples.",
     anchor: "    data: scope.yData,",
     mutation: "    data: scope.visible,",

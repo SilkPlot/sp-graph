@@ -35,6 +35,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
 import {
+  browserSurfacePlan,
+  inspectBrowserSurface,
+} from "./lib/browser-surface.mjs";
+import {
   BINDING_RATE,
   DEVICE_SCALE_FACTOR,
   DURATION_MS,
@@ -53,6 +57,14 @@ const TABLE = arg(process.argv, "table", "none");
 const RATE = Number(arg(process.argv, "rate", String(BINDING_RATE)));
 const OUT = arg(process.argv, "out", undefined);
 const REPEATS = Number(arg(process.argv, "repeats", "2"));
+const BROWSER_PLAN = (() => {
+  try {
+    return browserSurfacePlan(process.argv);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(2);
+  }
+})();
 // pan is the CONTROL: it passed where zoom/brush/rangeDrag missed, so what the
 // three misses share and pan lacks is the attribution target.
 const GESTURES = arg(process.argv, "gestures", "pan,zoom,brush,rangeDrag")
@@ -148,10 +160,20 @@ async function pass(browser, gesture, record) {
   }
 }
 
+const browser = await chromium.launch(BROWSER_PLAN.launchOptions);
+const probePage = await browser.newPage();
+await probePage.goto("data:text/html,<canvas></canvas>");
+const browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN, {
+  instrumented: true,
+});
+await probePage.close();
+
 const summary = {
   recordedBy: "scripts/collect-commit-profiles.mjs",
   purpose:
     "ATTRIBUTION ONLY — relative/structural evidence collected under possible ambient load. No figure here is a protocol result.",
+  classification: browserSurface.classification,
+  browserSurface,
   workload: WORKLOAD,
   table: TABLE,
   throttle: RATE,
@@ -159,7 +181,11 @@ const summary = {
   passes: [],
 };
 
-const browser = await chromium.launch();
+console.log(
+  `browser surface: ${browserSurface.requestedMode} · ${browserSurface.classification} · Chrome ${browserSurface.browserVersion}`,
+);
+console.log(`GPU renderer: ${browserSurface.gpu.renderer ?? browserSurface.webgl.renderer ?? "unreported"}`);
+for (const reason of browserSurface.ineligibilityReasons) console.log(`diagnostic: ${reason}`);
 
 for (let r = 0; r < REPEATS; r++) {
   for (const gesture of GESTURES) {

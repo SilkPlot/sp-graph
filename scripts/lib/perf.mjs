@@ -63,6 +63,14 @@ export const BINDING_RATE = 4;
 /** The control's deliberate cost per frame — far past the budget, so a working timer cannot miss it. */
 export const CONTROL_BURN_MS = 30;
 
+/** The independently named interaction distributions each workload records. */
+export const PROTOCOL_PASSES = Object.freeze({
+  "w-a": Object.freeze(["hover", "keyboard", "zoom", "pan", "brush", "rangeDrag"]),
+  "w-b": Object.freeze(["hover", "legend", "isolate", "pan", "zoom", "brush", "reset"]),
+  "w-c": Object.freeze(["hover"]),
+  "w-d": Object.freeze(["hover", "keyboard", "zoom"]),
+});
+
 /** Read a `--flag value` argument. */
 export const arg = (argv, name, fallback) => {
   const i = argv.indexOf(`--${name}`);
