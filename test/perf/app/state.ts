@@ -16,20 +16,16 @@
  * Synthesising a click on a harness button to trigger them would put a button's
  * event handling into a number that is supposed to be about a chart.
  */
-import type { SeriesDatum } from "@silkplot/core";
+import type { SeriesDatum, ViewportCause } from "@silkplot/core";
 import type { DecimationError } from "./decimate";
 import { invariants, type InvariantReading } from "./instrument";
+import type { ActiveReading } from "./perf-types";
 
-/** What the chart last reported as active — the protocol's "inspected-value read". */
-export interface ActiveReading {
-  seriesId: string;
-  sourceIndex: number;
-  /** ISO instant, so the driver compares a string rather than a re-parsed Date. */
-  time: string;
-  y: number | null;
-}
+export type { ActiveReading } from "./perf-types";
 
 export interface PerfApi {
+	/** Per-server nonce injected by Vite so a driver cannot measure a stale server. */
+	serverToken: string;
   /** Which workload this page loaded. The driver asserts it got what it asked for. */
   workload: string;
   /** Points actually rendered, summed across visible series. Recorded beside every number. */
@@ -40,6 +36,11 @@ export interface PerfApi {
   surface: string;
   /** Selector for the range control's thumbs, where the workload has one. */
   range?: string;
+	/** Observed paint count under an explicit product decimation budget. */
+	paintDecimation?: {
+		budget: number;
+		drawnPoints(): number | null;
+	};
 
   invariants: {
     start(): void;
@@ -47,7 +48,7 @@ export interface PerfApi {
     read(): InvariantReading;
   };
   /**
-   * Running totals of the two commit kinds, always counted.
+   * Running totals of the independently observable commit kinds, always counted.
    *
    * Separate from `invariants`, which is a short instrumented pass, because this
    * one answers a question that has to be asked of EVERY pass: did the gesture
@@ -56,10 +57,17 @@ export interface PerfApi {
    * looks exactly like a fast one. The driver diffs these around each pass and
    * refuses to report a pass that committed nothing.
    */
-  counts(): { viewport: number; active: number };
+  counts(): { viewport: number; active: number; reset: number; visibility: number };
   /** The per-event mutation. Returns its raw injected-build count on the way off. */
   pathological(on: boolean): number;
   lastActive(): ActiveReading | undefined;
+  inspectionExpected?(choice: DecimationChoice, fraction: number): ActiveReading | undefined;
+  inspectionTarget?(fraction: number): {
+    rawDomainFraction: number;
+    plotFraction: number;
+    targetTime: string;
+    appliedDomain: readonly [string, string];
+  } | undefined;
 
   /* --- Settling state changes. Each resolves with the settle time in ms. --- */
   replace?(): Promise<number>;
@@ -67,9 +75,7 @@ export interface PerfApi {
   reveal?(): Promise<number>;
   unmount?(): Promise<number>;
   reset?(): Promise<number>;
-  /** Cycles the next series' visibility. Called repeatedly during a recorded pass. */
-  legendToggle?(): void;
-  /** Cycles between "one series only" and "all series". */
+  /** Programmatic composition state: cycles between one series and all series. */
   isolate?(): void;
   /** Swap the rendered series for a decimation candidate's output. */
   decimate?(candidate: DecimationChoice): Promise<number>;
@@ -80,9 +86,20 @@ export interface PerfApi {
 export type DecimationChoice = "raw" | "min-max" | "every-nth" | "m4" | "lttb";
 
 /** What a workload supplies. The derived members are filled in by `publish`. */
-export type PerfPageApi = Omit<PerfApi, "tableRows" | "invariants" | "lastActive" | "counts">;
+export type PerfPageApi = Omit<
+	PerfApi,
+	"serverToken" | "tableRows" | "invariants" | "lastActive" | "counts"
+>;
 
 declare global {
+  interface ImportMetaEnv {
+    readonly VITE_PERF_SERVER_TOKEN?: string;
+  }
+
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+
   interface Window {
     __perf?: PerfApi;
   }
@@ -91,6 +108,8 @@ declare global {
 let active: ActiveReading | undefined;
 let viewportCommits = 0;
 let activeCommits = 0;
+let resetCommits = 0;
+let visibilityCommits = 0;
 
 /**
  * Record an active-datum change AND count it as a commit.
@@ -115,16 +134,37 @@ export function noteActive(point: { seriesId: string; sourceIndex: number; datum
 }
 
 /** A committed viewport change — the other thing capped at one per frame. */
-export const noteViewport = (): void => {
+export const noteViewport = (cause?: ViewportCause): void => {
   viewportCommits++;
+  if (cause === "reset") resetCommits++;
   invariants.noteCommit();
 };
 
+/** A committed visible-series change, distinct from incidental pointer state. */
+export const noteVisibility = (): void => {
+  visibilityCommits++;
+  invariants.noteCommit();
+};
+
+/** Whether the controlled visible-series value actually changed. */
+export const visibilityStateChanged = (
+  before: readonly string[],
+  after: readonly string[],
+): boolean =>
+  before.length !== after.length || before.some((id, index) => id !== after[index]);
+
 export const readActive = (): ActiveReading | undefined => active;
 
-export const readCounts = (): { viewport: number; active: number } => ({
+export const readCounts = (): {
+  viewport: number;
+  active: number;
+  reset: number;
+  visibility: number;
+} => ({
   viewport: viewportCommits,
   active: activeCommits,
+  reset: resetCommits,
+  visibility: visibilityCommits,
 });
 
 /** Count the rows the alternative table put in the DOM, whatever produced them. */
@@ -145,6 +185,7 @@ export function publish(api: PerfPageApi): void {
     requestAnimationFrame(() => {
       window.__perf = {
         ...api,
+		serverToken: import.meta.env.VITE_PERF_SERVER_TOKEN ?? "",
         // Counted at publication rather than declared by the workload: the rows
         // are the library's output, and a hand-written count would be a claim
         // about it rather than a reading of it.

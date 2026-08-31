@@ -154,6 +154,7 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Release gate (packed tarballs, external consumer)
+        # Also enforces the source-only chart-family hold at the package root.
         run: npm run release:verify
 
       - name: Public surface gate
@@ -164,8 +165,8 @@ jobs:
       # of this workflow by anybody is harmless.
       #
       # `calendar` is absent from this list deliberately and not by oversight:
-      # its public entry point throws, and publishing it would advertise an
-      # implementation that does not exist.
+      # its implementation is on main, but adding a fifth package to the alpha
+      # publish set requires a separately reviewed release change.
       #
       # Order matters. `core` and `theme` have no internal dependencies; `solid`
       # depends on `core`; `charts` depends on both. Publishing a dependent

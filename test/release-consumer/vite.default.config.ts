@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import { recordResolution } from "./record-resolution";
+import { recordResolution } from "./record-resolution.ts";
 
 // Resolution path B. No Solid plugin, so nothing offers the "solid" condition and
 // `@silkplot/*` resolves through "default" to the compiled ESM bundle.

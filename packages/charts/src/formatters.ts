@@ -23,12 +23,11 @@
  *
  * ## What is deliberately NOT here
  *
- * There is no tooltip or announcement formatter, because the multi-series path
- * exposes no tooltip and no active datum. The many-series active-datum model is
- * a later decision (see `MultiSeriesBody`'s header), and adding its formatter
- * here would pre-empt that decision in the worst way, by publishing its
- * signature before the behaviour exists. When that surface is built, its
- * formatter joins this interface.
+ * Tooltip content is not a string formatter. ADR-0016 superseded the parked
+ * `formatTooltip` proposal with the chart-level `tooltip` render-prop, which
+ * receives the typed active record and returns JSX. Announcements likewise use
+ * the chart's active-point wording contract. Keeping either one out of this
+ * table/axis interface prevents two competing content paths.
  */
 import type { MultiSeriesFormatProps, SeriesTableOptions } from "@silkplot/core";
 

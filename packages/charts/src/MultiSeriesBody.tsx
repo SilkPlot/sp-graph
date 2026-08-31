@@ -8,14 +8,11 @@
  *
  * `LineChart` and `AreaChart` keep their original single-series path, and this
  * is a deliberate application of where the reuse priority STOPS: two things are
- * one thing only if they must CHANGE TOGETHER. These must not. The single-series
- * body carries a keyboard model, an announcement channel, and a point-label
- * contract that the multi-series surface deliberately does not have yet — the
- * active-datum model for many series is a separate decision, and inventing one
- * here would pre-empt it in the worst way, by shipping it.
- *
- * So the paths stay apart, with the reason recorded, until that decision exists.
- * Collapsing them now would bury a deliberate difference behind a shared name.
+ * one thing only if they must CHANGE TOGETHER. These must not. Both paths carry
+ * ADR-0016's keyboard/pointer active-datum model, but their inputs and rendering
+ * work differ: the single-series body consumes `TimePoint[]`, while this body
+ * normalizes stable series identity, visibility, shared-time columns, and
+ * per-series paint. Collapsing them would hide those real differences.
  */
 import { createMemo, Show, type JSX } from "solid-js";
 import {
@@ -118,9 +115,9 @@ export interface MultiSeriesBodyProps<M = unknown> {
   announce?: "live" | "option";
   /** Tooltip content, as a render-prop (ADR-0016 §1). Receives the shared-time
    *  record — the primary datum plus `atTime` across every visible series. */
-  tooltip?: (active: ActivePoint<SeriesDatum>) => JSX.Element;
-  onActivate?: (active: ActivePoint<SeriesDatum>) => void;
-  onActivePointChange?: (active: ActivePoint<SeriesDatum> | undefined) => void;
+  tooltip?: (active: ActivePoint<SeriesDatum<M>>) => JSX.Element;
+  onActivate?: (active: ActivePoint<SeriesDatum<M>>) => void;
+  onActivePointChange?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
   /* --- Viewport gesture capture opt-in (ADR-0018 §2), forwarded from the chart. --- */
   /** Enable `Ctrl`/`Cmd`+wheel zoom. Default off. */
   wheelZoom?: boolean;
@@ -285,14 +282,14 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
     return windowActivePointIndex(inner, lo, hi);
   });
 
-  const inspection = createChartInspection<SeriesDatum>({
+  const inspection = createChartInspection<SeriesDatum<M>>({
     index,
     pageSize: props.pageSize,
     pointer: () => !sem().decorative() && (props.pointer ?? true),
     onActivate: props.onActivate,
     onActivePointChange: props.onActivePointChange,
   });
-  const active = (): ActivePoint<SeriesDatum> | undefined => inspection.point();
+  const active = (): ActivePoint<SeriesDatum<M>> | undefined => inspection.point();
   const keyboardOn = (): boolean => !sem().decorative() && (props.keyboard ?? true);
   const pointerOn = (): boolean => !sem().decorative() && (props.pointer ?? true);
   const live = (): boolean => (props.announce ?? "live") === "live";
@@ -308,7 +305,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   // The announcement wording: the PRIMARY series' label, the instant, the value.
   // The series label comes from the record's `seriesId`, so the spoken series
   // and the drawn mark cannot name different things.
-  const label = (a: ActivePoint<SeriesDatum> | undefined): string => {
+  const label = (a: ActivePoint<SeriesDatum<M>> | undefined): string => {
     if (a === undefined) return "";
     const series = props.scope.visible().find((s) => s.id === a.seriesId);
     const name = series?.label ?? sem().name();

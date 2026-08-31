@@ -14,7 +14,7 @@
  * measuring.
  */
 import { LineChart } from "@silkplot/charts";
-import type { Series, TimeInterval } from "@silkplot/core";
+import type { Series, TimeInterval, ViewportCause } from "@silkplot/core";
 import { RangeControl, type ViewportCommands } from "@silkplot/solid";
 import { createSignal, onMount, type Component } from "solid-js";
 import {
@@ -37,8 +37,8 @@ export const WorkloadA: Component = () => {
   let commands: ViewportCommands | undefined;
   let host: HTMLDivElement | undefined;
 
-  const commitDomain = (domain: TimeInterval): void => {
-    noteViewport();
+  const commitDomain = (domain: TimeInterval, cause: ViewportCause): void => {
+    noteViewport(cause);
     setVisible(domain);
   };
 
@@ -86,8 +86,9 @@ export const WorkloadA: Component = () => {
         decimation={2000}
         // At this diagnostic density, monotone interpolation spends commit
         // time deriving two control points per segment. The envelope already
-        // preserves excursions; a linear join is the explicit SVG density tier
-        // and leaves inspection, table, CSV and the raw data unchanged.
+        // preserves excursions; a linear join is the explicit density-tier
+        // geometry consumed by the Canvas renderer and leaves inspection,
+        // table, CSV and the raw data unchanged.
         curve="linear"
         minSpan={30 * DAY}
         visibleDomain={visible()}

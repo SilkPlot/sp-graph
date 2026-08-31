@@ -45,10 +45,16 @@ export async function forDuration(ms, step, gap = 0) {
  */
 export const KEY_REPEAT_GAP_MS = 33;
 
-async function engageViewport(page, box) {
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+const directAction = (_kind, action) => action();
+
+async function engageViewport(page, box, runAction = directAction) {
+  await runAction("pointermove", () =>
+    page.mouse.move(box.x + box.width / 2, box.y + box.height / 2),
+  );
   await holding(page, "Control", async () => {
-    for (let step = 0; step < 5; step++) await page.mouse.wheel(0, -120);
+    for (let step = 0; step < 5; step++) {
+      await runAction("wheel", () => page.mouse.wheel(0, -120));
+    }
   });
 }
 
@@ -60,17 +66,22 @@ async function engageViewport(page, box) {
  * may want the same or longer for sample depth) — and a gesture must never
  * close over the wrong one silently.
  */
-export function gesturesFor(durationMs) {
+export function gesturesFor(durationMs, activity) {
+  let legendAt = 0;
+	const runAction = activity?.run ?? directAction;
   return {
     /** Pointer hover. On a multi-series chart this IS the shared-time inspection path. */
-    hover: (page, ctx) => sweep(page, ctx.box, durationMs),
+    hover: (page, ctx) => sweep(page, ctx.box, durationMs, runAction),
 
     /** Keyboard stepping — the same active-datum state the pointer writes (ADR-0016 §3). */
     keyboard: async (page, ctx) => {
       await page.locator(ctx.surface).first().focus();
       await forDuration(
         durationMs,
-        (i) => page.keyboard.press(i % 40 < 20 ? "ArrowRight" : "ArrowLeft"),
+        (i) =>
+				runAction("keydown", () =>
+					page.keyboard.press(i % 40 < 20 ? "ArrowRight" : "ArrowLeft"),
+				),
         KEY_REPEAT_GAP_MS,
       );
     },
@@ -79,7 +90,11 @@ export function gesturesFor(durationMs) {
     zoom: async (page, ctx) => {
       await page.mouse.move(ctx.box.x + ctx.box.width / 2, ctx.box.y + ctx.box.height / 2);
       await holding(page, "Control", () =>
-        forDuration(durationMs, (i) => page.mouse.wheel(0, i % 20 < 10 ? -120 : 120)),
+				forDuration(durationMs, (i) =>
+					runAction("wheel", () =>
+						page.mouse.wheel(0, i % 20 < 10 ? -120 : 120),
+					),
+				),
       );
     },
 
@@ -103,7 +118,10 @@ export function gesturesFor(durationMs) {
       await holding(page, "Shift", () =>
         forDuration(
           durationMs,
-          (i) => page.keyboard.press(i % 30 < 15 ? "ArrowRight" : "ArrowLeft"),
+					(i) =>
+						runAction("keydown", () =>
+							page.keyboard.press(i % 30 < 15 ? "ArrowRight" : "ArrowLeft"),
+						),
           KEY_REPEAT_GAP_MS,
         ),
       );
@@ -121,13 +139,20 @@ export function gesturesFor(durationMs) {
     brush: async (page, ctx) => {
       const { x, y, width, height } = ctx.box;
       await forDuration(durationMs, async () => {
-        await page.mouse.move(x + width * 0.3, y + height / 2);
-        await page.mouse.down();
+				await runAction("pointermove", () =>
+					page.mouse.move(x + width * 0.3, y + height / 2),
+				);
+				await runAction("pointerdown", () => page.mouse.down());
         for (let s = 1; s <= 8; s++) {
-          await page.mouse.move(x + width * (0.3 + 0.05 * s), y + height / 2);
+					await runAction("pointermove", () =>
+						page.mouse.move(
+							x + width * (0.3 + 0.05 * s),
+							y + height / 2,
+						),
+					);
         }
-        await page.mouse.up();
-        await page.keyboard.press("0");
+				await runAction("pointerup", () => page.mouse.up());
+				await runAction("keydown", () => page.keyboard.press("0"));
       });
     },
 
@@ -143,9 +168,9 @@ export function gesturesFor(durationMs) {
       await forDuration(
         durationMs,
         async () => {
-          await page.keyboard.press("0");
+					await runAction("keydown", () => page.keyboard.press("0"));
           await page.waitForTimeout(60);
-          await engageViewport(page, ctx.box);
+					await engageViewport(page, ctx.box, runAction);
           await page.waitForTimeout(60);
         },
       );
@@ -157,26 +182,37 @@ export function gesturesFor(durationMs) {
       const box = await thumb.boundingBox();
       if (!box) throw new Error(`no range-control thumb at ${ctx.range}`);
       const y = box.y + box.height / 2;
-      await page.mouse.move(box.x + box.width / 2, y);
-      await page.mouse.down();
+			await runAction("pointermove", () =>
+				page.mouse.move(box.x + box.width / 2, y),
+			);
+			await runAction("pointerdown", () => page.mouse.down());
       await forDuration(durationMs, (i) => {
         const phase = (Math.sin(i / 12) + 1) / 2;
-        return page.mouse.move(box.x + box.width / 2 - phase * 240, y);
+				return runAction("pointermove", () =>
+					page.mouse.move(box.x + box.width / 2 - phase * 240, y),
+				);
       });
-      await page.mouse.up();
+			await runAction("pointerup", () => page.mouse.up());
     },
 
-    /** Legend toggles, one series at a time — the commit a legend click produces. */
-    legend: (page) =>
-      forDuration(durationMs, async () => {
-        await page.evaluate(() => window.__perf?.legendToggle?.());
+    /** Legend toggles through the shipped button/event path, one series at a time. */
+    legend: async (page) => {
+      const items = page.locator("[data-sp-legend-item]");
+      const count = await items.count();
+      if (count === 0) throw new Error("no shipped legend controls found");
+      await forDuration(durationMs, async () => {
+				await runAction("click", () => items.nth(legendAt % count).click());
+        legendAt++;
         await page.waitForTimeout(60);
-      }),
+      });
+    },
 
-    /** Isolate: twenty-one series leaving the domain at once, and coming back. */
+    /** Programmatic composition state: twenty-one series leave, then return. */
     isolate: (page) =>
       forDuration(durationMs, async () => {
-        await page.evaluate(() => window.__perf?.isolate?.());
+				await runAction("programmatic-isolate", () =>
+					page.evaluate(() => window.__perf?.isolate?.()),
+				);
         await page.waitForTimeout(120);
       }),
   };
@@ -185,11 +221,10 @@ export function gesturesFor(durationMs) {
 /**
  * Set-up a gesture needs BEFORE recording starts, so its cost is not measured.
  *
- * Only `pan` needs one, and the reason is a real property of the library rather
- * than a harness quirk: under the dirty-flag engage model a chart tracks its full
- * data until the user navigates, and a chart showing everything cannot be panned.
- * Zooming in first is what a user does before panning, so the pass measures a pan
- * instead of measuring nothing.
+ * `pan` and `reset` need one because both are inert at the full extent. Under the
+ * dirty-flag engage model, zooming first is what a user does before either path.
+ * Setup runs before recording; reset reachability is then proved by reset-cause
+ * commits, independently of the navigation repeated inside its measured pass.
  */
 export const PREPARE = {
   pan: async (page, ctx) => {

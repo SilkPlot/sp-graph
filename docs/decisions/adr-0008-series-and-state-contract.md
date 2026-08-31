@@ -381,18 +381,17 @@ tooltip metadata, hidden series, the empty visible set, a stale visibility id,
 row-oriented input, signed domains, reference values, and long categorical
 labels.
 
-**They typecheck the contract, not the implementation, and the distinction is
-deliberate.** This decision was settled before the components that consume it,
-so at the time of writing there is nothing to import: the file declares the
-shapes and exercises them. That is enough to prove the contract is expressible,
-that the metadata generic flows through the tooltip and activation surfaces
-without a cast, and that every state named above is representable. It is not
-evidence that any component behaves this way, and it does not pretend to be.
+They were written before implementation, but the substitution is now complete:
+model shapes import the shipped `@silkplot/core` types, and the metadata example
+checks the real `LineChartProps<Reading>` surface introduced by ADR-0016. It
+proves the caller's metadata reaches tooltip and activation callbacks without a
+cast; it no longer declares a documentation-only `activeDatum` or
+`formatTooltip` look-alike. Runtime behaviour is covered separately by the chart
+inspection suite.
 
-The file is included in `npm run typecheck`, so an example that stops compiling
-fails the build rather than sitting stale in prose. When the implementation
-ships, the declarations are replaced by imports and every example below them
-must continue to compile **unchanged** — if one has to change, the
-implementation diverged from this decision, and that is where it surfaces.
+The file is included in `npm run typecheck`, so either the model or public prop
+surface drifting from the examples fails the build rather than sitting stale in
+prose. The packed-consumer release gate repeats the metadata check against both
+published resolution paths.
 
 Up: [Decisions](index.md)

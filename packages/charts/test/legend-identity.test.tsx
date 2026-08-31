@@ -18,7 +18,7 @@
 import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import type { Series } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
 import { LineChart } from "../src/index";

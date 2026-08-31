@@ -1,9 +1,10 @@
 /**
  * Playground app — renders a real @silkplot/charts LineChart from sample data.
  *
- * This is the end-to-end proof: @silkplot/core computes scales/paths/ticks,
- * @silkplot/solid renders the SVG + axes, @silkplot/charts composes them, and
- * @silkplot/theme supplies the tokens — all wired across workspace packages.
+ * This is the end-to-end proof: @silkplot/core computes scales/geometry/ticks,
+ * @silkplot/solid owns reactive state and semantic DOM, @silkplot/charts paints
+ * the composed Canvas surface, and @silkplot/theme supplies the tokens — all
+ * wired across workspace packages.
  */
 import {
   createSignal,

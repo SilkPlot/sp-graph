@@ -187,7 +187,8 @@ jobs:
         run: npm run test:accessibility
 
       # Coverage now GATES, per package, against floors selected from observed
-      # S002/S003 numbers. The floors and the reasoning behind each live in
+      # the first representative correctness/accessibility run. The floors and
+      # the reasoning behind each live in
       # scripts/coverage-floors.mjs; vitest.config.ts imports them so the numbers
       # and their justification cannot drift apart. Per package rather than one
       # aggregate: a single repository-wide percentage is exactly where a stub

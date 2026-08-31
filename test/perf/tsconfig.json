@@ -35,6 +35,6 @@
   // suite imports the instrument directly and there is no published surface here
   // to keep a test out of — the separation that justifies a split config in
   // `packages/*` does not exist in a harness that ships nothing.
-  "include": ["app/**/*.ts", "app/**/*.tsx", "test/**/*.ts"],
+  "include": ["app/**/*.ts", "app/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"],
   "exclude": ["vite.config.ts"]
 }

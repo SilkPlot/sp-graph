@@ -234,11 +234,9 @@ test.describe("the declared focus surface matches the rendered one", () => {
    * The half of the acceptance set a future feature could shrink without
    * touching this file.
    *
-   * Only `LineChart` composes a keyboard surface today, so only `LineChart` has
-   * a `:focus-visible` treatment to pin. Asserting that in BOTH directions is
-   * what makes the omission honest: the day another chart gains a keyboard
-   * composite, this fails and stays failing until a focus baseline is declared
-   * for it — instead of an unproven focus indicator shipping under a green run.
+   * All four Cartesian charts compose a keyboard surface and have a declared
+   * focus baseline. Asserting that in BOTH directions catches either a removed
+   * surface or an acceptance-set entry that no longer matches rendered reality.
    */
   for (const chart of CHARTS) {
     test(`${chart} — ${FOCUS_RATIONALE[chart]}`, async ({ page }) => {

@@ -119,6 +119,7 @@ const EXEMPT = new Map([
   ["test/release-consumer/record-resolution.ts", RELEASE_FIXTURE_REASON],
   ["test/release-consumer/src/main.default.ts", RELEASE_FIXTURE_REASON],
   ["test/release-consumer/src/main.solid.tsx", RELEASE_FIXTURE_REASON],
+  ["test/release-consumer/src/metadata-contract.ts", RELEASE_FIXTURE_REASON],
   ["test/release-consumer/src/series.ts", RELEASE_FIXTURE_REASON],
 ]);
 

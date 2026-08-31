@@ -7,7 +7,7 @@
  * (`layoutReadsInPointer`, `productionIndexBuildsInPointer`,
  * `injectedRebuildsInPointer`) read zero unconditionally, and the two clean-pass
  * invariants built on them reported PASS on a zero they could not exceed.
- * CANON-005 section 1: a check that cannot fail is not evidence.
+ * A check that cannot fail is not evidence.
  *
  * ---------------------------------------------------------------------------
  * Why this suite must drive TRUSTED events
@@ -39,7 +39,7 @@
  * from repairing the floor by widening past the ceiling.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { createInvariants } from "../app/instrument";
 
 /** A parked mouse over freshly-appearing content fires boundary events; keep targets apart. */

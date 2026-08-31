@@ -17,7 +17,7 @@
  * dark path.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { cdp } from "@vitest/browser/context";
+import { cdp } from "vitest/browser";
 import { tokensToCss, THEME_ATTR } from "@silkplot/theme";
 
 // CDPSession is typed as an empty interface by vitest; the only method we need

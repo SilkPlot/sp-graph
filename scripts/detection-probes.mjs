@@ -1015,7 +1015,7 @@ const PROBES = [
     breaks:
       "the y axis is computed from the effective-domain data (`yData`), so a zoom of x leaves y " +
       "pinned (ADR-0014 §3). Feed the viewport-narrowed `visible` to the model instead " +
-      "and zooming x silently autoscales y — the very coupling P04b decouples.",
+      "and zooming x silently autoscales y — the very coupling standalone navigation decouples.",
     anchor: "    data: scope.yData,",
     mutation: "    data: scope.visible,",
     // Widened 2026-07-23, for the truth rather than for convenience. Suites added

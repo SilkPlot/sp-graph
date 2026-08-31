@@ -2,17 +2,19 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-22
+- **Public-surface correction:** 2026-08-31 — private sequencing shorthand was
+  removed; the decision and its scope are unchanged.
 
 ## Context
 
 A dashboard shares one time scope across its charts. [ADR-0007](adr-0007-layered-time-selection.md)
 defined three scopes with a total precedence — **section > dynamic > global** —
 and named the *dynamic selection* as "the range a drag on one chart produces",
-but the dashboard model shipped in Sprint 009 wired only global and section. The
+but the dashboard model initially wired only global and section. The
 dynamic selection was left for this sprint, because it needs gesture capture
 ([ADR-0018](adr-0018-viewport-gesture-bindings.md)) and a controlled visible
 domain ([ADR-0014](adr-0014-interaction-and-viewport-contract.md)), both built in
-Sprint 007. This ADR wires it: a drag — or a keypress — on one chart sets the
+the interaction work. This ADR wires it: a drag — or a keypress — on one chart sets the
 shared dynamic selection, and every member the precedence rule says should follow,
 does.
 
@@ -43,14 +45,14 @@ drive one viewport.
 This is implemented as a **separate, dashboard-linked viewport** the scope hands
 to the gestures: controlled by the member's effective domain, bounded by the
 global range, with every commit routed to `setDynamic`. The chart's DISPLAY still
-comes from the scope's effective-domain path (unchanged since P04b) — this
+comes from the scope's established effective-domain path — this
 viewport exists to route input, not to draw, which is what keeps the change from
 disturbing what every existing dashboard renders.
 
 A **sectioned member is isolated**: a section's scope is declared by the
 application, not dragged, so a member inside a section drives its own viewport and
 the section keeps its scope regardless of the shared selection (precedence:
-section > dynamic). This is the P04b deferral discharged for the unsectioned case;
+section > dynamic). This discharges the earlier deferral for the unsectioned case;
 the sectioned-viewport-within-a-dashboard remains its own future concern.
 
 ### 3. A click is not a selection, and the announcement is once, on settle
@@ -83,7 +85,8 @@ ISO range); the dashboard cannot know whether its axis is bookings or degrees.
 
 - The dynamic selection completes ADR-0007's three-scope model in the reactive
   layer; the precedence and clamping stay the resolver's, tested once.
-- A dashboard member now has a purpose for its gestures that P04b left it without:
+- A dashboard member now has a purpose for gestures that the standalone-navigation
+  change left it without:
   driving the shared selection rather than a per-chart viewport that a dashboard
   did not apply.
 - The display path is untouched, so every existing dashboard renders exactly as

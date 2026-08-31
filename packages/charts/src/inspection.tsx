@@ -73,7 +73,7 @@ export interface KeyboardHoverProps {
  * The inspection prop surface shared by every single-series TIME chart (Line,
  * Area) — ADR-0016.
  */
-export interface TimeChartInspectionProps extends KeyboardHoverProps {
+export interface TimeChartInspectionProps<M = unknown> extends KeyboardHoverProps {
   /** Accessible wording for one point — series, x, y, and units (ADR-0005 §4). */
   pointLabel?: (d: TimePoint, index: number) => string;
   /**
@@ -82,13 +82,13 @@ export interface TimeChartInspectionProps extends KeyboardHoverProps {
    * position `at`, the pixel `position`, and, on a multi-series chart, every
    * visible series' value at the active instant (`atTime`). Omit for no tooltip.
    */
-  tooltip?: (active: ActivePoint<SeriesDatum>) => JSX.Element;
+  tooltip?: (active: ActivePoint<SeriesDatum<M>>) => JSX.Element;
   /** Drill-down commit — Enter, Space, or a click on the active datum
    *  (ADR-0013's `onActivate`, extended). The user acting, not the cursor moving. */
-  onActivate?: (active: ActivePoint<SeriesDatum>) => void;
+  onActivate?: (active: ActivePoint<SeriesDatum<M>>) => void;
   /** Fires on every active-datum CHANGE — a hover snap, a keyboard step, a clear
    *  (`undefined`) — with the record (ADR-0016 §4). */
-  onActivePointChange?: (active: ActivePoint<SeriesDatum> | undefined) => void;
+  onActivePointChange?: (active: ActivePoint<SeriesDatum<M>> | undefined) => void;
 }
 
 /** The generic inspection wiring over a caller-built index — shared by every

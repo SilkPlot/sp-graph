@@ -163,10 +163,8 @@ export interface RankedInput extends BarLayoutProps, RankedFormatProps, Keyboard
    * composite.
    *
    * Hands back the caller's OWN `RankedCategory`, not a library datum type. That
-   * is deliberate and is what makes the seam safe to ship before the general
-   * pointer and tooltip contract exists: it commits to nothing about the
-   * library's internal model, so the later contract can widen around it rather
-   * than having to break it.
+   * remains deliberate under ADR-0016's built pointer/tooltip contract: the
+   * callback exposes the caller's record and not the library's internal model.
    *
    * Routing, filtering, modal and drill-down behaviour are the application's.
    */

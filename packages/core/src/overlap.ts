@@ -1,15 +1,15 @@
 /**
  * Overlap packing (calendar) — deterministic interval lane assignment.
  *
- * The deferred calendar roadmap packs concurrent events into
- * columns/lanes with a DETERMINISTIC sweep/partition algorithm — never a
+ * The calendar layout engine packs concurrent events into columns/lanes with a
+ * DETERMINISTIC sweep/partition algorithm — never a
  * `d3-force` physics simulation (heavier, visually unstable). This module owns
  * that math; the Solid calendar package renders lanes from its output.
  *
  * The greedy lane assignment below is real and correct for column packing, but
  * intentionally minimal.
  *
- * TODO(deferred calendar): resource-row grouping. Column-count normalisation
+ * TODO(calendar extension): resource-row grouping. Column-count normalisation
  *   (widen events to fill trailing free lanes) and visible-range clipping are
  *   composed in `@silkplot/calendar`'s overlap resolver from these lanes — they
  *   are not packer math and are not implemented here.

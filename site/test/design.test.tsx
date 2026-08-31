@@ -70,8 +70,11 @@ describe("the roadmap section", () => {
     expect(headings.length).toBeGreaterThanOrEqual(4);
     const { container } = render(() => <Roadmap />);
     for (const heading of headings) {
+			const expected = document.createElement("template");
+			expected.innerHTML = renderMarkdownSubset(`## ${heading}`, 1);
+			const expectedText = expected.content.textContent;
       const found = [...container.querySelectorAll("h3")].some(
-        (h) => h.textContent === heading,
+				(h) => h.textContent === expectedText,
       );
       expect(found, `"${heading}" from ROADMAP.md is not on the page`).toBe(
         true,

@@ -28,6 +28,7 @@ export interface StrokeSpec {
   stroke?: string;
   strokeWidth?: number;
   dash?: string;
+	pointCount?: number;
 }
 
 export interface FillSpec {
@@ -100,6 +101,7 @@ export function paintStroke(
     strokeWidth: String(spec.strokeWidth ?? DEFAULT_STROKE_WIDTH),
     dash: spec.dash,
     fillOpacity: undefined,
+		pointCount: spec.pointCount,
   };
 }
 

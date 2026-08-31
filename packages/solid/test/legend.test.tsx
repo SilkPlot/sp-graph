@@ -19,7 +19,7 @@
 import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import type { Series } from "@silkplot/core";
 import { Legend, MIN_TARGET_PX } from "../src/index";
 import { paintLegendSwatch, parseSwatchDash } from "../src/LegendSwatch";

@@ -13,7 +13,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { Dashboard } from "@silkplot/solid";
 import { LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";

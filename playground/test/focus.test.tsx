@@ -26,7 +26,7 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { cdp, userEvent } from "@vitest/browser/context";
+import { cdp, userEvent } from "vitest/browser";
 import { tokensToCss, FOCUS_CLASS, THEME_ATTR } from "@silkplot/theme";
 import { App } from "../src/App";
 

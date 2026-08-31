@@ -6,14 +6,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import {
   layoutHistogramFromObservations,
   type ActivePoint,
   type HistogramDatum,
   type HistogramObservation,
 } from "@silkplot/core";
-import { HistogramChart } from "../src/index";
+import { HistogramChart } from "../src/HistogramChart";
 import {
   HEIGHT,
   NO_MARGINS,

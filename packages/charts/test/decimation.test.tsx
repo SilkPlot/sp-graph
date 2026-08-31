@@ -57,6 +57,13 @@ describe("the decimation budget bounds the painted points", () => {
     const ys = pathYs(markD(container));
     expect(ys.length).toBeGreaterThan(0);
     expect(ys.length).toBeLessThanOrEqual(100);
+		expect(
+			Number(
+				container
+					.querySelector("[data-silkplot-canvas-plot]")
+					?.getAttribute("data-silkplot-drawn-points"),
+			),
+		).toBe(ys.length);
 
     // The envelope claim, on pixels: the decimated painting spans EXACTLY the
     // pixel range the raw painting spans — the same scale (y is pinned to the
@@ -72,6 +79,11 @@ describe("the decimation budget bounds the painted points", () => {
     const bare = mount({});
     expect(markD(container)).toBe(markD(bare.container));
     expect(pathYs(markD(container))).toHaveLength(DENSE.length);
+		expect(
+			container
+				.querySelector("[data-silkplot-canvas-plot]")
+				?.getAttribute("data-silkplot-drawn-points"),
+		).toBe(String(DENSE.length));
   });
 
   it("keeps every raw row in the data table (the table is data scope, not paint)", () => {

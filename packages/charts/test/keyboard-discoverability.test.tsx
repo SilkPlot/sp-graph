@@ -25,7 +25,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import { BarChart, LineChart } from "../src/index";
 import type { TimePoint } from "../src/index";
 import { HEIGHT, NO_MARGINS, WIDTH, markD, pathXsOnPlot } from "./support";

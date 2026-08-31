@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/testing-library";
-import { userEvent } from "@vitest/browser/context";
+import { userEvent } from "vitest/browser";
 import type { ActivePoint, HeatmapBin } from "@silkplot/core";
 import { HeatmapChart } from "../src/index";
 import {

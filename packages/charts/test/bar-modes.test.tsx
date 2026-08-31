@@ -195,7 +195,7 @@ describe("stacked geometry", () => {
   });
 });
 
-describe("S006 contracts reused", () => {
+describe("shared bar interaction contracts", () => {
   it("drops a hidden series from the picture and the table", () => {
     const { container } = mount({
       mode: "grouped",

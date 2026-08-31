@@ -7,7 +7,7 @@
  * move what a STANDALONE time chart actually draws — its x scale, its marks, and
  * its hit-index point count — while the y axis stays PINNED to the full-data
  * extent (ADR-0014 §3: a zoom of x does not autoscale y; that is an explicit
- * command, wired in a later phase), and the data table stays pinned to the DATA
+ * command wired by the shipped gesture adapter), and the data table stays pinned to the DATA
  * scope, never the viewport (ADR-0022: the table is the alternative
  * representation of the dataset the chart's data scope selects, not of the
  * pixels currently framed).

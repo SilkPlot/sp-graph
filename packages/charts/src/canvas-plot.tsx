@@ -54,6 +54,12 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   const series = marks.find(
     (m): m is PathMark => m.kind === "path" && m.stroke !== "none" && m.d !== "",
   );
+	const drawnPoints = marks
+		.filter(
+			(mark): mark is PathMark & { pointCount: number } =>
+				mark.kind === "path" && Number.isInteger(mark.pointCount),
+		)
+		.reduce((total, mark) => total + mark.pointCount, 0);
   const hatched = marks.some((m) => m.kind === "rect" && m.hatch !== undefined && m.hatch !== "0");
   const patterned = marks.some(
     (m) =>
@@ -72,6 +78,9 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   else el.removeAttribute("data-silkplot-axis-labels");
   if (series !== undefined) el.setAttribute("data-silkplot-mark-d", series.d);
   else el.removeAttribute("data-silkplot-mark-d");
+	if (drawnPoints > 0)
+		el.setAttribute("data-silkplot-drawn-points", String(drawnPoints));
+	else el.removeAttribute("data-silkplot-drawn-points");
 }
 
 function toggleAttr(el: HTMLCanvasElement, name: string, on: boolean): void {
@@ -91,6 +100,8 @@ export function syncCanvasPlot(
   if (el === undefined) return;
   el.setAttribute("data-silkplot-plot-width", String(layout.width));
   el.setAttribute("data-silkplot-plot-height", String(layout.height));
+	el.setAttribute("data-silkplot-plot-origin-x", String(layout.originX ?? 0));
+	el.setAttribute("data-silkplot-plot-origin-y", String(layout.originY ?? 0));
   if (layout.width <= 0 || layout.height <= 0) {
     rememberCanvasMarks(el, []);
     return;

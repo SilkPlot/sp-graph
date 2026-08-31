@@ -34,6 +34,8 @@ const SETTLE_TIMEOUT_MS = 8000;
 
 /** Returned when the trigger produced no DOM change at all. Not a fast settle — no settle. */
 export const NO_CHANGE = -1;
+/** Returned when mutations never produced the required quiet window. */
+export const SETTLE_TIMEOUT = -2;
 
 /**
  * How long the page took to stop changing after `trigger`.
@@ -45,10 +47,11 @@ export const NO_CHANGE = -1;
  * moment the window expired, keeps the quiet period itself out of the number.
  *
  * A MutationObserver rather than a fixed wait, because a fixed wait measures the
- * wait. It cannot see a change that leaves the DOM identical (a canvas repaint,
- * a style recalculation) — this library renders SVG through Solid, so every
- * visual change here is a DOM change, and if a Canvas substrate is ever adopted
- * this instrument needs replacing rather than adjusting.
+ * wait. Cartesian marks now paint on Canvas, and the paint surface writes its
+ * `data-silkplot-*` annotations in the same effect, so the observer sees each
+ * redraw through those attribute mutations. A future paint path that changes
+ * pixels without updating that annotation surface would require a different
+ * settle instrument; style recalculation alone remains outside this one.
  *
  * ---------------------------------------------------------------------------
  * At least one mutation is REQUIRED before the quiet window may end
@@ -66,8 +69,14 @@ export const NO_CHANGE = -1;
  * result. So a trigger that never mutates anything returns `NO_CHANGE` and the
  * driver refuses to score it, rather than being recorded as instantaneous.
  */
-export function settle(root: Element, trigger: () => void): Promise<number> {
+export function settle(
+  root: Element,
+  trigger: () => void,
+  timing: { quietMs?: number; timeoutMs?: number } = {},
+): Promise<number> {
   return new Promise((resolve) => {
+    const quietMs = timing.quietMs ?? QUIET_MS;
+    const timeoutMs = timing.timeoutMs ?? SETTLE_TIMEOUT_MS;
     const t0 = performance.now();
     let lastMutation = 0;
     let mutations = 0;
@@ -91,12 +100,12 @@ export function settle(root: Element, trigger: () => void): Promise<number> {
 
     const check = (): void => {
       const now = performance.now();
-      if (mutations > 0 && now - lastMutation >= QUIET_MS) {
+      if (mutations > 0 && now - lastMutation >= quietMs) {
         finish(+(lastMutation - t0).toFixed(1));
         return;
       }
-      if (now - t0 >= SETTLE_TIMEOUT_MS) {
-        finish(mutations === 0 ? NO_CHANGE : +(lastMutation - t0).toFixed(1));
+      if (now - t0 >= timeoutMs) {
+        finish(mutations === 0 ? NO_CHANGE : SETTLE_TIMEOUT);
         return;
       }
       requestAnimationFrame(check);

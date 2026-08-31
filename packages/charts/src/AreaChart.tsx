@@ -13,7 +13,7 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component } from "solid-js";
+import { createMemo, Show, type Component, type JSX } from "solid-js";
 import {
   areaPath,
   linePath,
@@ -32,6 +32,7 @@ import {
 import {
   InteractionLayer,
   createTimeChartInspection,
+  type KeyboardHoverProps,
   type TimeChartInspectionProps,
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
@@ -57,7 +58,7 @@ import { emitViewportCommands, forwardViewport } from "./viewport-scope";
 import type { TimePoint } from "./types";
 import { tableOptions } from "./formatters";
 
-export interface AreaChartBaseProps extends TimeSeriesChartProps, TimeChartInspectionProps {
+export interface AreaChartBaseProps extends TimeSeriesChartProps, KeyboardHoverProps {
   /** Area/line curve preset. Default: "monotoneX". */
   curve?: CurveName;
   /**
@@ -86,11 +87,11 @@ export interface AreaChartBaseProps extends TimeSeriesChartProps, TimeChartInspe
  * An area chart is informative by default and must be named — see
  * `ChartSemanticsProps`. `decorative` is the explicit opt-out.
  */
-export type AreaChartProps = AreaChartBaseProps &
-  (SingleSeriesInput | MultiSeriesInputWithFormat) &
+export type AreaChartProps<M = unknown> = AreaChartBaseProps &
+  ((SingleSeriesInput & TimeChartInspectionProps) | MultiSeriesInputWithFormat<M>) &
   ChartSemanticsProps;
 
-type AreaChartBodyProps = AreaChartBaseProps & {
+type AreaChartBodyProps = AreaChartBaseProps & TimeChartInspectionProps & {
   data: readonly TimePoint[];
   semantics: ChartSemantics;
   scope: TimeSeriesScope;
@@ -234,9 +235,9 @@ const AreaChartBody: Component<AreaChartBodyProps> = (props) => {
 };
 
 /** The multi-series path: one fill plus its top stroke, per visible series. */
-const AreaChartMulti: Component<
-  AreaChartBaseProps & MultiSeriesInputWithFormat & { semantics: ChartSemantics }
-> = (props) => {
+function AreaChartMulti<M>(
+  props: AreaChartBaseProps & MultiSeriesInputWithFormat<M> & { semantics: ChartSemantics },
+): JSX.Element {
   const scope = createMultiSeriesScope({
     series: () => props.series,
     visibleSeries: () => props.visibleSeries,
@@ -332,9 +333,15 @@ const AreaChartMulti: Component<
       />
     </ChartShell>
   );
+}
+
+/** Generic metadata plus the ordinary Solid component call shape. */
+type AreaChartComponent = {
+  <M>(props: AreaChartProps<M>): JSX.Element;
+  (props: AreaChartProps): JSX.Element;
 };
 
-export const AreaChart: Component<AreaChartProps> = (props) => {
+function AreaChartImpl<M = unknown>(props: AreaChartProps<M>): JSX.Element {
   const semantics = createInspectableSemantics(props);
   assertOneInput(props);
 
@@ -342,17 +349,25 @@ export const AreaChart: Component<AreaChartProps> = (props) => {
     <Show
       when={props.series !== undefined}
       fallback={
-        <AreaChartSingle {...(props as AreaChartBaseProps & SingleSeriesInput)} semantics={semantics} />
+        <AreaChartSingle
+          {...(props as AreaChartBaseProps & SingleSeriesInput & TimeChartInspectionProps)}
+          semantics={semantics}
+        />
       }
     >
-      <AreaChartMulti {...(props as AreaChartBaseProps & MultiSeriesInputWithFormat)} semantics={semantics} />
+      <AreaChartMulti
+        {...(props as AreaChartBaseProps & MultiSeriesInputWithFormat<M>)}
+        semantics={semantics}
+      />
     </Show>
   );
-};
+}
+
+export const AreaChart = AreaChartImpl as AreaChartComponent;
 
 /** The original single-series surface, unchanged. */
 const AreaChartSingle: Component<
-  AreaChartBaseProps & SingleSeriesInput & { semantics: ChartSemantics }
+  AreaChartBaseProps & SingleSeriesInput & TimeChartInspectionProps & { semantics: ChartSemantics }
 > = (props) => {
   // Outside ChartRoot: the table is a sibling of the measured box, so the scope
   // must be readable from both sides of it. The table takes the DATA-SCOPE rows

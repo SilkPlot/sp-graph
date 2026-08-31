@@ -5,7 +5,7 @@
  * The pure interval arithmetic lives in `@silkplot/core`'s `viewport.ts`; this is
  * the Solid half that stores the viewport, exposes it in controlled and
  * uncontrolled forms, reconciles it when the data extent moves, and offers the
- * navigation commands an application or a P05 gesture adapter drives. It is the
+ * navigation commands an application or gesture adapter drives. It is the
  * exact counterpart of `createDashboardTime` (ADR-0008 §6's controlled pattern)
  * and `createActiveDatum` (a reactive holder over a pure lookup).
  *

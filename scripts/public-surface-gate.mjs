@@ -31,16 +31,20 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hiddenInputs, hiddenInputsMessage } from "./lib/git-visibility.mjs";
-import { internalIdentifierFindings } from "./lib/public-surface-identifiers.mjs";
+import {
+  internalIdentifierFindings,
+  internalPathIdentifierFindings,
+} from "./lib/public-surface-identifiers.mjs";
+import {
+  readPublicArtifact,
+  resolveInsideRoot,
+} from "./lib/public-surface-links.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-/** This file's own path, relative to the repository root. */
-const SELF = "scripts/public-surface-gate.mjs";
 
 /**
  * The canonical public repository, as it appears in a URL.
@@ -63,31 +67,13 @@ const SKIP = [
   /\.(?:png|jpe?g|gif|webp|ico|woff2?|ttf|otf|pdf)$/i,
 ];
 
-/**
- * This gate has to contain the forbidden patterns in order to search for them,
- * so it is the one unavoidable hole — a narrow one, since the patterns live
- * here as regular expressions and never as prose.
- *
- * Compared as a STRING rather than compiled into a `RegExp`. The escape-and-
- * construct version this replaced was flagged as a ReDoS risk for building a
- * regular expression from a non-literal, and while `SELF` is a constant in this
- * file and never attacker-controlled, the finding was correct that the
- * construction bought nothing: an exact-match test on one known path is string
- * equality, and writing it as equality is both faster and impossible to get
- * wrong. Escaping a path to compare it to itself was the actual defect.
- */
-function isSelf(path) {
-  return path === SELF;
-}
-
 /** Files whose links are checked. Prose and site source; not test fixtures. */
 const LINK_SOURCES = /^(?:[^/]+\.md|docs\/.*\.md|site\/src\/.*\.tsx?|\.github\/.*\.(?:md|yml))$/;
 
 function tracked() {
   return execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
     .split("\n")
-    .filter(Boolean)
-    .filter((p) => !isSelf(p) && !SKIP.some((re) => re.test(p)));
+    .filter(Boolean);
 }
 
 /** Line number of a character offset, so a failure is navigable. */
@@ -96,19 +82,22 @@ function lineOf(text, index) {
 }
 
 // ---------------------------------------------------------------------------
-// Check 1 — no internal identifiers
+// Check 1 — no prohibited private-estate identifiers
 // ---------------------------------------------------------------------------
 
 function checkIdentifiers(files) {
   const findings = [];
 
   for (const file of files) {
-    let text;
+    findings.push(...internalPathIdentifierFindings(file));
+    let artifact;
     try {
-      text = readFileSync(join(repoRoot, file), "utf8");
+      artifact = readPublicArtifact(repoRoot, file);
     } catch {
-      continue; // A tracked path that is not a readable file (submodule, symlink).
+      continue; // A tracked path that is not a readable file (for example, a submodule).
     }
+    if (!artifact.symlink && SKIP.some((re) => re.test(file))) continue;
+    const { text } = artifact;
     if (text.includes("\0")) continue; // Binary that dodged the extension list.
 
     findings.push(...internalIdentifierFindings(file, text));
@@ -136,26 +125,55 @@ const MD_RELATIVE = /\[[^\]]*\]\((?!https?:|mailto:|#)([^)#\s]+)(?:#[^)\s]*)?\)/
 function checkLinks(files) {
   const findings = [];
 
+  for (const file of files) {
+    try {
+      const artifact = readPublicArtifact(repoRoot, file);
+      if (artifact.symlinkEscapesRoot) {
+        findings.push({
+          file,
+          line: 1,
+          target: artifact.symlinkTarget,
+          why: "a tracked symbolic link that escapes the public repository.",
+        });
+			} else if (artifact.symlink && !artifact.symlinkTargetExists) {
+				findings.push({
+					file,
+					line: 1,
+					target: artifact.symlinkTarget,
+					why: "a tracked symbolic link whose in-repository target does not exist.",
+				});
+      }
+    } catch {
+      // Submodules and other non-file entries are outside this text/link gate.
+    }
+  }
+
   for (const file of files.filter((f) => LINK_SOURCES.test(f))) {
     // Same guard `checkIdentifiers` already has. A tracked path can be
     // unreadable — a submodule, a dangling symlink — and crashing the gate on
     // one is worse than skipping it: the whole public-surface check stops
     // running over every other file.
-    let text;
+    let artifact;
     try {
-      text = readFileSync(join(repoRoot, file), "utf8");
+      artifact = readPublicArtifact(repoRoot, file);
     } catch {
       continue;
     }
+    if (artifact.symlink) continue;
+    const { text } = artifact;
 
     for (const m of text.matchAll(SELF_LINK)) {
-      const target = decodeURIComponent(m[1]).replace(/[.,;:]+$/, "");
-      if (!existsSync(join(repoRoot, target))) {
+			const raw = m[1].replace(/[.,;:]+$/, "");
+			const target = resolveInsideRoot(repoRoot, repoRoot, raw);
+			if (target === undefined || !existsSync(target)) {
         findings.push({
           file,
           line: lineOf(text, m.index ?? 0),
-          target,
-          why: `points into this repository at a path that does not exist. A ${PUBLIC_REPO} URL that 404s looks authoritative and is not.`,
+					target: raw,
+					why:
+						target === undefined
+							? "attempts to escape the public repository."
+							: `points into this repository at a path that does not exist. A ${PUBLIC_REPO} URL that 404s looks authoritative and is not.`,
         });
       }
     }
@@ -164,13 +182,20 @@ function checkLinks(files) {
 
     for (const m of text.matchAll(MD_RELATIVE)) {
       const raw = m[1];
-      const target = resolve(join(repoRoot, dirname(file)), raw);
-      if (!existsSync(target)) {
+			const target = resolveInsideRoot(
+				repoRoot,
+				join(repoRoot, dirname(file)),
+				raw,
+			);
+			if (target === undefined || !existsSync(target)) {
         findings.push({
           file,
           line: lineOf(text, m.index ?? 0),
           target: raw,
-          why: "a relative link with no file at the other end.",
+					why:
+						target === undefined
+							? "a relative link that escapes the public repository."
+							: "a relative link with no file at the other end.",
         });
       } else if (statSync(target).isDirectory() && !raw.endsWith("/")) {
         // Not a failure — GitHub resolves a directory link fine. Noted only so
@@ -187,7 +212,7 @@ function checkLinks(files) {
 // Refuse before scanning anything if this gate's own inputs include a file it
 // cannot see. This gate has twice reported a clean pass over an untracked ADR
 // that carried a real planning identifier — a pass over files it never opened.
-const hidden = hiddenInputs(repoRoot, (p) => !isSelf(p) && !SKIP.some((re) => re.test(p)));
+const hidden = hiddenInputs(repoRoot, () => true);
 if (hidden.length > 0) {
   console.error(`\n${hiddenInputsMessage("Public surface gate", hidden)}\n`);
   process.exit(1);
@@ -198,7 +223,9 @@ const idFindings = checkIdentifiers(files);
 const linkFindings = checkLinks(files);
 
 if (idFindings.length > 0) {
-  console.error(`\nInternal identifiers found in public artifacts (${idFindings.length}):\n`);
+  console.error(
+    `\nProhibited private-estate identifiers found in public artifacts (${idFindings.length}):\n`,
+  );
   for (const f of idFindings) {
     console.error(`  ${f.file}:${f.line}  "${f.match}"`);
     console.error(`      ${f.why}\n`);
@@ -220,6 +247,6 @@ if (idFindings.length > 0 || linkFindings.length > 0) {
 
 const linkFiles = files.filter((f) => LINK_SOURCES.test(f)).length;
 console.log(
-  `Public surface gate: ${files.length} tracked files carry no internal identifier, ` +
+  `Public surface gate: ${files.length} tracked files carry no prohibited private-estate identifier, ` +
     `and every in-repository link across ${linkFiles} prose and site files resolves to a real path.`,
 );

@@ -2,6 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-07-22
+- **Public-surface correction:** 2026-08-31 â€” private sequencing shorthand was
+  removed; the decision and its scope are unchanged.
 
 ## Context
 
@@ -73,7 +75,7 @@ two surfaces cannot drift. The control creates no `createViewport` of its own â€
 computes each move with `@silkplot/core`'s interval arithmetic
 (`clampInterval`, `slideIntoBound`, `applyMinSpan`) and emits the result.
 
-Auto-wiring through a shared context was rejected for P06: it would put the
+Auto-wiring through a shared context was rejected for the gesture adapter: it would put the
 control inside the chart's own reactive subtree and make the coupling implicit,
 where the controlled-props form keeps the single authority visible in the
 application's own code.

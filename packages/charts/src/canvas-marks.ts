@@ -36,6 +36,8 @@ export interface PathMark {
   strokeWidth: string;
   dash: string | undefined;
   fillOpacity: string | undefined;
+	/** Number of source points encoded by this painted path, when applicable. */
+	pointCount?: number;
   /** Fill-pattern slot for a pie/donut slice — the non-colour channel. */
   pattern?: string;
   innerRadius?: string;

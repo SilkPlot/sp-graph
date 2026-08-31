@@ -17,7 +17,7 @@ How and why the channels split this way is recorded in
 
 ## Shipped
 
-On `main` today, proven by CI on every push:
+In the current registry prerelease, proven by its release gates:
 
 - Four Cartesian chart families — line, area, bar (including ranked
   categorical, both orientations), scatter — on the "D3 computes, Solid
@@ -71,25 +71,33 @@ so these are evidence tasks, not feature tasks:
   dashboards, and high-frequency data run under a frozen protocol on named
   reference hardware. Until that happens, neither this repository nor the
   site claims a performance number.
-- **Density disposition.** Where the measurements pass, SVG stays; where they
-  do not, only the measured decimation or Canvas recovery needed to pass.
+- **Density qualification.** Measure the current Canvas composition and retain
+  the explicit min/max and raw-inspection evidence. ADR-0025 chooses the
+  renderer for its enumerated program; it does not manufacture a performance
+  result.
 - **Assistive-technology verification**, NVDA on Windows first. The contract
   is implemented and gated in CI; no screen reader has been run against it;
   the beta claim waits for that, not the other way round.
 - The composed Cartesian dashboard scope qualified end to end.
 
-## Later, evidence-gated
+## On `main`, not yet published
 
-Explored, deliberately not committed:
+Implemented in source and covered by repository tests, but absent from the
+current registry prerelease:
 
 - A week-grid view and an agenda view exist in source and are unpublished; time-semantics is decided ([ADR-0024](docs/decisions/adr-0024-zoned-civil-time-for-calendar-grids.md)).
 - Grouped and stacked bars exist in source and are unpublished.
-- Canvas is the named renderer ([ADR-0025](docs/decisions/adr-0025-canvas-promoted-for-s016-sequence.md)); a density-layer promotion still waits on measurement.
+- Canvas is the named renderer for ADR-0025's enumerated program
+  ([ADR-0025](docs/decisions/adr-0025-enumerated-canvas-renderer-program.md));
+  the separate density-exit performance claim still waits on measurement.
 - Heatmaps and calendar virtualization exist in source and are unpublished.
 - Pie and donut exist in source and are unpublished.
 - Tree, treemap, and pack exist in source and are unpublished.
 - Bubble exists in source and is unpublished.
 - Histogram exists in source and is unpublished.
+- Pie/donut, tree/treemap/pack, bubble, and histogram currently paint on Canvas,
+  but ADR-0025 does not authorize those families. Before they are eligible to
+  publish, record a later signed renderer ADR or correct their substrate.
 
 ## Non-goals
 

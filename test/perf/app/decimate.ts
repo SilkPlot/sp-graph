@@ -1,18 +1,12 @@
 /**
  * The W-D aggregation/decimation CANDIDATES, and the error they introduce.
  *
- * These live in the harness, not in `packages/`, and that placement is the
- * decision rather than an accident of layout. The performance protocol measures
- * the 86,400-timestamp case "raw AND through the independently-authored
- * aggregation/decimation candidate, recording the value error and inspected-value
- * implications rather than claiming support". Selecting or shipping a recovery is
- * explicitly the NEXT phase's work, gated on these numbers existing. A candidate
- * that lived in a package would already be a shipped recovery, and the decision
- * it is supposed to inform would have been taken by writing it.
- *
- * So: two candidates and a scorer, in the measuring apparatus, deliberately
- * throwaway. If one of them is chosen later it gets written properly, with its
- * own tests, in the package the decision picks.
+ * These are the historical comparison candidates and scorer retained in the
+ * harness. Their measurements informed the shipped min/max paint recovery,
+ * which now lives in the chart package and is mounted by W-D at a 2,000-point
+ * budget. The harness versions remain independent data-level swaps: they score
+ * error against raw truth and prove that a candidate already at the budget is
+ * not reduced again by the shipped paint policy.
  *
  * TWO candidates rather than one, because a single unopposed error figure is
  * unreadable. "Max error 4.2 units" means nothing until you can see what a
@@ -22,9 +16,46 @@
  * number evidence instead of a reassurance.
  */
 import type { Series, SeriesDatum } from "@silkplot/core";
+import type { ActiveReading } from "./perf-types";
 
 /** A decimation candidate: same shape in, fewer points out, time order preserved. */
 export type Candidate = (data: readonly SeriesDatum[], target: number) => SeriesDatum[];
+
+/** Independent expected inspection for a displayed series at a raw-domain fraction. */
+export function expectedInspectionAtFraction(
+  seriesId: string,
+  raw: readonly SeriesDatum[],
+  displayed: readonly SeriesDatum[],
+  fraction: number,
+): ActiveReading | undefined {
+  const first = raw[0];
+  const last = raw.at(-1);
+  if (!first || !last || displayed.length === 0 || fraction < 0 || fraction > 1) {
+    return undefined;
+  }
+  const target =
+    first.t.getTime() + fraction * (last.t.getTime() - first.t.getTime());
+  let lo = 0;
+  let hi = displayed.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if ((displayed[mid]?.t.getTime() ?? Number.POSITIVE_INFINITY) < target) lo = mid;
+    else hi = mid;
+  }
+  const loDatum = displayed[lo] as SeriesDatum;
+  const hiDatum = displayed[hi] as SeriesDatum;
+  const sourceIndex =
+    Math.abs(target - loDatum.t.getTime()) <= Math.abs(hiDatum.t.getTime() - target)
+      ? lo
+      : hi;
+  const datum = displayed[sourceIndex] as SeriesDatum;
+  return {
+    seriesId,
+    sourceIndex,
+    time: datum.t.toISOString(),
+    y: datum.y,
+  };
+}
 
 /**
  * Every Nth point. The naive candidate, included to FAIL.

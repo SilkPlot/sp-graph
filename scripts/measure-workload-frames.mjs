@@ -36,8 +36,11 @@
 import { writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 import {
+  appendBrowserProcessSnapshot,
   browserSurfacePlan,
+  inspectBrowserProcesses,
   inspectBrowserSurface,
+  inspectDisplaySurface,
 } from "./lib/browser-surface.mjs";
 import {
   ACCEPTANCE_MS,
@@ -48,28 +51,38 @@ import {
   DROPPED_GATE_PCT,
   DROPPED_MS,
   DURATION_MS,
+  FROZEN_PAGE_OPTIONS,
   PROTOCOL_PASSES,
   TIMER_TOLERANCE_MS,
   VIEWPORT,
   WARMUP_MS,
   arg,
+	assertServerIdentity,
   conditionsLine,
   controlDegraded,
+	createInputActivityRecorder,
+	discardedWarmup,
   evaluateCleanIndexBuildInvariant,
   evaluateMutationProof,
+  interactionCommitEvidence,
+	interactionTiming,
   row,
+  settleVerdict,
+  requiredHeapBytes,
   startBurn,
   startRecording,
   stats,
   stopBurn,
   stopRecording,
   sweep,
+	withFreshInteractionSurface,
 } from "./lib/perf.mjs";
 import { KEY_REPEAT_GAP_MS, PREPARE, forDuration, gesturesFor, holding } from "./lib/gestures.mjs";
 
 const URL_BASE = arg(process.argv, "url", "http://127.0.0.1:5175");
 const RATE = Number(arg(process.argv, "rate", String(BINDING_RATE)));
 const JSON_OUT = arg(process.argv, "json", undefined);
+const EXPECTED_SERVER_TOKEN = arg(process.argv, "server-token", undefined);
 const BROWSER_PLAN = (() => {
   try {
     return browserSurfacePlan(process.argv);
@@ -109,6 +122,41 @@ const SETTLE_GATE_MS = 1000;
 /** Shorter than a full pass: enough events to read a counter, short enough not to dominate the run. */
 const INVARIANT_MS = 1500;
 
+let browserSurfaceEvidence;
+
+async function captureBrowserProcesses(browser) {
+  if (!browserSurfaceEvidence) return;
+  const snapshot = await inspectBrowserProcesses(browser);
+  appendBrowserProcessSnapshot(browserSurfaceEvidence, snapshot);
+  return snapshot;
+}
+
+async function captureBrowserPage(browser, page, context) {
+  const before = await captureBrowserProcesses(browser);
+  const browserPid = before?.processes.find(
+    (process) => process.type === "browser",
+  )?.pid;
+  browserSurfaceEvidence.displaySnapshots.push(
+    await inspectDisplaySurface(page, 120, context, {
+      mode: browserSurfaceEvidence.requestedMode,
+      browserPid,
+    }),
+  );
+  await captureBrowserProcesses(browser);
+}
+
+async function finalizeBrowserSurface(browser) {
+  const page = await browser.newPage(FROZEN_PAGE_OPTIONS);
+  try {
+    await page.goto("data:text/html,<canvas></canvas>");
+    await captureBrowserPage(browser, page, "probe-final");
+    browserSurfaceEvidence.displayFinal =
+      browserSurfaceEvidence.displaySnapshots.at(-1);
+  } finally {
+    await page.close();
+  }
+}
+
 const percentile = (xs, q) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length === 0 ? 0 : +s[Math.min(s.length - 1, Math.floor(s.length * q))].toFixed(1);
@@ -120,8 +168,6 @@ const percentile = (xs, q) => {
 /* attributed is the gesture that was measured, not a re-implementation.       */
 /* -------------------------------------------------------------------------- */
 
-const gestures = gesturesFor(DURATION_MS);
-
 /* -------------------------------------------------------------------------- */
 /* Instrument readings                                                         */
 /* -------------------------------------------------------------------------- */
@@ -130,7 +176,7 @@ const gestures = gesturesFor(DURATION_MS);
 async function heapBytes(cdp) {
   await cdp.send("HeapProfiler.collectGarbage");
   const { metrics } = await cdp.send("Performance.getMetrics");
-  return metrics.find((m) => m.name === "JSHeapUsedSize")?.value ?? 0;
+  return requiredHeapBytes(metrics);
 }
 
 /**
@@ -144,22 +190,39 @@ async function heapBytes(cdp) {
  */
 async function settleSeries(page, call, repeats = SETTLE_REPEATS, argAt = (i) => i, before) {
   const samples = [];
+  const attempts = [];
   let noChange = 0;
+  let timeouts = 0;
   for (let i = 0; i < repeats; i++) {
     // `before` puts the page into the state the trigger is supposed to change.
     // Measuring a settle from a state where the trigger is a no-op reports 0ms,
     // which reads as "instantaneous" and means "nothing happened".
     if (before) await before(i);
-    const ms = await page.evaluate(call, argAt(i));
-    if (typeof ms !== "number") continue;
+    const argument = argAt(i);
+    const ms = await page.evaluate(call, argument);
+    if (typeof ms !== "number") {
+      attempts.push({ index: i, argument, outcome: "invalid", value: ms ?? null });
+      continue;
+    }
     // -1 is the page's NO_CHANGE: the trigger mutated nothing at all. Averaging
     // it in as a zero would turn a dead trigger into a fast one.
-    if (ms < 0) noChange++;
-    else samples.push(ms);
+    if (ms === -2) {
+      timeouts++;
+      attempts.push({ index: i, argument, outcome: "timeout", value: ms });
+    } else if (ms < 0) {
+      noChange++;
+      attempts.push({ index: i, argument, outcome: "no-change", value: ms });
+    } else {
+      samples.push(ms);
+      attempts.push({ index: i, argument, outcome: "settled", ms });
+    }
   }
   return {
     samples: samples.length,
+    rawSamples: samples,
+    attempts,
     noChange,
+    timeouts,
     p50: percentile(samples, 0.5),
     p95: percentile(samples, 0.95),
     max: samples.length ? +Math.max(...samples).toFixed(1) : 0,
@@ -187,72 +250,184 @@ async function readInvariants(page, ctx) {
   return page.evaluate(() => window.__perf?.invariants.read());
 }
 
+/** Resolve the frozen inspection fraction in actual inner-plot coordinates. */
+async function inspectionTarget(page, surfaceBox, fraction = 0.62) {
+  const coordinate = await page.evaluate(
+    (rawDomainFraction) => window.__perf?.inspectionTarget?.(rawDomainFraction),
+    fraction,
+  );
+  if (
+    coordinate !== undefined &&
+    (coordinate.rawDomainFraction !== fraction ||
+      !Number.isFinite(coordinate.plotFraction) ||
+      coordinate.plotFraction < 0 ||
+      coordinate.plotFraction > 1 ||
+      !Array.isArray(coordinate.appliedDomain) ||
+      coordinate.appliedDomain.length !== 2)
+  ) {
+    throw new Error("inspection target requires the applied plot-domain coordinate");
+  }
+  const plot = await page.locator("[data-silkplot-canvas-plot]").first().evaluate((canvas) => ({
+    originX: Number(canvas.getAttribute("data-silkplot-plot-origin-x")),
+    originY: Number(canvas.getAttribute("data-silkplot-plot-origin-y")),
+    width: Number(canvas.getAttribute("data-silkplot-plot-width")),
+    height: Number(canvas.getAttribute("data-silkplot-plot-height")),
+  }));
+  if (
+    !Object.values(plot).every(Number.isFinite) ||
+    plot.width <= 0 ||
+    plot.height <= 0
+  ) {
+    throw new Error("inspection target requires positive recorded plot geometry");
+  }
+  const plotFraction = coordinate?.plotFraction ?? fraction;
+  const relativeX = plot.originX + plot.width * plotFraction;
+  const relativeY = plot.originY + plot.height / 2;
+  return {
+    evidence: {
+      fraction,
+      ...(coordinate === undefined
+        ? {}
+        : {
+            plotFraction,
+            targetTime: coordinate.targetTime,
+            appliedDomain: coordinate.appliedDomain,
+          }),
+      surfaceWidth: surfaceBox.width,
+      surfaceHeight: surfaceBox.height,
+      ...plot,
+      relativeX,
+      relativeY,
+    },
+    clientX: surfaceBox.x + relativeX,
+    clientY: surfaceBox.y + relativeY,
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* One workload                                                                */
 /* -------------------------------------------------------------------------- */
 
-async function runWorkload(browser, workload, query = "") {
-  const page = await browser.newPage({
-    viewport: VIEWPORT,
-    deviceScaleFactor: DEVICE_SCALE_FACTOR,
-  });
+async function openWorkloadPage(
+  browser,
+  workload,
+  query = "",
+  evidenceContext = `${workload}${query}:primary`,
+) {
+  const page = await browser.newPage(FROZEN_PAGE_OPTIONS);
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Performance.enable");
+    await cdp.send("HeapProfiler.enable");
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: RATE });
 
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Performance.enable");
-  await cdp.send("HeapProfiler.enable");
-  await cdp.send("Emulation.setCPUThrottlingRate", { rate: RATE });
+    const url = `${URL_BASE}/?workload=${workload}${query}`;
+    await page.goto(url, { waitUntil: "load" });
+    // The page signals readiness only once its chart has measured itself. Waiting
+    // on a selector rather than a timeout: a fixed wait is a guess that gets
+    // shorter as the workload gets heavier, which is precisely backwards.
+    await page.waitForSelector("[data-perf-ready]", { timeout: 120_000 });
 
-  const url = `${URL_BASE}/?workload=${workload}${query}`;
-  await page.goto(url, { waitUntil: "load" });
-  // The page signals readiness only once its chart has measured itself. Waiting
-  // on a selector rather than a timeout: a fixed wait is a guess that gets
-  // shorter as the workload gets heavier, which is precisely backwards.
-  await page.waitForSelector("[data-perf-ready]", { timeout: 120_000 });
+    const meta = await page.evaluate(() => {
+      const api = window.__perf;
+      return api
+        ? {
+            workload: api.workload,
+            points: api.points,
+            tableRows: api.tableRows,
+            surface: api.surface,
+            range: api.range,
+            serverToken: api.serverToken,
+					paintDecimation: api.paintDecimation
+						? {
+								budget: api.paintDecimation.budget,
+								drawnPoints: api.paintDecimation.drawnPoints(),
+							}
+						: null,
+          }
+        : undefined;
+    });
+    if (!meta) throw new Error(`${workload}: the page published no __perf contract`);
+    assertServerIdentity(EXPECTED_SERVER_TOKEN, meta.serverToken);
+    if (meta.workload !== workload) {
+      throw new Error(
+        `${workload}: the page loaded '${meta.workload}' instead — refusing to record it under the wrong heading`,
+      );
+    }
 
-  const meta = await page.evaluate(() => {
-    const api = window.__perf;
-    return api
-      ? { workload: api.workload, points: api.points, tableRows: api.tableRows, surface: api.surface, range: api.range }
-      : undefined;
-  });
-  if (!meta) throw new Error(`${workload}: the page published no __perf contract`);
-  if (meta.workload !== workload) {
-    throw new Error(`${workload}: the page loaded '${meta.workload}' instead — refusing to record it under the wrong heading`);
+    // The deck workload starts hidden. Every page—including each isolated pass
+    // page—must reveal it before resolving the interaction surface.
+    const reveal =
+      workload === "w-c"
+        ? await settleSeries(page, () => window.__perf?.reveal?.(), 1)
+        : undefined;
+    const surfaceLocator = page.locator(meta.surface).first();
+    await surfaceLocator.waitFor({ timeout: 120_000 });
+    const box = await surfaceLocator.boundingBox();
+    if (!box) throw new Error(`${workload}: no interaction surface at ${meta.surface}`);
+    await captureBrowserPage(browser, page, evidenceContext);
+
+    return {
+      page,
+      cdp,
+      meta,
+      ctx: { box, surface: meta.surface, range: meta.range },
+      errors,
+      reveal,
+    };
+  } catch (error) {
+    await page.close();
+    throw error;
   }
+}
 
+function assertSameWorkloadMetadata(expected, actual) {
+  for (const key of ["workload", "points", "tableRows", "surface", "range"]) {
+    if (actual[key] !== expected[key]) {
+      throw new Error(
+        `fresh interaction page changed ${key}: expected '${expected[key]}', received '${actual[key]}'`,
+      );
+    }
+  }
+	if (
+		JSON.stringify(actual.paintDecimation) !==
+		JSON.stringify(expected.paintDecimation)
+	) {
+		throw new Error("fresh interaction page changed paint-decimation evidence");
+	}
+}
+
+async function runWorkload(browser, workload, query = "") {
+  const primary = await openWorkloadPage(browser, workload, query);
+  const { page, cdp, meta, ctx, errors } = primary;
+  const url = `${URL_BASE}/?workload=${workload}${query}`;
   const result = {
     workload,
     query,
     url,
     points: meta.points,
     tableRows: meta.tableRows,
+		paintDecimation: meta.paintDecimation,
     passes: {},
     settles: {},
     heap: undefined,
     invariants: undefined,
     selfCheck: {},
     inspected: {},
+    inspectionExpected: {},
+    inspectionTarget: null,
     decimation: undefined,
     pageErrors: errors,
   };
 
   /* --- W-C reveals before anything can be measured on it --- */
-  if (workload === "w-c") {
-    result.settles.reveal = await settleSeries(page, () => window.__perf?.reveal?.(), 1);
-  }
-
-  const surfaceLocator = page.locator(meta.surface).first();
-  await surfaceLocator.waitFor({ timeout: 120_000 });
-  const box = await surfaceLocator.boundingBox();
-  if (!box) throw new Error(`${workload}: no interaction surface at ${meta.surface}`);
-  const ctx = { box, surface: meta.surface, range: meta.range };
+  if (primary.reveal) result.settles.reveal = primary.reveal;
+  const { box } = ctx;
 
   /* --- warm-up, discarded --- */
-  await startRecording(page);
-  await page.waitForTimeout(WARMUP_MS);
-  await stopRecording(page);
+  await discardedWarmup(page);
 
   /* --- idle baseline --- */
   await startRecording(page);
@@ -269,21 +444,36 @@ async function runWorkload(browser, workload, query = "") {
   // repository has now been bitten by three times (a dead frame harness, a gate
   // scanning nothing, five probes that never applied). So a pass that commits
   // nothing is recorded as INERT and is not allowed to count as a pass.
-  const countsNow = () => page.evaluate(() => window.__perf?.counts());
   for (const name of PROTOCOL_PASSES[workload] ?? []) {
     if (name === "rangeDrag" && !meta.range) continue;
-    await PREPARE[name]?.(page, ctx);
-    const before = await countsNow();
-    await startRecording(page);
-    await gestures[name](page, ctx);
-    const s = stats(await stopRecording(page));
-    const after = await countsNow();
-    s.commits = {
-      viewport: (after?.viewport ?? 0) - (before?.viewport ?? 0),
-      active: (after?.active ?? 0) - (before?.active ?? 0),
-    };
-    s.inert = s.commits.viewport + s.commits.active === 0;
-    result.passes[name] = s;
+    const isolated = await withFreshInteractionSurface(
+      () => openWorkloadPage(
+        browser,
+        workload,
+        query,
+        `${workload}${query}:pass:${name}`,
+      ),
+      async ({ page: passPage, meta: passMeta, ctx: passCtx, errors: passErrors }) => {
+        assertSameWorkloadMetadata(meta, passMeta);
+        await PREPARE[name]?.(passPage, passCtx);
+        await discardedWarmup(passPage);
+        const before = await passPage.evaluate(() => window.__perf?.counts());
+				const inputActivity = createInputActivityRecorder(name);
+        await startRecording(passPage);
+				await gesturesFor(DURATION_MS, inputActivity)[name](passPage, passCtx);
+				const inputActivityEvidence = inputActivity.finish();
+        const distribution = stats(await stopRecording(passPage));
+        const after = await passPage.evaluate(() => window.__perf?.counts());
+        Object.assign(
+          distribution,
+          interactionCommitEvidence(name, before, after),
+					{ inputActivity: inputActivityEvidence },
+        );
+        return { distribution, passErrors };
+      },
+    );
+    result.passes[name] = isolated.distribution;
+    result.pageErrors.push(...isolated.passErrors);
   }
 
   /* --- invariants: commits, layout reads, and real index builds in pointer scope --- */
@@ -335,7 +525,17 @@ async function runWorkload(browser, workload, query = "") {
   result.selfCheck.discriminating = mutationProof.pass;
 
   /* --- inspected-value read: what a reader lands on --- */
-  await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
+  const frozenInspectionTarget = await inspectionTarget(page, box);
+  result.inspectionTarget = frozenInspectionTarget.evidence;
+  result.inspectionExpected.raw =
+    (await page.evaluate(
+      (fraction) => window.__perf?.inspectionExpected?.("raw", fraction),
+      frozenInspectionTarget.evidence.fraction,
+    )) ?? null;
+  await page.mouse.move(
+    frozenInspectionTarget.clientX,
+    frozenInspectionTarget.clientY,
+  );
   await page.waitForTimeout(120);
   result.inspected.raw = (await page.evaluate(() => window.__perf?.lastActive())) ?? null;
 
@@ -399,13 +599,36 @@ async function runWorkload(browser, workload, query = "") {
     result.decimation = { report: await page.evaluate(() => window.__perf?.decimationReport?.()), passes: {} };
     for (const candidate of ["min-max", "every-nth"]) {
       const settleMs = await page.evaluate((c) => window.__perf?.decimate?.(c), candidate);
+			await discardedWarmup(page);
+			const inputActivity = createInputActivityRecorder("hover");
       await startRecording(page);
-      await sweep(page, box, DURATION_MS);
-      result.decimation.passes[candidate] = { settleMs, hover: stats(await stopRecording(page)) };
+			await sweep(page, box, DURATION_MS, inputActivity.run);
+			const inputActivityEvidence = inputActivity.finish();
+			const hover = {
+				...stats(await stopRecording(page)),
+				inputActivity: inputActivityEvidence,
+			};
+			const drawnPoints = await page.evaluate(
+				() => window.__perf?.paintDecimation?.drawnPoints() ?? null,
+			);
+			result.decimation.passes[candidate] = {
+				settleMs,
+				drawnPoints,
+				hover,
+			};
+      result.inspectionExpected[candidate] =
+        (await page.evaluate(
+          ({ choice, fraction }) =>
+            window.__perf?.inspectionExpected?.(choice, fraction),
+          { choice: candidate, fraction: frozenInspectionTarget.evidence.fraction },
+        )) ?? null;
       // The inspected-value read at the SAME pixel as the raw read above, which
       // is what makes the two comparable: same cursor position, different drawn
       // data, so the difference is what a reader would misread by.
-      await page.mouse.move(box.x + box.width * 0.62, box.y + box.height / 2);
+      await page.mouse.move(
+        frozenInspectionTarget.clientX,
+        frozenInspectionTarget.clientY,
+      );
       await page.waitForTimeout(120);
       result.inspected[candidate] =
         (await page.evaluate(() => window.__perf?.lastActive())) ?? null;
@@ -429,21 +652,22 @@ function judgePass(name, s) {
   if (s.inert) {
     return [
       {
-        criterion: `gesture reached the chart · ${name}`,
+        criterion: `interaction reached the chart · ${name}`,
         pass: false,
-        detail: "0 viewport and 0 active commits — this pass measured an idle page",
+        detail: `0 required ${name} state commits — this pass measured an idle page`,
       },
     ];
   }
+	const timing = interactionTiming(s);
   return [
     {
       criterion: `p95 <= ${ACCEPTANCE_MS.toFixed(1)}ms · ${name}`,
-      pass: s.p95 <= ACCEPTANCE_MS,
+      pass: timing.rawP95 <= ACCEPTANCE_MS,
       detail: `p95 ${s.p95}ms`,
     },
     {
       criterion: `dropped <= ${DROPPED_GATE_PCT}% · ${name}`,
-      pass: s.pctDropped <= DROPPED_GATE_PCT,
+      pass: timing.exactDroppedPct <= DROPPED_GATE_PCT,
       detail: `${s.pctDropped}% over 33.4ms`,
     },
   ];
@@ -461,7 +685,7 @@ const judgeInvariants = (inv) => {
     },
     {
       criterion: "no synchronous layout read inside a pointer event",
-      pass: inv.layoutReadsInPointer === 0,
+      pass: inv.pointerEvents > 0 && inv.layoutReadsInPointer === 0,
       detail: `${inv.layoutReadsInPointer} read(s) across ${inv.pointerEvents} pointer events`,
     },
     {
@@ -473,36 +697,6 @@ const judgeInvariants = (inv) => {
     },
   ];
 };
-
-/**
- * Whether the protocol froze a settle target for this one.
- *
- * Only the 20,000-value replacement and the 48-chart resize are gated, at 1s
- * p95. Reveal and unmount are RECORDED, not gated — no target was frozen for
- * them, and inventing one here would be this script deciding a number the
- * protocol deliberately left to the results.
- */
-const settleIsGated = (workload, name) =>
-  (workload === "w-a" && name === "replace") || (workload === "w-c" && name === "resize");
-
-/** Settle criteria for one gated trigger. */
-function judgeSettle(name, s) {
-  // A trigger that changed nothing is not a fast settle. Scoring its p95 would
-  // enter a passing number for work that never happened — which is exactly how
-  // the 48-chart resize first reported 0.1ms and passed a 1-second gate.
-  if (s.samples === 0) {
-    return {
-      criterion: `${name} actually changed the page`,
-      pass: false,
-      detail: `${s.noChange} trigger(s) mutated nothing within the settle window`,
-    };
-  }
-  return {
-    criterion: `${name} settles within ${SETTLE_GATE_MS}ms p95`,
-    pass: s.p95 <= SETTLE_GATE_MS && s.noChange === 0,
-    detail: `p95 ${s.p95}ms over ${s.samples} samples${s.noChange ? `, ${s.noChange} with NO CHANGE` : ""}`,
-  };
-}
 
 /**
  * Apply the protocol's acceptance criteria to one workload's numbers.
@@ -518,8 +712,8 @@ function judge(result) {
       .flatMap(([name, s]) => judgePass(name, s)),
     ...judgeInvariants(result.invariants),
     ...Object.entries(result.settles)
-      .filter(([name, s]) => s && typeof s.p95 === "number" && settleIsGated(result.workload, name))
-      .map(([name, s]) => judgeSettle(name, s)),
+      .filter(([, s]) => s && typeof s.p95 === "number")
+      .map(([name, s]) => settleVerdict(result.workload, name, s, SETTLE_GATE_MS)),
   ];
 }
 
@@ -528,9 +722,10 @@ function judge(result) {
 /* -------------------------------------------------------------------------- */
 
 const browser = await chromium.launch(BROWSER_PLAN.launchOptions);
-const probePage = await browser.newPage();
+const probePage = await browser.newPage(FROZEN_PAGE_OPTIONS);
 await probePage.goto("data:text/html,<canvas></canvas>");
 const browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN);
+browserSurfaceEvidence = browserSurface;
 await probePage.close();
 
 console.log(
@@ -543,7 +738,8 @@ if (!browserSurface.surfaceEligible) {
 
 const artifactMetadata = {
   recordedBy: "scripts/measure-workload-frames.mjs",
-  schemaVersion: 3,
+  schemaVersion: 4,
+	interactionIsolation: "fresh-page-per-pass",
   // Deliberately NOT a hardware description. This script cannot know what
   // machine it is on; the host runner supplies the measured host record.
   hardware: "UNRECORDED — fill in from the protocol's frozen parameter table",
@@ -568,6 +764,7 @@ const artifactMetadata = {
 // A caller explicitly asking for the headed binding surface should find out
 // before a long seven-run pass if Chrome silently fell back to software.
 if (BROWSER_PLAN.mode === "headed" && !browserSurface.surfaceEligible) {
+  await finalizeBrowserSurface(browser);
   if (JSON_OUT) {
     writeFileSync(
       JSON_OUT,
@@ -608,6 +805,7 @@ for (const workload of REQUESTED) {
   }
 }
 
+await finalizeBrowserSurface(browser);
 await browser.close();
 
 /* --- report --- */
@@ -625,7 +823,9 @@ for (const r of results) {
     `\n=== ${label} — ${r.points.toLocaleString()} points, ${r.tableRows.toLocaleString()} table rows ===`,
   );
   for (const [name, s] of Object.entries(r.passes)) {
-    const commits = s.commits ? `  commits=${s.commits.viewport}v/${s.commits.active}a` : "";
+    const commits = s.commits
+      ? `  commits=${s.commits.viewport}v/${s.commits.active}a/${s.commits.reset}r/${s.commits.visibility}s`
+      : "";
     console.log(`${row(name, s)}${commits}${s.inert ? "  << INERT" : ""}`);
   }
   console.log(row("control (+30ms/frame)", r.selfCheck.control));
@@ -643,7 +843,7 @@ for (const r of results) {
   for (const [name, s] of Object.entries(r.settles)) {
     if (!s || typeof s.p95 !== "number") continue;
     console.log(
-      `${`settle: ${name}`.padEnd(26)} p50=${String(s.p50).padStart(7)}ms  p95=${String(s.p95).padStart(7)}ms  max=${String(s.max).padStart(7)}ms  n=${s.samples}${s.noChange ? `  << ${s.noChange} NO CHANGE` : ""}`,
+      `${`settle: ${name}`.padEnd(26)} p50=${String(s.p50).padStart(7)}ms  p95=${String(s.p95).padStart(7)}ms  max=${String(s.max).padStart(7)}ms  n=${s.samples}${s.noChange ? `  << ${s.noChange} NO CHANGE` : ""}${s.timeouts ? `  << ${s.timeouts} TIMEOUT` : ""}`,
     );
   }
   if (r.heap) {

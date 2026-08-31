@@ -250,10 +250,9 @@ export function createMultiSeriesScope<M = unknown>(
     // effective-domain-narrowed series, so a dashboard scope change moves the
     // table — that changes what the chart is ABOUT — while a viewport commit
     // (zoom, pan, brush, range drag) only frames the picture and leaves the
-    // table alone. P08 measured the old viewport coupling as the single
+    // table alone. The representative measurement found the old viewport coupling was the single
     // largest interaction cost in the library; ADR-0022 deletes it.
     table: () =>
       seriesTable({ ...model(), visible: visible(), series: all() }, spec.tableOptions?.()),
   };
 }
-

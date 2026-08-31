@@ -87,7 +87,7 @@ export interface TimeSeriesChartProps extends CartesianChartProps {
   /* --- The visible time viewport (ADR-0014 §3, §5). All optional and
      `Date` at the boundary (ADR-0017); absent → an uncontrolled viewport at the
      full extent, i.e. the chart draws its whole data exactly as before. The
-     gesture adapters that drive this land in a later phase. --- */
+     shipped gesture adapters drive this same contract. --- */
   /**
    * Controlled visible time domain. Present → the caller owns navigation and
    * drives every change; absent → the chart owns an uncontrolled viewport
@@ -600,8 +600,8 @@ export function createTimeSeriesScope(
 
   // The y-basis: narrowed to the effective domain ONLY. This is the pre-viewport
   // data — the axis is computed from it, so a zoom of x does not silently
-  // autoscale y (ADR-0014 §3; the choice this scope previously deferred to "the
-  // zoom and pan work"). Standalone it is all the data.
+  // autoscale y (ADR-0014 §3; the shipped autoscale command is explicit rather
+  // than an automatic side effect of zoom). Standalone it is all the data.
   const yData = createMemo<readonly TimePoint[]>(() => {
     const scope = domain();
     if (scope === undefined) return data();
@@ -672,7 +672,7 @@ export function createTimeSeriesScope(
         return timeScale({ domain: [new Date(iv.start), new Date(iv.end)], range });
       }
       // Not navigable — a chart at its default, or a dashboard scope. Exactly the
-      // pre-P04b behaviour: the data extent standalone / on an empty scope, else
+      // pre-standalone-navigation behaviour: the data extent standalone / on an empty scope, else
       // the effective-domain bounds.
       const scope = domain();
       if (scope === undefined || scope.kind === "empty") {

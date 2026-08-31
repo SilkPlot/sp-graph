@@ -22,9 +22,9 @@ export const Accessibility: Component = () => (
         assistive technology defensible.
       </li>
       <li>
-        <strong>One tab stop, on the charts that have a keyboard model.</strong>{" "}
-        Today that is <code>LineChart</code>, <code>AreaChart</code>, and <code>ScatterChart</code> — <code>BarChart</code> has
-        no keyboard composite yet and no focus stop. Where it exists, the
+        <strong>One tab stop on every informative chart.</strong>{" "}
+        <code>LineChart</code>, <code>AreaChart</code>, <code>BarChart</code>, and{" "}
+        <code>ScatterChart</code> all compose the shared keyboard surface. The
         container holds focus, arrows and Home/End and Page keys move within it,
         and each step is announced through a polite live region. The{" "}
         <code>aria-activedescendant</code> mechanism is available instead, via{" "}

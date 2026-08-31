@@ -483,12 +483,11 @@ built to survive them being answered either way.
    principle drawn from how the information is structured, not a conclusion from
    usability studies with screen-reader users. It is why `pointLabel` is yours
    to supply rather than something the library dictates.
-3. **Calendar overlap-announcement wording is explicitly untested.** The
-   forward-looking model for conveying overlapping events as a text relationship
-   ("Overlaps with two other events from 10:30 to 11:00") needs usability
-   testing, not standards-reading. The calendar is not built; this gap is
-   recorded so the deferred work does not inherit the wording as though it were
-   settled.
+3. **Calendar overlap-announcement wording is explicitly untested.** The built
+   calendar surfaces convey overlap as a text relationship (for example,
+   "Overlaps with two other events from 10:30 to 11:00"), but that wording still
+   needs usability testing rather than standards-reading. Implementation does
+   not turn an unverified phrase into settled evidence.
 4. **Live-region behaviour is version-inconsistent across assistive
    technology.** Screen readers queue, coalesce, and drop rapid updates
    differently by reader and by version. SilkPlot therefore promises **modest,

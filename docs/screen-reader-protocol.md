@@ -118,19 +118,17 @@ chart draws, associated with it via `aria-details`.
 ## Step 6 — the scatter chart
 
 Scroll to the scatter chart ("Response time against load"). Its table is visually
-hidden but is supposed to remain in the accessibility tree.
+hidden but is supposed to remain in the accessibility tree. Scatter uses the
+same single-entry inspection model as Line, Area, and Bar.
 
-**Only `LineChart` has a keyboard model today.** Scatter, Area, and Bar have no
-keyboard composite and therefore **no tab stop and no arrow navigation** — that
-is the current state of the library, not a defect, and this step exists to check
-the parts that should work anyway.
-
-- **Expected:** the chart is named, its description is reachable, and its table
-  is reachable in the accessibility tree despite being visually hidden.
-- **NOT expected, and not a finding:** arrow keys doing nothing here, or Tab
-  skipping straight past the chart. Please do not log those — the gap is known
-  and recorded.
-- **Record:** whether the name, description, and table come through.
+- **Expected:** Tab reaches the chart once; arrows, Home/End, and Page keys move
+  among points; Escape clears the active point without moving focus; Tab leaves.
+- **Expected:** each committed keyboard step is announced, and the chart's name,
+  description, and visually hidden table remain reachable.
+- **Record:** the focus order, exact announcement wording, whether arrows move
+  through points, and whether the name, description, and table come through.
+- **Finding:** a skipped chart, inert navigation keys, trapped Tab/Shift+Tab, or
+  an unreachable table is a result to report rather than an expected gap.
 
 ---
 

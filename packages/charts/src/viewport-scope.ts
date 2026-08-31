@@ -6,23 +6,17 @@
  * that model to what a chart actually draws: it produces one `Viewport` from a
  * data extent, the resolved dashboard effective domain, and the chart's viewport
  * props, and hands back the epoch-ms interval the scope narrows its x scale and
- * its marks to. The gesture ADAPTERS that drive the viewport from pointer, wheel,
- * pinch, and keyboard are a later concern; this module makes the viewport visible
- * so those adapters have something to move.
+ * its marks to. The gesture adapters drive that viewport from pointer, wheel,
+ * pinch, and keyboard. For an unsectioned dashboard member they target the
+ * dashboard's shared dynamic selection; sectioned and standalone charts retain
+ * their own viewport.
  *
- * ## Standalone navigation only, for P04b
+ * ## Dashboard and standalone navigation
  *
- * Standalone, the outer bound is the data's full extent and navigation applies.
- * **Inside a `<Dashboard>` the effective domain drives the chart exactly as it did
- * before this phase — the per-chart viewport is NOT applied**, so `interval` is
- * `undefined` there. ADR-0014 §3 does describe a member's viewport as a further
- * narrowing within the effective domain, but that needs the viewport to RESET to
- * the new range when the dashboard range changes (a bound change the user drove
- * from the global control), which `createViewport` treats as a data-change
- * reconciliation instead — it would keep the old, narrower interval and the
- * dashboard range would stop driving its members. Getting that seam right is
- * deferred (see the P04b phase note); until then, composed charts keep their
- * proven dashboard behaviour and only standalone charts navigate.
+ * Standalone and sectioned charts navigate within their own bound. An
+ * unsectioned dashboard member routes the same commands into the dashboard's
+ * dynamic selection, so one gesture updates every linked member and its data
+ * alternative. `dashboardMemberViewport` is the single switch for that choice.
  *
  * ## Default-identical (the additive guarantee)
  *
@@ -86,7 +80,7 @@ export interface ScopeViewport {
   /**
    * True when the viewport is applied: the chart is standalone AND the caller has
    * opted in. When false the scope keeps its exact pre-viewport behaviour — a
-   * chart at its default, or any dashboard member (for P04b). A scope reads
+   * chart at its default, or any dashboard member. A scope reads
    * `interval` only where this is true.
    */
   navigable: Accessor<boolean>;
@@ -236,8 +230,8 @@ export interface ChartViewportInput {
  * wrapped rather than captured so a caller swapping it is honoured.
  *
  * `engaged` is true only for a CONTROLLING prop — a controlled or default domain,
- * which states a window the chart must open at. A command seam (a toolbar, and in
- * a later phase the keyboard and gestures) does not engage on its own: it engages
+ * which states a window the chart must open at. A command seam (a toolbar,
+ * keyboard, or gesture) does not engage on its own: it engages
  * once the user navigates, so a chart that offers navigation but is never driven
  * still tracks its full data.
  */

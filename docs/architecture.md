@@ -5,13 +5,17 @@
 >
 > It states the rules **as they stand**. How each was arrived at — the context, the
 > alternatives, and what it costs — lives in [decisions/](decisions/index.md) as ADRs.
-> An accepted ADR is never edited; it is superseded.
+> An accepted ADR is normally superseded rather than edited. A bounded factual
+> or public-surface repair is marked with a dated correction and leaves the
+> decision unchanged.
 
 ## The rule: D3 computes, Solid renders
 
 D3 ships two kinds of modules — those that **operate on data** and those that **manipulate
 the DOM**. SilkPlot uses only the data ones, inside pure functions and Solid memos. Solid
-owns every rendered element and updates it with fine-grained reactivity.
+owns every DOM element, component state, and the fine-grained update schedule.
+Composed charts paint computed marks through Canvas 2D inside Solid effects;
+SVG primitives remain Solid-owned elements. D3 owns neither surface.
 
 ### Compute-only D3 modules SilkPlot permits
 
@@ -48,8 +52,9 @@ centred on its band. There is no count to negotiate; the label defaults to the c
 verbatim, and an optional `(value: string) => string` formatter can override it.
 
 Behaviour modules (`d3-zoom`, `d3-brush`, `d3-drag`) are permitted **only** as narrow
-directive/effect adapters that write into signals — never as owners of structure. (Not yet
-implemented; retained in the dynamic-interaction roadmap.)
+directive/effect adapters that write into signals — never as owners of structure. SilkPlot's
+own signal-writing `createViewportGestures` adapter is implemented without those D3 behaviour
+packages; the packages remain permitted under this boundary but are not dependencies today.
 
 ## Layered package model
 
@@ -57,15 +62,22 @@ implemented; retained in the dynamic-interaction roadmap.)
 |---|---|---|
 | Core model | `@silkplot/core` | Pure math: scales, extents, ticks, shape paths, overlap packing, hit-test indexes. No Solid, no DOM. |
 | Solid primitives | `@silkplot/solid` | `ChartRoot`, `SvgLayer`, `Axis`, `Gridlines`, `Crosshair`, `TooltipAnchor`, `ChartAnnouncer`, `createCartesianModel`, `resolveTicks`, `createResize`, bounds context. |
-| Composed charts | `@silkplot/charts` | `LineChart`, `AreaChart`, `BarChart`, `ScatterChart`, each composing `createCartesianModel` (marks; hit-test interaction pending). |
-| Domain layout | `@silkplot/calendar` | Time-grid engine + deterministic overlap resolver (stubs; `packOverlaps` itself lives in `core` and is done — it takes an optional identity `key` that makes lane assignment independent of input order and throws on a duplicate key). |
+| Composed charts | `@silkplot/charts` | Canvas-rendered cartesian, heatmap, pie/donut, hierarchy, bubble, and histogram families, with shared models, interaction, and semantic alternatives. |
+| Domain layout | `@silkplot/calendar` | Zoned time-grid engine, deterministic overlap resolver, Canvas week and calendar-heatmap surfaces, agenda view, and viewport virtualization helpers. |
 | Preset / theme | `@silkplot/theme` | Tokens as objects + CSS custom properties; palette ramps; motion/contrast-aware. |
 
 ## Substrate policy
 
-- **SVG-first** for ordinary dashboards — semantic, accessible, inspectable.
-- **Canvas** data layer where mark or calendar density warrants it.
-- **WebGL** kept off the initial roadmap — reserve tier only.
+- **Canvas** is the renderer for ADR-0025's enumerated cartesian, heatmap,
+  calendar-heatmap, and calendar-week virtualization program, including
+  interaction and dynamic updates.
+- Pie/donut, hierarchy, bubble, and histogram paint on Canvas in the current
+  source, but they are outside ADR-0025's authorization. That source fact is
+  not precedent: a later signed ADR or a renderer correction is required before
+  their Canvas substrate becomes product policy.
+- **SVG primitives** remain available outside that program; existing semantic
+  title/description shells are not a second mark renderer.
+- **WebGL** remains excluded.
 
 ## SSR safety
 
