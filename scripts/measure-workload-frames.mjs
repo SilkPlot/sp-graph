@@ -399,28 +399,31 @@ function assertSameWorkloadMetadata(expected, actual) {
 	}
 }
 
+function emptyWorkloadResult(workload, query, meta, errors) {
+	return {
+		workload,
+		query,
+		url: `${URL_BASE}/?workload=${workload}${query}`,
+		points: meta.points,
+		tableRows: meta.tableRows,
+		paintDecimation: meta.paintDecimation,
+		passes: {},
+		settles: {},
+		heap: undefined,
+		invariants: undefined,
+		selfCheck: {},
+		inspected: {},
+		inspectionExpected: {},
+		inspectionTarget: null,
+		decimation: undefined,
+		pageErrors: errors,
+	};
+}
+
 async function runWorkload(browser, workload, query = "") {
   const primary = await openWorkloadPage(browser, workload, query);
   const { page, cdp, meta, ctx, errors } = primary;
-  const url = `${URL_BASE}/?workload=${workload}${query}`;
-  const result = {
-    workload,
-    query,
-    url,
-    points: meta.points,
-    tableRows: meta.tableRows,
-		paintDecimation: meta.paintDecimation,
-    passes: {},
-    settles: {},
-    heap: undefined,
-    invariants: undefined,
-    selfCheck: {},
-    inspected: {},
-    inspectionExpected: {},
-    inspectionTarget: null,
-    decimation: undefined,
-    pageErrors: errors,
-  };
+  const result = emptyWorkloadResult(workload, query, meta, errors);
 
   /* --- W-C reveals before anything can be measured on it --- */
   if (primary.reveal) result.settles.reveal = primary.reveal;

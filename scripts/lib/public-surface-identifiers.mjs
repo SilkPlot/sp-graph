@@ -4,25 +4,19 @@ const GENERATED_ORCA_ARTIFACT =
 	/^(?:AGENTS\.md|CLAUDE\.md|skills-lock\.json|(?:\.agents|\.claude)\/skills\/.+)$/;
 
 const METHOD_PREFIX = ["or", "ca"].join("");
-const DISTRIBUTION_ORGANIZATION = ["Probably", "Computers"].join("");
 const DISTRIBUTION_REPOSITORY = [METHOD_PREFIX, "baseline"].join("-");
-const METHOD_ROLE =
-	"(?:public|authority|planning|documentation|implementation|research|operations|code|docs|standards|meta)";
 
 /** Canonical identifier rules for the public-surface gate. */
 const FORBIDDEN = [
 	{
 		id: "method-distribution",
-		pattern: new RegExp(
-			`\\b(?:${DISTRIBUTION_ORGANIZATION}|${DISTRIBUTION_REPOSITORY})\\b`,
-			"gi",
-		),
+		pattern: /\b(?:Probably\x43omputers|or\x63a-baseline)\b/gi,
 		allow: (_identifier, file) => GENERATED_ORCA_ARTIFACT.test(file),
 		why: "private method-distribution provenance. Only the exact generated install paths authorized by the project profile may carry it.",
 	},
 	{
 		id: "method-capability",
-		pattern: new RegExp(`\\b${METHOD_PREFIX}-[a-z0-9][a-z0-9-]*\\b`, "gi"),
+		pattern: /\bor\x63a-[a-z0-9][a-z0-9-]*\b/gi,
 		allow: (identifier, file) =>
 			identifier.toLowerCase() === DISTRIBUTION_REPOSITORY ||
 			GENERATED_ORCA_ARTIFACT.test(file),
@@ -30,10 +24,8 @@ const FORBIDDEN = [
 	},
 	{
 		id: "method-role-metadata",
-		pattern: new RegExp(
-			`\\bRoles?:\\s*\\x60?${METHOD_ROLE}\\x60?(?:\\s*,\\s*\\x60?${METHOD_ROLE}\\x60?)*\\.?`,
-			"gi",
-		),
+		pattern:
+			/\bRoles?:\s*`?(?:public|authority|planning|documentation|implementation|research|operations|code|docs|standards|meta)`?(?:\s*,\s*`?(?:public|authority|planning|documentation|implementation|research|operations|code|docs|standards|meta)`?)*\.?/gi,
 		allow: (_identifier, file) => GENERATED_ORCA_ARTIFACT.test(file),
 		why: "internal method-role metadata. Ordinary public files may use these English words, but may not present them as method install metadata.",
 	},

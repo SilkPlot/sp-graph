@@ -10,6 +10,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const SURFACES = new Set(["headless", "headed"]);
+const SOFTWARE_RENDERERS = new Map([
+  ["swiftshader", "SwiftShader"],
+  ["llvmpipe", "llvmpipe"],
+  ["lavapipe", "lavapipe"],
+]);
 
 /** Parse the public CLI surface and produce Playwright launch options. */
 export function browserSurfacePlan(argv) {
@@ -47,10 +52,7 @@ const softwareRenderer = (text) => {
   const match = String(text ?? "").match(/swiftshader|llvmpipe|lavapipe|software rasterizer/i);
   if (!match) return undefined;
   const token = match[0].toLowerCase();
-  if (token === "swiftshader") return "SwiftShader";
-  if (token === "llvmpipe") return "llvmpipe";
-  if (token === "lavapipe") return "lavapipe";
-  return "software rasterizer";
+  return SOFTWARE_RENDERERS.get(token) ?? "software rasterizer";
 };
 
 /**
