@@ -3,7 +3,7 @@ const FORBIDDEN = [
 	{
 		id: "private-repo",
 		// Word-bounded so `sp-graph` — the public one — cannot match.
-		pattern: /\bsp-(?:docs|planning|research)\b/gi,
+		pattern: /\bsp-(?:docs|planning|research|gitops)\b/gi,
 		why: "a private repository name. A reader outside cannot follow it, and naming it discloses that the document exists while giving them nothing actionable.",
 	},
 	{

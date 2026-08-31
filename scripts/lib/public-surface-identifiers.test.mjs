@@ -17,3 +17,17 @@ test("a suffixed planning phase identifier is forbidden on the public surface", 
 		],
 	);
 });
+
+test("every private SilkPlot repository name is forbidden on the public surface", () => {
+	const repositories = ["docs", "planning", "research", "gitops"].map((name) =>
+		["sp", name].join("-"),
+	);
+	for (const repository of repositories) {
+		assert.equal(
+			internalIdentifierFindings("fixture.md", `private repository: ${repository}`)
+				.length,
+			1,
+			repository,
+		);
+	}
+});
