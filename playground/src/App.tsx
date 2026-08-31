@@ -124,9 +124,10 @@ const InteractiveLineBody: Component<{ data: readonly TimePoint[] }> = (props) =
     y: { accessor: (d) => d.y, domain: "zero-floor" },
   });
 
-  // Delaunay is the wrong index for a monotonic series — a bisector answers the
-  // same question far cheaper — but the bisector does not exist yet. That the
-  // swap will touch nothing below is the point of the ADR's split.
+  // This low-level composition deliberately demonstrates the generic 2-D hit
+  // index. Production monotonic time-series surfaces use core's shipped
+  // `createTimeSeriesIndex` bisector instead. Either index can be exchanged at
+  // this seam without changing the interaction state or rendering below.
   const index = createMemo(() =>
     createHitIndex(props.data, {
       x: (d) => model.x()(d.t),

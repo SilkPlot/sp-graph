@@ -1,9 +1,11 @@
 /**
  * Agenda view — events and empty slots as real HTML, grouped by service day.
  *
- * This is the primary non-visual representation. `WeekGrid` remains the
- * secondary spatial view. Overlap is stated in text from start/end; this file
- * does not read `EventRect` geometry or call `resolveEventLanes`.
+ * This is the ordered, informational non-visual representation. It is not yet
+ * operationally equivalent to the secondary `WeekGrid`: booking, move, resize,
+ * and cancellation actions are not implemented. Overlap is stated in text
+ * from start/end; this file does not read `EventRect` geometry or call
+ * `resolveEventLanes`.
  */
 import { For, createMemo, createUniqueId, type Component } from "solid-js";
 import { Temporal } from "temporal-polyfill";

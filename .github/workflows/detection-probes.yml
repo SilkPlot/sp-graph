@@ -75,6 +75,7 @@ on:
       - "packages/*/src/**"
       # The harness itself, and the workflow that runs it.
       - "scripts/detection-probes.mjs"
+      - "scripts/lib/probe-snapshot*.mjs"
       - ".github/workflows/detection-probes.yml"
   workflow_dispatch:
 
@@ -121,15 +122,14 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # The script refuses to start if any file it mutates is already modified,
-      # restores every file from an in-memory backup in a `finally`, and verifies
-      # the restoration by SHA-256 before reporting anything.
+      # The script copies the exact current checkout and dependency tree into a
+      # disposable independent snapshot. Only that snapshot is mutated; each
+      # inner restore is still verified by SHA-256 before the next probe runs.
       - name: Run the detection probes
         run: npm run probe:detection
 
-      # Belt and braces. The script's own restoration check is the real guard;
-      # this is the one that would notice if the script itself were broken, and
-      # it costs nothing.
+      # Belt and braces. The snapshot boundary is the real guard; this notices
+      # if a future regression writes the shared checkout again.
       - name: Assert no mutated source survived the run
         if: always()
         run: |
@@ -138,4 +138,4 @@ jobs:
             git status --porcelain
             exit 1
           fi
-          echo "Working tree clean — every mutation was restored."
+          echo "Working tree clean — no probe mutation reached the checkout."

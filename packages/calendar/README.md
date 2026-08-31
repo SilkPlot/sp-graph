@@ -19,6 +19,19 @@ scrolling timeline. What exists today:
 | Density view | Binned, Canvas-rendered `CalendarHeatmap` with retained mark evidence |
 | Pure seams | Exported paint, geometry, visibility, and mark-query helpers covered without a browser where possible |
 
+## Accessibility status
+
+The source is not yet conformant with SilkPlot's normative calendar
+accessibility contract. `AgendaView` is ordered, grouped HTML and states overlap
+relationships, but it is currently informational: empty slots are text and the
+booking, move, resize, and cancellation operations needed for equivalence are
+not implemented. `WeekGrid` currently exposes one focus stop per event inside a
+`role="img"` SVG; it is not yet the required single-entry APG grid composite
+with arrow-key navigation.
+
+The package remains unpublished. No assistive technology has been tested
+against these calendar surfaces, and no WCAG conformance is claimed.
+
 Event placement is a deterministic interval-packing problem, not a physics
 problem: `d3-force` is never the answer here. One IANA display zone and explicit
 civil-time disambiguation govern the grid; Temporal stays at the calendar

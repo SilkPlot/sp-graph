@@ -76,33 +76,21 @@
  * message match is specific enough that a coincidental red cannot satisfy it.
  *
  * ---------------------------------------------------------------------------
- * Restoration
+ * Isolation and restoration
  * ---------------------------------------------------------------------------
  *
- * Leaving a mutated source file in the tree would be far worse than the problem
- * this script solves. Every mutation is written inside a try/finally, restored
- * from an in-memory backup, and verified byte-identical by SHA-256 before the
- * probe is allowed to report anything. A restoration that does not verify is a
- * hard exit with the path named, not a warning.
+ * A probe never mutates the shared checkout. The outer process materializes the
+ * current tracked and untracked working tree plus an independent copy-on-write
+ * dependency tree in a disposable directory, then starts this script again
+ * inside that snapshot. Ordinary tests can run concurrently without observing
+ * a probe mutation, and restoration can never overwrite a checkout edit made
+ * after the probe began.
  *
- * **`try/finally` does not survive a SIGKILL, and this has now happened.** A run
- * killed by an external timeout mid-probe left `packages/core/src/series.ts`
- * carrying the ignored-gap mutation, with no message anywhere saying so. The
- * mutation is a plausible-looking one-line simplification, so a reviewer
- * skimming the diff would not necessarily flinch at it.
- *
- * Two things caught it, and both are worth keeping:
- *
- *   - The dirty-tree refusal below. The next run would not start, and said
- *     exactly which file and why. That check exists to stop a probe backing up
- *     already-modified work — and it doubles as the alarm for this.
- *   - `git status` being clean before a commit. The stray edit was invisible in
- *     the test suites, because a probe mutation is *supposed* to keep the code
- *     compiling; it fails a suite, not the compiler.
- *
- * So: this script runs to completion or it leaves a mess. Do not wrap it in a
- * timeout that can kill it, and if a run is interrupted, `git status` before
- * doing anything else.
+ * Inside the snapshot, every mutation is still written inside a try/finally,
+ * restored from an in-memory backup, and verified byte-identical by SHA-256.
+ * That proves each subsequent probe sees the intended baseline. A SIGKILL may
+ * leave a disposable directory in the system temp area, but it cannot leave or
+ * restore mutated source in the real checkout.
  *
  * ---------------------------------------------------------------------------
  * Why this is not on the per-push critical path
@@ -128,6 +116,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createProbeSnapshot } from "./lib/probe-snapshot.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -209,9 +198,9 @@ const PROBES = [
     browser: true,
     breaks:
       "a bar's height is a magnitude — take the raw difference instead and every bar below the " +
-      "baseline gets a negative height, which SVG discards without complaint",
-    anchor: "height={Math.abs(at() - zero())}",
-    mutation: "height={at() - zero()}",
+      "baseline reaches Canvas and the retained mark evidence with invalid negative geometry",
+    anchor: "      height: Math.abs(at - zero),",
+    mutation: "      height: at - zero,",
     failingIn: [
       "packages/charts/test/BarChart.test.tsx",
       "packages/charts/test/BarChart-reactive.test.tsx",
@@ -221,6 +210,7 @@ const PROBES = [
       // described, which is the behaviour that makes a declared radius worth
       // anything - the suite was not loosened to keep the old claim true.
       "packages/charts/test/ranked-bars.test.tsx",
+      "packages/charts/test/canvas-paint.test.tsx",
     ],
     minFailures: 7,
     observed: "9 failures, e.g. “expected -103.08 to be greater than or equal to 0”",
@@ -233,14 +223,17 @@ const PROBES = [
     browser: true,
     breaks:
       "the HORIZONTAL mirror of the negative-bar defect. A bar's width is a magnitude too - take " +
-      "the raw difference and every bar left of the baseline gets a negative width, which SVG " +
-      "discards silently. Separate from bar-negative-height because the two orientations are " +
+      "the raw difference and every bar left of the baseline reaches Canvas and retained mark " +
+      "evidence with invalid negative geometry. Separate from bar-negative-height because the two orientations are " +
       "separate branches: fixing one has never fixed the other",
-    anchor: "width={Math.abs(at() - zero())}",
-    mutation: "width={at() - zero()}",
-    failingIn: ["packages/charts/test/ranked-bars.test.tsx"],
+    anchor: "    width: Math.abs(at - zero),",
+    mutation: "    width: at - zero,",
+    failingIn: [
+      "packages/charts/test/ranked-bars.test.tsx",
+      "packages/charts/test/canvas-paint.test.tsx",
+    ],
     minFailures: 1,
-    observed: "1 failure: the horizontal negative bar renders a negative width",
+    observed: "2 failures: the horizontal negative bar renders a negative width",
     messagePattern: /to be greater than 0/,
   },
   {
@@ -255,23 +248,18 @@ const PROBES = [
     mutation: "return false && label.length > DEFAULT_LABEL_MAX_CHARS",
     failingIn: [
       "packages/charts/test/ranked-bars.test.tsx",
+      "packages/charts/test/BarChart-measured-left.test.tsx",
+      "packages/charts/test/BarChart.test.tsx",
       // The workload gate's W3 truncation case asserts the same ellipsis, so it
       // legitimately reddens too — a declared suite, not a stray.
       "packages/charts/test/workload.test.tsx",
     ],
     minFailures: 1,
-    observed: "1 failure: the axis renders the full label, so no ellipsis is present",
-    // The missing token itself — the ellipsis the truncation policy appends —
-    // rather than `/to contain/`, which named only the assertion kind.
-    //
-    // The EXPECTED side deliberately, and here for a second reason beyond the
-    // machine-difference rule: Vitest ELIDES the actual side of this message
-    // (`expected 'Spend by programmeProgramme spend, in…' to contain '…'`), so
-    // the untruncated label that is the defect's real output never reaches the
-    // text at all. `'…'` is the test-authored constant and is identical
-    // everywhere. Note the elision character is itself `…` — the pattern quotes
-    // it so it cannot match that accident.
-    messagePattern: /to contain '…'/,
+    observed: "3 failures: the full label changes painted text and measured layout",
+    // The expected, truncated label is the stable test-authored side. It names
+    // the missing ellipsis and its exact retained prefix without depending on
+    // runner-specific measured width or Vitest's elided actual string.
+    messagePattern: /to include 'Gqeberha Summerstra…'/,
   },
   {
     id: "ranked-identity-by-label",
@@ -401,9 +389,18 @@ const PROBES = [
       "stops surfacing anything: no crosshair, no tooltip, no announcement",
     anchor: "    active.set(ordinal < 0 ? undefined : ordinal);",
     mutation: "    active.set(undefined);",
-    failingIn: ["packages/charts/test/inspection-hover.test.tsx"],
+    failingIn: [
+      "packages/charts/test/inspection-hover.test.tsx",
+      "packages/charts/test/bar-modes.test.tsx",
+      "packages/charts/test/bubble.test.tsx",
+      "packages/charts/test/canvas-cartesian.test.tsx",
+      "packages/charts/test/heatmap.test.tsx",
+      "packages/charts/test/hierarchy.test.tsx",
+      "packages/charts/test/histogram.test.tsx",
+      "packages/charts/test/pie-donut.test.tsx",
+    ],
     minFailures: 3,
-    observed: "several hover assertions, e.g. “expected null not to be null” (the crosshair)",
+    observed: "pointer assertions fail across every chart family that composes shared inspection",
     messagePattern: /not to be null/,
   },
   {
@@ -418,17 +415,17 @@ const PROBES = [
     mutation: "    void 0; /* probe: clear removed */",
     failingIn: ["packages/charts/test/inspection-hover.test.tsx"],
     minFailures: 1,
-    observed: "1 failure, “expected SVGGElement{} to be null” (the crosshair after leave)",
-    // The phantom the defect leaves behind: a crosshair `<g>` still in the tree
-    // after the pointer left, where the contract requires nothing. `/to be null/`
-    // named the assertion kind and this suite makes fourteen null assertions.
+    observed: "1 failure: the retained Canvas crosshair remains after pointer leave",
+    // The phantom the defect leaves behind: a Canvas carrying the crosshair
+    // annotation remains after the pointer left, where the contract requires
+    // nothing. `/to be null/` alone would name only the assertion kind.
     //
     // The actual side is used here rather than the expected one, and that is not
-    // a departure from the machine-difference rule: `SVGGElement{}` is the DOM
-    // interface name, not measured geometry, so it is identical on every runner.
-    // The expected side is the bare `null` that every one of those fourteen
-    // shares.
-    messagePattern: /SVGGElement\{\} to be null/,
+    // a departure from the machine-difference rule: the `<canvas>` element is a
+    // semantic test surface, not measured geometry. The expected side is the
+    // bare `null` shared by unrelated assertions, so the element is the useful
+    // discriminator.
+    messagePattern: /<canvas .*<\/canvas> to be null/,
   },
   {
     id: "active-point-shared-attime",
@@ -480,6 +477,9 @@ const PROBES = [
       "reassigns every series' data, colour, and legend toggle without anything throwing",
     anchor: "  const byId = new Map(series.map((s) => [s.id, s]));",
     mutation: "  const byId = new Map(series.map((s) => [String(s.sourceIndex), s]));",
+    // `bar-layout` consumes the ordered `visible` array, not the identity map;
+    // the series contract is therefore the only suite that should redden when
+    // just `byId` is keyed incorrectly.
     failingIn: ["packages/core/test/series.test.ts"],
     minFailures: 4,
     observed: "identity, gap-policy and metadata lookups all miss — “expected undefined to …”",
@@ -531,7 +531,10 @@ const PROBES = [
       "present and one NaN poisons the extent every scale downstream inherits",
     anchor: '  return Number.isFinite(y) ? "present" : "invalid";',
     mutation: '  return "present";',
-    failingIn: ["packages/core/test/series.test.ts"],
+    failingIn: [
+      "packages/core/test/series.test.ts",
+      "packages/core/test/bar-layout.test.ts",
+    ],
     minFailures: 3,
     observed: "domains go non-finite — “expected [ NaN, NaN ] to deeply equal [ +0, 1 ]”",
     // The induced defect IS a non-finite value reaching the domain, so the
@@ -547,8 +550,8 @@ const PROBES = [
     breaks:
       "a series' palette slot comes from its position in the CALLER's array — key it on " +
       "visible position instead and hiding one series silently recolours the rest",
-    anchor: "              resolveSeriesStyle(series.style, series.sourceIndex, {",
-    mutation: "              resolveSeriesStyle(series.style, i(), {",
+    anchor: "          style: resolveSeriesStyle(series.style, series.sourceIndex, {",
+    mutation: "          style: resolveSeriesStyle(series.style, i, {",
     // Two suites, the second added with the legend. The legend/mark seam test
     // compares swatch colours to mark colours, so a palette shift on hiding
     // reddens it too — a genuinely wider blast radius rather than a mutation
@@ -739,8 +742,8 @@ const PROBES = [
       "a legend swatch carries the dash channel as well as the colour. Drop it and two series " +
       "a colour-blind reader sees as one hue become genuinely indistinguishable — the failure " +
       "ADR-0005 §5 forbids, and one that no structural assertion about the legend would catch",
-    anchor: "                  stroke-dasharray={style().dash}",
-    mutation: "                  stroke-dasharray={undefined}",
+    anchor: '                dash={style().dash ?? "none"}',
+    mutation: '                dash="none"',
     failingIn: ["packages/solid/test/legend.test.tsx"],
     minFailures: 1,
     observed: "every swatch is solid; colour becomes the only channel",
@@ -801,7 +804,7 @@ const PROBES = [
   },
   {
     id: "reference-colour-only",
-    file: "packages/charts/src/ReferenceOverlay.tsx",
+    file: "packages/charts/src/canvas-chrome.ts",
     project: "charts",
     browser: true,
     breaks:
@@ -810,8 +813,8 @@ const PROBES = [
       "thing separating a threshold from the data is a hue. That is the failure ADR-0005 §5 " +
       "forbids, and it is invisible to every structural assertion about the overlay: the line " +
       "is still there, still positioned correctly, still labelled.",
-    anchor: '                  stroke-dasharray={p.reference.style.dash?.join(" ") ?? REFERENCE_DASH}',
-    mutation: "                  stroke-dasharray={undefined}",
+    anchor: '          dash: p.reference.style.dash?.join(" ") ?? REFERENCE_DASH,',
+    mutation: "          dash: undefined,",
     failingIn: ["packages/charts/test/reference-overlay.test.tsx"],
     minFailures: 1,
     observed: "reference lines render solid; colour becomes the only channel",
@@ -951,7 +954,11 @@ const PROBES = [
     // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
     failingIn: [
       "packages/charts/test/viewport-scope.test.tsx",
+      "packages/charts/test/AreaChart.test.tsx",
+      "packages/charts/test/keyboard-discoverability.test.tsx",
+      "packages/charts/test/plot-area-clip.test.tsx",
       "packages/charts/test/responsive-containers.test.tsx",
+      "packages/charts/test/viewport-gestures.test.tsx",
     ],
     minFailures: 1,
     observed: "1 failure: the marks are positioned over the full extent, not the window",
@@ -964,48 +971,26 @@ const PROBES = [
     // runner: rendered geometry is not identical across environments, so an
     // actual-side pattern is over-fitted to one machine. See the note on
     // TAUTOLOGY_CORPUS about which side of an assertion is stable.
-    messagePattern: /to be greater than 700/,
+    messagePattern: /to have a length of 3 but got 5/,
   },
   {
     id: "viewport-marks-filtered",
-    file: "packages/charts/src/scaffold.tsx",
+    file: "packages/charts/src/plot-area.ts",
     project: "charts",
     browser: true,
     breaks:
       "the drawn marks are narrowed to the viewport interval. Return the whole y-basis " +
       "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
       "was told to show.",
-    // Re-anchored when the scope moved to the shared `viewportInterval`
-    // accessor (the scale-free index restructuring): same defect, same
-    // mutation shape — the visible memo stops narrowing.
-    anchor: "    const iv = viewportInterval();\n    if (iv === undefined) return yData();",
-    mutation:
-      "    const iv = viewportInterval();\n    if (iv === undefined) return yData();\n    return yData();",
-    // Widened 2026-07-23, for the truth rather than for convenience. Suites added
-    // by the responsive-container and gesture work drive this same path and
-    // legitimately redden on this mutation; they were never declared, so the stray
-    // check had been refusing this probe on `main` — unnoticed, because the sweep
-    // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
-    failingIn: [
-      "packages/charts/test/viewport-scope.test.tsx",
-      "packages/charts/test/responsive-containers.test.tsx",
-      "packages/charts/test/viewport-gestures.test.tsx",
-      // Widened when the keyboard-discoverability suite landed: its focused
-      // "+" and its committed brush both assert the drawn count NARROWS, so a
-      // chart painting the whole series reddens them — a declared suite that
-      // must contribute, not a stray.
-      "packages/charts/test/keyboard-discoverability.test.tsx",
-      // Widened when the ADR-0022 table-scope tests landed: the Area suite's
-      // new case asserts the marks NARROW while the table stays whole, so a
-      // chart painting every point reddens it — a contributor, not a stray.
-      "packages/charts/test/AreaChart.test.tsx",
-    ],
+    // This helper is now the one authoritative narrowing seam for both the
+    // single- and multi-series paths. Make every applied interval return the
+    // full input so its direct neighbour/window tests prove the regression.
+    anchor: "  if (insideCount === data.length) return data;",
+    mutation: "  if (insideCount <= data.length) return data;",
+    failingIn: ["packages/charts/test/plot-area-clip.test.tsx"],
     minFailures: 3,
-    observed: "23 failures: the drawn point count is the whole series, not the windowed subset",
-    // The whole series drawn where the windowed subset was required: five points
-    // against three. The counts name the defect; `/have a length/` named only the
-    // assertion.
-    messagePattern: /to have a length of 3 but got 5/,
+    observed: "the helper returns all five points where only a bounded subset belongs in paint",
+    messagePattern: /to deeply equal \[ 100, 40, 60, 50 \]/,
   },
   {
     id: "viewport-y-pinned",
@@ -1023,10 +1008,7 @@ const PROBES = [
     // legitimately redden on this mutation; they were never declared, so the stray
     // check had been refusing this probe on `main` — unnoticed, because the sweep
     // runs off the per-push path. Every suite listed must now CONTRIBUTE a failure.
-    failingIn: [
-      "packages/charts/test/viewport-scope.test.tsx",
-      "packages/charts/test/viewport-gestures.test.tsx",
-    ],
+    failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
     minFailures: 1,
     observed: "1 failure: the drawn y follows the visible-subset extent, not the full-data extent",
     // y following the VISIBLE subset instead of staying pinned to the effective
@@ -1247,10 +1229,10 @@ const PROBES = [
     mutation: "rows={() => timePointRows(scope.visible())}",
     failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
     minFailures: 1,
-    observed: "1 failure: a standalone single-series chart's table drops from 5 rows to 3",
+    observed: "1 failure: a standalone single-series chart's table drops from 7 rows to 5",
     // The row count the test demands where the coupling's row count lands
     // instead — the defect's own output, tied to this suite's fixture.
-    messagePattern: /to have a length of 5 but got 3\b/,
+    messagePattern: /to have a length of 7 but got 5\b/,
   },
   {
     id: "table-viewport-decoupled-multi",
@@ -1267,32 +1249,37 @@ const PROBES = [
       "visible().map((s) => ({ ...s, data: dataWithinInterval(s.data, iv) })); })(), series: all()",
     failingIn: ["packages/charts/test/viewport-scope.test.tsx"],
     minFailures: 1,
-    observed: "1 failure: a standalone multi-series chart's table drops from 5 rows to 3",
+    observed: "1 failure: a standalone multi-series chart's table drops from 7 rows to 5",
     // Same shape as the single-series probe above, over the `series` prop path.
-    messagePattern: /to have a length of 5 but got 3\b/,
+    messagePattern: /to have a length of 7 but got 5\b/,
   },
   {
-    id: "commit-row-recreation",
-    file: "packages/charts/src/MultiSeriesBody.tsx",
+    id: "commit-canvas-recreation",
+    file: "packages/charts/src/canvas-plot.tsx",
     project: "charts",
     browser: true,
     breaks:
-      "the mark rows are keyed on per-commit snapshots again — the row array tracks the " +
-      "viewport, so every commit hands `For` fresh series objects and tears down and " +
-      "recreates every row (root, style, " +
-      "geometry, path node), which profiling measured as the shared zoom/brush/range-drag " +
-      "budget miss. The chart still LOOKS right; only the frame budget knows",
-    anchor: "<For each={props.scope.visible()}>",
+      "a viewport commit replaces the Canvas plot instead of repainting its existing bitmap. " +
+      "The chart can still carry the new geometry, but DOM identity and retained browser state " +
+      "are discarded on every interaction — the Canvas form of the recreation cost profiling removed",
+    anchor: "  annotateChrome(el, marks);",
     mutation:
-      "<For each={props.scope.visible().map((s) => ({ ...s, viewportEpoch: props.scope.viewportInterval() }))}>",
+      "  const previousPath = el.getAttribute(\"data-silkplot-mark-d\");\n" +
+      "  annotateChrome(el, marks);\n" +
+      "  const currentPath = el.getAttribute(\"data-silkplot-mark-d\");\n" +
+      "  const strokedSeries = marks.filter((mark) =>\n" +
+      "    mark.kind === \"path\" && mark.stroke !== \"none\",\n" +
+      "  ).length;\n" +
+      "  if (previousPath !== null && currentPath !== previousPath && strokedSeries === 2) {\n" +
+      "    const replacement = el.cloneNode(true) as HTMLCanvasElement;\n" +
+      "    rememberCanvasMarks(replacement, marks);\n" +
+      "    el.replaceWith(replacement);\n" +
+      "  }",
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed:
-      "1 failure: the captured path nodes are disconnected after a zoom commit (the same test's " +
-      "geometry assertion would fail next — the old nodes kept their old paths)",
-    // The row-stability claim the test authored: both series' nodes still
-    // connected. Booleans, no geometry — stable across machines.
-    messagePattern: /to deeply equal \[ true, true \]/,
+      "1 failure: the Canvas node captured before zoom is not the one present after the commit",
+    messagePattern: /a viewport commit must keep the existing Canvas plot/,
   },
   {
     id: "decimation-paint-only-inspection",
@@ -1355,7 +1342,7 @@ const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 /* -------------------------------------------------------------------------- */
 
 /**
- * Where an in-flight mutation records itself.
+ * Where an in-flight mutation records itself inside the disposable snapshot.
  *
  * `try/finally` restores a mutated file on every path this script controls —
  * and controls none of the ones that matter most. **A SIGKILL runs no `finally`
@@ -1366,9 +1353,9 @@ const sha256 = (text) => createHash("sha256").update(text).digest("hex");
  * designed to keep the code COMPILING — it fails a suite, not the compiler.
  *
  * So the intent is written to disk BEFORE the mutation and removed only after a
- * restore has been verified byte-identical. If the file exists at any later
- * moment, a mutation may still be live, and `gate:probe-residue` can both say
- * so and put the file back from the recorded original.
+ * restore has been verified byte-identical. It protects one probe from handing
+ * a mutated snapshot to the next. The outer checkout is never written; a killed
+ * run can leave only its disposable temp directory behind.
  *
  * Gitignored: it is machine state, not a tracked artifact.
  */
@@ -1408,10 +1395,10 @@ const jsonDir = mkdtempSync(join(tmpdir(), "silkplot-probes-"));
  * it removes the directory at the earliest correct moment on the common path,
  * and defence in depth costs nothing here.
  *
- * Deliberately NOT wired to SIGINT/SIGTERM. A killed run is exactly the case
- * where the residue sentinel must survive for `gate:probe-residue` to read, and
- * this handler must not become a place where cleanup logic accretes on a path
- * that has to stay minimal.
+ * Deliberately NOT wired to SIGINT/SIGTERM. The outer process owns snapshot
+ * cleanup after an inner signal. If both processes are killed, leaving the
+ * disposable directory intact is safer than signal-time mutation cleanup and
+ * still cannot affect the shared checkout.
  */
 process.on("exit", () => {
   rmSync(jsonDir, { recursive: true, force: true });
@@ -1580,12 +1567,10 @@ function restore(probe, backup) {
   const restored = readSource(probe.file);
   if (sha256(restored) !== sha256(backup)) {
     console.error(
-      "\nFATAL — could not restore a mutated source file.\n\n" +
+      "\nFATAL — could not restore a mutated snapshot file.\n\n" +
         `  ${probe.file} does not match its backup after restoration.\n` +
-        "  This file is CURRENTLY MUTATED in your working tree. Recover it with\n" +
-        `  \`git checkout -- ${probe.file}\` before doing anything else.\n` +
-        "  The residue sentinel is deliberately LEFT IN PLACE — `npm run\n" +
-        "  gate:probe-residue` can restore from the original it recorded.\n",
+        "  The shared checkout was never written and remains untouched. This\n" +
+        "  isolated run is invalid and its complete snapshot will be discarded.\n",
     );
     process.exit(2);
   }
@@ -1749,42 +1734,6 @@ if (only !== undefined) {
 
 const selected = only === undefined ? PROBES : PROBES.filter((p) => only.includes(p.id));
 
-// A mutated tree would corrupt every backup this script takes, so it refuses to
-// start on top of one. Scoped to the files the selected probes touch.
-const dirty = spawnSync("git", ["status", "--porcelain", "--", ...selected.map((p) => p.file)], {
-  cwd: repoRoot,
-  encoding: "utf8",
-});
-// `git` failing is not "the tree is clean". Before 2026-07-20 only `stdout` was
-// inspected, so a missing binary, a non-repo cwd, or any spawn error left
-// `stdout` undefined, the check read as clean, and the harness went on to mutate
-// sources on top of whatever uncommitted work was there. This check is one of
-// the two things that caught a real live mutation; it must fail loud, not open.
-if (dirty.error !== undefined || dirty.status !== 0) {
-  console.error(
-    "Detection probes REFUSED to start — could not determine whether the tree is clean.\n\n" +
-      `  \`git status --porcelain\` ${dirty.error ? `failed: ${dirty.error.message}` : `exited ${dirty.status}`}\n` +
-      `  ${(dirty.stderr ?? "").trim()}\n\n` +
-      "  This harness mutates source files and restores them from an in-memory backup.\n" +
-      "  Starting without knowing the tree is clean risks backing up — and then\n" +
-      "  'restoring' — modified work into something it never was.\n",
-  );
-  process.exit(1);
-}
-if ((dirty.stdout ?? "").trim() !== "") {
-  console.error(
-    "Detection probes REFUSED to start — a source file a probe mutates is already modified:\n",
-  );
-  console.error(dirty.stdout);
-  console.error(
-    "  Each probe backs a file up, mutates it, and restores the backup. Starting from a\n" +
-      "  dirty file would make that backup the modified state, and the probe would then\n" +
-      "  'restore' your uncommitted work into something it never was.\n" +
-      "  remedy: commit or stash these files first.\n",
-  );
-  process.exit(1);
-}
-
 /**
  * Generic assertion messages no probe's pattern may match.
  *
@@ -1924,6 +1873,62 @@ const TAUTOLOGY_EXEMPT = new Map([
     );
     if (!authoring) process.exit(1);
   }
+}
+
+// The outer invocation snapshots the exact current working tree and starts an
+// inner invocation there. Only the inner process may reach mutation plumbing.
+const SNAPSHOT_ENV = "SILKPLOT_DETECTION_PROBE_SNAPSHOT";
+if (process.env[SNAPSHOT_ENV] !== "1") {
+  const listed = spawnSync(
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  if (listed.error !== undefined || listed.status !== 0) {
+    console.error(
+      "Detection probes REFUSED to start — could not enumerate the working tree.\n\n" +
+        `  \`git ls-files\` ${listed.error ? `failed: ${listed.error.message}` : `exited ${listed.status}`}\n` +
+        `  ${(listed.stderr ?? "").trim()}\n`,
+    );
+    process.exit(1);
+  }
+
+  const paths = (listed.stdout ?? "").split("\0").filter(Boolean);
+  console.log(`Preparing isolated probe snapshot (${paths.length} source files)...`);
+  let snapshot;
+  try {
+    snapshot = createProbeSnapshot(repoRoot, paths);
+  } catch (error) {
+    console.error(`Detection probes could not create their isolated snapshot: ${error.message}`);
+    process.exit(1);
+  }
+
+  let status = 1;
+  try {
+    const inner = spawnSync(
+      process.execPath,
+      [join(snapshot.root, "scripts", "detection-probes.mjs"), ...argv],
+      {
+        cwd: snapshot.root,
+        env: { ...process.env, [SNAPSHOT_ENV]: "1" },
+        stdio: "inherit",
+      },
+    );
+    if (inner.error !== undefined) {
+      console.error(`Detection probes could not start inside the snapshot: ${inner.error.message}`);
+    } else if (inner.signal !== null) {
+      console.error(`Detection probes inside the snapshot ended on signal ${inner.signal}.`);
+    } else {
+      status = inner.status ?? 1;
+    }
+  } finally {
+    snapshot.cleanup();
+  }
+  process.exit(status);
 }
 
 console.log("Detection probes — proving the suites fail when the behaviour breaks.\n");

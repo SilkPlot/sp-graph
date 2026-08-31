@@ -1,5 +1,5 @@
 /**
- * Week host — the named "Agenda view" control plus the secondary spatial grid.
+ * Week host — the informational "Agenda view" plus the spatial grid.
  *
  * Agenda items are real HTML. `WeekGrid` stays the SVG week; this file does
  * not draw a second one. Geometry for the grid is still consumed (`rects`),
@@ -27,8 +27,9 @@ export interface CalendarWeekProps {
 }
 
 /**
- * Adjacent "Agenda view" / "Week view" controls. The agenda is HTML
- * (`AgendaView`); the week is the existing `WeekGrid` SVG.
+ * Adjacent "Agenda view" / "Week view" controls. The agenda is informational
+ * HTML (`AgendaView`), not yet an operationally equivalent surface; the week is
+ * the existing `WeekGrid` SVG.
  */
 export const CalendarWeek: Component<CalendarWeekProps> = (props) => {
   const [view, setView] = createSignal<"week" | "agenda">("week");

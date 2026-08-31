@@ -1059,7 +1059,10 @@ describe("viewport commits update the Canvas plot in place", () => {
 
     commands?.zoomIn();
 
-    expect(plotCanvases(container)[0]).toBe(canvas);
+    expect(
+      plotCanvases(container)[0] === canvas,
+      "a viewport commit must keep the existing Canvas plot",
+    ).toBe(true);
     expect(canvas?.isConnected).toBe(true);
     expect(markPaths(container)).toHaveLength(2);
     markPaths(container).forEach((p, i) => {
