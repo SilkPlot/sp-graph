@@ -17,6 +17,13 @@
  * event handling into a number that is supposed to be about a chart.
  */
 import type { SeriesDatum, ViewportCause } from "@silkplot/core";
+import {
+  canonicalJson,
+  compositionPublication,
+  tableModeFromQuery,
+  type CompositionIdentity,
+  type TableMode,
+} from "./composition-revision";
 import type { DecimationError } from "./decimate";
 import { invariants, type InvariantReading } from "./instrument";
 import type { ActiveReading } from "./perf-types";
@@ -28,6 +35,14 @@ export interface PerfApi {
 	serverToken: string;
   /** Which workload this page loaded. The driver asserts it got what it asked for. */
   workload: string;
+  /** Public-safe composition identity. Timing verdicts are ineligible without it. */
+  compositionRevision: string;
+  /** Digest of the canonical composition manifest published with this page. */
+  compositionDigest: string;
+  /** Machine-readable composition manifest for this revision. */
+  compositionManifest: unknown;
+  /** Derived table is the default surface; none is attribution-only. */
+  tableMode: TableMode;
   /** Points actually rendered, summed across visible series. Recorded beside every number. */
   points: number;
   /** Rows the accessible data table put in the DOM. Part of the cost, so part of the record. */
@@ -88,8 +103,20 @@ export type DecimationChoice = "raw" | "min-max" | "every-nth" | "m4" | "lttb";
 /** What a workload supplies. The derived members are filled in by `publish`. */
 export type PerfPageApi = Omit<
 	PerfApi,
-	"serverToken" | "tableRows" | "invariants" | "lastActive" | "counts"
->;
+	| "serverToken"
+	| "tableRows"
+	| "invariants"
+	| "lastActive"
+	| "counts"
+	| "compositionRevision"
+	| "compositionDigest"
+	| "compositionManifest"
+	| "tableMode"
+> & {
+	tableMode?: TableMode;
+	/** Omit for the current revision. Historical mounts publish the v1 identity. */
+	compositionIdentity?: CompositionIdentity;
+};
 
 declare global {
   interface ImportMetaEnv {
@@ -183,8 +210,12 @@ export const countTableRows = (): number =>
 export function publish(api: PerfPageApi): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      const revision = compositionPublication(api.compositionIdentity);
+      const tableMode = api.tableMode ?? tableModeFromQuery(location.search);
       window.__perf = {
         ...api,
+        ...revision,
+        tableMode,
 		serverToken: import.meta.env.VITE_PERF_SERVER_TOKEN ?? "",
         // Counted at publication rather than declared by the workload: the rows
         // are the library's output, and a hand-written count would be a claim
@@ -198,7 +229,18 @@ export function publish(api: PerfPageApi): void {
         lastActive: readActive,
         counts: readCounts,
       };
-      document.documentElement.setAttribute("data-perf-ready", "");
+      const root = document.documentElement;
+      root.setAttribute("data-perf-ready", "");
+      root.setAttribute("data-perf-composition-revision", revision.compositionRevision);
+      root.setAttribute("data-perf-composition-digest", revision.compositionDigest);
+      let manifest = document.querySelector("[data-perf-composition-manifest]");
+      if (!manifest) {
+        manifest = document.createElement("script");
+        manifest.setAttribute("type", "application/json");
+        manifest.setAttribute("data-perf-composition-manifest", "");
+        document.head.appendChild(manifest);
+      }
+      manifest.textContent = canonicalJson(revision.compositionManifest);
     });
   });
 }

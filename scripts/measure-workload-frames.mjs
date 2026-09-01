@@ -77,6 +77,19 @@ import {
   sweep,
 	withFreshInteractionSurface,
 } from "./lib/perf.mjs";
+import {
+  COMPOSITION_DIGEST,
+  COMPOSITION_MANIFEST,
+  CURRENT_COMPOSITION_IDENTITY,
+  DEFAULT_SURFACE_FAILURE,
+  REVISION_FAILURE,
+  evaluateHostArtifact,
+  evaluatePageRevision,
+  resultTableMode,
+  tableModeFromQuery,
+  tableModeRole,
+  timingVerdictsEligibleForResult,
+} from "../test/perf/app/composition-revision.ts";
 import { KEY_REPEAT_GAP_MS, PREPARE, forDuration, gesturesFor, holding } from "./lib/gestures.mjs";
 
 const URL_BASE = arg(process.argv, "url", "http://127.0.0.1:5175");
@@ -108,7 +121,10 @@ const REQUESTED = arg(process.argv, "workload", "w-a,w-b,w-c,w-d")
  * chart's result.
  *
  * The flag exists so an operator can halve a long run when they already know
- * which half they need — not so `both` can be skipped by default.
+ * which half they need — not so `both` can be skipped by default. A `none`-only
+ * or `derived`-only run is a partial exercise of this revision: timing verdicts
+ * stay ineligible until every required cell has been run. `table=none` never
+ * satisfies the default-surface acceptance line on its own.
  */
 const TABLE_MODES = (() => {
   const choice = arg(process.argv, "table", "both");
@@ -340,6 +356,10 @@ async function openWorkloadPage(
             surface: api.surface,
             range: api.range,
             serverToken: api.serverToken,
+            compositionRevision: api.compositionRevision,
+            compositionDigest: api.compositionDigest,
+            compositionManifest: api.compositionManifest,
+            tableMode: api.tableMode,
 					paintDecimation: api.paintDecimation
 						? {
 								budget: api.paintDecimation.budget,
@@ -356,6 +376,19 @@ async function openWorkloadPage(
         `${workload}: the page loaded '${meta.workload}' instead — refusing to record it under the wrong heading`,
       );
     }
+    const tableMode = meta.tableMode ?? tableModeFromQuery(query);
+    if (tableModeRole(workload, tableMode) === undefined) {
+      throw new Error(REVISION_FAILURE.unknown);
+    }
+    const revision = evaluatePageRevision({
+      identity: meta.compositionRevision,
+      digest: meta.compositionDigest,
+      manifest: meta.compositionManifest,
+    });
+    if (!revision.ok) {
+      throw new Error(revision.message);
+    }
+    meta.tableMode = tableMode;
 
     // The deck workload starts hidden. Every page—including each isolated pass
     // page—must reveal it before resolving the interaction surface.
@@ -384,7 +417,16 @@ async function openWorkloadPage(
 }
 
 function assertSameWorkloadMetadata(expected, actual) {
-  for (const key of ["workload", "points", "tableRows", "surface", "range"]) {
+  for (const key of [
+    "workload",
+    "points",
+    "tableRows",
+    "surface",
+    "range",
+    "compositionRevision",
+    "compositionDigest",
+    "tableMode",
+  ]) {
     if (actual[key] !== expected[key]) {
       throw new Error(
         `fresh interaction page changed ${key}: expected '${expected[key]}', received '${actual[key]}'`,
@@ -397,16 +439,32 @@ function assertSameWorkloadMetadata(expected, actual) {
 	) {
 		throw new Error("fresh interaction page changed paint-decimation evidence");
 	}
+	if (
+		JSON.stringify(actual.compositionManifest) !==
+		JSON.stringify(expected.compositionManifest)
+	) {
+		throw new Error("fresh interaction page changed composition manifest");
+	}
 }
 
 function emptyWorkloadResult(workload, query, meta, errors) {
+	const tableMode = meta.tableMode ?? resultTableMode({ query });
 	return {
 		workload,
 		query,
+		tableMode,
 		url: `${URL_BASE}/?workload=${workload}${query}`,
 		points: meta.points,
 		tableRows: meta.tableRows,
 		paintDecimation: meta.paintDecimation,
+		compositionIdentity: meta.compositionRevision,
+		compositionDigest: meta.compositionDigest,
+		compositionManifest: meta.compositionManifest,
+		compositionRevision: {
+			identity: meta.compositionRevision,
+			digest: meta.compositionDigest,
+			manifest: meta.compositionManifest,
+		},
 		passes: {},
 		settles: {},
 		heap: undefined,
@@ -417,6 +475,7 @@ function emptyWorkloadResult(workload, query, meta, errors) {
 		inspectionTarget: null,
 		decimation: undefined,
 		pageErrors: errors,
+		timingVerdictsEligible: false,
 	};
 }
 
@@ -743,8 +802,13 @@ if (!browserSurface.surfaceEligible) {
 
 const artifactMetadata = {
   recordedBy: "scripts/measure-workload-frames.mjs",
-  schemaVersion: 4,
+  schemaVersion: 5,
 	interactionIsolation: "fresh-page-per-pass",
+  compositionRevision: {
+    identity: CURRENT_COMPOSITION_IDENTITY,
+    digest: COMPOSITION_DIGEST,
+    manifest: COMPOSITION_MANIFEST,
+  },
   // Deliberately NOT a hardware description. This script cannot know what
   // machine it is on; the host runner supplies the measured host record.
   hardware: "UNRECORDED — fill in from the protocol's frozen parameter table",
@@ -818,6 +882,21 @@ console.log(
   `\n${conditionsLine(RATE, URL_BASE, ` · browser: ${browserSurface.requestedMode}/${browserSurface.classification}`)}`,
 );
 
+const hostRevision = evaluateHostArtifact({ ...artifactMetadata, results }, PROTOCOL_PASSES);
+for (const r of results) {
+  r.timingVerdictsEligible = timingVerdictsEligibleForResult(
+    hostRevision.ok,
+    r.workload,
+    r.tableMode,
+  );
+}
+
+if (!hostRevision.ok) {
+  console.error(`\ncomposition revision: ${hostRevision.message}`);
+} else {
+  console.log("\ncomposition revision: eligible");
+}
+
 let aborted = false;
 let missed = 0;
 let nonDiscriminating = 0;
@@ -879,11 +958,14 @@ for (const r of results) {
   }
   if (r.pageErrors.length) console.log("page errors:", r.pageErrors);
 
-	// Every completed workload carries its named verdicts even when a control
-	// subsequently aborts scoring. The abort is the outcome; omission would make
-	// the artifact structurally indistinguishable from a truncated harness run.
-	const verdicts = judge(r);
-	r.verdicts = verdicts;
+  // Eligible derived runs keep named verdicts even when a later control abort
+  // refuses to score them. An empty `verdicts` array would look like a truncated
+  // harness run. table=none and an ineligible host never receive timing verdicts.
+  if (hostRevision.ok && r.timingVerdictsEligible) {
+    r.verdicts = judge(r);
+  } else {
+    r.verdicts = [];
+  }
 
   /* --- self-checks decide whether the numbers above count --- */
   if (!r.selfCheck.controlDegraded) {
@@ -902,7 +984,13 @@ for (const r of results) {
     console.log(`\n${label} MUTATION PROOF PASS (${r.selfCheck.mutationProof.mode})`);
   }
 
-  for (const v of verdicts) {
+  if (!hostRevision.ok) continue;
+  if (!r.timingVerdictsEligible) {
+    console.log(`  ${DEFAULT_SURFACE_FAILURE}`);
+    continue;
+  }
+
+  for (const v of r.verdicts) {
     console.log(`  ${v.pass ? "PASS" : "MISS"}  ${v.criterion.padEnd(52)} ${v.detail}`);
     if (!v.pass) missed++;
   }
@@ -928,6 +1016,7 @@ console.log(
 );
 
 if (aborted) process.exit(2);
+if (!hostRevision.ok) process.exit(1);
 // A non-discriminating workload is NOT a pass. Reporting it as one is the exact
 // mistake the hover harness made for a year.
 process.exit(missed > 0 || nonDiscriminating > 0 ? 1 : 0);

@@ -19,11 +19,18 @@
  * two to go after — and they have completely different recoveries.
  */
 import { LineChart } from "@silkplot/charts";
-import { timeScale, type Series, type SeriesDatum } from "@silkplot/core";
+import {
+  timeScale,
+  type ActivePoint,
+  type Series,
+  type SeriesDatum,
+} from "@silkplot/core";
+import { Legend } from "@silkplot/solid";
 import { createSignal, onMount, type Component } from "solid-js";
 import {
   W4_SPIKE_INDICES,
   w4Seconds,
+  type W4SampleMetadata,
 } from "../../../packages/charts/test/workload-fixtures";
 import {
   decimateSeries,
@@ -42,8 +49,62 @@ import { isTableSuppressed, tableProp } from "./table-mode";
 import { WD_TARGET_POINTS, countPoints } from "./workloads";
 import type { DecimationChoice } from "./state";
 
-const RAW: Series[] = w4Seconds();
-const RAW_DATA: readonly SeriesDatum[] = RAW[0]?.data ?? [];
+const RAW: Series<W4SampleMetadata>[] = w4Seconds();
+const RAW_DATA: readonly SeriesDatum<W4SampleMetadata>[] = RAW[0]?.data ?? [];
+const ALL_IDS = RAW.map((entry) => entry.id);
+const TIME_ZONE = "Africa/Johannesburg";
+
+const localTime = new Intl.DateTimeFormat("en-ZA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const temperature = new Intl.NumberFormat("en-ZA", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+const formatLocalTime = (instant: Date): string => localTime.format(instant);
+const formatTemperature = (value: number): string => `${temperature.format(value)} °C`;
+
+// Explicit identity formatters keep the complete table on source instants and
+// numeric source cells while the visual inspection surfaces use zoned/unit
+// wording owned by this caller.
+const formatSourceTime = (instant: Date): string => instant.toISOString();
+const formatSourceValue = (value: number): number => value;
+
+const WorkloadDTooltip: Component<{
+  active: ActivePoint<SeriesDatum<W4SampleMetadata>>;
+}> = (props) => (
+  <div
+    data-perf-tooltip-content=""
+    style={{
+      padding: "6px 8px",
+      background: "var(--sp-color-surface, #ffffff)",
+      color: "var(--sp-color-text, #000000)",
+      border: "1px solid var(--sp-color-grid, #e4e7ec)",
+      "border-radius": "var(--sp-radius-md, 4px)",
+      "box-shadow": "0 2px 8px rgb(0 0 0 / 16%)",
+      "font-size": "11px",
+      "white-space": "nowrap",
+    }}
+  >
+    <div>{formatLocalTime(props.active.datum.t)}</div>
+    <div>
+      {props.active.datum.y === null
+        ? "No reading"
+        : formatTemperature(props.active.datum.y)}
+    </div>
+    <div>Sample {props.active.datum.meta?.sampleId ?? "unavailable"}</div>
+    <div>Quality {props.active.datum.meta?.quality ?? "unavailable"}</div>
+  </div>
+);
 
 const CANDIDATES: Record<Exclude<DecimationChoice, "raw">, Candidate> = {
   "min-max": minMaxBuckets,
@@ -56,7 +117,10 @@ const CANDIDATE_DATA = Object.fromEntries(
     name,
     candidate(RAW_DATA, WD_TARGET_POINTS),
   ]),
-) as Record<Exclude<DecimationChoice, "raw">, SeriesDatum[]>;
+) as Record<
+  Exclude<DecimationChoice, "raw">,
+  SeriesDatum<W4SampleMetadata>[]
+>;
 
 function inspectionTarget(fraction: number) {
   const first = RAW_DATA[0];
@@ -91,7 +155,8 @@ const REPORT: readonly DecimationError[] = (
   );
 
 export const WorkloadD: Component = () => {
-  const [series, setSeries] = createSignal<Series[]>(RAW);
+  const [series, setSeries] = createSignal<Series<W4SampleMetadata>[]>(RAW);
+  const [visibleSeries, setVisibleSeries] = createSignal<readonly string[]>(ALL_IDS);
   let host: HTMLDivElement | undefined;
 
   onMount(() => {
@@ -110,11 +175,11 @@ export const WorkloadD: Component = () => {
           setSeries(
             choice === "raw"
               ? RAW
-              : decimateSeries(
+              : (decimateSeries(
                   RAW,
                   () => CANDIDATE_DATA[choice],
                   WD_TARGET_POINTS,
-                ),
+                ) as Series<W4SampleMetadata>[]),
           );
         }),
       inspectionExpected: (choice, fraction) =>
@@ -146,6 +211,7 @@ export const WorkloadD: Component = () => {
     >
       <LineChart
         series={series()}
+        visibleSeries={visibleSeries()}
         height={420}
         wheelZoom
         // The ADR-0023 disposition, mounted: explicit min/max decimation at
@@ -159,10 +225,20 @@ export const WorkloadD: Component = () => {
         decimation={WD_TARGET_POINTS}
         onVisibleDomainChange={(_domain, cause) => noteViewport(cause)}
         onActivePointChange={(point) => noteActive(point)}
+        tooltip={(active) => <WorkloadDTooltip active={active} />}
         table={tableProp()}
         title="W-D — one day at one-second resolution"
         summary="Eighty-six thousand four hundred one-second readings across a single day, with a diurnal swell, a fast oscillation, and eight isolated excursions."
-        xTickFormat={(t) => t.toISOString().slice(11, 19)}
+        xTickFormat={formatLocalTime}
+        yTickFormat={formatTemperature}
+        tableTimeFormat={formatSourceTime}
+        tableValueFormat={formatSourceValue}
+      />
+      <Legend
+        series={series()}
+        visibleSeries={visibleSeries()}
+        onVisibilityChange={setVisibleSeries}
+        label="W-D source series"
       />
     </div>
   );

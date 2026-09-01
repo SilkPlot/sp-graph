@@ -38,11 +38,13 @@
  *
  * Neither figure is "the" number. The default is what consumers ship; the
  * suppressed one is an instrument reading. Quote them together or not at all.
+ * `table=none` cannot satisfy the default-surface acceptance line on its own.
  */
 import type { ChartDataTable } from "@silkplot/solid";
+import { tableModeFromQuery } from "./composition-revision";
 
 export const isTableSuppressed = (): boolean =>
-  new URLSearchParams(location.search).get("table") === "none";
+  tableModeFromQuery(location.search) === "none";
 
 /**
  * The `table` prop for this page load.

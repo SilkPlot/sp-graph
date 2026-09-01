@@ -2,10 +2,11 @@
  * W-A — four series x 5,000 points. The dense single-family case.
  *
  * Everything the protocol asks of this workload is reachable from one mounted
- * chart: hover and shared-time inspection through the pointer, zoom through
- * `Ctrl`+wheel, pan through the keyboard, a brush through a drag, the range
- * control through its thumbs, reset through the command API, and a complete
- * 20,000-value replacement through the signal.
+ * chart: hover and a caller-owned shared-time tooltip through the pointer,
+ * controlled series visibility through the legend, zoom through `Ctrl`+wheel,
+ * pan through the keyboard, a brush through a drag, the range control through
+ * its thumbs, reset through the command API, and a complete 20,000-value
+ * replacement through the signal.
  *
  * It is CONTROLLED (`visibleDomain` is our signal) rather than uncontrolled,
  * because the range control has to read the same visible domain the chart does.
@@ -14,25 +15,151 @@
  * measuring.
  */
 import { LineChart } from "@silkplot/charts";
-import type { Series, TimeInterval, ViewportCause } from "@silkplot/core";
-import { RangeControl, type ViewportCommands } from "@silkplot/solid";
-import { createSignal, onMount, type Component } from "solid-js";
+import type {
+  ActivePoint,
+  Series,
+  SeriesDatum,
+  TimeInterval,
+  ViewportCause,
+} from "@silkplot/core";
+import { Legend, RangeControl, type ViewportCommands } from "@silkplot/solid";
+import { createSignal, For, onMount, type Component } from "solid-js";
 import {
   w2History,
   w2Replacement,
+  type W2SampleMetadata,
 } from "../../../packages/charts/test/workload-fixtures";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
 import { noteActive, noteViewport, publish } from "./state";
 import { isTableSuppressed, tableProp } from "./table-mode";
 import { WA_POINTS, WA_SERIES, countPoints, seriesExtent } from "./workloads";
 
-const BASE: Series[] = w2History(WA_SERIES, WA_POINTS);
-const REPLACEMENT: Series[] = w2Replacement(WA_SERIES, WA_POINTS);
+const BASE: Series<W2SampleMetadata>[] = w2History(WA_SERIES, WA_POINTS);
+const REPLACEMENT: Series<W2SampleMetadata>[] = w2Replacement(WA_SERIES, WA_POINTS);
 const FULL: TimeInterval = seriesExtent(BASE);
 const DAY = 86_400_000;
+const ALL_IDS = BASE.map((entry) => entry.id);
+const TIME_ZONE = "Africa/Johannesburg";
+
+const axisTime = new Intl.DateTimeFormat("en-ZA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+});
+
+const tooltipTime = new Intl.DateTimeFormat("en-ZA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const temperature = new Intl.NumberFormat("en-ZA", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+const formatAxisTime = (instant: Date): string => axisTime.format(instant);
+const formatTooltipTime = (instant: Date): string => tooltipTime.format(instant);
+const formatTemperature = (value: number): string => `${temperature.format(value)} °C`;
+
+// These explicit table formatters preserve source-value cells. The table is an
+// inspectable/exportable data surface, not a second display axis: dates remain
+// unambiguous instants and numbers remain numbers rather than unit-suffixed text.
+const formatSourceTime = (instant: Date): string => instant.toISOString();
+const formatSourceValue = (value: number): number => value;
+
+interface TooltipReading {
+  id: string;
+  label: string;
+  datum: SeriesDatum<W2SampleMetadata> | undefined;
+}
+
+const readingsAtActiveTime = (
+  active: ActivePoint<SeriesDatum<W2SampleMetadata>>,
+  current: readonly Series<W2SampleMetadata>[],
+  visibleIds: readonly string[],
+): readonly TooltipReading[] => {
+  const shared = new Map<string, SeriesDatum<W2SampleMetadata>>();
+  for (const entry of active.atTime ?? []) shared.set(entry.seriesId, entry.datum);
+  const time = active.datum.t.getTime();
+
+  return visibleIds.map((id) => {
+    const entry = current.find((candidate) => candidate.id === id);
+    const sourceDatum = entry?.data[active.sourceIndex];
+    return {
+      id,
+      label: entry?.label ?? id,
+      // `atTime` is the chart's actual shared-cursor record. A declared gap is
+      // absent from that present-point record. This frozen fixture aligns every
+      // series by source index, so read that one source slot only for the gap —
+      // never a 5,000-point search on an inspection event — and render it
+      // honestly as "No reading" rather than dropping a series.
+      datum:
+        shared.get(id) ??
+        (sourceDatum?.t.getTime() === time ? sourceDatum : undefined),
+    };
+  });
+};
+
+const WorkloadATooltip: Component<{
+  active: ActivePoint<SeriesDatum<W2SampleMetadata>>;
+  series: readonly Series<W2SampleMetadata>[];
+  visibleIds: readonly string[];
+}> = (props) => {
+  const metadata = () => props.active.datum.meta;
+  const readings = () => readingsAtActiveTime(props.active, props.series, props.visibleIds);
+
+  return (
+    <div
+      data-perf-tooltip-content=""
+      style={{
+        padding: "6px 8px",
+        background: "var(--sp-color-surface, #ffffff)",
+        color: "var(--sp-color-text, #000000)",
+        border: "1px solid var(--sp-color-grid, #e4e7ec)",
+        "border-radius": "var(--sp-radius-md, 4px)",
+        "box-shadow": "0 2px 8px rgb(0 0 0 / 16%)",
+        "font-size": "12px",
+        "white-space": "nowrap",
+      }}
+    >
+      <div>{formatTooltipTime(props.active.datum.t)}</div>
+      <div>Sample {metadata()?.sampleId ?? "unavailable"}</div>
+      <div>Quality {metadata()?.quality ?? "unavailable"}</div>
+      <dl
+        style={{
+          margin: "4px 0 0",
+          display: "grid",
+          "grid-template-columns": "auto auto",
+          gap: "2px 8px",
+        }}
+      >
+        <For each={readings()}>
+          {(reading) => (
+            <div data-perf-tooltip-series={reading.id} style={{ display: "contents" }}>
+              <dt>{reading.label}</dt>
+              <dd style={{ margin: 0, "text-align": "right" }}>
+                {reading.datum?.y === null || reading.datum?.y === undefined
+                  ? "No reading"
+                  : formatTemperature(reading.datum.y)}
+              </dd>
+            </div>
+          )}
+        </For>
+      </dl>
+    </div>
+  );
+};
 
 export const WorkloadA: Component = () => {
-  const [series, setSeries] = createSignal<Series[]>(BASE);
+  const [series, setSeries] = createSignal<Series<W2SampleMetadata>[]>(BASE);
+  const [visibleSeries, setVisibleSeries] = createSignal<readonly string[]>(ALL_IDS);
   const [visible, setVisible] = createSignal<TimeInterval>(FULL);
   let commands: ViewportCommands | undefined;
   let host: HTMLDivElement | undefined;
@@ -73,6 +200,7 @@ export const WorkloadA: Component = () => {
     >
       <LineChart
         series={series()}
+        visibleSeries={visibleSeries()}
         height={420}
         wheelZoom
         pinchZoom
@@ -97,10 +225,26 @@ export const WorkloadA: Component = () => {
           commands = c;
         }}
         onActivePointChange={(point) => noteActive(point)}
+        tooltip={(active) => (
+          <WorkloadATooltip
+            active={active}
+            series={series()}
+            visibleIds={visibleSeries()}
+          />
+        )}
         table={tableProp()}
         title="W-A — four probes at five thousand points"
         summary="Four same-unit probe series of five thousand daily readings each, navigable by pointer, wheel, and keyboard."
-        xTickFormat={(t) => t.toISOString().slice(0, 10)}
+        xTickFormat={formatAxisTime}
+        yTickFormat={formatTemperature}
+        tableTimeFormat={formatSourceTime}
+        tableValueFormat={formatSourceValue}
+      />
+      <Legend
+        series={series()}
+        visibleSeries={visibleSeries()}
+        onVisibilityChange={setVisibleSeries}
+        label="W-A probes"
       />
       <div data-perf-range="" style={{ "margin-top": "8px" }}>
         <RangeControl
@@ -110,7 +254,7 @@ export const WorkloadA: Component = () => {
           minSpan={30 * DAY}
           width={1000}
           label="W-A visible range"
-          valueText={(ms) => new Date(ms).toISOString().slice(0, 10)}
+          valueText={(ms) => formatAxisTime(new Date(ms))}
         />
       </div>
     </div>

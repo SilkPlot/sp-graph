@@ -19,6 +19,10 @@ are not public API guidance, CI visual-regression baselines, or current planning
 - [Canvas week paint budget](calendar-canvas-budget.md)
 - [Hierarchy force-directed frame budget](hierarchy-force-budget.md)
 - [Plot-area clip capability boundary](plot-area-clip.md)
+- [W-A representative-composition red result](workload-a-conformance-v1-red.md)
+- [W-B representative-composition red result](workload-b-conformance-v1-red.md)
+- [W-C representative-composition red result](workload-c-conformance-v1-red.md)
+- [W-D representative-composition red result](workload-d-conformance-v1-red.md)
 
 ## Historical site review captures
 
