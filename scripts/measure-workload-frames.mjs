@@ -530,11 +530,13 @@ async function runWorkload(browser, workload, query = "") {
   /* --- inspected-value read: what a reader lands on --- */
   const frozenInspectionTarget = await inspectionTarget(page, box);
   result.inspectionTarget = frozenInspectionTarget.evidence;
-  result.inspectionExpected.raw =
-    (await page.evaluate(
-      (fraction) => window.__perf?.inspectionExpected?.("raw", fraction),
-      frozenInspectionTarget.evidence.fraction,
-    )) ?? null;
+  if (workload === "w-d") {
+    result.inspectionExpected.raw =
+      (await page.evaluate(
+        (fraction) => window.__perf?.inspectionExpected?.("raw", fraction),
+        frozenInspectionTarget.evidence.fraction,
+      )) ?? null;
+  }
   await page.mouse.move(
     frozenInspectionTarget.clientX,
     frozenInspectionTarget.clientY,
