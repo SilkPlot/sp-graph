@@ -35,6 +35,7 @@
     "gate:visual-baselines": "node scripts/visual-baseline-guard.mjs",
     "gate:typecheck-coverage": "node scripts/typecheck-coverage-gate.mjs",
     "gate:public-surface": "node scripts/public-surface-gate.mjs",
+    "validate:workload-artifact": "node scripts/validate-workload-artifact.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "release:verify:manifests": "node scripts/release-verify.mjs --no-consumer",
     "audit:prod": "npm audit --omit=dev --audit-level=low",

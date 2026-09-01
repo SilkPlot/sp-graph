@@ -1,9 +1,10 @@
-import { render } from "@solidjs/testing-library";
+import { cleanup, render } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { w2History } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadA } from "../app/WorkloadA";
 import { WA_POINTS, WA_SERIES } from "../app/workloads";
+import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
 
 const SOURCE = w2History(WA_SERIES, WA_POINTS);
 const UNIT = "°C";
@@ -55,6 +56,7 @@ async function mountDefaultWorkload(): Promise<HTMLElement> {
     () => {
       expect(window.__perf?.workload).toBe("w-a");
       expect(document.documentElement.hasAttribute("data-perf-ready")).toBe(true);
+      assertWorkloadRevision(window.__perf);
     },
     { timeout: 30_000 },
   );
@@ -62,9 +64,8 @@ async function mountDefaultWorkload(): Promise<HTMLElement> {
 }
 
 afterEach(() => {
-  window.__perf = undefined;
-  document.documentElement.removeAttribute("data-perf-ready");
-  history.replaceState({}, "", location.pathname);
+  cleanup();
+  resetPublishedComposition();
 });
 
 describe("W-A representative composition", () => {

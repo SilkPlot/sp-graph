@@ -1,4 +1,4 @@
-import { render } from "@solidjs/testing-library";
+import { cleanup, render } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -8,6 +8,7 @@ import {
   w1References,
 } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadB } from "../app/WorkloadB";
+import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
 
 const SOURCE = w1DenseSeries();
 const REFERENCES = w1References();
@@ -52,6 +53,7 @@ async function mountDefaultWorkload(): Promise<HTMLElement> {
     () => {
       expect(window.__perf?.workload).toBe("w-b");
       expect(document.documentElement.hasAttribute("data-perf-ready")).toBe(true);
+      assertWorkloadRevision(window.__perf);
     },
     { timeout: 30_000 },
   );
@@ -59,9 +61,8 @@ async function mountDefaultWorkload(): Promise<HTMLElement> {
 }
 
 afterEach(() => {
-  window.__perf = undefined;
-  document.documentElement.removeAttribute("data-perf-ready");
-  history.replaceState({}, "", location.pathname);
+  cleanup();
+  resetPublishedComposition();
 });
 
 describe("W-B representative composition", () => {

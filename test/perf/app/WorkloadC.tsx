@@ -186,6 +186,7 @@ export const WorkloadC: Component = () => {
 
     publish({
       workload: "w-c",
+      tableMode: "derived",
       points: DECK_FIDELITY.renderedPoints,
       // The FIRST chart's surface. The interaction pass drives one chart while
       // the other forty-seven sit idle, which is the whole question here.
@@ -211,6 +212,7 @@ export const WorkloadC: Component = () => {
       data-perf-wide={WIDE}
       data-perf-narrow={NARROW}
       data-perf-charts={WC_CHARTS}
+      data-perf-table="derived"
     >
       <Show when={mounted()}>
         <div class="deck" data-perf-deck="" style={{ display: revealed() ? "grid" : "none" }}>

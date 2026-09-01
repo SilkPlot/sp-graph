@@ -1,4 +1,4 @@
-import { render } from "@solidjs/testing-library";
+import { cleanup, render } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadD } from "../app/WorkloadD";
 import { WD_TARGET_POINTS } from "../app/workloads";
+import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
 
 const TARGET_FRACTION = 0.62;
 const TARGET_INDEX = 53_567;
@@ -50,9 +51,8 @@ const temperature = (value: number): string =>
   }).format(value)} °C`;
 
 afterEach(() => {
-  window.__perf = undefined;
-  document.documentElement.removeAttribute("data-perf-ready");
-  history.replaceState({}, "", location.pathname);
+  cleanup();
+  resetPublishedComposition();
 });
 
 describe("W-D representative composition", () => {
@@ -90,6 +90,7 @@ describe("W-D representative composition", () => {
         () => {
           expect(window.__perf?.workload).toBe("w-d");
           expect(document.documentElement.hasAttribute("data-perf-ready")).toBe(true);
+          assertWorkloadRevision(window.__perf);
         },
         { timeout: 60_000 },
       );
