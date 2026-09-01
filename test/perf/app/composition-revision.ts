@@ -1,11 +1,15 @@
 /**
  * The representative cartesian-dashboard composition revision.
  *
- * One identity, one manifest, one digest. The workload page publishes them, the
- * driver copies them onto the host artifact, and an independent validator
- * recomputes eligibility from that artifact without going through the driver.
- * Timing verdicts are not eligible until this revision is present, current,
- * digest-matched, and fully exercised.
+ * One identity, one manifest, one digest. The workload page publishes them and
+ * the driver copies them onto the host artifact. Timing verdicts are not
+ * eligible until this revision is present, current, digest-matched, and fully
+ * exercised. Eligibility is recomputed from retained per-surface `passes`, not
+ * from a summary boolean.
+ *
+ * The independent validator lives in gitops
+ * `local/perf-host/composition-manifest.mjs`. `scripts/validate-workload-artifact.mjs`
+ * is the in-repo driver-side check and must not be treated as that validator.
  */
 export const CURRENT_COMPOSITION_IDENTITY =
   "cartesian-dashboard-representative-v2" as const;
@@ -36,6 +40,22 @@ export const COMPOSITION_TABLE_MODES = Object.freeze({
   "w-d": Object.freeze({ derived: "default-surface", none: "attribution" }),
 } as const);
 
+/**
+ * Hashed bytes the page publishes. Protocol names for the same facts, and the
+ * host field gitops used to read, map onto these keys rather than the other
+ * way around — do not rename this object to `artifact.composition` or prefix
+ * the digest with `sha256:`:
+ *
+ *   workload identity / workload revision → `identity`
+ *   table mode and required-surface role  → `tableModes`
+ *     (`derived` = default-surface, `none` = attribution)
+ *   SHA-256 of these exact canonical bytes → `COMPOSITION_DIGEST`
+ *     (64 hex characters; no `sha256:` prefix)
+ *
+ * Frozen scale and named interactions are not keys of this object. The driver
+ * retains them as per-surface `passes` on the host artifact (`compositionManifest`
+ * + `compositionDigest` / `compositionRevision`). Gitops consumes that shape.
+ */
 export const COMPOSITION_MANIFEST = Object.freeze({
   identity: CURRENT_COMPOSITION_IDENTITY,
   tableModes: COMPOSITION_TABLE_MODES,
@@ -44,6 +64,23 @@ export const COMPOSITION_MANIFEST = Object.freeze({
 /** SHA-256 of `canonicalJson(COMPOSITION_MANIFEST)`, proven in the Node digest test. */
 export const COMPOSITION_DIGEST =
   "b2a423f303fca5462be2c1385425bb8ecdfaf608277deca5f40e6b4b8fd17fac";
+
+export const HISTORICAL_COMPOSITION_IDENTITY =
+  HISTORICAL_COMPOSITION_IDENTITIES[0];
+
+/** Pre-correction mount identity. Same table-mode matrix; different identity bytes. */
+export const HISTORICAL_COMPOSITION_MANIFEST = Object.freeze({
+  identity: HISTORICAL_COMPOSITION_IDENTITY,
+  tableModes: COMPOSITION_TABLE_MODES,
+});
+
+/** SHA-256 of `canonicalJson(HISTORICAL_COMPOSITION_MANIFEST)`. */
+export const HISTORICAL_COMPOSITION_DIGEST =
+  "e8f9b71c30c139352c76b30a928ecb03228c0b3627391813fd172ef9465dbbb4";
+
+export type CompositionIdentity =
+  | typeof CURRENT_COMPOSITION_IDENTITY
+  | typeof HISTORICAL_COMPOSITION_IDENTITY;
 
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -281,11 +318,22 @@ export function evaluateTableNoneDefaultSurface(
   return { ok: true, message: null };
 }
 
-export function compositionPublication(): {
-  compositionRevision: typeof CURRENT_COMPOSITION_IDENTITY;
+export function compositionPublication(
+  identity: CompositionIdentity | undefined = CURRENT_COMPOSITION_IDENTITY,
+): {
+  compositionRevision: CompositionIdentity;
   compositionDigest: string;
-  compositionManifest: typeof COMPOSITION_MANIFEST;
+  compositionManifest:
+    | typeof COMPOSITION_MANIFEST
+    | typeof HISTORICAL_COMPOSITION_MANIFEST;
 } {
+  if (identity === HISTORICAL_COMPOSITION_IDENTITY) {
+    return {
+      compositionRevision: HISTORICAL_COMPOSITION_IDENTITY,
+      compositionDigest: HISTORICAL_COMPOSITION_DIGEST,
+      compositionManifest: HISTORICAL_COMPOSITION_MANIFEST,
+    };
+  }
   return {
     compositionRevision: CURRENT_COMPOSITION_IDENTITY,
     compositionDigest: COMPOSITION_DIGEST,

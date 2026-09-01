@@ -326,6 +326,7 @@ engines:
       - "test/visual/vite.config.ts"
       - "test/perf/app/App.tsx"
       - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadAV1.tsx"
       - "test/perf/app/WorkloadB.tsx"
       - "test/perf/app/WorkloadC.tsx"
       - "test/perf/app/WorkloadD.tsx"
@@ -354,6 +355,7 @@ engines:
       - "test/perf/test/workload-d-conformance.test.tsx"
       - "test/perf/test/workload-d-pointer-truth.test.tsx"
       - "test/perf/test/workload-table-none.test.tsx"
+      - "test/perf/test/workload-v1-conformance.test.tsx"
       - "test/perf/vite.config.ts"
 
   # Cyclomatic complexity — "metric" is Codacy's name for it in this file. The
@@ -480,6 +482,7 @@ engines:
       - "test/visual/vite.config.ts"
       - "test/perf/app/App.tsx"
       - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadAV1.tsx"
       - "test/perf/app/WorkloadB.tsx"
       - "test/perf/app/WorkloadC.tsx"
       - "test/perf/app/WorkloadD.tsx"
@@ -508,6 +511,7 @@ engines:
       - "test/perf/test/workload-d-conformance.test.tsx"
       - "test/perf/test/workload-d-pointer-truth.test.tsx"
       - "test/perf/test/workload-table-none.test.tsx"
+      - "test/perf/test/workload-v1-conformance.test.tsx"
       - "test/perf/vite.config.ts"
   # Lizard, added 2026-07-19 as a TESTABLE hypothesis rather than a guess.
   #
@@ -642,6 +646,7 @@ engines:
       - "test/visual/vite.config.ts"
       - "test/perf/app/App.tsx"
       - "test/perf/app/WorkloadA.tsx"
+      - "test/perf/app/WorkloadAV1.tsx"
       - "test/perf/app/WorkloadB.tsx"
       - "test/perf/app/WorkloadC.tsx"
       - "test/perf/app/WorkloadD.tsx"
@@ -670,6 +675,7 @@ engines:
       - "test/perf/test/workload-d-conformance.test.tsx"
       - "test/perf/test/workload-d-pointer-truth.test.tsx"
       - "test/perf/test/workload-table-none.test.tsx"
+      - "test/perf/test/workload-v1-conformance.test.tsx"
       - "test/perf/vite.config.ts"
 
 # ---------------------------------------------------------------------------

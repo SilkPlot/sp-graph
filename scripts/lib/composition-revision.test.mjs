@@ -12,8 +12,12 @@ import {
   COMPOSITION_MANIFEST,
   CURRENT_COMPOSITION_IDENTITY,
   DEFAULT_SURFACE_FAILURE,
+  HISTORICAL_COMPOSITION_DIGEST,
   HISTORICAL_COMPOSITION_IDENTITIES,
+  HISTORICAL_COMPOSITION_IDENTITY,
+  HISTORICAL_COMPOSITION_MANIFEST,
   REVISION_FAILURE,
+  compositionPublication,
   canonicalJson,
   defaultSurfaceEligible,
   evaluateDefaultSurfaceAcceptance,
@@ -58,10 +62,24 @@ const completeArtifact = () => ({
 test("the published digest is the hash of the canonical manifest", () => {
   assert.equal(digestOf(COMPOSITION_MANIFEST), COMPOSITION_DIGEST);
   assert.notEqual(digestOf({ ...COMPOSITION_MANIFEST, identity: "x" }), COMPOSITION_DIGEST);
+  assert.equal(COMPOSITION_DIGEST.startsWith("sha256:"), false);
+  assert.equal(Object.hasOwn(COMPOSITION_MANIFEST, "composition"), false);
+});
+
+test("the historical digest is the hash of the v1 manifest", () => {
+  assert.equal(digestOf(HISTORICAL_COMPOSITION_MANIFEST), HISTORICAL_COMPOSITION_DIGEST);
+  assert.notEqual(HISTORICAL_COMPOSITION_DIGEST, COMPOSITION_DIGEST);
+  assert.deepEqual(compositionPublication(HISTORICAL_COMPOSITION_IDENTITY), {
+    compositionRevision: HISTORICAL_COMPOSITION_IDENTITY,
+    compositionDigest: HISTORICAL_COMPOSITION_DIGEST,
+    compositionManifest: HISTORICAL_COMPOSITION_MANIFEST,
+  });
+  assert.equal(compositionPublication().compositionRevision, CURRENT_COMPOSITION_IDENTITY);
 });
 
 test("the current identity is public-safe and v1 is only historical", () => {
   assert.equal(CURRENT_COMPOSITION_IDENTITY, "cartesian-dashboard-representative-v2");
+  assert.equal(HISTORICAL_COMPOSITION_IDENTITY, "cartesian-dashboard-representative-v1");
   assert.deepEqual(HISTORICAL_COMPOSITION_IDENTITIES, [
     "cartesian-dashboard-representative-v1",
   ]);
@@ -87,8 +105,16 @@ test("page revision rejects absent, unknown, and mismatched identities", () => {
   );
   assert.equal(
     evaluatePageRevision({
-      identity: HISTORICAL_COMPOSITION_IDENTITIES[0],
+      identity: HISTORICAL_COMPOSITION_IDENTITY,
       digest: COMPOSITION_DIGEST,
+    }).message,
+    REVISION_FAILURE.mismatched,
+  );
+  assert.equal(
+    evaluatePageRevision({
+      identity: HISTORICAL_COMPOSITION_IDENTITY,
+      digest: HISTORICAL_COMPOSITION_DIGEST,
+      manifest: HISTORICAL_COMPOSITION_MANIFEST,
     }).message,
     REVISION_FAILURE.mismatched,
   );
@@ -200,23 +226,31 @@ test("table mode is derived from the query string once", () => {
   assert.equal(resultTableMode({ tableMode: "derived", query: "&table=none" }), "derived");
 });
 
-test("the independent validator does not import the workload driver", () => {
+test("the in-repo driver-side check does not import the workload driver", () => {
   const source = readFileSync(
     new URL("../validate-workload-artifact.mjs", import.meta.url),
     "utf8",
   );
   assert.match(source, /evaluateHostArtifact/);
   assert.match(source, /evaluateTableNoneDefaultSurface/);
+  assert.match(source, /in-repo driver-side/i);
+  assert.match(source, /local\/perf-host\/composition-manifest\.mjs/);
+  assert.doesNotMatch(source, /Independent composition-revision validator/);
   assert.doesNotMatch(source, /measure-workload-frames/);
 });
 
 test("tracked revision messages do not carry planning identifiers", () => {
-  const source = readFileSync(
-    new URL("../../test/perf/app/composition-revision.ts", import.meta.url),
-    "utf8",
-  );
-  assert.doesNotMatch(source, /S00\d-P\d\d/);
-  assert.doesNotMatch(source, /Sprint\s+\d{3}/);
+  const files = [
+    "../../test/perf/app/composition-revision.ts",
+    "../../test/perf/app/WorkloadAV1.tsx",
+    "../../test/perf/test/workload-v1-conformance.test.tsx",
+    "../validate-workload-artifact.mjs",
+  ];
+  for (const relative of files) {
+    const source = readFileSync(new URL(relative, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /S00\d-P\d\d/, relative);
+    assert.doesNotMatch(source, /Sprint\s+\d{3}/, relative);
+  }
 });
 
 test("an absent host artifact is ineligible before any timing verdict", () => {
@@ -251,7 +285,7 @@ const validateArtifact = (artifact) => {
   return result;
 };
 
-test("the independent validator rejects each ineligible host artifact with the retained message", () => {
+test("the in-repo driver-side check rejects each ineligible host artifact with the retained message", () => {
   const eligible = validateArtifact(completeArtifact());
   assert.equal(eligible.status, 0);
   assert.match(eligible.stdout, /composition revision: eligible/);

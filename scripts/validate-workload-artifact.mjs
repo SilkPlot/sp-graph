@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /**
- * Independent composition-revision validator.
+ * In-repo driver-side composition-revision check.
  *
  * Reads a host artifact and refuses timing eligibility when the published
  * revision is absent, unknown, mismatched, partially exercised, or when a
  * table=none run claims default-surface acceptance. It does not import the
  * workload driver and does not judge frames.
+ *
+ * This is not the independent validator. That lives in gitops
+ * `local/perf-host/composition-manifest.mjs` and must recompute the digest
+ * and eligibility from the retained per-surface results on its own. Do not
+ * treat this script as a substitute for that check.
  *
  *   node scripts/validate-workload-artifact.mjs path/to/artifact.json
  */

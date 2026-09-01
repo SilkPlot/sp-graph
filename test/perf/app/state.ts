@@ -21,6 +21,7 @@ import {
   canonicalJson,
   compositionPublication,
   tableModeFromQuery,
+  type CompositionIdentity,
   type TableMode,
 } from "./composition-revision";
 import type { DecimationError } from "./decimate";
@@ -113,6 +114,8 @@ export type PerfPageApi = Omit<
 	| "tableMode"
 > & {
 	tableMode?: TableMode;
+	/** Omit for the current revision. Historical mounts publish the v1 identity. */
+	compositionIdentity?: CompositionIdentity;
 };
 
 declare global {
@@ -207,7 +210,7 @@ export const countTableRows = (): number =>
 export function publish(api: PerfPageApi): void {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const revision = compositionPublication();
+      const revision = compositionPublication(api.compositionIdentity);
       const tableMode = api.tableMode ?? tableModeFromQuery(location.search);
       window.__perf = {
         ...api,
