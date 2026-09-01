@@ -52,7 +52,7 @@
     "perf:decimation": "node scripts/score-decimation.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.10",
+    "@biomejs/biome": "^2.5.11",
     "@solidjs/testing-library": "^0.8.10",
     "@vitest/browser": "^4.1.11",
     "@vitest/browser-playwright": "^4.1.10",
