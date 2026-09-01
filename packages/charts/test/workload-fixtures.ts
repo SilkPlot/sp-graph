@@ -127,18 +127,46 @@ export const w1DashboardDeck = (count: number) =>
  * same generator and prove progressive replacement rescales without a remount.
  * `break`/`connect` alternate, and a null sits mid-series so the policy is
  * exercised at every length.
+ *
+ * Every datum also carries deterministic caller metadata. It is deliberately
+ * absent from the value function above: changing a sample id or quality must
+ * never change the plotted `t`/`y` pair. The metadata gives an inspecting
+ * consumer a real non-plotted field to render instead of a parallel lookup or
+ * decorative tooltip text that was never attached to the active datum.
  */
-export const w2History = (seriesCount: number, points: number): Series[] =>
+export interface W2SampleMetadata {
+  readonly sampleId: string;
+  readonly quality: "observed" | "missing";
+}
+
+const w2Metadata = (
+  seriesIndex: number,
+  pointIndex: number,
+  missing: boolean,
+): W2SampleMetadata => ({
+  sampleId: `probe-${seriesIndex}:${pointIndex}`,
+  quality: missing ? "missing" : "observed",
+});
+
+export const w2History = (
+  seriesCount: number,
+  points: number,
+): Series<W2SampleMetadata>[] =>
   Array.from({ length: seriesCount }, (_, s) => {
     const nullAt = Math.floor(points / 2);
     return {
       id: `probe-${s}`,
       label: `Probe ${s + 1}`,
       nullPolicy: s % 2 === 0 ? "break" : "connect",
-      data: days(points, (i) => 40 + Math.sin(i / 6 + s) * 10 + s * 5).map((d, i) =>
-        points > 4 && i === nullAt ? { ...d, y: null } : d,
-      ),
-    } satisfies Series;
+      data: days(points, (i) => 40 + Math.sin(i / 6 + s) * 10 + s * 5).map((d, i) => {
+        const missing = points > 4 && i === nullAt;
+        return {
+          ...d,
+          y: missing ? null : d.y,
+          meta: w2Metadata(s, i, missing),
+        };
+      }),
+    } satisfies Series<W2SampleMetadata>;
   });
 
 /**
@@ -153,17 +181,25 @@ export const w2History = (seriesCount: number, points: number): Series[] =>
  * The same shape as `w1ReplacementSeries` — same ids, different values — because
  * a replacement that also changed identity would measure a remount instead.
  */
-export const w2Replacement = (seriesCount: number, points: number): Series[] =>
+export const w2Replacement = (
+  seriesCount: number,
+  points: number,
+): Series<W2SampleMetadata>[] =>
   Array.from({ length: seriesCount }, (_, s) => {
     const nullAt = Math.floor(points / 3);
     return {
       id: `probe-${s}`,
       label: `Probe ${s + 1}`,
       nullPolicy: s % 2 === 0 ? "break" : "connect",
-      data: days(points, (i) => 62 + Math.cos(i / 4.5 + s / 2) * 17 + s * 3).map((d, i) =>
-        points > 4 && i === nullAt ? { ...d, y: null } : d,
-      ),
-    } satisfies Series;
+      data: days(points, (i) => 62 + Math.cos(i / 4.5 + s / 2) * 17 + s * 3).map((d, i) => {
+        const missing = points > 4 && i === nullAt;
+        return {
+          ...d,
+          y: missing ? null : d.y,
+          meta: w2Metadata(s, i, missing),
+        };
+      }),
+    } satisfies Series<W2SampleMetadata>;
   });
 
 /**
