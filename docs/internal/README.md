@@ -20,6 +20,7 @@ are not public API guidance, CI visual-regression baselines, or current planning
 - [Hierarchy force-directed frame budget](hierarchy-force-budget.md)
 - [Plot-area clip capability boundary](plot-area-clip.md)
 - [W-A representative-composition red result](workload-a-conformance-v1-red.md)
+- [W-B representative-composition red result](workload-b-conformance-v1-red.md)
 
 ## Historical site review captures
 

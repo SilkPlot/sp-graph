@@ -12,11 +12,15 @@
  * legend each holding their own idea of what is visible, which is a correctness
  * bug the composition gate already forbids and would also make this measurement
  * meaningless: the two would be doing different work.
+ *
+ * Inspection is composed at this page boundary too: the chart supplies the
+ * actual shared-time active record, while this caller owns the locale, time
+ * zone, units, and tooltip markup that give the record domain meaning.
  */
 import { LineChart } from "@silkplot/charts";
-import type { Series } from "@silkplot/core";
+import type { ActivePoint, Series, SeriesDatum } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
-import { createEffect, createSignal, onMount, type Component } from "solid-js";
+import { createEffect, createSignal, For, onMount, type Component } from "solid-js";
 import {
   w1DenseSeries,
   w1References,
@@ -37,6 +41,110 @@ import { countPoints } from "./workloads";
 const SERIES: Series[] = w1DenseSeries();
 const REFERENCES = w1References();
 const ALL_IDS = SERIES.map((s) => s.id);
+const TIME_ZONE = "Africa/Johannesburg";
+
+const localTime = new Intl.DateTimeFormat("en-ZA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const power = new Intl.NumberFormat("en-ZA", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+const formatLocalTime = (instant: Date): string => localTime.format(instant);
+const formatPower = (value: number): string => `${power.format(value)} kW`;
+
+// Explicit identity formatters keep the inspectable/exportable table on source
+// instants and numeric values even though the axis, references, and tooltip use
+// caller-owned display wording.
+const formatSourceTime = (instant: Date): string => instant.toISOString();
+const formatSourceValue = (value: number): number => value;
+
+interface TooltipReading {
+  id: string;
+  label: string;
+  datum: SeriesDatum | undefined;
+}
+
+const readingsAtActiveTime = (
+  active: ActivePoint<SeriesDatum>,
+  visibleIds: readonly string[],
+): readonly TooltipReading[] => {
+  const shared = new Map<string, SeriesDatum>();
+  for (const entry of active.atTime ?? []) shared.set(entry.seriesId, entry.datum);
+  const time = active.datum.t.getTime();
+
+  return visibleIds.map((id) => {
+    const series = SERIES.find((candidate) => candidate.id === id);
+    const sourceDatum = series?.data[active.sourceIndex];
+    return {
+      id,
+      label: series?.label ?? id,
+      // The active record carries every present same-time reading. These
+      // deterministic series align by source index, so the one source slot is
+      // consulted only when a series declares a gap at this instant; no search
+      // or parallel timestamp index enters the inspection path.
+      datum:
+        shared.get(id) ??
+        (sourceDatum?.t.getTime() === time ? sourceDatum : undefined),
+    };
+  });
+};
+
+const WorkloadBTooltip: Component<{
+  active: ActivePoint<SeriesDatum>;
+  visibleIds: readonly string[];
+}> = (props) => {
+  const readings = () => readingsAtActiveTime(props.active, props.visibleIds);
+
+  return (
+    <div
+      data-perf-tooltip-content=""
+      style={{
+        padding: "6px 8px",
+        background: "var(--sp-color-surface, #ffffff)",
+        color: "var(--sp-color-text, #000000)",
+        border: "1px solid var(--sp-color-grid, #e4e7ec)",
+        "border-radius": "var(--sp-radius-md, 4px)",
+        "box-shadow": "0 2px 8px rgb(0 0 0 / 16%)",
+        "font-size": "11px",
+        "line-height": 1.2,
+        "white-space": "nowrap",
+      }}
+    >
+      <div>{formatLocalTime(props.active.datum.t)}</div>
+      <dl
+        style={{
+          margin: "4px 0 0",
+          display: "grid",
+          "grid-template-columns": "auto auto",
+          gap: "1px 8px",
+        }}
+      >
+        <For each={readings()}>
+          {(reading) => (
+            <div data-perf-tooltip-series={reading.id} style={{ display: "contents" }}>
+              <dt>{reading.label}</dt>
+              <dd style={{ margin: 0, "text-align": "right" }}>
+                {reading.datum?.y === null || reading.datum?.y === undefined
+                  ? "No reading"
+                  : formatPower(reading.datum.y)}
+              </dd>
+            </div>
+          )}
+        </For>
+      </dl>
+    </div>
+  );
+};
 
 /** The narrower width the resize pass moves to, and back. */
 const WIDE = 1100;
@@ -118,10 +226,16 @@ export const WorkloadB: Component = () => {
         brushSelect
         onVisibleDomainChange={(_domain, cause) => noteViewport(cause)}
         onActivePointChange={(point) => noteActive(point)}
+        tooltip={(active) => (
+          <WorkloadBTooltip active={active} visibleIds={visibleSeries()} />
+        )}
         table={tableProp()}
         title="W-B — twenty-two sensors with three references"
         summary="Twenty-two same-domain sensor series crossing zero, with two value references and one temporal reference."
-        xTickFormat={(t) => t.toISOString().slice(0, 10)}
+        xTickFormat={formatLocalTime}
+        yTickFormat={formatPower}
+        tableTimeFormat={formatSourceTime}
+        tableValueFormat={formatSourceValue}
       />
       <Legend
         series={SERIES}
