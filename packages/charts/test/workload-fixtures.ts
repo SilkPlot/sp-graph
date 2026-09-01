@@ -306,8 +306,20 @@ export const w4ValueAt = (i: number): number => {
  * One series rather than several: the question here is what a single chart does
  * with 86,400 points, and multiplying that by a series count would conflate the
  * density limit with the multi-series limit W-B already measures.
+ *
+ * Every source datum carries deterministic, non-plotted inspection metadata.
+ * The sample id is derived only from its source index, so adding it cannot alter
+ * the fixture's time or value functions and a decimator that retains a source
+ * object retains its caller metadata with it.
  */
-export const w4Seconds = (count: number = W4_SECOND_COUNT): Series[] => [
+export interface W4SampleMetadata {
+  readonly sampleId: string;
+  readonly quality: "observed";
+}
+
+export const w4Seconds = (
+  count: number = W4_SECOND_COUNT,
+): Series<W4SampleMetadata>[] => [
   {
     id: "raw",
     label: "One day at one-second resolution",
@@ -315,6 +327,10 @@ export const w4Seconds = (count: number = W4_SECOND_COUNT): Series[] => [
     data: Array.from({ length: count }, (_, i) => ({
       t: new Date(EPOCH + i * SECOND),
       y: w4ValueAt(i),
+      meta: {
+        sampleId: `raw:${i}`,
+        quality: "observed",
+      },
     })),
-  } satisfies Series,
+  } satisfies Series<W4SampleMetadata>,
 ];
