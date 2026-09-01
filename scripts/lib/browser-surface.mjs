@@ -201,6 +201,34 @@ export function selectCompositorClient(clients, browserPid, marker) {
 	};
 }
 
+/** Move only this marked evidence window onto the protocol's frozen output. */
+export function pinCompositorClient(
+	client,
+	{
+		dispatch = execFileSync,
+		targetMonitorId = 2,
+		targetMonitorName = "DP-2",
+	} = {},
+) {
+	if (client?.monitorId === targetMonitorId) return false;
+	if (!/^0x[0-9a-f]+$/i.test(client?.address ?? "")) {
+		throw new Error("headed display evidence requires a valid Hyprland address");
+	}
+	dispatch(
+		"hyprctl",
+		[
+			"dispatch",
+			`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${client.address}" })`,
+		],
+		{
+			encoding: "utf8",
+			timeout: 2_000,
+			stdio: ["ignore", "pipe", "pipe"],
+		},
+	);
+	return true;
+}
+
 const compositorClient = async (page, browserPid, marker) => {
 	let lastError;
 	for (let attempt = 0; attempt < 20; attempt++) {
@@ -219,6 +247,19 @@ const compositorClient = async (page, browserPid, marker) => {
 		}
 	}
 	throw lastError;
+};
+
+const pinnedCompositorClient = async (page, browserPid, marker) => {
+	const client = await compositorClient(page, browserPid, marker);
+	if (!pinCompositorClient(client)) return client;
+	for (let attempt = 0; attempt < 20; attempt++) {
+		await page.waitForTimeout(50);
+		const moved = await compositorClient(page, browserPid, marker);
+		if (moved.monitorId === 2) return moved;
+	}
+	throw new Error(
+		`headed evidence window '${client.address}' did not move to DP-2`,
+	);
 };
 
 /** Measure the output and steady-state rAF cadence of the actual headed page. */
@@ -240,7 +281,7 @@ export async function inspectDisplaySurface(
 		await page.evaluate((title) => {
 			document.title = title;
 		}, marker);
-		compositorBefore = await compositorClient(page, browserPid, marker);
+		compositorBefore = await pinnedCompositorClient(page, browserPid, marker);
 	}
 	try {
 		const reading = await page.evaluate(async (count) => {
