@@ -5,6 +5,7 @@ import {
   browserSurfacePlan,
   classifyBrowserSurface,
   inspectBrowserSurface,
+	pinCompositorClient,
 	selectCompositorClient,
 } from "./browser-surface.mjs";
 
@@ -100,6 +101,46 @@ test("the compositor client is tied to the marked page and exact browser PID", (
 				"silkplot-evidence-probe",
 			),
 		/exactly one Hyprland client/,
+	);
+});
+
+test("a headed evidence window is pinned to the frozen output by address", () => {
+	const calls = [];
+	const dispatch = (...args) => calls.push(args);
+	assert.equal(
+		pinCompositorClient(
+			{ address: "0xabc123", monitorId: 1 },
+			{ dispatch },
+		),
+		true,
+	);
+	assert.deepEqual(calls, [
+		[
+			"hyprctl",
+			[
+				"dispatch",
+				'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
+			],
+			{
+				encoding: "utf8",
+				timeout: 2_000,
+				stdio: ["ignore", "pipe", "pipe"],
+			},
+		],
+	]);
+
+	calls.length = 0;
+	assert.equal(
+		pinCompositorClient(
+			{ address: "0xabc123", monitorId: 2 },
+			{ dispatch },
+		),
+		false,
+	);
+	assert.deepEqual(calls, []);
+	assert.throws(
+		() => pinCompositorClient({ address: "not-an-address", monitorId: 1 }),
+		/valid Hyprland address/,
 	);
 });
 
