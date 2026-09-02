@@ -391,6 +391,40 @@ describe("viewport drag-to-brush (opt-in)", () => {
     expect(brushRect(container)).toBeNull();
   });
 
+  it("clears the active point while a brush is in flight, then inspects again after release", async () => {
+    const seen: Array<"point" | "clear"> = [];
+    const { container } = render(() => (
+      <LineChart
+        title="Readings"
+        data={DATA}
+        brushSelect
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        onActivePointChange={(point) => {
+          seen.push(point === undefined ? "clear" : "point");
+        }}
+      />
+    ));
+    const surface = surfaceOf(container);
+    surface.dispatchEvent(new PointerEvent("pointerenter", { bubbles: true }));
+    pointer(surface, "pointermove", 100);
+    await nextFrame();
+    expect(seen.at(-1)).toBe("point");
+
+    pointer(surface, "pointerdown", 100);
+    pointer(surface, "pointermove", 300);
+    await nextFrame();
+    expect(seen.at(-1)).toBe("clear");
+    expect(brushRect(container)).not.toBeNull();
+
+    pointer(surface, "pointerup", 300);
+    pointer(surface, "pointermove", 250);
+    await nextFrame();
+    expect(seen.at(-1)).toBe("point");
+  });
+
   it("commits nothing on a click (a drag below the min-travel threshold)", () => {
     const { container } = render(() => (
       <LineChart title="Readings" data={DATA} brushSelect width={WIDTH} height={HEIGHT} margins={NO_MARGINS} curve="linear" />

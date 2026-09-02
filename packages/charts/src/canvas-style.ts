@@ -49,6 +49,20 @@ function resolveColor(host: Element, specified: string | undefined): string {
   // `currentColor` is already the host's used colour. Assigning it would
   // replace a set `style.color` with the parent's colour instead.
   if (raw === "currentColor") return getComputedStyle(host).color;
+  // Token paint is a custom property. Read it — do not assign `style.color`
+  // and force a reflow. Live brush chrome restrokes every frame; a style
+  // mutation per token was a layout tax on a path that does not change colour.
+  if (raw.includes("var(")) {
+    const name = raw.match(/--[a-z0-9-]+/i);
+    if (name !== null) {
+      const used = getComputedStyle(host).getPropertyValue(name[0]).trim();
+      if (used !== "" && used !== NONE) return used;
+    }
+    const fallback = raw.match(/var\([^,]+,\s*([^)]+)\)/);
+    const fb = fallback?.[1]?.trim();
+    if (fb === "currentColor") return getComputedStyle(host).color;
+    if (fb !== undefined && fb !== "" && fb !== NONE) return fb;
+  }
   const previous = host.style.color;
   host.style.color = raw;
   const used = getComputedStyle(host).color;
@@ -72,8 +86,17 @@ function resolveDash(host: Element, specified: string | undefined): number[] {
   return parseDash(fallback?.[1]?.trim());
 }
 
+const FONT_CACHE = new WeakMap<Element, Map<string, string>>();
+
 function resolveFont(host: Element, size: string): string {
   if (!host.isConnected) return `${size} sans-serif`;
+  let bySize = FONT_CACHE.get(host);
+  if (bySize === undefined) {
+    bySize = new Map();
+    FONT_CACHE.set(host, bySize);
+  }
+  const hit = bySize.get(size);
+  if (hit !== undefined) return hit;
   const span = document.createElement("span");
   span.style.fontSize = size;
   span.style.position = "absolute";
@@ -81,6 +104,7 @@ function resolveFont(host: Element, size: string): string {
   const computed = getComputedStyle(span);
   const font = `${computed.fontSize} ${computed.fontFamily}`;
   span.remove();
+  bySize.set(size, font);
   return font;
 }
 

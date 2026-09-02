@@ -36,7 +36,7 @@ import {
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
-import { MultiSeriesBody } from "./MultiSeriesBody";
+import { MultiSeriesBody, type SeriesMarkPlan } from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import {
   ChartShell,
@@ -363,27 +363,24 @@ function LineChartMulti<M>(
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
         pinchZoom={props.pinchZoom}
-        paintSeries={(ctx, seriesCtx, resolve) => {
-          const marks: CanvasMark[] = [];
-          pushMark(
-            marks,
-            paintStroke(
-              ctx,
-              linePath(seriesCtx.points, {
-                x: seriesCtx.x,
-                y: seriesCtx.y,
-                defined: finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined),
-                curve: props.curve ?? "monotoneX",
-              }),
-              {
-                stroke: seriesCtx.style.stroke,
-                strokeWidth: seriesCtx.style.strokeWidth,
-                dash: seriesCtx.style.dash,
-								pointCount: seriesCtx.points.length,
-              },
-              resolve,
-            ),
-          );
+        seriesMarks={(seriesCtx) => {
+          const marks: SeriesMarkPlan[] = [];
+          const d = linePath(seriesCtx.points, {
+            x: seriesCtx.x,
+            y: seriesCtx.y,
+            defined: finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined),
+            curve: props.curve ?? "monotoneX",
+          });
+          marks.push({
+            kind: "stroke",
+            d,
+            spec: {
+              stroke: seriesCtx.style.stroke,
+              strokeWidth: seriesCtx.style.strokeWidth,
+              dash: seriesCtx.style.dash,
+              pointCount: seriesCtx.points.length,
+            },
+          });
           return marks;
         }}
       />

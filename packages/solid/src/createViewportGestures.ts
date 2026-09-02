@@ -104,6 +104,10 @@ export interface ViewportGestures {
   /** The live brush extent in inner (plot) px while a drag is in flight, else
    *  `undefined`. A chart renders it as a rectangle inside its plot area. */
   brush: Accessor<BrushExtent | undefined>;
+  /** True from the pointer-down that starts a brush until the drag ends. Hover
+   *  inspection yields for this so a live overlay is not also a tooltip/crosshair
+   *  restroke. */
+  brushing: Accessor<boolean>;
 }
 
 export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGestures {
@@ -132,7 +136,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   /* ---- drag-to-brush (opt-in — ADR-0014 §5; ADR-0018 §3) ------------------- */
 
   const [brush, setBrush] = createSignal<BrushExtent | undefined>();
-  let brushing = false;
+  const [brushing, setBrushing] = createSignal(false);
   let brushMoved = false; // passed the min-travel threshold, so it is a brush not a click
   let brushStartX = 0; // inner px
   let brushLastX = 0; // inner px
@@ -143,8 +147,8 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
    *  Used by a commit (`pointerup`), a cancel (`pointercancel`, `Escape`), and
    *  unmount. It does NOT itself commit an interval; the caller decides that. */
   const endBrush = (): void => {
-    if (!brushing) return;
-    brushing = false;
+    if (!brushing()) return;
+    setBrushing(false);
     if (brushFrame !== 0) {
       cancelAnimationFrame(brushFrame);
       brushFrame = 0;
@@ -173,7 +177,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     // `Escape` cancels a brush in flight (ADR-0018 §3), and only then — with no
     // brush it belongs to the datum composite, which clears the active point.
     if (event.key === "Escape") {
-      if (!brushing) return false;
+      if (!brushing()) return false;
       endBrush();
       event.preventDefault();
       return true;
@@ -277,7 +281,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
 
   const paintBrush = (): void => {
     brushFrame = 0;
-    if (brushing) setBrush({ x0: brushStartX, x1: brushLastX });
+    if (brushing()) setBrush({ x0: brushStartX, x1: brushLastX });
   };
 
   const onPointerDown = (event: PointerEvent): void => {
@@ -286,7 +290,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     // A second pointer, with pinch enabled, becomes a pinch — and supersedes any
     // brush the first pointer had started.
     if ((spec.pinchZoom?.() ?? false) && activePointers.size === 2) {
-      if (brushing) endBrush();
+      if (brushing()) endBrush();
       refreshRect(); // a touch may skip pointerenter, so measure at the gesture start
       pinching = true;
       pinchLastGap = pinchGap();
@@ -298,9 +302,9 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     if (!(spec.brushSelect?.() ?? false)) return;
     // A primary-button press only — a right-click or a secondary touch is not a
     // brush, and a second press mid-brush must not restart it.
-    if (event.button !== 0 || !event.isPrimary || brushing) return;
+    if (event.button !== 0 || !event.isPrimary || brushing()) return;
     refreshRect(); // a touch may skip pointerenter, so measure at the gesture start
-    brushing = true;
+    setBrushing(true);
     brushMoved = false;
     brushStartX = innerX(event.clientX);
     brushLastX = brushStartX;
@@ -334,7 +338,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
       return;
     }
 
-    if (!brushing || event.pointerId !== brushPointerId) return;
+    if (!brushing() || event.pointerId !== brushPointerId) return;
     brushLastX = innerX(event.clientX);
     if (Math.abs(brushLastX - brushStartX) >= MIN_BRUSH_PX) brushMoved = true;
     // Coalesce: one rectangle repaint per frame, whatever the pointer rate.
@@ -352,7 +356,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
   };
 
   const onPointerUp = (event: PointerEvent): void => {
-    const wasBrushing = brushing && event.pointerId === brushPointerId;
+    const wasBrushing = brushing() && event.pointerId === brushPointerId;
     const moved = brushMoved;
     const scale = spec.xScale();
     const x0 = brushStartX;
@@ -405,5 +409,5 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     endBrush();
   });
 
-  return { onKeyDown, setSurface, brush };
+  return { onKeyDown, setSurface, brush, brushing };
 }

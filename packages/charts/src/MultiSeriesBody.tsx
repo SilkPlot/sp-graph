@@ -1,7 +1,7 @@
 /**
  * The body every MULTI-SERIES cartesian chart shares: the scope, the model, the
  * frame, and one Canvas paint pass over the visible series. What a series looks
- * like is the caller's — passed as a paint function — because that is the only
+ * like is the caller's — passed as a mark plan — because that is the only
  * thing a line and an area actually disagree about.
  *
  * ## Why this exists beside the single-series bodies rather than replacing them
@@ -43,6 +43,7 @@ import {
   type YDomainPolicy,
 } from "@silkplot/solid";
 import { CartesianFrame } from "./CartesianFrame";
+import { paintFill, paintStroke, pushMark, type FillSpec, type StrokeSpec } from "./canvas-paint";
 import type { CanvasMark } from "./canvas-marks";
 import type { StyleResolver } from "./canvas-style";
 import { InteractionLayer } from "./inspection";
@@ -75,6 +76,11 @@ export interface SeriesRenderContext<M = unknown> {
   index: number;
 }
 
+/** Geometry a cartesian series will stroke or fill, computed off the paint path. */
+export type SeriesMarkPlan =
+  | { kind: "stroke"; d: string; spec: StrokeSpec }
+  | { kind: "fill"; d: string; spec: FillSpec };
+
 export interface MultiSeriesBodyProps<M = unknown> {
   scope: MultiSeriesScope<M>;
   layout: CartesianChartProps;
@@ -93,12 +99,12 @@ export interface MultiSeriesBodyProps<M = unknown> {
    */
   xTickFormat?: (value: Date) => string;
   yTickFormat?: (value: number) => string;
-  /** Paint one series onto the Canvas plot. Called once per visible series, in paint order. */
-  paintSeries: (
-    ctx: CanvasRenderingContext2D,
-    context: SeriesRenderContext<M>,
-    resolve: StyleResolver,
-  ) => readonly CanvasMark[];
+  /**
+   * Describe one series' Canvas marks (path `d` strings). Called from a memo
+   * that does not track live brush / active-point chrome, so a drag restroke
+   * reuses the same geometry instead of re-decimating and re-deriving paths.
+   */
+  seriesMarks: (context: SeriesRenderContext<M>) => readonly SeriesMarkPlan[];
   /** Maximum drawn points per series (ADR-0023) — see `TimeSeriesChartProps`.
    *  Painting only: the shared-time index below reads the RAW drawn set. */
   decimation?: number;
@@ -162,22 +168,17 @@ function yContributions<M>(
   return out;
 }
 
-function paintVisibleSeries<M>(
-  ctx: CanvasRenderingContext2D,
-  resolve: StyleResolver,
-  args: {
-    visible: readonly NormalizedSeries<M>[];
-    interval: ReturnType<MultiSeriesScope<M>["viewportInterval"]>;
-    budget: number | undefined;
-    x: (d: NormalizedDatum<M>) => number;
-    y: (d: NormalizedDatum<M>) => number;
-    baseline: number;
-    area: boolean;
-    fillOpacity: number | undefined;
-    paintSeries: MultiSeriesBodyProps<M>["paintSeries"];
-  },
-): CanvasMark[] {
-  const marks: CanvasMark[] = [];
+function prepareVisibleSeries<M>(args: {
+  visible: readonly NormalizedSeries<M>[];
+  interval: ReturnType<MultiSeriesScope<M>["viewportInterval"]>;
+  budget: number | undefined;
+  x: (d: NormalizedDatum<M>) => number;
+  y: (d: NormalizedDatum<M>) => number;
+  baseline: number;
+  area: boolean;
+  fillOpacity: number | undefined;
+}): SeriesRenderContext<M>[] {
+  const out: SeriesRenderContext<M>[] = [];
   args.visible.forEach((series, i) => {
     const drawn =
       args.interval === undefined ? series.data : dataWithinInterval(series.data, args.interval);
@@ -190,26 +191,37 @@ function paintVisibleSeries<M>(
             value: (d) => (d.state === "present" ? (d.y as number) : null),
           });
     const geometry = seriesGeometry({ ...series, data: plotted });
-    marks.push(
-      ...args.paintSeries(
-        ctx,
-        {
-          series,
-          style: resolveSeriesStyle(series.style, series.sourceIndex, {
-            area: args.area,
-            fillOpacity: args.fillOpacity,
-          }),
-          points: geometry.points,
-          defined: geometry.defined,
-          x: args.x,
-          y: args.y,
-          baseline: args.baseline,
-          index: i,
-        },
-        resolve,
-      ),
-    );
+    out.push({
+      series,
+      style: resolveSeriesStyle(series.style, series.sourceIndex, {
+        area: args.area,
+        fillOpacity: args.fillOpacity,
+      }),
+      points: geometry.points,
+      defined: geometry.defined,
+      x: args.x,
+      y: args.y,
+      baseline: args.baseline,
+      index: i,
+    });
   });
+  return out;
+}
+
+function paintSeriesPlans(
+  ctx: CanvasRenderingContext2D,
+  resolve: StyleResolver,
+  plans: readonly SeriesMarkPlan[],
+): CanvasMark[] {
+  const marks: import("./canvas-marks").CanvasMark[] = [];
+  for (const plan of plans) {
+    pushMark(
+      marks,
+      plan.kind === "stroke"
+        ? paintStroke(ctx, plan.d, plan.spec, resolve)
+        : paintFill(ctx, plan.d, plan.spec, resolve),
+    );
+  }
   return marks;
 }
 
@@ -246,6 +258,24 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
       x: (d: NormalizedDatum<M>): number => xs(d.t),
       y: (d: NormalizedDatum<M>): number => ys(d.y as number),
     };
+  });
+
+  // Live brush and the active-point mark are chrome. They must not re-run
+  // interval filtering, decimation, or path derivation — a drag overlay that
+  // re-derives four dense series every frame is how the brush pass drops one.
+  const seriesPlans = createMemo(() => {
+    const map = mapping();
+    const contexts = prepareVisibleSeries({
+      visible: props.scope.visible(),
+      interval: props.scope.viewportInterval(),
+      budget: props.decimation,
+      x: map.x,
+      y: map.y,
+      baseline: baseline(),
+      area: props.area ?? false,
+      fillOpacity: props.fillOpacity,
+    });
+    return contexts.flatMap((context) => props.seriesMarks(context));
   });
 
   // The shared-time lookup: every visible series' present points, keyed by
@@ -321,19 +351,7 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
         semantics={props.semantics}
         xFormat={props.xTickFormat}
         yFormat={props.yTickFormat}
-        paint={(ctx, _plot, resolve) =>
-          paintVisibleSeries(ctx, resolve, {
-            visible: props.scope.visible(),
-            interval: props.scope.viewportInterval(),
-            budget: props.decimation,
-            x: mapping().x,
-            y: mapping().y,
-            baseline: baseline(),
-            area: props.area ?? false,
-            fillOpacity: props.fillOpacity,
-            paintSeries: props.paintSeries,
-          })
-        }
+        paint={(ctx, _plot, resolve) => paintSeriesPlans(ctx, resolve, seriesPlans())}
         chrome={() => {
           const a = active();
           return {

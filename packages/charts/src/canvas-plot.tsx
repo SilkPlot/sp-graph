@@ -70,22 +70,28 @@ function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): vo
   toggleAttr(el, "data-silkplot-pattern", patterned);
   toggleAttr(el, "data-silkplot-brush", hasBrush);
   toggleAttr(el, "data-silkplot-references", hasRefs);
-  if (empty !== undefined) el.setAttribute("data-silkplot-empty", empty.text);
-  else el.removeAttribute("data-silkplot-empty");
-  if (rotated !== undefined) el.setAttribute("data-silkplot-label-rotation", rotated.rotation ?? "");
-  else el.removeAttribute("data-silkplot-label-rotation");
-  if (axisLabels > 0) el.setAttribute("data-silkplot-axis-labels", String(axisLabels));
-  else el.removeAttribute("data-silkplot-axis-labels");
-  if (series !== undefined) el.setAttribute("data-silkplot-mark-d", series.d);
-  else el.removeAttribute("data-silkplot-mark-d");
-	if (drawnPoints > 0)
-		el.setAttribute("data-silkplot-drawn-points", String(drawnPoints));
-	else el.removeAttribute("data-silkplot-drawn-points");
+  writeAttr(el, "data-silkplot-empty", empty?.text);
+  writeAttr(el, "data-silkplot-label-rotation", rotated?.rotation);
+  writeAttr(el, "data-silkplot-axis-labels", axisLabels > 0 ? String(axisLabels) : undefined);
+  writeAttr(el, "data-silkplot-mark-d", series?.d);
+  writeAttr(el, "data-silkplot-drawn-points", drawnPoints > 0 ? String(drawnPoints) : undefined);
 }
 
 function toggleAttr(el: HTMLCanvasElement, name: string, on: boolean): void {
-  if (on) el.setAttribute(name, "");
-  else el.removeAttribute(name);
+  if (on) writeAttr(el, name, "");
+  else writeAttr(el, name, undefined);
+}
+
+/** Skip a DOM write when the attribute already holds this value. A live brush
+ *  restrokes the same series `d` every frame; rewriting a multi-kilobyte
+ *  `data-silkplot-mark-d` is a mutation that does no work for the reader. */
+function writeAttr(el: HTMLCanvasElement, name: string, value: string | undefined): void {
+  if (value === undefined) {
+    if (el.hasAttribute(name)) el.removeAttribute(name);
+    return;
+  }
+  if (el.getAttribute(name) === value) return;
+  el.setAttribute(name, value);
 }
 
 /**
@@ -98,19 +104,24 @@ export function syncCanvasPlot(
   paint: PlotPaint,
 ): void {
   if (el === undefined) return;
-  el.setAttribute("data-silkplot-plot-width", String(layout.width));
-  el.setAttribute("data-silkplot-plot-height", String(layout.height));
-	el.setAttribute("data-silkplot-plot-origin-x", String(layout.originX ?? 0));
-	el.setAttribute("data-silkplot-plot-origin-y", String(layout.originY ?? 0));
+  writeAttr(el, "data-silkplot-plot-width", String(layout.width));
+  writeAttr(el, "data-silkplot-plot-height", String(layout.height));
+  writeAttr(el, "data-silkplot-plot-origin-x", String(layout.originX ?? 0));
+  writeAttr(el, "data-silkplot-plot-origin-y", String(layout.originY ?? 0));
   const originX = layout.originX ?? 0;
   const originY = layout.originY ?? 0;
   const outerW = Math.max(0, layout.outerWidth ?? layout.width + originX);
   const outerH = Math.max(0, layout.outerHeight ?? layout.height + originY);
   const dpr = window.devicePixelRatio;
-  // Resizing clears the bitmap. Do this before the collapsed-layout guard so a
-  // positive → zero-size transition cannot leave stale pixels behind.
-  el.width = Math.round(outerW * dpr);
-  el.height = Math.round(outerH * dpr);
+  // Assigning width/height resets the backing store even when the numbers are
+  // unchanged. A live brush (and hover chrome) paints every frame at a stable
+  // size; reallocating the bitmap is the drop. Resize still has to run before
+  // the collapsed-layout guard so a positive → zero-size transition cannot
+  // leave stale pixels behind.
+  const pixelW = Math.round(outerW * dpr);
+  const pixelH = Math.round(outerH * dpr);
+  if (el.width !== pixelW) el.width = pixelW;
+  if (el.height !== pixelH) el.height = pixelH;
   if (layout.width <= 0 || layout.height <= 0) {
     rememberCanvasMarks(el, []);
     annotateChrome(el, []);
