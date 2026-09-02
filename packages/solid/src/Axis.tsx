@@ -36,12 +36,13 @@ export type { AxisScale, TickFormat };
 const AXIS_STROKE = "var(--sp-color-axis, currentColor)";
 
 /**
- * Axis tick-LABEL size. Labels stay `fill="currentColor"` (text strength, never
- * the muted axis token, which at 2.58:1 would fail as text) — only their size is
- * tokenised. `--sp-font-sm` already resolves to 11px, so this is a pure
- * token-consumption fix with no visual change, and the `11px` fallback keeps an
- * unthemed axis identical to before.
+ * Axis tick-LABEL colour. Labels are TEXT, so they take `--sp-color-text`
+ * rather than the muted axis token (which would fail as text). `currentColor`
+ * stays the unthemed fallback so a page with no token sheet still inherits.
  */
+const AXIS_LABEL_FILL = "var(--sp-color-text, currentColor)";
+
+/** Axis tick-LABEL size. `--sp-font-sm` already resolves to 11px. */
 const AXIS_FONT_SIZE = "var(--sp-font-sm, 11px)";
 
 export interface AxisProps {
@@ -163,7 +164,7 @@ export const Axis: Component<AxisProps> = (props) => {
                   y={rotate ? undefined : labelY}
                   text-anchor={rotate ? "end" : "middle"}
                   transform={rotate ? `translate(0, ${labelY}) rotate(${rotation})` : undefined}
-                  fill="currentColor"
+                  fill={AXIS_LABEL_FILL}
                   font-size={AXIS_FONT_SIZE}
                 >
                   {tick.label}
@@ -181,7 +182,7 @@ export const Axis: Component<AxisProps> = (props) => {
                 x={labelX}
                 dy="0.32em"
                 text-anchor={anchor}
-                fill="currentColor"
+                fill={AXIS_LABEL_FILL}
                 font-size={AXIS_FONT_SIZE}
               >
                 {tick.label}

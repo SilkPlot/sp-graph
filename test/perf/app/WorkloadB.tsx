@@ -221,6 +221,16 @@ export const WorkloadB: Component = () => {
         series={SERIES}
         references={REFERENCES}
         visibleSeries={visibleSeries()}
+        onVisibilityChange={setVisibleSeries}
+        legend={
+          <Legend
+            series={SERIES}
+            visibleSeries={visibleSeries()}
+            onVisibilityChange={setVisibleSeries}
+            label="W-B sensors"
+            maxHeight="120px"
+          />
+        }
         height={420}
         wheelZoom
         brushSelect
@@ -236,13 +246,6 @@ export const WorkloadB: Component = () => {
         yTickFormat={formatPower}
         tableTimeFormat={formatSourceTime}
         tableValueFormat={formatSourceValue}
-      />
-      <Legend
-        series={SERIES}
-        visibleSeries={visibleSeries()}
-        onVisibilityChange={setVisibleSeries}
-        label="W-B sensors"
-        maxHeight="120px"
       />
     </div>
   );

@@ -26,11 +26,13 @@ import {
   type ScaleTime,
   type TimeInterval,
   type ViewportCause,
+  type Series,
 } from "@silkplot/core";
 import {
   ChartAnnouncer,
   ChartRoot,
   ChartDataAlternative,
+  Legend,
   createChartSemantics,
   useDashboardSection,
   useDashboardTime,
@@ -231,6 +233,12 @@ export interface ChartShellProps {
    */
   referenceList?: JSX.Element;
   /**
+   * Application-placed or chart-owned legend, rendered between the plot and the
+   * data alternative so a 20,000-row table cannot bury it. ADR-0011 still owns
+   * placement: this is a slot, not a second legend implementation.
+   */
+  legend?: JSX.Element;
+  /**
    * Extra inset reserved through the shared `ChartRoot` margin path.
    * Category-label rotation and opted-in measured left use this so neither
    * is a bar-only layout fork.
@@ -238,6 +246,42 @@ export interface ChartShellProps {
   reserved?: MarginReservation;
   /** The chart body. Rendered INSIDE `ChartRoot`, so it can read the measured bounds. */
   children?: JSX.Element;
+}
+
+export interface ChartLegendSpec {
+  series: readonly Series[];
+  visibleSeries?: readonly string[];
+  onVisibilityChange?: (visible: readonly string[]) => void;
+  /**
+   * Default: the shipped `<Legend>` when `visibleSeries` is controlled.
+   * `false` opts out so an application-placed legend can drive several charts
+   * (ADR-0011). Pass an element to replace the default.
+   */
+  legend?: boolean | JSX.Element;
+  /** Accessible name for the default legend toolbar. */
+  legendLabel?: string;
+}
+
+/**
+ * Place the shipped legend between the plot and the data alternative.
+ *
+ * Controlled `visibleSeries` is the composition the shipped legend is the
+ * control for. Uncontrolled charts omit it so a one-series `series` panel
+ * does not grow a one-button toolbar. ADR-0011 still forbids a second legend
+ * implementation — this returns `<Legend>` or the caller's own.
+ */
+export function resolveChartLegend(spec: ChartLegendSpec): JSX.Element | undefined {
+  if (spec.legend === false) return undefined;
+  if (spec.legend !== undefined && spec.legend !== true) return spec.legend;
+  if (spec.legend !== true && spec.visibleSeries === undefined) return undefined;
+  return (
+    <Legend
+      series={spec.series}
+      visibleSeries={spec.visibleSeries}
+      onVisibilityChange={spec.onVisibilityChange}
+      label={spec.legendLabel}
+    />
+  );
 }
 
 /**
@@ -259,6 +303,14 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
     >
       {props.children}
     </ChartRoot>
+    {props.legend !== undefined ? (
+      <div
+        data-silkplot-chart-legend=""
+        style={{ "margin-top": "var(--sp-space-sm, 4px)" }}
+      >
+        {props.legend}
+      </div>
+    ) : null}
     {/*
       Before the data table, and outside its disclosure. A chart typically
       carries three thresholds and hundreds of rows, so the list is short enough

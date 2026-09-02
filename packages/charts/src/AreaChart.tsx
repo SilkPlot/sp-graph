@@ -49,6 +49,7 @@ import {
   finiteDefined,
   plottedPoints,
   timePointRows,
+  resolveChartLegend,
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
@@ -255,6 +256,7 @@ function AreaChartMulti<M>(
       rows={() => scope.table().rows}
       columns={scope.table().columns}
       latest={scope.isLatest}
+      legend={resolveChartLegend(props)}
       referenceList={
         <ReferenceList
           references={scope.references()}

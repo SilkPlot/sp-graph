@@ -73,6 +73,11 @@ export const ChartRoot: ParentComponent<ChartRootProps> = (props) => {
     position: "relative",
     width: props.width !== undefined ? `${props.width}px` : "100%",
     height: props.height !== undefined ? `${props.height}px` : "100%",
+    // Bind chart chrome to the default theme tokens (ADR-0001). Fallbacks are
+    // the light `:root` values so an unthemed page still gets the default
+    // surface rather than the user-agent colour.
+    color: "var(--sp-color-text, #16181d)",
+    background: "var(--sp-color-surface, #ffffff)",
     ...props.style,
   }));
 

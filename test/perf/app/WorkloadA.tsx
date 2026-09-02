@@ -22,7 +22,7 @@ import type {
   TimeInterval,
   ViewportCause,
 } from "@silkplot/core";
-import { Legend, RangeControl, type ViewportCommands } from "@silkplot/solid";
+import { RangeControl, type ViewportCommands } from "@silkplot/solid";
 import { createSignal, For, onMount, type Component } from "solid-js";
 import {
   w2History,
@@ -201,6 +201,8 @@ export const WorkloadA: Component = () => {
       <LineChart
         series={series()}
         visibleSeries={visibleSeries()}
+        onVisibilityChange={setVisibleSeries}
+        legendLabel="W-A probes"
         height={420}
         wheelZoom
         pinchZoom
@@ -239,12 +241,6 @@ export const WorkloadA: Component = () => {
         yTickFormat={formatTemperature}
         tableTimeFormat={formatSourceTime}
         tableValueFormat={formatSourceValue}
-      />
-      <Legend
-        series={series()}
-        visibleSeries={visibleSeries()}
-        onVisibilityChange={setVisibleSeries}
-        label="W-A probes"
       />
       <div data-perf-range="" style={{ "margin-top": "8px" }}>
         <RangeControl

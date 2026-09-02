@@ -25,7 +25,6 @@ import {
   type Series,
   type SeriesDatum,
 } from "@silkplot/core";
-import { Legend } from "@silkplot/solid";
 import { createSignal, onMount, type Component } from "solid-js";
 import {
   W4_SPIKE_INDICES,
@@ -212,6 +211,8 @@ export const WorkloadD: Component = () => {
       <LineChart
         series={series()}
         visibleSeries={visibleSeries()}
+        onVisibilityChange={setVisibleSeries}
+        legendLabel="W-D source series"
         height={420}
         wheelZoom
         // The ADR-0023 disposition, mounted: explicit min/max decimation at
@@ -233,12 +234,6 @@ export const WorkloadD: Component = () => {
         yTickFormat={formatTemperature}
         tableTimeFormat={formatSourceTime}
         tableValueFormat={formatSourceValue}
-      />
-      <Legend
-        series={series()}
-        visibleSeries={visibleSeries()}
-        onVisibilityChange={setVisibleSeries}
-        label="W-D source series"
       />
     </div>
   );
