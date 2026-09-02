@@ -12,7 +12,7 @@
  * computation and the marks that must not disagree, not the ones that
  * legitimately do).
  */
-import { type Accessor, type JSX, Show, createMemo, createSignal } from "solid-js";
+import { type Accessor, type JSX, Show, createEffect, createMemo, createSignal } from "solid-js";
 import {
   createTimeSeriesIndex,
   windowActivePointIndex,
@@ -282,6 +282,19 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
     props.viewportGestures?.setSurface(element);
   };
 
+  const brushing = (): boolean => props.viewportGestures?.brushing() ?? false;
+  createEffect(() => {
+    if (!brushing()) return;
+    // A pending hover rAF from the move that started the drag would write the
+    // active point back after we clear it. Cancel first.
+    insp.cancelPendingPointer();
+    insp.active.clear();
+  });
+  const onInspectMove = (event: PointerEvent): void => {
+    if (brushing()) return;
+    insp.onPointerMove(event);
+  };
+
   // The hover-affordance state: shown while a hover-capable pointer
   // is on an UNFOCUSED chart, gone the moment its advice is taken. Plain
   // booleans derived from events the surface already receives — no listener is
@@ -314,7 +327,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
               style={{ position: "absolute", inset: "0" }}
               ref={attachSurface}
               onPointerEnter={insp.onPointerEnter}
-              onPointerMove={insp.onPointerMove}
+              onPointerMove={onInspectMove}
               onPointerLeave={insp.onPointerLeave}
             />
           </Show>
@@ -333,7 +346,7 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           // the rect silently went uncached and hover resolved nothing.
           ref={attachSurface}
           onPointerEnter={onHintPointerEnter}
-          onPointerMove={insp.onPointerMove}
+          onPointerMove={onInspectMove}
           onPointerLeave={onHintPointerLeave}
           onFocusIn={() => setFocused(true)}
           onFocusOut={() => setFocused(false)}

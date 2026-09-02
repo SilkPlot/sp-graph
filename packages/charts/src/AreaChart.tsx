@@ -37,7 +37,7 @@ import {
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
-import { MultiSeriesBody } from "./MultiSeriesBody";
+import { MultiSeriesBody, type SeriesMarkPlan } from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import type { MultiSeriesInputWithFormat, SingleSeriesInput } from "./LineChart";
 import {
@@ -288,47 +288,40 @@ function AreaChartMulti<M>(
         capturePlainWheel={props.capturePlainWheel}
         brushSelect={props.brushSelect}
         pinchZoom={props.pinchZoom}
-        paintSeries={(ctx, seriesCtx, resolve) => {
+        seriesMarks={(seriesCtx) => {
           // ONE defined predicate, built once and shared by both marks. Two
           // separately-built predicates would break the fill and its stroke at
           // different points — which renders, and reads as a drawing bug.
           const defined = finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined);
           const curve = props.curve ?? "monotoneX";
-          const painted: CanvasMark[] = [];
-          pushMark(
-            painted,
-            paintFill(
-              ctx,
-              areaPath(seriesCtx.points, {
+          const plans: SeriesMarkPlan[] = [
+            {
+              kind: "fill",
+              d: areaPath(seriesCtx.points, {
                 x: seriesCtx.x,
                 y0: seriesCtx.baseline,
                 y1: seriesCtx.y,
                 defined,
                 curve,
               }),
-              { fill: seriesCtx.style.fill, fillOpacity: seriesCtx.style.fillOpacity },
-              resolve,
-            ),
-          );
-          pushMark(
-            painted,
-            paintStroke(
-              ctx,
-              linePath(seriesCtx.points, {
+              spec: { fill: seriesCtx.style.fill, fillOpacity: seriesCtx.style.fillOpacity },
+            },
+            {
+              kind: "stroke",
+              d: linePath(seriesCtx.points, {
                 x: seriesCtx.x,
                 y: seriesCtx.y,
                 defined,
                 curve,
               }),
-              {
+              spec: {
                 stroke: seriesCtx.style.stroke,
                 strokeWidth: seriesCtx.style.strokeWidth,
                 dash: seriesCtx.style.dash,
               },
-              resolve,
-            ),
-          );
-          return painted;
+            },
+          ];
+          return plans;
         }}
       />
     </ChartShell>

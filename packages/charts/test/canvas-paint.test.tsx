@@ -177,6 +177,16 @@ describe("createStyleResolver", () => {
     expect(resolve.dash("var(--sp-cat-dash-1)")).toEqual([]);
     expect(resolve.dash("not-a-pattern")).toEqual([]);
   });
+
+  it("reuses a host font probe across resolvers so a restroke does not remount a span", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const first = createStyleResolver(host);
+    const font = first.font("11px");
+    const second = createStyleResolver(host);
+    expect(second.font("11px")).toBe(font);
+    host.remove();
+  });
 });
 
 describe("clipPlotArea", () => {
@@ -456,6 +466,56 @@ describe("syncCanvasPlot", () => {
     );
     expect(canvas.width).toBe(Math.round(40 * window.devicePixelRatio));
     expect(canvas.height).toBe(Math.round(24 * window.devicePixelRatio));
+  });
+
+  it("does not reallocate the backing store when layout is unchanged", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const proto = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "width");
+    if (proto?.get === undefined || proto.set === undefined) {
+      throw new Error("expected HTMLCanvasElement.width to be an accessor");
+    }
+    let writes = 0;
+    Object.defineProperty(canvas, "width", {
+      configurable: true,
+      get() {
+        return proto.get!.call(this);
+      },
+      set(value: number) {
+        writes += 1;
+        proto.set!.call(this, value);
+      },
+    });
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, () => []);
+    expect(writes).toBe(1);
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, () => []);
+    expect(writes).toBe(1);
+    syncCanvasPlot(canvas, { width: 30, height: 16 }, () => []);
+    expect(writes).toBe(2);
+  });
+
+  it("does not rewrite series path evidence when the path is unchanged", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const d = "M0,0L20,16";
+    const paint = (
+      ctx: CanvasRenderingContext2D,
+      _plot: { width: number; height: number },
+      resolve: ReturnType<typeof createStyleResolver>,
+    ) => {
+      const mark = paintStroke(ctx, d, { stroke: "#000", pointCount: 2 }, resolve);
+      return mark === undefined ? [] : [mark];
+    };
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, paint);
+    const writes: string[] = [];
+    const original = canvas.setAttribute.bind(canvas);
+    canvas.setAttribute = (name: string, value: string) => {
+      if (name === "data-silkplot-mark-d") writes.push(value);
+      original(name, value);
+    };
+    syncCanvasPlot(canvas, { width: 20, height: 16 }, paint);
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBe(d);
+    expect(writes).toEqual([]);
   });
 });
 

@@ -64,6 +64,9 @@ export interface ChartInspection<D> {
   onPointerMove: (event: PointerEvent) => void;
   /** Pointer-leave handler — clears the active point. */
   onPointerLeave: () => void;
+  /** Drop a coalesced pointer resolve that has not run yet. A brush that starts
+   *  mid-hover must not let the pending frame write an active point back. */
+  cancelPendingPointer: () => void;
   /** Ref setter for the surface whose rect is cached for coordinate maths. */
   setSurface: (element: HTMLElement) => void;
 }
@@ -152,6 +155,12 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     active.clear();
   };
 
+  const cancelPendingPointer = (): void => {
+    if (frame === 0) return;
+    cancelAnimationFrame(frame);
+    frame = 0;
+  };
+
   const setSurface = (element: HTMLElement): void => {
     surface = element;
   };
@@ -162,5 +171,14 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     if (frame !== 0) cancelAnimationFrame(frame);
   });
 
-  return { active, keyboard, point, onPointerEnter, onPointerMove, onPointerLeave, setSurface };
+  return {
+    active,
+    keyboard,
+    point,
+    onPointerEnter,
+    onPointerMove,
+    onPointerLeave,
+    cancelPendingPointer,
+    setSurface,
+  };
 }

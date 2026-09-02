@@ -81,6 +81,26 @@ function applyStroke(
 }
 
 /**
+ * Reuse a parsed `Path2D` while the `d` string is unchanged. Live brush chrome
+ * restrokes the same series paths every frame; re-parsing a dense SVG `d` is
+ * work the picture does not need.
+ */
+const PATH2D_CACHE = new Map<string, Path2D>();
+const PATH2D_CACHE_MAX = 48;
+
+function path2dOf(d: string): Path2D {
+  const hit = PATH2D_CACHE.get(d);
+  if (hit !== undefined) return hit;
+  const path = new Path2D(d);
+  if (PATH2D_CACHE.size >= PATH2D_CACHE_MAX) {
+    const oldest = PATH2D_CACHE.keys().next().value;
+    if (oldest !== undefined) PATH2D_CACHE.delete(oldest);
+  }
+  PATH2D_CACHE.set(d, path);
+  return path;
+}
+
+/**
  * Stroke a path `d`. Empty geometry is a no-op: d3 emits `""` for no points,
  * and stroking that is not a mark.
  */
@@ -92,7 +112,7 @@ export function paintStroke(
 ): PathMark | undefined {
   if (d === "") return undefined;
   applyStroke(ctx, spec, resolve);
-  ctx.stroke(new Path2D(d));
+  ctx.stroke(path2dOf(d));
   return {
     kind: "path",
     d,
@@ -119,7 +139,7 @@ export function paintFill(
   ctx.save();
   ctx.globalAlpha = opacity;
   ctx.fillStyle = resolve.color(spec.fill ?? "currentColor");
-  ctx.fill(new Path2D(d));
+  ctx.fill(path2dOf(d));
   ctx.restore();
   return {
     kind: "path",
