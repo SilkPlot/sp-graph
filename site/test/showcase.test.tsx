@@ -18,6 +18,7 @@
  */
 import { cleanup, render } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it } from "vitest";
+import ScatterExample from "../src/examples/04-scatter";
 import NavigateExample from "../src/examples/06-navigate";
 import RangeControlExample from "../src/examples/07-range-control";
 import LinkedDashboardExample from "../src/examples/08-linked-dashboard";
@@ -109,6 +110,29 @@ function drag(el: HTMLElement, fromX: number, toX: number): void {
     );
   }
 }
+
+describe("scatter example", () => {
+  it("shows a themed tooltip on hover, so clipped table rows still have a sighted reading", async () => {
+    const { container } = render(() => <ScatterExample />);
+    const surface = surfaceOf(container);
+    const rect = surface.getBoundingClientRect();
+    surface.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: true,
+        clientX: rect.left + rect.width * 0.6,
+        clientY: rect.top + rect.height * 0.4,
+      }),
+    );
+    await nextFrame();
+    await nextFrame();
+    const tip = container.querySelector<HTMLElement>("[data-silkplot-tooltip]");
+    expect(tip, "hover produced no tooltip").not.toBeNull();
+    expect(tip!.textContent).toMatch(/Load .+ · .+ ms/);
+    const card = tip!.firstElementChild as HTMLElement;
+    expect(card.style.color).toBe("var(--sp-color-text, #16181d)");
+    expect(card.style.background).toBe("var(--sp-color-surface, #ffffff)");
+  });
+});
 
 describe("navigate-a-time-series example", () => {
   it("zooms on ctrl+wheel: the marks narrow, the table does not (ADR-0022)", async () => {
