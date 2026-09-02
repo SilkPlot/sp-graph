@@ -40,7 +40,7 @@ import {
   pushMark,
 } from "../src/canvas-paint";
 import { CATEGORICAL_PATTERN_COUNT, paintCategoricalPattern } from "../src/canvas-pattern";
-import { syncCanvasPlot } from "../src/canvas-plot";
+import { syncCanvasPlot, snapshotCanvasBase, compositeCanvasOverlay } from "../src/canvas-plot";
 import { paintAxis, paintGridlines } from "../src/canvas-frame";
 import {
   paintBrush,
@@ -516,6 +516,63 @@ describe("syncCanvasPlot", () => {
     syncCanvasPlot(canvas, { width: 20, height: 16 }, paint);
     expect(canvas.getAttribute("data-silkplot-mark-d")).toBe(d);
     expect(writes).toEqual([]);
+  });
+
+  it("composites overlay chrome without re-running the series painter", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    let paints = 0;
+    const d = "M0,0L20,16";
+    const paint = (
+      ctx: CanvasRenderingContext2D,
+      _plot: { width: number; height: number },
+      resolve: ReturnType<typeof createStyleResolver>,
+    ) => {
+      paints += 1;
+      const mark = paintStroke(ctx, d, { stroke: "#000", pointCount: 2 }, resolve);
+      return mark === undefined ? [] : [mark];
+    };
+    const layout = { width: 20, height: 16 };
+    syncCanvasPlot(canvas, layout, paint);
+    snapshotCanvasBase(canvas);
+    expect(paints).toBe(1);
+    compositeCanvasOverlay(canvas, layout, (ctx, plot, resolve) => {
+      const into: CanvasMark[] = [];
+      paintPointMark(ctx, 4, 5, plot, resolve, into);
+      return into;
+    });
+    expect(paints).toBe(1);
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBe(d);
+    expect(canvas.getAttribute("data-silkplot-drawn-points")).toBe("2");
+    expect(canvas.hasAttribute("data-silkplot-crosshair")).toBe(true);
+    expect(marksOnCanvas(canvas).some((m) => m.kind === "line" && m.role === "crosshair-x")).toBe(
+      true,
+    );
+  });
+
+  it("does not composite overlay chrome before a series snapshot exists", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    compositeCanvasOverlay(canvas, { width: 20, height: 16 }, () => {
+      throw new Error("must not paint overlay without a series snapshot");
+    });
+    expect(marksOnCanvas(canvas)).toEqual([]);
+    snapshotCanvasBase(undefined);
+    compositeCanvasOverlay(undefined, { width: 20, height: 16 }, () => []);
+  });
+
+  it("clears overlay evidence when the cached plot has collapsed", () => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    syncCanvasPlot(canvas, { width: 0, height: 16 }, () => {
+      throw new Error("must not paint a collapsed plot");
+    });
+    snapshotCanvasBase(canvas);
+    compositeCanvasOverlay(canvas, { width: 0, height: 16 }, () => {
+      throw new Error("must not paint overlay on a collapsed plot");
+    });
+    expect(marksOnCanvas(canvas)).toEqual([]);
+    expect(canvas.getAttribute("data-silkplot-mark-d")).toBeNull();
   });
 });
 

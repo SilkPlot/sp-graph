@@ -73,7 +73,12 @@ export function paintCartesianSurface(
   return into;
 }
 
-function paintPlotChrome(
+/**
+ * Live overlay chrome — brush, active point, references, empty wording.
+ * Exported so a keyboard/hover restroke can paint this onto a cached series
+ * bitmap instead of re-deriving grid, axes, and marks.
+ */
+export function paintPlotChrome(
   ctx: CanvasRenderingContext2D,
   plot: PlotSize,
   resolve: StyleResolver,

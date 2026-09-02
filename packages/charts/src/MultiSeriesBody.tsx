@@ -261,8 +261,9 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
   });
 
   // Live brush and the active-point mark are chrome. They must not re-run
-  // interval filtering, decimation, or path derivation — a drag overlay that
-  // re-derives four dense series every frame is how the brush pass drops one.
+  // interval filtering, decimation, or path derivation, and they must not
+  // restroke the dense series — a drag or keyboard overlay that re-paints
+  // four dense series every frame is how an inspection pass drops one.
   const seriesPlans = createMemo(() => {
     const map = mapping();
     const contexts = prepareVisibleSeries({

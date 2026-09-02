@@ -25,8 +25,9 @@ import {
   type TickFormat,
 } from "@silkplot/solid";
 import type { CartesianChartProps } from "./scaffold";
+import type { CanvasMark } from "./canvas-marks";
 import { CanvasPlot, type PlotPaint } from "./canvas-plot";
-import { paintCartesianSurface, type PlotChrome } from "./canvas-surface";
+import { paintCartesianSurface, paintPlotChrome, type PlotChrome } from "./canvas-surface";
 
 export type { PlotPaint, PlotChrome };
 
@@ -73,8 +74,9 @@ export interface CartesianFrameProps<
   /** Paint cartesian marks onto the Canvas plot (already clipped). */
   paint: PlotPaint;
   /**
-   * References, brush, active point, empty wording. Read inside the paint
-   * pass so each field stays tracked. Absent chrome paints nothing extra.
+   * References, brush, active point, empty wording. Painted as a live overlay
+   * onto a cached series bitmap so a keyboard step or hover does not restroke
+   * grid, axes, and marks. Absent chrome paints nothing extra.
    */
   chrome?: () => PlotChrome;
 }
@@ -112,8 +114,16 @@ export const CartesianFrame = <
               yFormat: props.yFormat,
               xLabelRotation: props.xLabelRotation,
               paintMarks: props.paint,
-              chrome: props.chrome?.(),
             })
+          }
+          overlay={
+            props.chrome === undefined
+              ? undefined
+              : (ctx, plot, resolve) => {
+                  const into: CanvasMark[] = [];
+                  paintPlotChrome(ctx, plot, resolve, props.chrome?.(), into);
+                  return into;
+                }
           }
         />
       </Show>
