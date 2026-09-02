@@ -13,7 +13,7 @@ import type { PlotSize } from "./canvas-plot";
 import type { StyleResolver } from "./canvas-style";
 
 /**
- * Axis DOMAIN line. `--sp-color-axis` is the S001-P07 scaffolding token:
+ * Axis DOMAIN line. `--sp-color-axis` is the theme scaffolding token:
  * full strength (no extra opacity), promoted under `prefers-contrast: more`.
  */
 const AXIS_STROKE = "var(--sp-color-axis, currentColor)";

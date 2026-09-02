@@ -1,5 +1,5 @@
 /**
- * Canvas axis *tick marks* follow S001-P07 `--sp-color-text` as pixels, not
+ * Canvas axis *tick marks* follow `--sp-color-text` as pixels, not
  * only as a var() string on the recorded mark. Domain stays `--sp-color-axis`.
  *
  * Composed charts paint ticks on Canvas. A 1px stroke on an integer coordinate
