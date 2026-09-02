@@ -20,11 +20,26 @@ const Example: Component = () => (
     title="Response time against load"
     summary="Forty samples trending upward, with visible spread at every load level."
     table={{ columns: ["Load", "Response time (ms)"] }}
+    tooltip={(a) => (
+      <div
+        style={{
+          padding: "var(--sp-space-xs, 2px) var(--sp-space-sm, 4px)",
+          "font-size": "var(--sp-font-xs, 10px)",
+          color: "var(--sp-color-text, #16181d)",
+          background: "var(--sp-color-surface, #ffffff)",
+          border: "1px solid var(--sp-color-grid, #e4e7ec)",
+          "border-radius": "var(--sp-radius-md, 4px)",
+        }}
+      >
+        Load {a.datum.x} · {a.datum.y} ms
+      </div>
+    )}
     // The only example that hides its table, and a deliberate trade-off rather
     // than a default: forty rows under a gallery card buries the next example.
     // `tableHidden` hides it VISUALLY and keeps it in the accessibility tree —
     // it is not `display: none`. Prefer leaving the table visible when the page
-    // can carry it; sighted readers want rows and columns too.
+    // can carry it; sighted readers want rows and columns too. The hover
+    // tooltip is the sighted reading of one point when the rows are clipped.
     tableHidden
   />
 );

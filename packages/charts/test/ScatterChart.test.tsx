@@ -206,11 +206,11 @@ describe("ScatterChart — props", () => {
     });
   });
 
-  it("defaults radius to 3, fill to currentColor, and fillOpacity to 1", () => {
+  it("defaults radius to 3, fill to the first categorical token, and fillOpacity to 1", () => {
     const { container } = render(() => <ScatterChart title="Height against weight" data={DATA} width={WIDTH} height={HEIGHT} />);
     getCircles(container).forEach((c) => {
       expect(c.getAttribute("r")).toBe("3");
-      expect(c.getAttribute("fill")).toBe("currentColor");
+      expect(c.getAttribute("fill")).toBe("var(--sp-cat-0, currentColor)");
       expect(c.getAttribute("fill-opacity")).toBe("1");
     });
   });
@@ -233,6 +233,19 @@ describe("ScatterChart — empty data", () => {
     const { container } = render(() => <ScatterChart title="Height against weight" data={[]} width={WIDTH} height={HEIGHT} />);
     expect(getCircles(container)).toHaveLength(0);
 
+    expectNoNaN(container, "circle, path", ["cx", "cy", "d"]);
+  });
+
+  it("skips a non-finite point rather than painting NaN geometry", () => {
+    const mixed: XYPoint[] = [
+      { x: 1, y: 3 },
+      { x: Number.NaN, y: 7 },
+      { x: 2, y: -2 },
+    ];
+    const { container } = render(() => (
+      <ScatterChart title="Height against weight" data={mixed} width={WIDTH} height={HEIGHT} />
+    ));
+    expect(getCircles(container)).toHaveLength(2);
     expectNoNaN(container, "circle, path", ["cx", "cy", "d"]);
   });
 });

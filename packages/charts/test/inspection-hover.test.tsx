@@ -236,6 +236,55 @@ describe("other families hover", () => {
     expect(crosshairOf(container)).not.toBeNull();
   });
 
+  it("tracks the pointer with the tooltip while the scatter crosshair stays snapped", async () => {
+    const data: XYPoint[] = [
+      { x: 1, y: 1 },
+      { x: 9, y: 9 },
+    ];
+    const onChange = vi.fn();
+    const { container } = render(() => (
+      <ScatterChart
+        data={data}
+        title="Cloud"
+        desc="Two points"
+        {...SIZE}
+        tooltip={(a) => <span data-testid="tt">{String(a.datum.x)}</span>}
+        onActivePointChange={onChange}
+      />
+    ));
+    const surface = surfaceOf(container)!;
+    const rect = surface.getBoundingClientRect();
+    // Near the low-left point. 12px cannot cross the mid-cloud Voronoi edge.
+    const startX = 0.2;
+    const startY = 0.8;
+    await hoverAt(surface, startX, startY);
+    const tip = tooltipOf(container)!;
+    expect(tip).not.toBeNull();
+    const firstLeft = Number.parseFloat(tip.style.left);
+    const firstIndex = (onChange.mock.calls.at(-1)?.[0] as ActivePoint<XYPoint> | undefined)
+      ?.sourceIndex;
+    expect(firstIndex).toBeDefined();
+    const canvas = container.querySelector<HTMLCanvasElement>("[data-silkplot-canvas-plot]");
+    expect(canvas).not.toBeNull();
+    const crosshairX = (el: HTMLCanvasElement): string | undefined => {
+      const mark = marksOnCanvas(el).find((m) => m.kind === "line" && m.role === "crosshair-x");
+      return mark && mark.kind === "line" ? mark.x1 : undefined;
+    };
+    const snappedX = crosshairX(canvas!);
+    expect(snappedX).toBeDefined();
+
+    expect(Number.isFinite(firstLeft)).toBe(true);
+    await hoverAt(surface, startX + 12 / rect.width, startY);
+    const moved = tooltipOf(container)!;
+    const secondIndex = (onChange.mock.calls.at(-1)?.[0] as ActivePoint<XYPoint> | undefined)
+      ?.sourceIndex;
+    expect(secondIndex).toBe(firstIndex);
+    const secondLeft = Number.parseFloat(moved.style.left);
+    expect(Number.isFinite(secondLeft)).toBe(true);
+    expect(secondLeft).not.toBe(firstLeft);
+    expect(crosshairX(canvas!)).toBe(snappedX);
+  });
+
   it("Bar resolves the band under the pointer, with a category-kind record", async () => {
     const categories: RankedCategory[] = [
       { id: "a", label: "Alpha", value: 3 },

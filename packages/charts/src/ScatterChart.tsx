@@ -19,7 +19,13 @@
  * this chart supplies the scales and draws the resulting active mark.
  */
 import { Show, createMemo, type Component, type JSX } from "solid-js";
-import { createScatterIndex, extentOf, linearScale, type ActivePoint } from "@silkplot/core";
+import {
+  createScatterIndex,
+  extentOf,
+  linearScale,
+  seriesColorToken,
+  type ActivePoint,
+} from "@silkplot/core";
 import {
   createCartesianModel,
   type ChartSemantics,
@@ -43,7 +49,7 @@ export interface ScatterChartBaseProps extends CartesianChartProps, KeyboardHove
   data: readonly XYPoint[];
   /** Point radius in px. Default: 3. */
   radius?: number;
-  /** Point fill color. Default: "currentColor". */
+  /** Point fill color. Default: the first categorical token (`var(--sp-cat-0, currentColor)`). */
   fill?: string;
   /** Point fill opacity. Default: 1. */
   fillOpacity?: number;
@@ -131,16 +137,20 @@ const ScatterChartBody: Component<ScatterChartBodyProps> = (props) => {
           const painted: CanvasMark[] = [];
           const xs = model.x();
           const ys = model.y();
+          const fill = props.fill ?? seriesColorToken(0);
           for (const d of props.data) {
+            const cx = xs(d.x);
+            const cy = ys(d.y);
+            if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
             pushMark(
               painted,
               paintCircle(
                 ctx,
-                xs(d.x),
-                ys(d.y),
+                cx,
+                cy,
                 {
                   radius: props.radius,
-                  fill: props.fill,
+                  fill,
                   fillOpacity: props.fillOpacity,
                 },
                 resolve,
