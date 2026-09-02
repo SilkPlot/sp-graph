@@ -398,6 +398,11 @@ const PROBES = [
       "packages/charts/test/hierarchy.test.tsx",
       "packages/charts/test/histogram.test.tsx",
       "packages/charts/test/pie-donut.test.tsx",
+      // Widened when live-brush recovery landed: the gesture suite now asserts
+      // that hover inspection resumes after brush release, so a pointer that
+      // never resolves reddens it too — a declared suite that must contribute,
+      // not a stray.
+      "packages/charts/test/viewport-gestures.test.tsx",
     ],
     minFailures: 3,
     observed: "pointer assertions fail across every chart family that composes shared inspection",
@@ -550,8 +555,10 @@ const PROBES = [
     breaks:
       "a series' palette slot comes from its position in the CALLER's array — key it on " +
       "visible position instead and hiding one series silently recolours the rest",
-    anchor: "          style: resolveSeriesStyle(series.style, series.sourceIndex, {",
-    mutation: "          style: resolveSeriesStyle(series.style, i, {",
+    // Re-anchored when live-brush recovery moved style resolution into
+    // `prepareVisibleSeries` (same `sourceIndex` vs visible-position `i` defect).
+    anchor: "      style: resolveSeriesStyle(series.style, series.sourceIndex, {",
+    mutation: "      style: resolveSeriesStyle(series.style, i, {",
     // Two suites, the second added with the legend. The legend/mark seam test
     // compares swatch colours to mark colours, so a palette shift on hiding
     // reddens it too — a genuinely wider blast radius rather than a mutation
