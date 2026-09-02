@@ -264,6 +264,30 @@ describe("the composed multi-series chart shows the shipped legend", () => {
     expect(legend!.compareDocumentPosition(table!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("hides a mark when the composed legend entry is toggled off", async () => {
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c", "d"]);
+    const { container } = render(() => (
+      <LineChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+        visibleSeries={visible()}
+        onVisibilityChange={setVisible}
+      />
+    ));
+
+    expect(markPaths(container)).toHaveLength(4);
+    const second = container.querySelectorAll<HTMLButtonElement>("button[data-sp-legend-item]")[1];
+    await userEvent.click(second as HTMLButtonElement);
+    expect(markPaths(container)).toHaveLength(3);
+    expect(second?.getAttribute("aria-pressed")).toBe("false");
+    expect(visible()).toEqual(["a", "c", "d"]);
+  });
+
   it("opts out when legend={false}, so an application-placed legend is not doubled", () => {
     const { container } = mountBoth({ visibleSeries: ["a", "b", "c", "d"] });
     expect(container.querySelector("[data-silkplot-chart-legend]")).toBeNull();

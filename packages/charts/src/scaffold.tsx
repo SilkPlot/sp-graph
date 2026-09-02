@@ -263,26 +263,44 @@ export interface ChartLegendSpec {
 }
 
 /**
- * Place the shipped legend between the plot and the data alternative.
+ * The shipped legend, placed between the plot and the data alternative.
  *
- * Controlled `visibleSeries` is the composition the shipped legend is the
- * control for. Uncontrolled charts omit it so a one-series `series` panel
- * does not grow a one-button toolbar. ADR-0011 still forbids a second legend
- * implementation — this returns `<Legend>` or the caller's own.
+ * This is a component, not a function that returns an element: Solid would
+ * otherwise snapshot `visibleSeries` / `onVisibilityChange` at first render and
+ * a toggle would not move the marks. Uncontrolled charts render nothing so a
+ * one-series `series` panel does not grow a one-button toolbar. ADR-0011 still
+ * forbids a second legend implementation — this is `<Legend>` or the caller's.
  */
-export function resolveChartLegend(spec: ChartLegendSpec): JSX.Element | undefined {
-  if (spec.legend === false) return undefined;
-  if (spec.legend !== undefined && spec.legend !== true) return spec.legend;
-  if (spec.legend !== true && spec.visibleSeries === undefined) return undefined;
+export const ChartOwnedLegend: Component<ChartLegendSpec> = (props) => {
+  const mode = createMemo<"none" | "custom" | "auto">(() => {
+    if (props.legend === false) return "none";
+    if (props.legend !== undefined && props.legend !== true) return "custom";
+    if (props.legend === true || props.visibleSeries !== undefined) return "auto";
+    return "none";
+  });
   return (
-    <Legend
-      series={spec.series}
-      visibleSeries={spec.visibleSeries}
-      onVisibilityChange={spec.onVisibilityChange}
-      label={spec.legendLabel}
-    />
+    <Show when={mode() !== "none"}>
+      <div
+        data-silkplot-chart-legend=""
+        style={{ "margin-top": "var(--sp-space-sm, 4px)" }}
+      >
+        <Show
+          when={mode() === "custom"}
+          fallback={
+            <Legend
+              series={props.series}
+              visibleSeries={props.visibleSeries}
+              onVisibilityChange={props.onVisibilityChange}
+              label={props.legendLabel}
+            />
+          }
+        >
+          {props.legend as JSX.Element}
+        </Show>
+      </div>
+    </Show>
   );
-}
+};
 
 /**
  * `ChartRoot` + the chart body + the data alternative, in the one arrangement
@@ -303,14 +321,7 @@ export const ChartShell: Component<ChartShellProps> = (props) => (
     >
       {props.children}
     </ChartRoot>
-    {props.legend !== undefined ? (
-      <div
-        data-silkplot-chart-legend=""
-        style={{ "margin-top": "var(--sp-space-sm, 4px)" }}
-      >
-        {props.legend}
-      </div>
-    ) : null}
+    {props.legend}
     {/*
       Before the data table, and outside its disclosure. A chart typically
       carries three thresholds and hundreds of rows, so the list is short enough

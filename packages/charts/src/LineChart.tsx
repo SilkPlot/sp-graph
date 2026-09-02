@@ -47,7 +47,7 @@ import {
   finiteDefined,
   plottedPoints,
   timePointRows,
-  resolveChartLegend,
+  ChartOwnedLegend,
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
@@ -347,7 +347,15 @@ function LineChartMulti<M>(
       rows={() => scope.table().rows}
       columns={scope.table().columns}
       latest={scope.isLatest}
-      legend={resolveChartLegend(props)}
+      legend={
+        <ChartOwnedLegend
+          series={props.series}
+          visibleSeries={props.visibleSeries}
+          onVisibilityChange={props.onVisibilityChange}
+          legend={props.legend}
+          legendLabel={props.legendLabel}
+        />
+      }
       referenceList={
         <ReferenceList
           references={scope.references()}

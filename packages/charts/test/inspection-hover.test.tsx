@@ -34,7 +34,7 @@ const surfaceOf = (c: HTMLElement) =>
   c.querySelector<HTMLElement>("[data-silkplot-keyboard-surface]") ??
   c.querySelector<HTMLElement>("[data-silkplot-pointer-surface]");
 const crosshairOf = (c: HTMLElement) => c.querySelector("[data-silkplot-crosshair]");
-const tooltipOf = (c: HTMLElement) => c.querySelector("[data-silkplot-tooltip]");
+const tooltipOf = (c: HTMLElement) => c.querySelector<HTMLElement>("[data-silkplot-tooltip]");
 const announcerOf = (c: HTMLElement) => c.querySelector("[data-silkplot-announcer]");
 /** The active bar's outline — recorded on the Canvas rect, not an SVG stroke. */
 const emphasisedBar = (c: HTMLElement) =>
