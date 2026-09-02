@@ -58,21 +58,22 @@ The publish-and-show line — delivered 2026-07-22:
   the mechanism you are reading.
 - Continuous deployment of the site from CI, after every gate passes.
 
-What this line deliberately did not claim: performance numbers (still
-unmeasured) and assistive-technology verification (still ahead) — both wait
-on evidence, under **MVP beta** below.
+What this line deliberately did not claim: performance numbers (measured;
+last scored run criteria-missed; no public number) and assistive-technology
+verification (still waits on evidence), under **MVP beta** below.
 
 ## MVP beta
 
-The qualification line. A beta claim needs evidence that does not exist yet,
-so these are evidence tasks, not feature tasks:
+The qualification line. A beta claim needs a binding pass, so these are
+evidence tasks, not feature tasks:
 
 - **Representative performance, measured.** Dense series, many-chart
   dashboards, and high-frequency data run under a frozen protocol on named
-  reference hardware. Until that happens, neither this repository nor the
-  site claims a performance number.
-- **Density qualification.** Measure the current Canvas composition and retain
-  the explicit min/max and raw-inspection evidence. ADR-0025 chooses the
+  reference hardware. Last scored run criteria-missed. Until a binding pass,
+  neither this repository nor the site claims a performance number.
+- **Density qualification.** Last scored run measured the current Canvas
+  composition and retained the explicit min/max and raw-inspection evidence;
+  outcome criteria-missed. ADR-0025 chooses the
   renderer for its enumerated program; it does not manufacture a performance
   result.
 - **Assistive-technology verification**, NVDA on Windows first. The contract
@@ -89,7 +90,7 @@ current registry prerelease:
 - Grouped and stacked bars exist in source and are unpublished.
 - Canvas is the named renderer for ADR-0025's enumerated program
   ([ADR-0025](docs/decisions/adr-0025-enumerated-canvas-renderer-program.md));
-  the separate density-exit performance claim still waits on measurement.
+  the separate density-exit performance claim still waits on a binding pass.
 - Heatmaps and calendar virtualization exist in source and are unpublished.
 - Pie and donut exist in source and are unpublished.
 - Tree, treemap, and pack exist in source and are unpublished.
