@@ -150,7 +150,7 @@ export const LIMITATIONS: readonly Limitation[] = [
   {
     headline: "Canvas exists in source, not on the published alpha",
     detail:
-      "WebGL remains excluded. Density beyond a few thousand marks was measured; last dir host-20260902T074358Z-288487 is binding-evidence / criteria-missed.",
+      "WebGL remains excluded. Density beyond a few thousand marks was measured; last scored run criteria-missed; no public number.",
   },
   {
     headline: "The calendar package is not published",

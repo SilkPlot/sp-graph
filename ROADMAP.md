@@ -58,10 +58,9 @@ The publish-and-show line — delivered 2026-07-22:
   the mechanism you are reading.
 - Continuous deployment of the site from CI, after every gate passes.
 
-What this line deliberately did not claim: performance numbers (last dir
-host-20260902T074358Z-288487 is binding-evidence / criteria-missed; no
-public number) and assistive-technology verification (still ahead) — both wait
-on evidence, under **MVP beta** below.
+What this line deliberately did not claim: performance numbers (measured;
+last scored run criteria-missed; no public number) and assistive-technology
+verification (still waits on evidence), under **MVP beta** below.
 
 ## MVP beta
 
@@ -70,12 +69,11 @@ evidence tasks, not feature tasks:
 
 - **Representative performance, measured.** Dense series, many-chart
   dashboards, and high-frequency data run under a frozen protocol on named
-  reference hardware. Last dir host-20260902T074358Z-288487 is
-  binding-evidence / criteria-missed. Until a binding pass, neither this
-  repository nor the site claims a performance number.
-- **Density qualification.** Last dir host-20260902T074358Z-288487 measured
-  the current Canvas composition and retained the explicit min/max and
-  raw-inspection evidence; outcome criteria-missed. ADR-0025 chooses the
+  reference hardware. Last scored run criteria-missed. Until a binding pass,
+  neither this repository nor the site claims a performance number.
+- **Density qualification.** Last scored run measured the current Canvas
+  composition and retained the explicit min/max and raw-inspection evidence;
+  outcome criteria-missed. ADR-0025 chooses the
   renderer for its enumerated program; it does not manufacture a performance
   result.
 - **Assistive-technology verification**, NVDA on Windows first. The contract
