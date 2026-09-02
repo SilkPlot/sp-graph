@@ -13,13 +13,18 @@ import type { PlotSize } from "./canvas-plot";
 import type { StyleResolver } from "./canvas-style";
 
 /**
- * Axis line and tick marks. `--sp-color-axis` is the S001-P07 scaffolding
- * token: full strength (no extra opacity), and the cascade promotes it under
- * `prefers-contrast: more` (`#000000` light / `#808a9c` dark). Canvas hairlines
- * snap to device pixels in `paintLine` so that token remains the colour the
- * eye actually sees.
+ * Axis DOMAIN line. `--sp-color-axis` is the S001-P07 scaffolding token:
+ * full strength (no extra opacity), promoted under `prefers-contrast: more`.
  */
 const AXIS_STROKE = "var(--sp-color-axis, currentColor)";
+/**
+ * Axis TICK marks. Labels already use `--sp-color-text`. Canvas 6px hairlines
+ * in the pre-muted axis token (`#667085` on `#14161a`) are not visible in
+ * dark, and a 50% smear of that token under light `prefers-contrast: more`
+ * reads as washed grey. `--sp-color-text` is the token that stays visible
+ * in both cells (`#e7eaf0` dark / `#000000` light-HC).
+ */
+const TICK_STROKE = "var(--sp-color-text, currentColor)";
 const AXIS_LABEL_FILL = "var(--sp-color-text, currentColor)";
 const AXIS_FONT_SIZE = "var(--sp-font-sm, 11px)";
 const GRID_STROKE = "var(--sp-color-grid, currentColor)";
@@ -179,6 +184,16 @@ function paintRule(
 ): void {
   pushMark(
     into,
-    paintLine(ctx, x1, y1, x2, y2, { stroke: AXIS_STROKE }, resolve, role, { axis }),
+    paintLine(
+      ctx,
+      x1,
+      y1,
+      x2,
+      y2,
+      { stroke: role === "axis-tick" ? TICK_STROKE : AXIS_STROKE },
+      resolve,
+      role,
+      { axis },
+    ),
   );
 }

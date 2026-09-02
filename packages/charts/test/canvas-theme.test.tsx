@@ -38,8 +38,18 @@ describe("subscribeThemeRevision", () => {
     const stop = subscribeThemeRevision(() => {
       n += 1;
     });
-    window.matchMedia("(prefers-color-scheme: dark)").dispatchEvent(new Event("change"));
-    window.matchMedia("(prefers-contrast: more)").dispatchEvent(new Event("change"));
+    window.matchMedia("(prefers-color-scheme: dark)").dispatchEvent(
+      new MediaQueryListEvent("change", {
+        matches: true,
+        media: "(prefers-color-scheme: dark)",
+      }),
+    );
+    window.matchMedia("(prefers-contrast: more)").dispatchEvent(
+      new MediaQueryListEvent("change", {
+        matches: true,
+        media: "(prefers-contrast: more)",
+      }),
+    );
     expect(n).toBe(2);
     stop();
   });

@@ -730,16 +730,20 @@ describe("canvas frame and chrome", () => {
     }
   });
 
-  it("paints axis ticks and domain with the axis token, not currentColor", () => {
+  it("paints axis ticks with the text token and the domain with the axis token", () => {
     const { ctx } = context2d();
     const resolve = resolver();
     const into: CanvasMark[] = [];
     paintAxis(ctx, { scale: scale(), orientation: "left", plot }, resolve, into);
-    const rules = into.filter(
-      (m) => m.kind === "line" && (m.role === "axis-tick" || m.role === "axis-domain"),
-    );
-    expect(rules.length).toBeGreaterThan(0);
-    for (const rule of rules) {
+    const ticks = into.filter((m) => m.kind === "line" && m.role === "axis-tick");
+    const domain = into.filter((m) => m.kind === "line" && m.role === "axis-domain");
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(domain.length).toBeGreaterThan(0);
+    for (const tick of ticks) {
+      if (tick.kind !== "line") continue;
+      expect(tick.stroke).toBe("var(--sp-color-text, currentColor)");
+    }
+    for (const rule of domain) {
       if (rule.kind !== "line") continue;
       expect(rule.stroke).toBe("var(--sp-color-axis, currentColor)");
     }
