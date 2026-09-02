@@ -120,7 +120,12 @@ describe("LineChart hover", () => {
     ));
     const surface = surfaceOf(container)!;
 
-    await hoverAt(surface, 0.5);
+    // Four equally-spaced times put the 1↔2 Voronoi edge near 0.53 of this
+    // 400px surface. A 0.5→0.53 pair is that edge: CI snapped 1 then 2.
+    // 0.35 is inside the second instant's cell; 12px more cannot leave it.
+    const rect = surface.getBoundingClientRect();
+    const start = 0.35;
+    await hoverAt(surface, start);
     const tip = tooltipOf(container)!;
     expect(tip).not.toBeNull();
     const firstLeft = Number.parseFloat(tip.style.left);
@@ -137,10 +142,10 @@ describe("LineChart hover", () => {
     const snappedX = crosshairX(canvas!);
     expect(snappedX).toBeDefined();
 
-    // A small move stays inside the same datum's cell. The crosshair stays
-    // snapped; the tooltip must follow the pointer.
+    // Same cell, different pointer. The crosshair stays snapped; the tooltip
+    // must follow the pointer.
     expect(Number.isFinite(firstLeft)).toBe(true);
-    await hoverAt(surface, 0.53);
+    await hoverAt(surface, start + 12 / rect.width);
     const moved = tooltipOf(container)!;
     const secondIndex = (
       onChange.mock.calls.at(-1)?.[0] as ActivePoint<SeriesDatum> | undefined
