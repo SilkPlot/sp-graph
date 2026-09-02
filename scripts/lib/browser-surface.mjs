@@ -41,6 +41,7 @@ export function browserSurfacePlan(argv) {
 						args: [
 							"--window-position=5440,80",
 							"--window-size=1280,1100",
+							"--class=silkplot-perf",
 						],
 					}
 				: {}),
