@@ -1269,8 +1269,13 @@ const PROBES = [
       "a viewport commit replaces the Canvas plot instead of repainting its existing bitmap. " +
       "The chart can still carry the new geometry, but DOM identity and retained browser state " +
       "are discarded on every interaction — the Canvas form of the recreation cost profiling removed",
-    anchor: "  annotateChrome(el, marks);",
+    anchor:
+      "  ctx.restore();\n" +
+      "  rememberCanvasMarks(el, marks);\n" +
+      "  annotateChrome(el, marks);",
     mutation:
+      "  ctx.restore();\n" +
+      "  rememberCanvasMarks(el, marks);\n" +
       "  const previousPath = el.getAttribute(\"data-silkplot-mark-d\");\n" +
       "  annotateChrome(el, marks);\n" +
       "  const currentPath = el.getAttribute(\"data-silkplot-mark-d\");\n" +
@@ -1285,7 +1290,7 @@ const PROBES = [
     failingIn: ["packages/charts/test/multi-series.test.tsx"],
     minFailures: 1,
     observed:
-      "1 failure: the Canvas node captured before zoom is not the one present after the commit",
+      "2 failures: the Canvas node captured before zoom is not the one present after the commit",
     messagePattern: /a viewport commit must keep the existing Canvas plot/,
   },
   {

@@ -13,9 +13,13 @@ import { describe, expect, it } from "vitest";
 import { createSignal } from "solid-js";
 import { fireEvent, render } from "@solidjs/testing-library";
 import { userEvent } from "vitest/browser";
+import { ChartRoot } from "@silkplot/solid";
 import type { Series } from "@silkplot/core";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { TimePoint, XYPoint } from "../src/index";
+import { paintPointMark } from "../src/canvas-chrome";
+import type { CanvasMark } from "../src/canvas-marks";
+import { CanvasPlot } from "../src/canvas-plot";
 import {
   HEIGHT,
   NO_MARGINS,
@@ -181,6 +185,13 @@ describe("interaction still writes one active-datum state", () => {
     expect(line.container.querySelector('[role="option"]')?.getAttribute("aria-posinset")).toBe("1");
     expect(line.container.querySelector("[data-silkplot-crosshair]")).not.toBeNull();
     expect(paintedSvgInGraphic(line.container)).toEqual([]);
+    const lineCanvas = canvasOf(line.container);
+    const pathBefore = lineCanvas.getAttribute("data-silkplot-mark-d");
+    expect(pathBefore).toBeTruthy();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(line.container.querySelector('[role="option"]')?.getAttribute("aria-posinset")).toBe("2");
+    expect(lineCanvas.getAttribute("data-silkplot-mark-d")).toBe(pathBefore);
+    expect(lineCanvas.hasAttribute("data-silkplot-crosshair")).toBe(true);
 
     const bar = render(() => (
       <BarChart title="Spend" desc="By programme" categories={[...CATS]} {...SIZE} />
@@ -192,6 +203,34 @@ describe("interaction still writes one active-datum state", () => {
     const stroked = bars(bar.container).filter((r) => r.getAttribute("stroke") !== "none");
     expect(stroked).toHaveLength(1);
     expect(stroked[0]?.getAttribute("stroke-width")).toBe("2");
+  });
+
+  it("does not re-run the series painter when only overlay chrome moves", () => {
+    const [point, setPoint] = createSignal<{ cx: number; cy: number } | undefined>();
+    let paints = 0;
+    const { container } = render(() => (
+      <ChartRoot width={WIDTH} height={HEIGHT}>
+        <CanvasPlot
+          paint={() => {
+            paints += 1;
+            return [];
+          }}
+          overlay={(ctx, plot, resolve) => {
+            const cursor = point();
+            if (cursor === undefined) return [];
+            const into: CanvasMark[] = [];
+            paintPointMark(ctx, cursor.cx, cursor.cy, plot, resolve, into);
+            return into;
+          }}
+        />
+      </ChartRoot>
+    ));
+    const afterMount = paints;
+    expect(afterMount).toBeGreaterThan(0);
+    setPoint({ cx: 12, cy: 14 });
+    expect(paints).toBe(afterMount);
+    const canvas = canvasOf(container);
+    expect(canvas.hasAttribute("data-silkplot-crosshair")).toBe(true);
   });
 });
 

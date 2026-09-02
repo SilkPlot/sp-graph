@@ -5,16 +5,22 @@
  * translated to the plot origin. Marks and chrome clip via `ctx.clip` inside
  * the paint pass; this host only clears, translates, and records. Pointer
  * events pass through so the keyboard/hover surface keeps capturing.
+ *
+ * Live overlay chrome (active point, brush) is composited onto a cached copy
+ * of the series/axes bitmap. A keyboard step must not restroke the dense
+ * path — that restroke is how W-D derived inspection dropped a frame.
  */
-import { createEffect, createSignal, type JSX } from "solid-js";
+import { createEffect, createSignal, untrack, type JSX } from "solid-js";
 import { useChartBounds } from "@silkplot/solid";
 import {
+  marksOnCanvas,
   rememberCanvasMarks,
   type CanvasMark,
   type LineMark,
   type PathMark,
   type TextMark,
 } from "./canvas-marks";
+import { clipPlotArea } from "./canvas-paint";
 import { createStyleResolver, type StyleResolver } from "./canvas-style";
 
 export interface PlotSize {
@@ -37,6 +43,12 @@ export type PlotPaint = (
 
 export interface CanvasPlotProps {
   paint: PlotPaint;
+  /**
+   * Live chrome painted onto a snapshot of `paint`. When present, a change
+   * here must not re-invoke `paint` — that is the inspection restroke this
+   * host exists to avoid.
+   */
+  overlay?: PlotPaint;
 }
 
 function annotateChrome(el: HTMLCanvasElement, marks: readonly CanvasMark[]): void {
@@ -94,6 +106,36 @@ function writeAttr(el: HTMLCanvasElement, name: string, value: string | undefine
   el.setAttribute(name, value);
 }
 
+function copyBitmap(from: HTMLCanvasElement, to: HTMLCanvasElement): void {
+  if (to.width !== from.width) to.width = from.width;
+  if (to.height !== from.height) to.height = from.height;
+  const ctx = to.getContext("2d");
+  if (ctx === null) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, to.width, to.height);
+  if (from.width > 0 && from.height > 0) ctx.drawImage(from, 0, 0);
+}
+
+const BASE_BITMAP = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+const BASE_MARKS = new WeakMap<HTMLCanvasElement, readonly CanvasMark[]>();
+
+function layoutOf(bounds: {
+  innerWidth: number;
+  innerHeight: number;
+  width: number;
+  height: number;
+  margins: { left: number; top: number };
+}): PlotLayout {
+  return {
+    width: bounds.innerWidth,
+    height: bounds.innerHeight,
+    originX: bounds.margins.left,
+    originY: bounds.margins.top,
+    outerWidth: bounds.width,
+    outerHeight: bounds.height,
+  };
+}
+
 /**
  * Paint one Canvas plot, or no-op when the element is not yet attached or
  * the inner size has collapsed. Exported so the two guards are unit-testable.
@@ -138,25 +180,83 @@ export function syncCanvasPlot(
   annotateChrome(el, marks);
 }
 
+/**
+ * Keep a series/axes snapshot of the visible plot. Overlay compositing blits
+ * this instead of re-invoking the series painter.
+ */
+export function snapshotCanvasBase(el: HTMLCanvasElement | undefined): void {
+  if (el === undefined) return;
+  let cache = BASE_BITMAP.get(el);
+  if (cache === undefined) {
+    cache = document.createElement("canvas");
+    BASE_BITMAP.set(el, cache);
+  }
+  copyBitmap(el, cache);
+  BASE_MARKS.set(el, marksOnCanvas(el));
+}
+
+/**
+ * Blit the cached series bitmap and paint live chrome on top. Exported so a
+ * keyboard restroke can be proven not to re-run the series painter.
+ */
+export function compositeCanvasOverlay(
+  el: HTMLCanvasElement | undefined,
+  layout: PlotLayout,
+  overlay: PlotPaint,
+): void {
+  if (el === undefined) return;
+  const cache = BASE_BITMAP.get(el);
+  if (cache === undefined) return;
+  copyBitmap(cache, el);
+  writeAttr(el, "data-silkplot-plot-width", String(layout.width));
+  writeAttr(el, "data-silkplot-plot-height", String(layout.height));
+  writeAttr(el, "data-silkplot-plot-origin-x", String(layout.originX ?? 0));
+  writeAttr(el, "data-silkplot-plot-origin-y", String(layout.originY ?? 0));
+  if (layout.width <= 0 || layout.height <= 0) {
+    rememberCanvasMarks(el, []);
+    annotateChrome(el, []);
+    return;
+  }
+  const originX = layout.originX ?? 0;
+  const originY = layout.originY ?? 0;
+  const dpr = window.devicePixelRatio;
+  const ctx = el.getContext("2d")!;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.save();
+  ctx.translate(originX, originY);
+  ctx.save();
+  clipPlotArea(ctx, layout.width, layout.height);
+  const overlayMarks = overlay(
+    ctx,
+    { width: layout.width, height: layout.height },
+    createStyleResolver(el),
+  );
+  ctx.restore();
+  ctx.restore();
+  const marks = [...(BASE_MARKS.get(el) ?? []), ...overlayMarks];
+  rememberCanvasMarks(el, marks);
+  annotateChrome(el, marks);
+}
+
 export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
   const bounds = useChartBounds();
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>();
 
   createEffect(() => {
     const el = canvas();
-    const b = bounds();
-    syncCanvasPlot(
-      el,
-      {
-        width: b.innerWidth,
-        height: b.innerHeight,
-        originX: b.margins.left,
-        originY: b.margins.top,
-        outerWidth: b.width,
-        outerHeight: b.height,
-      },
-      props.paint,
-    );
+    const layout = layoutOf(bounds());
+    syncCanvasPlot(el, layout, props.paint);
+    const overlay = props.overlay;
+    if (overlay === undefined) return;
+    snapshotCanvasBase(el);
+    untrack(() => compositeCanvasOverlay(el, layout, overlay));
+  });
+
+  createEffect(() => {
+    const overlay = props.overlay;
+    if (overlay === undefined) return;
+    const el = canvas();
+    compositeCanvasOverlay(el, layoutOf(bounds()), overlay);
   });
 
   return (
