@@ -38,6 +38,7 @@ import {
   paintStroke,
   paintText,
   pushMark,
+  snapHairline,
 } from "../src/canvas-paint";
 import { CATEGORICAL_PATTERN_COUNT, paintCategoricalPattern } from "../src/canvas-pattern";
 import { syncCanvasPlot, snapshotCanvasBase, compositeCanvasOverlay } from "../src/canvas-plot";
@@ -615,6 +616,39 @@ describe("rankedBarRect", () => {
 });
 
 describe("paintLine / paintText / paintRing", () => {
+  it("snaps a 1px hairline onto a device pixel so the stroke is opaque", () => {
+    expect(snapHairline(10, 1)).toBe(10.5);
+    expect(snapHairline(10, 2)).toBe(10);
+    expect(snapHairline(10.3, 2)).toBe(10.5);
+    const { canvas, ctx } = context2d();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    paintLine(ctx, 0, 10, 20, 10, { stroke: "#000000" }, resolver(), "axis-tick");
+    const pixel = ctx.getImageData(8, 10, 1, 1).data;
+    expect(pixel[0]).toBeLessThan(20);
+    expect(pixel[1]).toBeLessThan(20);
+    expect(pixel[2]).toBeLessThan(20);
+    expect(pixel[3]).toBeGreaterThan(240);
+    paintLine(ctx, 15, 2, 15, 18, { stroke: "#000000" }, resolver(), "axis-tick");
+    const vertical = ctx.getImageData(15, 8, 1, 1).data;
+    expect(vertical[3]).toBeGreaterThan(240);
+    const thick = paintLine(
+      ctx,
+      2,
+      4,
+      2,
+      12,
+      { stroke: "#111111", strokeWidth: 2 },
+      resolver(),
+      "axis-domain",
+    );
+    expect(thick.x1).toBe("2");
+    expect(thick.x2).toBe("2");
+    const diagonal = paintLine(ctx, 0, 0, 6, 6, { stroke: "#222222" }, resolver(), "grid");
+    expect(diagonal.x2).toBe("6");
+    expect(diagonal.y2).toBe("6");
+  });
+
   it("records a dashed line, a rotated label, and a cursor ring", () => {
     const { ctx } = context2d();
     const resolve = resolver();
@@ -693,6 +727,21 @@ describe("canvas frame and chrome", () => {
     for (const label of labels) {
       if (label.kind !== "text") continue;
       expect(label.fill).toBe("var(--sp-color-text, currentColor)");
+    }
+  });
+
+  it("paints axis ticks and domain with the axis token, not currentColor", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const into: CanvasMark[] = [];
+    paintAxis(ctx, { scale: scale(), orientation: "left", plot }, resolve, into);
+    const rules = into.filter(
+      (m) => m.kind === "line" && (m.role === "axis-tick" || m.role === "axis-domain"),
+    );
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) {
+      if (rule.kind !== "line") continue;
+      expect(rule.stroke).toBe("var(--sp-color-axis, currentColor)");
     }
   });
 

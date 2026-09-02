@@ -12,6 +12,13 @@ import { paintLine, paintText, pushMark } from "./canvas-paint";
 import type { PlotSize } from "./canvas-plot";
 import type { StyleResolver } from "./canvas-style";
 
+/**
+ * Axis line and tick marks. `--sp-color-axis` is the S001-P07 scaffolding
+ * token: full strength (no extra opacity), and the cascade promotes it under
+ * `prefers-contrast: more` (`#000000` light / `#808a9c` dark). Canvas hairlines
+ * snap to device pixels in `paintLine` so that token remains the colour the
+ * eye actually sees.
+ */
 const AXIS_STROKE = "var(--sp-color-axis, currentColor)";
 const AXIS_LABEL_FILL = "var(--sp-color-text, currentColor)";
 const AXIS_FONT_SIZE = "var(--sp-font-sm, 11px)";

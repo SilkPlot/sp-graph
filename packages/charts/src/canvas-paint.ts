@@ -233,6 +233,45 @@ export interface LinePaintSpec {
   opacity?: number;
 }
 
+/**
+ * Align a 1 CSS-px stroke so its edges fall on device-pixel boundaries.
+ *
+ * Canvas centres the stroke on the path. At `devicePixelRatio` 1, a 1px line
+ * on an integer coordinate covers two half-pixels and anti-aliases to ~50%
+ * coverage. On the dark `--sp-color-axis` (`#667085` on `#14161a`) that smear
+ * drops the tick below a visible floor; under light `prefers-contrast: more`
+ * the same smear turns `#000000` into washed grey next to the 11px labels.
+ */
+export function snapHairline(n: number, dpr: number): number {
+  return (Math.round(n * dpr - 0.5 * dpr) + 0.5 * dpr) / dpr;
+}
+
+function currentScale(ctx: CanvasRenderingContext2D): number {
+  const t = ctx.getTransform();
+  return Math.hypot(t.a, t.b) || 1;
+}
+
+function alignHairline(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  strokeWidth: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+  if (strokeWidth !== 1) return { x1, y1, x2, y2 };
+  const dpr = currentScale(ctx);
+  if (x1 === x2) {
+    const x = snapHairline(x1, dpr);
+    return { x1: x, y1, x2: x, y2 };
+  }
+  if (y1 === y2) {
+    const y = snapHairline(y1, dpr);
+    return { x1, y1: y, x2, y2: y };
+  }
+  return { x1, y1, x2, y2 };
+}
+
 /** Stroke a single segment. Butt caps: these are grid, axis, and chrome rules. */
 export function paintLine(
   ctx: CanvasRenderingContext2D,
@@ -245,16 +284,18 @@ export function paintLine(
   role: LineRole,
   extra?: Pick<LineMark, "axis" | "referenceId">,
 ): LineMark {
+  const strokeWidth = spec.strokeWidth ?? 1;
+  const aligned = alignHairline(ctx, x1, y1, x2, y2, strokeWidth);
   ctx.save();
   ctx.strokeStyle = resolve.color(spec.stroke ?? "currentColor");
-  ctx.lineWidth = spec.strokeWidth ?? 1;
+  ctx.lineWidth = strokeWidth;
   ctx.lineCap = "butt";
   ctx.lineJoin = "miter";
   ctx.setLineDash(spec.dash !== undefined ? resolve.dash(spec.dash) : []);
   if (spec.opacity !== undefined) ctx.globalAlpha = spec.opacity;
   ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
+  ctx.moveTo(aligned.x1, aligned.y1);
+  ctx.lineTo(aligned.x2, aligned.y2);
   ctx.stroke();
   ctx.restore();
   return {
@@ -264,7 +305,7 @@ export function paintLine(
     x2: String(x2),
     y2: String(y2),
     stroke: spec.stroke ?? "currentColor",
-    strokeWidth: String(spec.strokeWidth ?? 1),
+    strokeWidth: String(strokeWidth),
     dash: spec.dash,
     role,
     axis: extra?.axis,
