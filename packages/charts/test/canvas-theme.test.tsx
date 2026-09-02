@@ -1,9 +1,31 @@
 /**
  * Theme-revision subscription: Canvas only rereads `--sp-color-*` on paint.
+ *
+ * Chromium does not fire MediaQueryList listeners from `dispatchEvent`. The
+ * matchMedia path is proven with CDP `Emulation.setEmulatedMedia`, the same
+ * signal the site theme and `prefers-contrast: more` actually produce.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { cdp } from "vitest/browser";
 import { THEME_ATTR } from "@silkplot/theme";
 import { subscribeThemeRevision } from "../src/canvas-theme";
+
+interface CdpLike {
+  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
+}
+const session = cdp() as unknown as CdpLike;
+
+async function setMedia(
+  scheme: "light" | "dark",
+  contrast: "no-preference" | "more",
+): Promise<void> {
+  await session.send("Emulation.setEmulatedMedia", {
+    features: [
+      { name: "prefers-color-scheme", value: scheme },
+      { name: "prefers-contrast", value: contrast },
+    ],
+  });
+}
 
 describe("subscribeThemeRevision", () => {
   afterEach(() => {
@@ -11,6 +33,10 @@ describe("subscribeThemeRevision", () => {
     for (const el of document.body.querySelectorAll(`[${THEME_ATTR}]`)) {
       el.removeAttribute(THEME_ATTR);
     }
+  });
+
+  afterAll(async () => {
+    await session.send("Emulation.setEmulatedMedia", { features: [] });
   });
 
   it("notifies when data-sp-theme changes on the root or a subtree, and unsubscribes", async () => {
@@ -29,28 +55,20 @@ describe("subscribeThemeRevision", () => {
     const frozen = n;
     document.documentElement.setAttribute(THEME_ATTR, "light");
     island.remove();
-    await new Promise((r) => setTimeout(r, 30));
-    expect(n).toBe(frozen);
+    await expect.poll(() => n).toBe(frozen);
   });
 
-  it("notifies when prefers-color-scheme or prefers-contrast matchMedia fires change", () => {
+  it("notifies when prefers-color-scheme or prefers-contrast matchMedia fires change", async () => {
+    await setMedia("light", "no-preference");
     let n = 0;
     const stop = subscribeThemeRevision(() => {
       n += 1;
     });
-    window.matchMedia("(prefers-color-scheme: dark)").dispatchEvent(
-      new MediaQueryListEvent("change", {
-        matches: true,
-        media: "(prefers-color-scheme: dark)",
-      }),
-    );
-    window.matchMedia("(prefers-contrast: more)").dispatchEvent(
-      new MediaQueryListEvent("change", {
-        matches: true,
-        media: "(prefers-contrast: more)",
-      }),
-    );
-    expect(n).toBe(2);
+    await setMedia("dark", "no-preference");
+    await expect.poll(() => n).toBeGreaterThan(0);
+    const afterScheme = n;
+    await setMedia("dark", "more");
+    await expect.poll(() => n).toBeGreaterThan(afterScheme);
     stop();
   });
 });
