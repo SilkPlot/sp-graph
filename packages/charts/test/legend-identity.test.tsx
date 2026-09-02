@@ -21,7 +21,7 @@ import { render } from "@solidjs/testing-library";
 import { userEvent } from "vitest/browser";
 import type { Series } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
-import { LineChart } from "../src/index";
+import { AreaChart, LineChart } from "../src/index";
 import { HEIGHT, NO_MARGINS, WIDTH, markPaths } from "./support";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
@@ -262,6 +262,32 @@ describe("the composed multi-series chart shows the shipped legend", () => {
     expect(table).not.toBeNull();
     // DOCUMENT_POSITION_FOLLOWING = 4: table comes after the legend in the tree.
     expect(legend!.compareDocumentPosition(table!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("wires the same controlled legend through AreaChart", async () => {
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c", "d"]);
+    const { container } = render(() => (
+      <AreaChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+        visibleSeries={visible()}
+        onVisibilityChange={setVisible}
+        legendLabel="Sensors"
+      />
+    ));
+    const legend = container.querySelector("[data-silkplot-chart-legend]");
+    expect(legend).not.toBeNull();
+    expect(legend!.querySelectorAll("button[data-sp-legend-item]")).toHaveLength(4);
+    expect(legend!.querySelector('[aria-label="Sensors"]')).not.toBeNull();
+    const first = container.querySelector<HTMLButtonElement>("button[data-sp-legend-item]");
+    await userEvent.click(first!);
+    expect(first?.getAttribute("aria-pressed")).toBe("false");
+    expect(visible()).toEqual(["b", "c", "d"]);
   });
 
   it("hides a mark when the composed legend entry is toggled off", async () => {
