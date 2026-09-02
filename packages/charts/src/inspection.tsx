@@ -256,6 +256,34 @@ export interface InteractionLayerProps<D> {
 }
 
 /**
+ * Tooltip position has to track independently of Show.
+ *
+ * Solid's `<Show>` untracks its children callback, so reading the pointer once
+ * there would freeze the tooltip on the first hover pixel — including frames
+ * where the snapped datum does not change. This component's body (and the
+ * getters the compiler wraps around `x`/`y`) stay live.
+ */
+function InspectionTooltip<D>(props: {
+  point: Accessor<ActivePoint<D>>;
+  pointerInner: Accessor<{ x: number; y: number } | undefined>;
+  tooltip: (point: ActivePoint<D>) => JSX.Element | undefined;
+}): JSX.Element {
+  const x = (): number => {
+    const hover = props.pointerInner();
+    return hover !== undefined ? hover.x : props.point().position.x;
+  };
+  const y = (): number => {
+    const hover = props.pointerInner();
+    return hover !== undefined ? hover.y : props.point().position.y;
+  };
+  return (
+    <TooltipAnchor x={x()} y={y()}>
+      {props.tooltip(props.point())}
+    </TooltipAnchor>
+  );
+}
+
+/**
  * Everything outside the marks that makes the chart inspectable: the ONE
  * interaction surface, the caller's tooltip, and the announcement channel. All
  * read the one active-datum state, so the crosshair, the tooltip, and the speech
@@ -386,15 +414,15 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
           </div>
         </Show>
       </Show>
-      <Show when={props.tooltip && active()}>
-        {(a) => {
-          const point = a() as ActivePoint<D>;
-          return (
-            <TooltipAnchor x={point.position.x} y={point.position.y}>
-              {props.tooltip?.(point)}
-            </TooltipAnchor>
-          );
-        }}
+      <Show when={props.tooltip !== undefined && active() !== undefined}>
+        <InspectionTooltip
+          point={() => active() as ActivePoint<D>}
+          pointerInner={insp.pointerInner}
+          tooltip={(point) => {
+            const render = props.tooltip;
+            return render !== undefined ? render(point) : undefined;
+          }}
+        />
       </Show>
       {/* The announcer stays mounted while live so a clear empties the region
           rather than removing it — `ChartAnnouncer` clears an empty message

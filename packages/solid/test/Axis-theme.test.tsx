@@ -62,6 +62,13 @@ describe("Axis tick font-size follows --sp-font-sm", () => {
   });
 });
 
+describe("Axis tick labels follow --sp-color-text", () => {
+  it("resolves the label fill to the text token colour", () => {
+    const { container } = mountThemed({ "--sp-color-text": "rgb(12, 34, 56)" });
+    expect(getComputedStyle(firstText(container)).fill).toBe("rgb(12, 34, 56)");
+  });
+});
+
 describe("Axis line/ticks follow --sp-color-axis at full strength", () => {
   it("resolves the tick stroke to the axis token colour", () => {
     const { container } = mountThemed({ "--sp-color-axis": "rgb(10, 20, 30)" });

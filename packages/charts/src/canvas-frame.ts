@@ -13,6 +13,7 @@ import type { PlotSize } from "./canvas-plot";
 import type { StyleResolver } from "./canvas-style";
 
 const AXIS_STROKE = "var(--sp-color-axis, currentColor)";
+const AXIS_LABEL_FILL = "var(--sp-color-text, currentColor)";
 const AXIS_FONT_SIZE = "var(--sp-font-sm, 11px)";
 const GRID_STROKE = "var(--sp-color-grid, currentColor)";
 const TICK_SIZE = 6;
@@ -100,7 +101,7 @@ function paintHorizontalAxis(
         labelY,
         tick.label,
         {
-          fill: "currentColor",
+          fill: AXIS_LABEL_FILL,
           fontSize: AXIS_FONT_SIZE,
           anchor: rotation !== 0 ? "end" : "center",
           rotate: rotation !== 0 ? rotation : undefined,
@@ -145,7 +146,7 @@ function paintVerticalAxis(
         tick.position,
         tick.label,
         {
-          fill: "currentColor",
+          fill: AXIS_LABEL_FILL,
           fontSize: AXIS_FONT_SIZE,
           anchor,
           baseline: "middle",

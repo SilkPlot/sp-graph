@@ -21,7 +21,15 @@
  * touched only inside `onMount`/`onCleanup` and the pointer handlers, which run in
  * a rendered component in a browser. Nothing here runs at module load.
  */
-import { type Accessor, createMemo, createEffect, on, onCleanup, onMount } from "solid-js";
+import {
+  type Accessor,
+  createMemo,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import type { ActivePoint, ActivePointIndex } from "@silkplot/core";
 import { useChartBounds } from "./context";
 import { createActiveDatum, type ActiveDatum } from "./createActiveDatum";
@@ -69,6 +77,15 @@ export interface ChartInspection<D> {
   cancelPendingPointer: () => void;
   /** Ref setter for the surface whose rect is cached for coordinate maths. */
   setSurface: (element: HTMLElement) => void;
+  /**
+   * Live pointer in INNER coordinates, updated every coalesced frame while the
+   * pointer is on the surface. Absent when the pointer is not the source
+   * (keyboard inspection, or after leave).
+   *
+   * The active DATUM still snaps to the nearest reading. The hover tooltip
+   * reads THIS so it tracks the pointer instead of sitting on the snapped pixel.
+   */
+  pointerInner: Accessor<{ x: number; y: number } | undefined>;
 }
 
 export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartInspection<D> {
@@ -105,14 +122,19 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     );
   }
 
-  // The pointer loop. These are plain locals, not signals: they are written on
-  // every raw event and read once per frame, and making them reactive would
-  // schedule work the coalescing exists to avoid.
+  // The pointer loop. clientX/Y and the cached rect are plain locals: they are
+  // written on every raw event and read once per frame, and making them
+  // reactive would schedule work the coalescing exists to avoid. The INNER
+  // pointer is a signal because the tooltip has to re-anchor on frames where
+  // the snapped datum did not change.
   let surface: HTMLElement | undefined;
   let rect: DOMRect | undefined;
   let frame = 0;
   let clientX = 0;
   let clientY = 0;
+  const [pointerInner, setPointerInner] = createSignal<{ x: number; y: number } | undefined>(
+    undefined,
+  );
 
   const refreshRect = (): void => {
     rect = surface?.getBoundingClientRect();
@@ -122,11 +144,13 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     frame = 0;
     if (rect === undefined) return;
     const b = bounds();
-    // Container space → inner (plot) space: subtract the element's own offset and
-    // the plot margins. Exactly one owner of this conversion, so the cursor and
-    // the tooltip land on the same pixel (ADR-0002 §3).
+    // Container space → inner (plot) space: subtract the element's own offset
+    // and the plot margins. Exactly one owner of this conversion. Locate still
+    // snaps the active datum; the hover tooltip reads the same inner pointer so
+    // it tracks the mouse rather than the snapped mark.
     const px = clientX - rect.left - b.margins.left;
     const py = clientY - rect.top - b.margins.top;
+    setPointerInner({ x: px, y: py });
     const ordinal = spec.index().locate(px, py);
     active.set(ordinal < 0 ? undefined : ordinal);
   };
@@ -149,16 +173,19 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     if (frame === 0) frame = requestAnimationFrame(resolve);
   };
 
-  const onPointerLeave = (): void => {
-    // Leaving the plot clears rather than clamps — a phantom active point pinned
-    // at the edge is worse than none (ADR-0014 §2).
-    active.clear();
-  };
-
   const cancelPendingPointer = (): void => {
     if (frame === 0) return;
     cancelAnimationFrame(frame);
     frame = 0;
+  };
+
+  const onPointerLeave = (): void => {
+    // Leaving the plot clears rather than clamps — a phantom active point pinned
+    // at the edge is worse than none (ADR-0014 §2). Cancel first so a pending
+    // rAF cannot write the pointer (or the datum) back after leave.
+    cancelPendingPointer();
+    setPointerInner(undefined);
+    active.clear();
   };
 
   const setSurface = (element: HTMLElement): void => {
@@ -180,5 +207,6 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
     onPointerLeave,
     cancelPendingPointer,
     setSurface,
+    pointerInner,
   };
 }

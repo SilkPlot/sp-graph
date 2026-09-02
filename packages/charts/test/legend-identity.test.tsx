@@ -21,7 +21,7 @@ import { render } from "@solidjs/testing-library";
 import { userEvent } from "vitest/browser";
 import type { Series } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
-import { LineChart } from "../src/index";
+import { AreaChart, LineChart } from "../src/index";
 import { HEIGHT, NO_MARGINS, WIDTH, markPaths } from "./support";
 
 const at = (hour: number): Date => new Date(Date.UTC(2026, 2, 1, hour));
@@ -64,6 +64,7 @@ function mountBoth(props: Record<string, unknown> = {}) {
         margins={NO_MARGINS}
         curve="linear"
         series={FOUR}
+        legend={false}
         {...props}
       />
     </>
@@ -111,6 +112,7 @@ describe("legend swatches match their own marks", () => {
           margins={NO_MARGINS}
           curve="linear"
           series={list()}
+          legend={false}
         />
       </>
     ));
@@ -157,6 +159,7 @@ describe("one visibility state drives both", () => {
           curve="linear"
           series={FOUR}
           visibleSeries={visible()}
+          legend={false}
         />
       </>
     ));
@@ -186,6 +189,7 @@ describe("one visibility state drives both", () => {
           curve="linear"
           series={[series("a")]}
           visibleSeries={visible()}
+          legend={false}
         />
       </>
     ));
@@ -221,6 +225,7 @@ describe("one visibility state drives both", () => {
           curve="linear"
           series={tall}
           visibleSeries={visible()}
+          legend={false}
         />
       </>
     ));
@@ -232,5 +237,102 @@ describe("one visibility state drives both", () => {
     // Same data, different pixels: hiding the spike rescaled the axis, which is
     // the whole gesture. Equal geometry would mean a pinned domain.
     expect(after).not.toBe(before);
+  });
+});
+
+describe("the composed multi-series chart shows the shipped legend", () => {
+  it("renders the controlled legend between the plot and the data table", () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+        visibleSeries={["a", "b", "c", "d"]}
+      />
+    ));
+
+    const legend = container.querySelector("[data-silkplot-chart-legend]");
+    const table = container.querySelector("[data-silkplot-table-toggle]");
+    expect(legend).not.toBeNull();
+    expect(legend!.querySelectorAll("button[data-sp-legend-item]")).toHaveLength(4);
+    expect(table).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING = 4: table comes after the legend in the tree.
+    expect(legend!.compareDocumentPosition(table!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("wires the same controlled legend through AreaChart", async () => {
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c", "d"]);
+    const { container } = render(() => (
+      <AreaChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+        visibleSeries={visible()}
+        onVisibilityChange={setVisible}
+        legendLabel="Sensors"
+      />
+    ));
+    const legend = container.querySelector("[data-silkplot-chart-legend]");
+    expect(legend).not.toBeNull();
+    expect(legend!.querySelectorAll("button[data-sp-legend-item]")).toHaveLength(4);
+    expect(legend!.querySelector('[aria-label="Sensors"]')).not.toBeNull();
+    const first = container.querySelector<HTMLButtonElement>("button[data-sp-legend-item]");
+    await userEvent.click(first!);
+    expect(first?.getAttribute("aria-pressed")).toBe("false");
+    expect(visible()).toEqual(["b", "c", "d"]);
+  });
+
+  it("hides a mark when the composed legend entry is toggled off", async () => {
+    const [visible, setVisible] = createSignal<readonly string[]>(["a", "b", "c", "d"]);
+    const { container } = render(() => (
+      <LineChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+        visibleSeries={visible()}
+        onVisibilityChange={setVisible}
+      />
+    ));
+
+    expect(markPaths(container)).toHaveLength(4);
+    const second = container.querySelectorAll<HTMLButtonElement>("button[data-sp-legend-item]")[1];
+    await userEvent.click(second as HTMLButtonElement);
+    expect(markPaths(container)).toHaveLength(3);
+    expect(second?.getAttribute("aria-pressed")).toBe("false");
+    expect(visible()).toEqual(["a", "c", "d"]);
+  });
+
+  it("opts out when legend={false}, so an application-placed legend is not doubled", () => {
+    const { container } = mountBoth({ visibleSeries: ["a", "b", "c", "d"] });
+    expect(container.querySelector("[data-silkplot-chart-legend]")).toBeNull();
+    expect(container.querySelectorAll("button[data-sp-legend-item]")).toHaveLength(4);
+  });
+
+  it("does not insert a legend on an uncontrolled series chart", () => {
+    const { container } = render(() => (
+      <LineChart
+        title="Identity fixture"
+        desc="d"
+        width={WIDTH}
+        height={HEIGHT}
+        margins={NO_MARGINS}
+        curve="linear"
+        series={FOUR}
+      />
+    ));
+    expect(container.querySelector("[data-silkplot-chart-legend]")).toBeNull();
+    expect(container.querySelectorAll("button[data-sp-legend-item]")).toHaveLength(0);
   });
 });

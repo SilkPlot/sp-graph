@@ -19,7 +19,7 @@ import type {
 } from "@silkplot/core";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { TimePoint, XYPoint } from "../src/index";
-import { bars } from "./support";
+import { bars, marksOnCanvas } from "./support";
 
 const SIZE = { width: 400, height: 300 };
 
@@ -34,7 +34,7 @@ const surfaceOf = (c: HTMLElement) =>
   c.querySelector<HTMLElement>("[data-silkplot-keyboard-surface]") ??
   c.querySelector<HTMLElement>("[data-silkplot-pointer-surface]");
 const crosshairOf = (c: HTMLElement) => c.querySelector("[data-silkplot-crosshair]");
-const tooltipOf = (c: HTMLElement) => c.querySelector("[data-silkplot-tooltip]");
+const tooltipOf = (c: HTMLElement) => c.querySelector<HTMLElement>("[data-silkplot-tooltip]");
 const announcerOf = (c: HTMLElement) => c.querySelector("[data-silkplot-announcer]");
 /** The active bar's outline — recorded on the Canvas rect, not an SVG stroke. */
 const emphasisedBar = (c: HTMLElement) =>
@@ -104,6 +104,57 @@ describe("LineChart hover", () => {
     expect(tooltipOf(container)).toBeNull();
     expect(announcerOf(container)!.textContent).toBe("");
     expect(onChange.mock.calls.at(-1)?.[0]).toBeUndefined();
+  });
+
+  it("tracks the pointer with the tooltip while the crosshair stays snapped to the datum", async () => {
+    const onChange = vi.fn();
+    const { container } = render(() => (
+      <LineChart
+        data={DATA}
+        title="Weekly bookings"
+        desc="Four days"
+        {...SIZE}
+        tooltip={(a) => <span data-testid="tt">{String(a.datum.y)}</span>}
+        onActivePointChange={onChange}
+      />
+    ));
+    const surface = surfaceOf(container)!;
+
+    // Four equally-spaced times put the 1↔2 Voronoi edge near 0.53 of this
+    // 400px surface. A 0.5→0.53 pair is that edge: CI snapped 1 then 2.
+    // 0.35 is inside the second instant's cell; 12px more cannot leave it.
+    const rect = surface.getBoundingClientRect();
+    const start = 0.35;
+    await hoverAt(surface, start);
+    const tip = tooltipOf(container)!;
+    expect(tip).not.toBeNull();
+    const firstLeft = Number.parseFloat(tip.style.left);
+    const firstIndex = (
+      onChange.mock.calls.at(-1)?.[0] as ActivePoint<SeriesDatum> | undefined
+    )?.sourceIndex;
+    expect(firstIndex).toBeDefined();
+    const canvas = container.querySelector<HTMLCanvasElement>("[data-silkplot-canvas-plot]");
+    expect(canvas).not.toBeNull();
+    const crosshairX = (el: HTMLCanvasElement): string | undefined => {
+      const mark = marksOnCanvas(el).find((m) => m.kind === "line" && m.role === "crosshair-x");
+      return mark && mark.kind === "line" ? mark.x1 : undefined;
+    };
+    const snappedX = crosshairX(canvas!);
+    expect(snappedX).toBeDefined();
+
+    // Same cell, different pointer. The crosshair stays snapped; the tooltip
+    // must follow the pointer.
+    expect(Number.isFinite(firstLeft)).toBe(true);
+    await hoverAt(surface, start + 12 / rect.width);
+    const moved = tooltipOf(container)!;
+    const secondIndex = (
+      onChange.mock.calls.at(-1)?.[0] as ActivePoint<SeriesDatum> | undefined
+    )?.sourceIndex;
+    expect(secondIndex).toBe(firstIndex);
+    const secondLeft = Number.parseFloat(moved.style.left);
+    expect(Number.isFinite(secondLeft)).toBe(true);
+    expect(secondLeft).not.toBe(firstLeft);
+    expect(crosshairX(canvas!)).toBe(snappedX);
   });
 
   it("hands raw datum metadata to the tooltip without a cast", async () => {

@@ -47,6 +47,7 @@ import {
   finiteDefined,
   plottedPoints,
   timePointRows,
+  ChartOwnedLegend,
   type TimeSeriesChartProps,
   type TimeSeriesScope,
 } from "./scaffold";
@@ -128,6 +129,20 @@ export interface MultiSeriesInput<M = unknown> {
    * real state rather than "no filter".
    */
   visibleSeries?: readonly string[];
+  /**
+   * Controlled-visibility callback (ADR-0008 §6). Wired to the chart-owned
+   * legend when one is shown.
+   */
+  onVisibilityChange?: (visible: readonly string[]) => void;
+  /**
+   * Chart-adjacent legend. Default: the shipped `<Legend>` when this chart is
+   * on the controlled `visibleSeries` path. `false` opts out so an
+   * application-placed legend can drive several charts (ADR-0011). Pass an
+   * element to replace the default.
+   */
+  legend?: boolean | JSX.Element;
+  /** Accessible name for the default legend toolbar. */
+  legendLabel?: string;
   /**
    * Labelled reference lines (ADR-0008 §10) — an SLA floor at 95, a deployment
    * at 14:20. Each carries a `value` (horizontal, on the y axis) or a `time`
@@ -332,6 +347,15 @@ function LineChartMulti<M>(
       rows={() => scope.table().rows}
       columns={scope.table().columns}
       latest={scope.isLatest}
+      legend={
+        <ChartOwnedLegend
+          series={props.series}
+          visibleSeries={props.visibleSeries}
+          onVisibilityChange={props.onVisibilityChange}
+          legend={props.legend}
+          legendLabel={props.legendLabel}
+        />
+      }
       referenceList={
         <ReferenceList
           references={scope.references()}

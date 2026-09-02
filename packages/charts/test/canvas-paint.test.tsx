@@ -683,6 +683,19 @@ describe("canvas frame and chrome", () => {
     expect(into.some((m) => m.kind === "line" && m.role === "grid" && m.axis === "x")).toBe(true);
   });
 
+  it("paints axis labels with the text token, not currentColor", () => {
+    const { ctx } = context2d();
+    const resolve = resolver();
+    const into: CanvasMark[] = [];
+    paintAxis(ctx, { scale: scale(), orientation: "bottom", plot }, resolve, into);
+    const labels = into.filter((m) => m.kind === "text" && m.role === "axis-label");
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      if (label.kind !== "text") continue;
+      expect(label.fill).toBe("var(--sp-color-text, currentColor)");
+    }
+  });
+
   it("paints references, brush, point, and empty chrome, and no-ops a collapsed plot", () => {
     const { ctx } = context2d();
     const resolve = resolver();
