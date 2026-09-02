@@ -173,7 +173,11 @@ test("headed measurement requires the exact full Chrome executable", () => {
       launchOptions: {
 			headless: false,
 			executablePath: "/opt/chrome/chrome",
-			args: ["--window-position=5440,80", "--window-size=1280,1100"],
+			args: [
+				"--window-position=5440,80",
+				"--window-size=1280,1100",
+				"--class=silkplot-perf",
+			],
 		},
     },
   );
