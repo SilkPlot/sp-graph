@@ -12,6 +12,7 @@
  */
 import { createEffect, createSignal, untrack, type JSX } from "solid-js";
 import { useChartBounds } from "@silkplot/solid";
+import { createThemeRevision } from "./canvas-theme";
 import {
   marksOnCanvas,
   rememberCanvasMarks,
@@ -240,11 +241,13 @@ export function compositeCanvasOverlay(
 
 export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
   const bounds = useChartBounds();
+  const themeRev = createThemeRevision();
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>();
 
   createEffect(() => {
     const el = canvas();
     const layout = layoutOf(bounds());
+    themeRev();
     syncCanvasPlot(el, layout, props.paint);
     const overlay = props.overlay;
     if (overlay === undefined) return;
@@ -255,6 +258,7 @@ export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
   createEffect(() => {
     const overlay = props.overlay;
     if (overlay === undefined) return;
+    themeRev();
     const el = canvas();
     compositeCanvasOverlay(el, layoutOf(bounds()), overlay);
   });
