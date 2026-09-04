@@ -86,7 +86,7 @@ export function affineMapper(scale: ContinuousScale): (v: number) => number {
   // with the scale's `unknown` value (undefined by default) rather than a
   // number. A gap datum's null y relies on that: coerce it to zero instead
   // and the "gap" is drawn as a spike to the baseline. Same rule here.
-  const unknown = scale.unknown() as number;
+  const unknown = scale.unknown() as unknown as number;
   return (v) => {
     if (v == null) return unknown;
     const n = +v;
