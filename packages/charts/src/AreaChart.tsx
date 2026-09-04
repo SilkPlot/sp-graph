@@ -37,7 +37,11 @@ import {
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
-import { MultiSeriesBody, type SeriesMarkPlan } from "./MultiSeriesBody";
+import {
+  MultiSeriesBody,
+  type SeriesMarkPlan,
+  pathSink,
+} from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import type { MultiSeriesInputWithFormat, SingleSeriesInput } from "./LineChart";
 import {
@@ -316,20 +320,26 @@ function AreaChartMulti<M>(
               }),
               spec: { fill: seriesCtx.style.fill, fillOpacity: seriesCtx.style.fillOpacity },
             },
-            {
-              kind: "stroke",
-              d: linePath(seriesCtx.points, {
+            (() => {
+              const path = curve === "linear" ? pathSink() : undefined;
+              const d = linePath(seriesCtx.points, {
                 x: seriesCtx.x,
                 y: seriesCtx.y,
                 defined,
                 curve,
-              }),
-              spec: {
-                stroke: seriesCtx.style.stroke,
-                strokeWidth: seriesCtx.style.strokeWidth,
-                dash: seriesCtx.style.dash,
-              },
-            },
+                sink: path,
+              });
+              return {
+                kind: "stroke" as const,
+                d,
+                path,
+                spec: {
+                  stroke: seriesCtx.style.stroke,
+                  strokeWidth: seriesCtx.style.strokeWidth,
+                  dash: seriesCtx.style.dash,
+                },
+              };
+            })(),
           ];
           return plans;
         }}

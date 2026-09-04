@@ -30,12 +30,82 @@ function toAccessor<Datum>(
   return typeof value === "number" ? () => value : value;
 }
 
+/**
+ * Something that receives the same path commands the `d` string records.
+ *
+ * `Path2D` satisfies this in a browser. Core never names `Path2D`, so the
+ * builders stay DOM-free; a renderer that passes one gets the geometry
+ * without re-parsing the string it is also handed.
+ */
+export interface PathSink {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+  closePath(): void;
+}
+
 export interface LinePathOptions<Datum> {
   x: (d: Datum, index: number) => number;
   y: (d: Datum, index: number) => number;
   /** Skip points where this returns false (gaps in the line). */
   defined?: (d: Datum, index: number) => boolean;
   curve?: CurveName | CurveFactory;
+  /**
+   * Receives every command of the returned `d`, with the same rounded
+   * coordinates, while the string is built. Only the linear curve feeds a
+   * sink; other curves leave it untouched and the caller parses `d`.
+   */
+  sink?: PathSink;
+}
+
+/** d3-path's default precision: three decimals, rounded, then `${number}`. */
+const ROUND = 1000;
+const round = (v: number): number => Math.round(v * ROUND) / ROUND;
+
+/**
+ * The linear curve, written directly.
+ *
+ * Reproduces `d3Line().curve(curveLinear)` command for command: `M` opens a
+ * defined run, `L` continues it, and a run of exactly one point closes with
+ * `Z`, as d3's linear curve does. Coordinates are rounded the way d3-path
+ * rounds them, so the string is byte-identical to the generator's. What it
+ * saves is the generator's per-point accessor and curve indirection and the
+ * template-literal path builder, and it can feed a `PathSink` as it goes.
+ */
+function linearLinePath<Datum>(
+  data: readonly Datum[],
+  x: (d: Datum, index: number) => number,
+  y: (d: Datum, index: number) => number,
+  defined: ((d: Datum, index: number) => boolean) | undefined,
+  sink: PathSink | undefined,
+): string {
+  let out = "";
+  let inRun = false;
+  let runLength = 0;
+  const n = data.length;
+  for (let i = 0; i <= n; i++) {
+    const on = i < n && (defined === undefined || defined(data[i]!, i));
+    if (on) {
+      const px = round(+x(data[i]!, i));
+      const py = round(+y(data[i]!, i));
+      if (!inRun) {
+        out += `M${px},${py}`;
+        sink?.moveTo(px, py);
+        inRun = true;
+        runLength = 1;
+      } else {
+        out += `L${px},${py}`;
+        sink?.lineTo(px, py);
+        runLength++;
+      }
+    } else if (inRun) {
+      if (runLength === 1) {
+        out += "Z";
+        sink?.closePath();
+      }
+      inRun = false;
+    }
+  }
+  return out;
 }
 
 /** Build an SVG line path `d` string from a data series. Returns "" if empty. */
@@ -43,6 +113,10 @@ export function linePath<Datum>(
   data: readonly Datum[],
   options: LinePathOptions<Datum>,
 ): string {
+  const curve = resolveCurve(options.curve);
+  if (curve === curveLinear) {
+    return linearLinePath(data, options.x, options.y, options.defined, options.sink);
+  }
   const generator = d3Line<Datum>()
     .x((d, i) => options.x(d, i))
     .y((d, i) => options.y(d, i))

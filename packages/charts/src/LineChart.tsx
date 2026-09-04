@@ -20,6 +20,7 @@ import {
   type ReferenceValue,
   type SeriesDatum,
   type Series,
+  affineMapper,
 } from "@silkplot/core";
 import {
   ChartEmptyState,
@@ -36,7 +37,11 @@ import {
 } from "./inspection";
 import { CartesianFrame } from "./CartesianFrame";
 import { createMultiSeriesScope } from "./multi-series";
-import { MultiSeriesBody, type SeriesMarkPlan } from "./MultiSeriesBody";
+import {
+  MultiSeriesBody,
+  type SeriesMarkPlan,
+  pathSink,
+} from "./MultiSeriesBody";
 import { ReferenceList } from "./ReferenceList";
 import {
   ChartShell,
@@ -233,9 +238,9 @@ const LineChartBody: Component<LineChartBodyProps> = (props) => {
   const plotted = plottedPoints(scope.visible, () => props.decimation);
 
   const pathD = createMemo(() => {
-    const xs = model.x();
-    const ys = model.y();
-    const px = (d: TimePoint): number => xs(d.t);
+    const xs = affineMapper(model.x());
+    const ys = affineMapper(model.y());
+    const px = (d: TimePoint): number => xs(+d.t);
     const py = (d: TimePoint): number => ys(d.y);
     return linePath(plotted(), {
       x: px,
@@ -389,15 +394,21 @@ function LineChartMulti<M>(
         pinchZoom={props.pinchZoom}
         seriesMarks={(seriesCtx) => {
           const marks: SeriesMarkPlan[] = [];
+          const curve = props.curve ?? "monotoneX";
+          // The linear curve feeds the painter's Path2D while it writes `d`;
+          // other curves leave the sink untouched and the painter parses `d`.
+          const path = curve === "linear" ? pathSink() : undefined;
           const d = linePath(seriesCtx.points, {
             x: seriesCtx.x,
             y: seriesCtx.y,
             defined: finiteDefined(seriesCtx.x, seriesCtx.y, seriesCtx.defined),
-            curve: props.curve ?? "monotoneX",
+            curve,
+            sink: path,
           });
           marks.push({
             kind: "stroke",
             d,
+            path,
             spec: {
               stroke: seriesCtx.style.stroke,
               strokeWidth: seriesCtx.style.strokeWidth,
