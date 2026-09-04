@@ -539,7 +539,31 @@ async function runWorkload(browser, workload, query = "") {
   }
 
   /* --- invariants: commits, layout reads, and real index builds in pointer scope --- */
-  result.invariants = await readInvariants(page, ctx);
+  try {
+    result.invariants = await readInvariants(page, ctx);
+  } catch (error) {
+    // The 2026-09-04 binding attempt aborted here on W-D table=none: the
+    // keyboard surface was not in the primary page's DOM after the sweep, and
+    // the abort discarded every fact that would have said why. Retain what the
+    // page can still report before rethrowing; the artifact stays aborted.
+    const diagnostics = await page
+      .evaluate((surface) => ({
+        url: location.href,
+        visibility: document.visibilityState,
+        ready: document.documentElement.hasAttribute("data-perf-ready"),
+        perfContract: window.__perf !== undefined,
+        perfSurface: document.querySelector("[data-perf-surface]") !== null,
+        keyboardSurface: document.querySelector(surface) !== null,
+        pointerSurface: document.querySelector("[data-silkplot-pointer-surface]") !== null,
+        bodyChildren: document.body.children.length,
+      }), ctx.surface)
+      .catch((reason) => ({ unreachable: String(reason) }));
+    throw new Error(
+      `${workload}${query}: invariants step failed: ${error instanceof Error ? error.message : String(error)}\n` +
+        `page errors: ${JSON.stringify(errors)}\n` +
+        `page state: ${JSON.stringify(diagnostics)}`,
+    );
+  }
 
   /* --- self-check 1: can the timer see a slow frame? --- */
   await startBurn(page);
