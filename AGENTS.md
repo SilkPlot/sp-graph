@@ -47,7 +47,7 @@ Run these locally; CI runs them again and a red gate is a declined PR:
 ```sh
 npm run lint                 # biome, warnings are failures
 npm run typecheck            # tsc -b plus every test/ tsconfig
-npm test                     # vitest: node for core/theme, Chromium for the rest
+npm test                     # node for core and theme, Chromium otherwise
 npm run gate:stated-facts    # prose numbers must match source or be dated
 npm run gate:public-surface  # no private identifiers, no rotten links
 npm run release:verify       # package manifests and a consumer install
