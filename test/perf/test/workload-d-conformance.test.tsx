@@ -8,7 +8,12 @@ import {
 } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadD } from "../app/WorkloadD";
 import { WD_TARGET_POINTS } from "../app/workloads";
-import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
+import {
+  assertLeftAxisLabelsFit,
+  assertWorkloadRevision,
+  captureLeftAxisLabels,
+  resetPublishedComposition,
+} from "./composition-conformance";
 
 const TARGET_FRACTION = 0.62;
 const TARGET_INDEX = 53_567;
@@ -56,6 +61,31 @@ afterEach(() => {
 });
 
 describe("W-D representative composition", () => {
+  it("paints every left-axis tick label inside the margin it reserved", async () => {
+    const capture = captureLeftAxisLabels();
+    try {
+      history.replaceState({}, "", location.pathname);
+      render(() => (
+        <div id="root">
+          <WorkloadD />
+        </div>
+      ));
+      await vi.waitFor(
+        () => {
+          expect(window.__perf?.workload).toBe("w-d");
+          expect(document.documentElement.hasAttribute("data-perf-ready")).toBe(true);
+        },
+        { timeout: 30_000 },
+      );
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).not.toThrow();
+  });
+
   it(
     "keeps dense inspection raw while paint is bounded and the full source table remains available",
     async () => {

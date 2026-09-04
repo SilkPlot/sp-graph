@@ -26,7 +26,72 @@ export const CONFORMANCE_FAILURE = Object.freeze({
   sourceValueCell: "source-value cell does not match the source",
   workloadRevision: REVISION_FAILURE.absent,
   defaultSurface: DEFAULT_SURFACE_FAILURE,
+  axisLabelFit: "left-axis tick label does not fit inside the margin",
 });
+
+/** One left-axis tick label as Canvas painted it, with the room it had. */
+export interface PaintedLeftAxisLabel {
+  text: string;
+  /** Measured width in CSS px, in the font the label was painted with. */
+  width: number;
+  /** CSS px between the canvas edge and the label's right-aligned anchor. */
+  available: number;
+}
+
+/**
+ * Record every left-axis tick label the Canvas frame paints until `restore`.
+ *
+ * The frame paints those labels right-aligned at a negative x inside a
+ * context translated to the plot origin, so the room a label has is the
+ * origin offset (in CSS px, after undoing the device-pixel scale) plus that
+ * negative x. Anything wider is clipped by the canvas edge and the reader
+ * sees only the label's tail — which is exactly the defect this guards
+ * against: a caller-formatted label the default surface cannot display.
+ */
+export function captureLeftAxisLabels(): {
+  records: PaintedLeftAxisLabel[];
+  restore: () => void;
+} {
+  const records: PaintedLeftAxisLabel[] = [];
+  const proto = CanvasRenderingContext2D.prototype;
+  const original = proto.fillText;
+  proto.fillText = function (this: CanvasRenderingContext2D, text, x, y, maxWidth) {
+    if (x < 0) {
+      const m = this.getTransform();
+      const scale = m.a === 0 ? 1 : m.a;
+      records.push({
+        text: String(text),
+        width: this.measureText(String(text)).width,
+        available: m.e / scale + x,
+      });
+    }
+    return maxWidth === undefined
+      ? original.call(this, text, x, y)
+      : original.call(this, text, x, y, maxWidth);
+  };
+  return {
+    records,
+    restore: () => {
+      proto.fillText = original;
+    },
+  };
+}
+
+export function assertLeftAxisLabelsFit(records: readonly PaintedLeftAxisLabel[]): void {
+  const clipped = records.filter((record) => record.width > record.available);
+  if (records.length === 0 || clipped.length > 0) {
+    const widest = [...records].sort((a, b) => b.width - a.width)[0];
+    console.warn(
+      "left-axis label fit:",
+      records.length,
+      "labels;",
+      clipped.length,
+      "clipped; widest",
+      widest ? `${JSON.stringify(widest.text)} ${widest.width.toFixed(1)}px of ${widest.available.toFixed(1)}px` : "none",
+    );
+    throw new Error(CONFORMANCE_FAILURE.axisLabelFit);
+  }
+}
 
 export const visibleText = (element: Element): string =>
   (element.textContent ?? "").replace(/\s+/g, " ").trim();

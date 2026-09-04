@@ -8,7 +8,12 @@ import {
   w1References,
 } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadB } from "../app/WorkloadB";
-import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
+import {
+  assertLeftAxisLabelsFit,
+  assertWorkloadRevision,
+  captureLeftAxisLabels,
+  resetPublishedComposition,
+} from "./composition-conformance";
 
 const SOURCE = w1DenseSeries();
 const REFERENCES = w1References();
@@ -66,6 +71,19 @@ afterEach(() => {
 });
 
 describe("W-B representative composition", () => {
+  it("paints every left-axis tick label inside the margin it reserved", async () => {
+    const capture = captureLeftAxisLabels();
+    try {
+      await mountDefaultWorkload();
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).not.toThrow();
+  });
+
   it("renders the Home instant and all twenty-two same-time values in its tooltip", async () => {
     const expected = sourceAtFirstInstant();
     expect(expected).toHaveLength(W1_SERIES_COUNT);
