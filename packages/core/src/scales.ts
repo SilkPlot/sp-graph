@@ -78,14 +78,20 @@ export function affineOf(
  */
 export function affineMapper(scale: ContinuousScale): (v: number) => number {
   const affine = affineOf(scale);
-  if (affine === undefined) {
-    const call = scale as unknown as (v: number) => number;
-    return (v) => call(v);
-  }
+  const call = scale as unknown as (v: number) => number;
+  if (affine === undefined) return (v) => call(v);
   const { d0, d1, r0, r1 } = affine;
   const span = d1 - d0;
+  // d3 answers `null`, `undefined`, and anything that is NaN once coerced
+  // with the scale's `unknown` value (undefined by default) rather than a
+  // number. A gap datum's null y relies on that: coerce it to zero instead
+  // and the "gap" is drawn as a spike to the baseline. Same rule here.
+  const unknown = scale.unknown() as number;
   return (v) => {
-    const t = (v - d0) / span;
+    if (v == null) return unknown;
+    const n = +v;
+    if (Number.isNaN(n)) return unknown;
+    const t = (n - d0) / span;
     return r0 * (1 - t) + r1 * t;
   };
 }

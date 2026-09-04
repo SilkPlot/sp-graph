@@ -90,8 +90,8 @@ describe("marksForPlotInterval, sorted fast path", () => {
       { t: 40, id: 4 },
     ];
     const interval = { start: 12, end: 25 };
-    expect(marksForPlotInterval(data, time, interval)).toEqual(oracle(data, time, interval));
     expect(marksForPlotInterval(data, time, interval).map((d) => d.id)).toEqual([0, 2, 3]);
+    expect(marksForPlotInterval(data, time, interval)).toEqual(oracle(data, time, interval));
   });
 
   it("returns the same array when the interval covers everything, and both neighbours otherwise", () => {

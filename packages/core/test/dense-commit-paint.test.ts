@@ -48,6 +48,18 @@ describe("affineOf / affineMapper", () => {
     }
   });
 
+  it("answers null, undefined, and NaN the way the scale does, never with a coerced zero", () => {
+    const scale = linearScale({ domain: [0, 10], range: [0, 100], nice: false });
+    const map = affineMapper(scale);
+    for (const v of [null, undefined, Number.NaN, "x"] as unknown[]) {
+      expect(map(v as number)).toBe(scale(v as number));
+      expect(map(v as number)).toBeUndefined();
+    }
+    const withUnknown = scaleLinear().domain([0, 10]).range([0, 100]).unknown(-1);
+    expect(affineMapper(withUnknown)(null as never)).toBe(-1);
+    expect(affineMapper(withUnknown)("7" as never)).toBe(withUnknown("7" as never));
+  });
+
   it("declines a clamped, piecewise, or logarithmic scale and falls back to calling it", () => {
     const clamped = scaleLinear().domain([0, 10]).range([0, 100]).clamp(true);
     expect(affineOf(clamped)).toBeUndefined();
