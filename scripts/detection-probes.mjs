@@ -990,14 +990,41 @@ const PROBES = [
       "instead and a zoomed-in chart paints every point, including the ones outside the window it " +
       "was told to show.",
     // This helper is now the one authoritative narrowing seam for both the
-    // single- and multi-series paths. Make every applied interval return the
-    // full input so its direct neighbour/window tests prove the regression.
-    anchor: "  if (insideCount === data.length) return data;",
-    mutation: "  if (insideCount <= data.length) return data;",
-    failingIn: ["packages/charts/test/plot-area-clip.test.tsx"],
+    // single- and multi-series paths. A time-sorted series takes the
+    // binary-search branch (2026-09-04), which is where every real series
+    // and this probe's tests go; make every applied interval return the
+    // full input there so the neighbour/window tests prove the regression.
+    anchor: "    if (first === 0 && last === data.length) return data;",
+    mutation: "    if (first >= 0 && last <= data.length) return data;",
+    failingIn: [
+      "packages/charts/test/plot-area-clip.test.tsx",
+      // The oracle suite holds the fast path to the scan and reddens too.
+      "packages/charts/test/plot-interval.test.ts",
+    ],
     minFailures: 3,
     observed: "the helper returns all five points where only a bounded subset belongs in paint",
     messagePattern: /to deeply equal \[ 100, 40, 60, 50 \]/,
+  },
+  {
+    id: "viewport-marks-filtered-scan",
+    file: "packages/charts/src/plot-area.ts",
+    project: "charts",
+    browser: true,
+    breaks:
+      "the general scan that narrows a series whose data is NOT time-sorted. The sorted " +
+      "branch above never sees a scrambled series, so the scan is its own seam: return the " +
+      "whole input there and a scrambled series paints every point outside the window.",
+    anchor: "  if (insideCount === data.length) return data;",
+    mutation: "  if (insideCount <= data.length) return data;",
+    failingIn: [
+      "packages/charts/test/plot-interval.test.ts",
+      // The clip suite's scrambled-order case takes the same branch.
+      "packages/charts/test/plot-area-clip.test.tsx",
+    ],
+    minFailures: 2,
+    observed: "the scrambled-series cases return all five points where three belong in paint",
+    // Vitest prints the first id as `+0`.
+    messagePattern: /to deeply equal \[ \+0, 2, 3 \]/,
   },
   {
     id: "viewport-y-pinned",

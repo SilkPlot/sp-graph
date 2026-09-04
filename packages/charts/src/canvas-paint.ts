@@ -109,10 +109,12 @@ export function paintStroke(
   d: string,
   spec: StrokeSpec,
   resolve: StyleResolver,
+  /** The same geometry as `d`, already built; skips parsing the string. */
+  path?: Path2D,
 ): PathMark | undefined {
   if (d === "") return undefined;
   applyStroke(ctx, spec, resolve);
-  ctx.stroke(path2dOf(d));
+  ctx.stroke(path ?? path2dOf(d));
   return {
     kind: "path",
     d,
@@ -133,13 +135,15 @@ export function paintFill(
   d: string,
   spec: FillSpec,
   resolve: StyleResolver,
+  /** The same geometry as `d`, already built; skips parsing the string. */
+  path?: Path2D,
 ): PathMark | undefined {
   if (d === "") return undefined;
   const opacity = spec.fillOpacity ?? 0.2;
   ctx.save();
   ctx.globalAlpha = opacity;
   ctx.fillStyle = resolve.color(spec.fill ?? "currentColor");
-  ctx.fill(path2dOf(d));
+  ctx.fill(path ?? path2dOf(d));
   ctx.restore();
   return {
     kind: "path",

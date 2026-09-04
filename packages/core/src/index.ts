@@ -16,6 +16,7 @@ export {
   bandScale,
   ordinalScale,
 } from "./scales";
+export { affineOf, affineMapper } from "./scales";
 export type {
   ContinuousScale,
   LinearScaleOptions,
@@ -72,6 +73,7 @@ export type {
 
 // Shape — line/area path builders over d3-shape.
 export { linePath, areaPath, curves } from "./shape";
+export type { PathSink } from "./shape";
 export type {
   LinePathOptions,
   AreaPathOptions,

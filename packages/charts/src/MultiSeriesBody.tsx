@@ -22,6 +22,7 @@ import {
   resolveSeriesStyle,
   seriesGeometry,
   windowActivePointIndex,
+  affineMapper,
 } from "@silkplot/core";
 import type {
   ActivePoint,
@@ -78,8 +79,18 @@ export interface SeriesRenderContext<M = unknown> {
 
 /** Geometry a cartesian series will stroke or fill, computed off the paint path. */
 export type SeriesMarkPlan =
-  | { kind: "stroke"; d: string; spec: StrokeSpec }
-  | { kind: "fill"; d: string; spec: FillSpec };
+  | { kind: "stroke"; d: string; spec: StrokeSpec; path?: Path2D }
+  | { kind: "fill"; d: string; spec: FillSpec; path?: Path2D };
+
+/**
+ * A `Path2D` for a plan builder to hand `linePath` as its sink, so the
+ * painter strokes the geometry the serializer already walked instead of
+ * re-parsing the `d` string. Undefined where `Path2D` does not exist (SSR),
+ * where the painter parses `d` as before.
+ */
+export function pathSink(): Path2D | undefined {
+  return typeof Path2D === "function" ? new Path2D() : undefined;
+}
 
 export interface MultiSeriesBodyProps<M = unknown> {
   scope: MultiSeriesScope<M>;
@@ -218,8 +229,8 @@ function paintSeriesPlans(
     pushMark(
       marks,
       plan.kind === "stroke"
-        ? paintStroke(ctx, plan.d, plan.spec, resolve)
-        : paintFill(ctx, plan.d, plan.spec, resolve),
+        ? paintStroke(ctx, plan.d, plan.spec, resolve, plan.path)
+        : paintFill(ctx, plan.d, plan.spec, resolve, plan.path),
     );
   }
   return marks;
@@ -252,10 +263,12 @@ export function MultiSeriesBody<M = unknown>(props: MultiSeriesBodyProps<M>): JS
    * and looks like a rendering bug rather than a wiring one.
    */
   const mapping = createMemo(() => {
-    const xs = model.x();
-    const ys = model.y();
+    // The affine form of each scale (bit-identical to calling it) so the
+    // per-point cost of a dense commit is arithmetic, not d3's closure chain.
+    const xs = affineMapper(model.x());
+    const ys = affineMapper(model.y());
     return {
-      x: (d: NormalizedDatum<M>): number => xs(d.t),
+      x: (d: NormalizedDatum<M>): number => xs(+d.t),
       y: (d: NormalizedDatum<M>): number => ys(d.y as number),
     };
   });

@@ -26,6 +26,76 @@ export type { ScaleLinear, ScaleTime, ScaleBand, ScaleOrdinal };
 /** Any continuous scale we can compute ticks from (linear or time). */
 export type ContinuousScale = ScaleLinear<number, number> | ScaleTime<number, number>;
 
+/**
+ * A continuous scale's two-point affine form, when it has one.
+ *
+ * d3's linear and time scales map `v` as `r0 * (1 - t) + r1 * t` with
+ * `t = (v - d0) / (d1 - d0)`, through a chain of closures (`normalize`,
+ * `bimap`, `interpolateNumber`) that costs several calls per point. A dense
+ * series re-maps every point on every viewport commit, and that chain was
+ * the single largest per-frame cost the 2026-09-04 traces attributed. The
+ * mapper below evaluates the same expression, in the same operation order so
+ * the result is bit-identical, with no calls.
+ *
+ * Undefined when the scale is not a plain two-point affine map: clamped,
+ * piecewise (more than two domain or range values), logarithmic or power,
+ * a degenerate domain, or anything else that fails the self-check against
+ * the scale itself. Callers fall back to calling the scale.
+ */
+export function affineOf(
+  scale: ContinuousScale,
+): { d0: number; d1: number; r0: number; r1: number } | undefined {
+  const domain = scale.domain();
+  const range = scale.range();
+  if (domain.length !== 2 || range.length !== 2) return undefined;
+  if (scale.clamp()) return undefined;
+  const probe = scale as unknown as { base?: unknown; exponent?: unknown };
+  if (typeof probe.base === "function" || typeof probe.exponent === "function") {
+    return undefined;
+  }
+  const d0 = +domain[0]!;
+  const d1 = +domain[1]!;
+  const r0 = +range[0]!;
+  const r1 = +range[1]!;
+  if (![d0, d1, r0, r1].every(Number.isFinite) || d1 === d0) return undefined;
+  const map = (v: number): number => {
+    const t = (v - d0) / (d1 - d0);
+    return r0 * (1 - t) + r1 * t;
+  };
+  const mid = (d0 + d1) / 2;
+  const call = scale as unknown as (v: number) => number;
+  if (map(d0) !== call(d0) || map(d1) !== call(d1) || map(mid) !== call(mid)) {
+    return undefined;
+  }
+  return { d0, d1, r0, r1 };
+}
+
+/**
+ * `v => scale(v)` as a plain function: the affine expression when `affineOf`
+ * finds one, otherwise the scale itself. Accepts the number a time scale's
+ * `Date` coerces to, so a caller passes `date.getTime()` and skips d3's
+ * per-call coercion as well.
+ */
+export function affineMapper(scale: ContinuousScale): (v: number) => number {
+  const affine = affineOf(scale);
+  const call = scale as unknown as (v: number) => number;
+  if (affine === undefined) return (v) => call(v);
+  const { d0, d1, r0, r1 } = affine;
+  const span = d1 - d0;
+  // d3 answers `null`, `undefined`, and anything that is NaN once coerced
+  // with the scale's `unknown` value (undefined by default) rather than a
+  // number. A gap datum's null y relies on that: coerce it to zero instead
+  // and the "gap" is drawn as a spike to the baseline. Same rule here.
+  const unknown = scale.unknown() as unknown as number;
+  return (v) => {
+    if (v == null) return unknown;
+    const n = +v;
+    if (Number.isNaN(n)) return unknown;
+    const t = (n - d0) / span;
+    return r0 * (1 - t) + r1 * t;
+  };
+}
+
 export interface LinearScaleOptions {
   domain: readonly [number, number];
   range: readonly [number, number];
