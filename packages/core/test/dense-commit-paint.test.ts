@@ -55,9 +55,11 @@ describe("affineOf / affineMapper", () => {
       expect(map(v as number)).toBe(scale(v as number));
       expect(map(v as number)).toBeUndefined();
     }
-    const withUnknown = scaleLinear().domain([0, 10]).range([0, 100]).unknown(-1);
+    const withUnknown = scaleLinear().domain([0, 10]).range([0, 100]).unknown(-1) as never;
     expect(affineMapper(withUnknown)(null as never)).toBe(-1);
-    expect(affineMapper(withUnknown)("7" as never)).toBe(withUnknown("7" as never));
+    expect(affineMapper(withUnknown)("7" as never)).toBe(
+      (withUnknown as (v: unknown) => number)("7"),
+    );
   });
 
   it("declines a clamped, piecewise, or logarithmic scale and falls back to calling it", () => {
