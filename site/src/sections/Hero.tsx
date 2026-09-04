@@ -33,7 +33,7 @@ export const Hero: Component = () => (
     </div>
     <header class="hero">
       <div class="hero__copy">
-        <p class="hero__eyebrow">Alpha · the 0.3.0-next line</p>
+        <p class="hero__eyebrow">Alpha · the 0.4.0-next line</p>
         <h1 class="hero__title">
           <img src={logoUrl} alt="SilkPlot" width="440" height="126" />
         </h1>
@@ -70,7 +70,7 @@ export const Hero: Component = () => (
         <h2 id="construction-h">Under construction — plainly</h2>
         <ul>
           <li>
-            Alpha packages on the <code>0.3.0-next</code> line, installed with{" "}
+            Alpha packages on the <code>0.4.0-next</code> line, installed with{" "}
             <code>@next</code>. This is 0.x: a minor bump may contain breaking
             changes, and every breaking change ships with a migration note.
           </li>

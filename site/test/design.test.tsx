@@ -197,7 +197,7 @@ describe("the hero", () => {
     const { container } = render(() => <Hero />);
     const text = container.textContent ?? "";
     expect(text).toContain("No assistive technology has been verified");
-    expect(text).toContain("0.3.0-next");
+    expect(text).toContain("0.4.0-next");
     expect(text).toContain("No performance number is claimed");
   });
 });

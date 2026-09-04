@@ -21,7 +21,11 @@ In the current registry prerelease, proven by its release gates:
 
 - Four Cartesian chart families — line, area, bar (including ranked
   categorical, both orientations), scatter — on the "D3 computes, Solid
-  renders" architecture.
+  renders" architecture, painting on Canvas 2D under
+  [ADR-0025](docs/decisions/adr-0025-enumerated-canvas-renderer-program.md).
+- Grouped and stacked bars over the shared series model.
+- Heatmaps: categorical or binned grids, with hatch density as a second
+  channel beside colour.
 - Multi-series composition with per-series gap policy (a declared gap and a
   broken value are different things, and neither becomes zero), controlled
   legends, and labelled reference overlays on either axis.
@@ -38,11 +42,29 @@ In the current registry prerelease, proven by its release gates:
   drag on one chart drives the linked selection of the rest.
 - Inspectable data: every informative chart can disclose its own data table
   and export it as CSV.
+- Explicit min/max decimation for dense time series, opt-in per chart, with
+  inspection resolving against the raw data rather than the drawn envelope.
 - Theming: light/dark × standard/high-contrast resolved as four first-class
   combinations, token-driven.
 
-Everything under **Shipped** is on the registry: **`0.3.0-next.0`**,
-published 2026-07-22 under the `next` dist-tag with provenance.
+Everything under **Shipped** is on the registry: **`0.4.0-next.0`**,
+published 2026-09-04 under the `next` dist-tag with provenance.
+
+## 0.4.0-next
+
+The Canvas and composition line — delivered 2026-09-04:
+
+- `0.4.0-next.0` published (a minor bump: cartesian charts paint on Canvas
+  and the data alternative no longer follows the viewport, both breaking 0.x
+  changes recorded in [the changelog](CHANGELOG.md)).
+- Grouped and stacked bars, heatmaps, explicit decimation, and the
+  measured category margin, all on the registry.
+- The viewport interaction path attributed and repaired: no row teardown,
+  no hit-index rebuild, and no data-alternative recomputation per commit.
+
+What this line still does not claim: a performance number (measured; last
+scored run criteria-missed; no public number) and assistive-technology
+verification (still waits on evidence). Both remain under **MVP beta**.
 
 ## 0.3.0-next
 
@@ -86,12 +108,12 @@ evidence tasks, not feature tasks:
 Implemented in source and covered by repository tests, but absent from the
 current registry prerelease:
 
-- A week-grid view and an agenda view exist in source and are unpublished; time-semantics is decided ([ADR-0024](docs/decisions/adr-0024-zoned-civil-time-for-calendar-grids.md)).
-- Grouped and stacked bars exist in source and are unpublished.
-- Canvas is the named renderer for ADR-0025's enumerated program
-  ([ADR-0025](docs/decisions/adr-0025-enumerated-canvas-renderer-program.md));
-  the separate density-exit performance claim still waits on a binding pass.
-- Heatmaps and calendar virtualization exist in source and are unpublished.
+- The `@silkplot/calendar` package — a week-grid view, an agenda view,
+  calendar heatmaps, and calendar virtualization — exists in source and is
+  unpublished; time-semantics is decided
+  ([ADR-0024](docs/decisions/adr-0024-zoned-civil-time-for-calendar-grids.md)).
+  Adding a fifth package to the publish set is a separately reviewed release
+  change.
 - Pie and donut exist in source and are unpublished.
 - Tree, treemap, and pack exist in source and are unpublished.
 - Bubble exists in source and is unpublished.

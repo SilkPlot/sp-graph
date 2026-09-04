@@ -21,10 +21,10 @@ ownership.
 - **Source:** [github.com/SilkPlot/sp-graph](https://github.com/SilkPlot/sp-graph)
 - **Status:** alpha. The latest registry release is **published under the
   `next` tag** — see [Install](#install). `main` is ahead of that release: its
-  unpublished source includes Canvas-rendered cartesian, heatmap, pie/donut,
-  hierarchy, bubble, and histogram families plus implemented calendar week,
-  agenda, and heatmap surfaces. [ROADMAP.md](ROADMAP.md) separates registry
-  claims from source that has not yet been published.
+  unpublished source includes the pie/donut, hierarchy, bubble, and histogram
+  families plus the calendar week, agenda, and heatmap surfaces.
+  [ROADMAP.md](ROADMAP.md) separates registry claims from source that has not
+  yet been published.
 
 ---
 
