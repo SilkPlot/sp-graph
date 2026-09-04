@@ -3,7 +3,7 @@
 SilkPlot's library monorepo: the `@silkplot/*` npm workspaces, the docs site,
 and the gates that protect both. **This repository is public.** Everything
 below applies to any agent or editor working here; read it before changing
-anything. [`CONTRIBUTING.md`](CONTRIBUTING.md) is the long form.
+anything. [`CONTRIBUTING.md`](./CONTRIBUTING.md) is the long form.
 
 ## The one rule
 
