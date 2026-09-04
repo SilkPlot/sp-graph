@@ -15,7 +15,36 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0-next.0] — 2026-09-04
+
+**The minor bump is deliberate: this release contains breaking 0.x changes.**
+Cartesian marks, axes, grid, and interaction chrome now paint on Canvas 2D
+rather than SVG, and the data alternative no longer follows the viewport —
+both under **Changed** below. Everything else is additive: grouped and stacked
+bars, heatmaps, explicit decimation, and a measured left margin are all opt-in,
+and a chart that adds nothing behaves as before.
+
+This is the first registry release since 2026-07-22. Pie/donut, tree/treemap/pack,
+bubble, histogram, and the calendar package are implemented on `main` but remain
+outside this publish set; [ROADMAP.md](ROADMAP.md) records why.
+
 ### Changed
+
+- **Cartesian charts paint on Canvas 2D (breaking-structural at 0.x).**
+  `LineChart`, `AreaChart`, `BarChart`, and `ScatterChart` draw marks, axes,
+  gridlines, references, the brush, and the active point onto one Canvas per
+  chart, clipped with `ctx.clip`. The named SVG remains, carrying `role="img"`,
+  title, and desc, and paints nothing. D3 still computes every path; Solid
+  still owns the element and the paint schedule. Public ADR-0025 records the
+  substrate decision and its scope. Migration: nothing changes for a consumer
+  that composes charts through props; an application or test that reached into
+  the chart's SVG for `<path>`, `<rect>`, or tick `<text>` elements will find
+  them gone and should read the data alternative, the active-point callbacks,
+  or the table instead. The `@silkplot/solid` SVG primitives (`Axis`,
+  `Gridlines`, `SvgLayer`, `Crosshair`) are unchanged and remain available for
+  hand-composed SVG charts.
 
 - **The data alternative follows the data scope; the viewport never narrows
   it (breaking-behavioural at 0.x).** Zooming, panning, brushing, or dragging
@@ -39,6 +68,21 @@ under Unreleased: **a minor bump may contain breaking changes.**
 
 ### Added
 
+- **Grouped and stacked bars.** `BarChart` accepts `mode: "grouped" |
+  "stacked"` with a `series` array over the same shared series model as
+  `LineChart` and `AreaChart`, so identity, visibility, missing values, the
+  legend, and the derived table cannot drift between families. Both
+  orientations, mixed-sign series, `visibleSeries` control, and
+  `categoryTickFormat` / `valueTickFormat` formatters. Stack and group layout
+  are pure compute in `@silkplot/core` (`stackSeries`, `groupSeries`,
+  `layoutBarRects`). The single-series `data` / `categories` path is unchanged
+  and remains the default.
+- **`HeatmapChart`.** A categorical grid: `{ x, y, value? }` observations
+  binned onto columns and rows, with explicit `columns` / `rows` domains or
+  equal-width numeric `xBins` / `yBins`. Colour is never the only channel — a
+  hatch density is recorded on every cell. It carries the same inspection
+  surface as the cartesian charts (hover, keyboard, `tooltip`, `onActivate`,
+  `cellLabel`, table, CSV) and paints on Canvas under ADR-0025.
 - **Caller-opted measured left margin on horizontal category labels** —
   `measureCategoryLeftMargin` on `BarChart` sizes `margins.left` from the
   painted label width plus the tick/gap Axis already uses on the left. Off by
@@ -55,8 +99,36 @@ under Unreleased: **a minor bump may contain breaking changes.**
   the published field (M4, LTTB) by first-hand measurement; public ADR-0023
   records the selection, the inspection contract, and the overturn conditions.
 
+- **A hover affordance naming the keyboard path.** A hovered, unfocused chart
+  with viewport gestures shows a small hint — "Click to use keyboard: + − zoom
+  · Shift ←→ pan · 0 reset · a autoscale" — hidden once focus is taken, never
+  shown to a touch pointer, and faded only through the motion token so reduced
+  motion stills it by construction. `ChartKeyboardSurface` now forwards
+  `focusin`/`focusout`, so a composition can track the tab stop's focus state.
+
 ### Fixed
 
+- **Hover tooltips follow the pointer.** A hover tooltip sat on the snapped
+  datum; it now tracks the live pointer position inside the plot while the
+  crosshair and active point stay snapped to the resolved instant. Keyboard
+  navigation still places the tooltip at the datum.
+- **Controlled multi-series charts compose the shipped `Legend` between the
+  plot and the data table** when `visibleSeries` is controlled, with
+  visibility and `onVisibilityChange` kept reactive after first render, so a
+  toggle updates `aria-pressed` rather than sticking.
+- **Chart chrome reads the theme tokens rather than user-agent colour.**
+  `ChartRoot` and axis labels bind to `--sp-color-text` / `--sp-color-surface`;
+  Canvas tick marks paint with `--sp-color-text` and 1px axis-aligned strokes
+  snap to device pixels, so axes stay visible in dark and under
+  `prefers-contrast: more`; the bitmap repaints when scheme or contrast tokens
+  change.
+- **`ScatterChart` default fill is the first categorical series token** rather
+  than `currentColor`, which the theme binds to text; a scatter that set no
+  `fill` will look different. Non-finite points are no longer painted, matching
+  the hit index, which already skipped them.
+- **A keyboard step no longer restrokes the dense series.** Live inspection
+  chrome composites over a cached cartesian bitmap instead of sharing one paint
+  with grid, axes, and marks.
 - **Line path generation no longer copies every datum before passing it to
   D3.** The generator accepts the existing readonly sequence directly, removing
   a redundant dense-series allocation without changing path geometry or the
@@ -86,15 +158,6 @@ under Unreleased: **a minor bump may contain breaking changes.**
   brush and the datum path the same event serves untouched. Found first-hand on
   production; the pre-existing gesture suite drives the surface directly and
   could not have seen it.
-
-### Added
-
-- **A hover affordance naming the keyboard path.** A hovered, unfocused chart
-  with viewport gestures shows a small hint — "Click to use keyboard: + − zoom
-  · Shift ←→ pan · 0 reset · a autoscale" — hidden once focus is taken, never
-  shown to a touch pointer, and faded only through the motion token so reduced
-  motion stills it by construction. `ChartKeyboardSurface` now forwards
-  `focusin`/`focusout`, so a composition can track the tab stop's focus state.
 
 ## [0.3.0-next.0] — 2026-07-22
 
@@ -306,6 +369,8 @@ Solid-aware bundler — the `"solid"` export condition serves TSX source so your
 bundler compiles the JSX itself, which is what keeps fine-grained reactivity
 intact through to your application.
 
-[Unreleased]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.1...HEAD
+[Unreleased]: https://github.com/SilkPlot/sp-graph/compare/v0.4.0-next.0...HEAD
+[0.4.0-next.0]: https://github.com/SilkPlot/sp-graph/compare/v0.3.0-next.0...v0.4.0-next.0
+[0.3.0-next.0]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.1...v0.3.0-next.0
 [0.2.0-next.1]: https://github.com/SilkPlot/sp-graph/compare/v0.2.0-next.0...v0.2.0-next.1
 [0.2.0-next.0]: https://github.com/SilkPlot/sp-graph/compare/v0.1.0...v0.2.0-next.0
