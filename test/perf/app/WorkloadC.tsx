@@ -134,6 +134,11 @@ const Panel: Component<{
       <BarChart
         categories={props.panel.categories}
         height={150}
+        // ADR-0013: the caller who owns the formatter reserves the room its
+        // labels need; the library does not measure the default left margin.
+        // `100,0 units` is the widest tick this page formats; the conformance suite
+        // proves every painted left-axis label fits inside this margin.
+        margins={{ left: 72 }}
         title={title()}
         summary={summary()}
         valueTickFormat={formatUnits}
@@ -146,6 +151,11 @@ const Panel: Component<{
           <AreaChart
             series={temporalSeries}
             height={150}
+            // ADR-0013: the caller who owns the formatter reserves the room its
+            // labels need; the library does not measure the default left margin.
+            // `100,0 units` is the widest tick this page formats; the conformance suite
+            // proves every painted left-axis label fits inside this margin.
+            margins={{ left: 72 }}
             title={title()}
             summary={summary()}
             xTickFormat={formatLocalTime}
@@ -159,6 +169,11 @@ const Panel: Component<{
         <LineChart
           series={temporalSeries}
           height={150}
+          // ADR-0013: the caller who owns the formatter reserves the room its
+          // labels need; the library does not measure the default left margin.
+          // `100,0 units` is the widest tick this page formats; the conformance suite
+          // proves every painted left-axis label fits inside this margin.
+          margins={{ left: 72 }}
           title={title()}
           summary={summary()}
           xTickFormat={formatLocalTime}

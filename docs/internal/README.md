@@ -23,6 +23,7 @@ are not public API guidance, CI visual-regression baselines, or current planning
 - [W-B representative-composition red result](workload-b-conformance-v1-red.md)
 - [W-C representative-composition red result](workload-c-conformance-v1-red.md)
 - [W-D representative-composition red result](workload-d-conformance-v1-red.md)
+- [Left-axis label fit red result](left-axis-fit-red.md)
 
 ## Historical site review captures
 

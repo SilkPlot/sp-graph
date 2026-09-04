@@ -4,15 +4,18 @@ import { userEvent } from "vitest/browser";
 import { w2History } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadA } from "../app/WorkloadA";
 import { WA_POINTS, WA_SERIES } from "../app/workloads";
+import { LineChart } from "@silkplot/charts";
 import {
   CONFORMANCE_FAILURE,
   assertExplicitFormatter,
+  assertLeftAxisLabelsFit,
   assertLegendWiring,
   assertSourceValueCell,
   assertTableRevealControl,
   assertTooltipAllSeries,
   assertTooltipMetadata,
   assertWorkloadRevision,
+  captureLeftAxisLabels,
   resetPublishedComposition,
 } from "./composition-conformance";
 
@@ -128,6 +131,19 @@ describe("composition gate mutations retain their exact failure messages", () =>
     expect(() => assertWorkloadRevision(window.__perf)).not.toThrow();
   });
 
+  it("passes the left-axis fit claim on the unmutated page", async () => {
+    const capture = captureLeftAxisLabels();
+    try {
+      await mountDefaultWorkload();
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).not.toThrow();
+  });
+
   it("fails with the retained tooltip-metadata message", async () => {
     const container = await mountDefaultWorkload();
     const tooltip = await selectHome(container);
@@ -186,6 +202,35 @@ describe("composition gate mutations retain their exact failure messages", () =>
     value!.textContent = "not-the-source";
     expect(() => assertSourceValueCell(row, expectedSourceCells())).toThrowError(
       CONFORMANCE_FAILURE.sourceValueCell,
+    );
+  });
+
+  it("fails with the retained left-axis-fit message", async () => {
+    // The mutation removes the page's margin reservation: the same series and
+    // caller-owned formatter on the library's constant 40px default left
+    // margin, which is exactly the composition that clipped every tick to
+    // "0,0 °C" on the headed pages on 2026-09-04.
+    const capture = captureLeftAxisLabels();
+    try {
+      render(() => (
+        <div style={{ width: "1200px" }}>
+          <LineChart
+            series={SOURCE}
+            height={420}
+            title="W-A without its margin reservation"
+            summary="Mutation: the caller-owned unit formatter on the default left margin."
+            yTickFormat={temperature}
+          />
+        </div>
+      ));
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).toThrowError(
+      CONFORMANCE_FAILURE.axisLabelFit,
     );
   });
 

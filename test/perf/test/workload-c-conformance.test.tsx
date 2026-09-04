@@ -4,7 +4,12 @@ import { userEvent } from "vitest/browser";
 import { w1DashboardDeck } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadC } from "../app/WorkloadC";
 import { WC_CHARTS } from "../app/workloads";
-import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
+import {
+  assertLeftAxisLabelsFit,
+  assertWorkloadRevision,
+  captureLeftAxisLabels,
+  resetPublishedComposition,
+} from "./composition-conformance";
 
 const DECK = w1DashboardDeck(WC_CHARTS);
 const FIRST_LOCAL_TIME = "2026/01/01, 02:00:00";
@@ -80,6 +85,19 @@ afterEach(() => {
 });
 
 describe("W-C representative composition", () => {
+  it("paints every left-axis tick label inside the margin it reserved", async () => {
+    const capture = captureLeftAxisLabels();
+    try {
+      await mountRevealedWorkload();
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).not.toThrow();
+  });
+
   it("renders the first line panel's localized Home value in a real tooltip", async () => {
     const panel = DECK[0]!;
     const first = panel.time[0]!;

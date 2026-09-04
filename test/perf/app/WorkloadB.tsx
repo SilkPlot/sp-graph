@@ -220,6 +220,11 @@ export const WorkloadB: Component = () => {
       <LineChart
         series={SERIES}
         references={REFERENCES}
+        // ADR-0013: the caller who owns the formatter reserves the room its
+        // labels need; the library does not measure the default left margin.
+        // `-20,0 kW` is the widest tick this page formats; the conformance suite
+        // proves every painted left-axis label fits inside this margin.
+        margins={{ left: 64 }}
         visibleSeries={visibleSeries()}
         onVisibilityChange={setVisibleSeries}
         legend={

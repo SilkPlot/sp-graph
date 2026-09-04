@@ -4,7 +4,12 @@ import { userEvent } from "vitest/browser";
 import { w2History } from "../../../packages/charts/test/workload-fixtures";
 import { WorkloadA } from "../app/WorkloadA";
 import { WA_POINTS, WA_SERIES } from "../app/workloads";
-import { assertWorkloadRevision, resetPublishedComposition } from "./composition-conformance";
+import {
+  assertLeftAxisLabelsFit,
+  assertWorkloadRevision,
+  captureLeftAxisLabels,
+  resetPublishedComposition,
+} from "./composition-conformance";
 
 const SOURCE = w2History(WA_SERIES, WA_POINTS);
 const UNIT = "°C";
@@ -69,6 +74,19 @@ afterEach(() => {
 });
 
 describe("W-A representative composition", () => {
+  it("paints every left-axis tick label inside the margin it reserved", async () => {
+    const capture = captureLeftAxisLabels();
+    try {
+      await mountDefaultWorkload();
+      await vi.waitFor(() => {
+        expect(capture.records.length).toBeGreaterThan(0);
+      });
+    } finally {
+      capture.restore();
+    }
+    expect(() => assertLeftAxisLabelsFit(capture.records)).not.toThrow();
+  });
+
   it("renders the keyboard-selected raw datum, metadata, and all four values in its tooltip", async () => {
     const expected = sourceAtFirstInstant();
     const container = await mountDefaultWorkload();
