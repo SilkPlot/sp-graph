@@ -56,7 +56,7 @@
     "@biomejs/biome": "^2.5.11",
     "@solidjs/testing-library": "^0.8.10",
     "@vitest/browser": "^4.1.11",
-    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/browser-playwright": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild-plugin-solid": "^0.6.0",
     "playwright": "^1.62.1",
