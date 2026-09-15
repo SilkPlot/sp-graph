@@ -24,7 +24,7 @@ export const FROZEN_HEADED_WINDOW = Object.freeze({
 	darwinPosition: Object.freeze({ x: 80, y: 80 }),
 });
 
-/** Headed Chrome args: Omarchy floats on DP-2; Darwin stays on-screen at Retina scale 2. */
+/** Headed Chrome args: Omarchy floats on DP-2; Darwin stays on-screen with forced scale-factor 2. */
 export function headedChromeArgs(platform = process.platform) {
 	const { width, height, linuxPosition, darwinPosition } = FROZEN_HEADED_WINDOW;
 	if (platform === "darwin") {
