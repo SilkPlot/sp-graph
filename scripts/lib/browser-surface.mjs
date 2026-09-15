@@ -16,8 +16,54 @@ const SOFTWARE_RENDERERS = new Map([
   ["lavapipe", "lavapipe"],
 ]);
 
+/** Frozen headed window geometry (protocol §1a). Omarchy keeps DP-2 origin. */
+export const FROZEN_HEADED_WINDOW = Object.freeze({
+	width: 1280,
+	height: 1100,
+	linuxPosition: Object.freeze({ x: 5440, y: 80 }),
+	darwinPosition: Object.freeze({ x: 80, y: 80 }),
+});
+
+/** Headed Chrome args: Omarchy floats on DP-2; Darwin stays on-screen at Retina scale 2. */
+export function headedChromeArgs(platform = process.platform) {
+	const { width, height, linuxPosition, darwinPosition } = FROZEN_HEADED_WINDOW;
+	if (platform === "darwin") {
+		return [
+			`--window-position=${darwinPosition.x},${darwinPosition.y}`,
+			`--window-size=${width},${height}`,
+			// Mac binding surface requires backing scale 2.0 (§1a). Without this,
+			// Chrome on some Aqua setups reports devicePixelRatio 1 (74432).
+			"--force-device-scale-factor=2",
+			"--class=silkplot-perf",
+		];
+	}
+	return [
+		`--window-position=${linuxPosition.x},${linuxPosition.y}`,
+		`--window-size=${width},${height}`,
+		"--class=silkplot-perf",
+	];
+}
+
+/** Pin the headed Darwin window to the frozen floating geometry via CDP. */
+export async function pinDarwinFrozenWindow(
+	page,
+	{
+		width = FROZEN_HEADED_WINDOW.width,
+		height = FROZEN_HEADED_WINDOW.height,
+		left = FROZEN_HEADED_WINDOW.darwinPosition.x,
+		top = FROZEN_HEADED_WINDOW.darwinPosition.y,
+	} = {},
+) {
+	const session = await page.context().newCDPSession(page);
+	const { windowId } = await session.send("Browser.getWindowForTarget");
+	await session.send("Browser.setWindowBounds", {
+		windowId,
+		bounds: { left, top, width, height, windowState: "normal" },
+	});
+}
+
 /** Parse the public CLI surface and produce Playwright launch options. */
-export function browserSurfacePlan(argv) {
+export function browserSurfacePlan(argv, { platform = process.platform } = {}) {
   const mode = arg(argv, "browser-surface", "headless");
   if (!SURFACES.has(mode)) {
     throw new Error(`unknown --browser-surface '${mode}'; expected headed or headless`);
@@ -38,11 +84,7 @@ export function browserSurfacePlan(argv) {
       ...(executablePath ? { executablePath } : {}),
 			...(mode === "headed"
 				? {
-						args: [
-							"--window-position=5440,80",
-							"--window-size=1280,1100",
-							"--class=silkplot-perf",
-						],
+						args: headedChromeArgs(platform),
 					}
 				: {}),
     },
@@ -300,12 +342,14 @@ export async function inspectDisplaySurface(
 		platform = process.platform,
 		compositorBackend = resolveCompositorBackend(platform),
 		execFile = execFileSync,
+		pinFrozenWindow = pinDarwinFrozenWindow,
 	} = {},
 ) {
 	let originalTitle;
 	let marker;
 	let compositorBefore;
 	const useHyprland = mode === "headed" && compositorBackend === "hyprland";
+	const useDarwinAqua = mode === "headed" && compositorBackend === "darwin-aqua";
 	if (mode === "headed") {
 		if (!Number.isInteger(browserPid) || browserPid <= 0) {
 			throw new Error("headed display evidence requires the CDP browser PID");
@@ -319,6 +363,32 @@ export async function inspectDisplaySurface(
 			compositorBefore = await pinnedCompositorClient(page, browserPid, marker, {
 				execFile,
 			});
+		} else if (useDarwinAqua) {
+			// 74432: Omarchy --window-position=5440,80 clamped off-laptop; pin on-screen.
+			await pinFrozenWindow(page);
+			const pinned = await page.evaluate(() => ({
+				outerWidth,
+				outerHeight,
+				screenX,
+				screenY,
+				devicePixelRatio,
+			}));
+			if (
+				pinned.outerWidth !== FROZEN_HEADED_WINDOW.width ||
+				pinned.outerHeight !== FROZEN_HEADED_WINDOW.height
+			) {
+				throw new Error(
+					`headed Darwin evidence window is ${pinned.outerWidth}x${pinned.outerHeight}, not frozen floating ${FROZEN_HEADED_WINDOW.width}x${FROZEN_HEADED_WINDOW.height}`,
+				);
+			}
+			compositorBefore = {
+				observedAt: new Date().toISOString(),
+				pid: browserPid,
+				title: marker,
+				position: { x: pinned.screenX, y: pinned.screenY },
+				size: { width: pinned.outerWidth, height: pinned.outerHeight },
+				devicePixelRatio: pinned.devicePixelRatio,
+			};
 		}
 	}
 	try {
@@ -374,8 +444,37 @@ export async function inspectDisplaySurface(
 				},
 			};
 		}
-		// Darwin (and any non-Hyprland headed host): keep screen + rAF evidence;
-		// do not spawn hyprctl. Honest skip metadata only — no binding claim.
+		// Darwin Aqua: record compositor before/after sizes from the pinned
+		// floating window so windowGeometryFrozen can pass without Hyprland.
+		if (useDarwinAqua) {
+			const after = reading.screen;
+			if (
+				after.outerWidth !== FROZEN_HEADED_WINDOW.width ||
+				after.outerHeight !== FROZEN_HEADED_WINDOW.height
+			) {
+				throw new Error(
+					`headed Darwin evidence window drifted to ${after.outerWidth}x${after.outerHeight}, not frozen floating ${FROZEN_HEADED_WINDOW.width}x${FROZEN_HEADED_WINDOW.height}`,
+				);
+			}
+			return {
+				context,
+				...reading,
+				compositor: {
+					marker,
+					backend: compositorBackend,
+					before: compositorBefore,
+					after: {
+						observedAt: reading.endedAt,
+						pid: browserPid,
+						title: marker,
+						position: { x: after.screenX, y: after.screenY },
+						size: { width: after.outerWidth, height: after.outerHeight },
+						devicePixelRatio: after.devicePixelRatio,
+					},
+				},
+			};
+		}
+		// Other non-Hyprland headed hosts: keep screen + rAF; no binding claim.
 		return {
 			context,
 			...reading,
