@@ -92,7 +92,10 @@ export function classifyBrowserSurface({ instrumented, gpu = {}, webgl = {}, pla
   if (software) {
     ineligibilityReasons.push(`renderer reports a software GPU (${software})`);
   } else if (pageRenderer && platform === "darwin") {
-    if (!/Apple|Metal/i.test(pageRenderer)) {
+    // Apple Metal / ANGLE Metal — Metal AND (Apple or ANGLE), not Apple-OR-Metal.
+    const darwinNamedGpu =
+      /Metal/i.test(pageRenderer) && /Apple|ANGLE/i.test(pageRenderer);
+    if (!darwinNamedGpu) {
       ineligibilityReasons.push(
         "page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
       );

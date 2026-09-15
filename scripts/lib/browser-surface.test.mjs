@@ -477,6 +477,61 @@ test("darwin SwiftShader remains a diagnostic software GPU", () => {
 	assert.match(result.ineligibilityReasons.join("\n"), /software GPU \(SwiftShader\)/);
 });
 
+test("darwin Apple-without-Metal page renderer fails the Darwin named GPU gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "Apple M1 GPU",
+			},
+		},
+		webgl: {
+			vendor: "Apple Inc.",
+			renderer: "Apple M1 GPU",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+	]);
+});
+
+test("darwin Metal-alone without Apple or ANGLE fails the Darwin named GPU gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "Metal Renderer",
+			},
+		},
+		webgl: {
+			renderer: "Metal Renderer",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+	]);
+});
+
 test("darwin Intel UHD without Metal is diagnostic on the Darwin Metal gate", () => {
 	const result = classifyBrowserSurface({
 		mode: "headed",
