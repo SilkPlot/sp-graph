@@ -60,7 +60,7 @@ const softwareRenderer = (text) => {
  * Record whether this browser has the named hardware rendering surface.
  * A route-specific observer decides whether headed/headless mode is eligible.
  */
-export function classifyBrowserSurface({ instrumented, gpu = {}, webgl = {} }) {
+export function classifyBrowserSurface({ instrumented, gpu = {}, webgl = {}, platform = process.platform }) {
   const ineligibilityReasons = [];
   if (instrumented) {
     ineligibilityReasons.push(
@@ -91,6 +91,12 @@ export function classifyBrowserSurface({ instrumented, gpu = {}, webgl = {} }) {
   const software = softwareRenderer(renderer);
   if (software) {
     ineligibilityReasons.push(`renderer reports a software GPU (${software})`);
+  } else if (pageRenderer && platform === "darwin") {
+    if (!/Apple|Metal/i.test(pageRenderer)) {
+      ineligibilityReasons.push(
+        "page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+      );
+    }
   } else if (pageRenderer && !/NVIDIA GeForce RTX 4090/i.test(pageRenderer)) {
     ineligibilityReasons.push(
       "page renderer is not the named NVIDIA GeForce RTX 4090 binding GPU",
@@ -419,6 +425,7 @@ export async function inspectBrowserSurface(browser, page, plan, { instrumented 
     instrumented,
     gpu,
     webgl,
+    platform: process.platform,
   });
 
   const surface = {
