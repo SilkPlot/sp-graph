@@ -5,7 +5,9 @@ import {
   browserSurfacePlan,
   classifyBrowserSurface,
   inspectBrowserSurface,
+	inspectDisplaySurface,
 	pinCompositorClient,
+	resolveCompositorBackend,
 	selectCompositorClient,
 } from "./browser-surface.mjs";
 
@@ -142,6 +144,140 @@ test("a headed evidence window is pinned to the frozen output by address", () =>
 		() => pinCompositorClient({ address: "not-an-address", monitorId: 1 }),
 		/valid Hyprland address/,
 	);
+});
+
+test("linux resolves to the hyprland compositor backend and darwin to aqua", () => {
+	assert.equal(resolveCompositorBackend("linux"), "hyprland");
+	assert.equal(resolveCompositorBackend("darwin"), "darwin-aqua");
+	assert.equal(resolveCompositorBackend("win32"), "unsupported");
+});
+
+test("darwin headed display inspect never spawns hyprctl", async () => {
+	const calls = [];
+	let title = "original";
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				return undefined;
+			}
+			assert.equal(argument, 3);
+			return {
+				startedAt: "2026-09-15T12:00:00.000Z",
+				endedAt: "2026-09-15T12:00:01.000Z",
+				screen: { width: 1512, height: 982, devicePixelRatio: 2 },
+				rafDeltas: [16.6, 16.7, 16.5],
+			};
+		},
+	};
+
+	const reading = await inspectDisplaySurface(page, 3, "probe-darwin", {
+		mode: "headed",
+		browserPid: 14447,
+		platform: "darwin",
+		execFile: (...args) => {
+			calls.push(args);
+			throw new Error("hyprctl must not run on Darwin");
+		},
+	});
+
+	assert.deepEqual(calls, []);
+	assert.equal(reading.context, "probe-darwin");
+	assert.deepEqual(reading.screen, {
+		width: 1512,
+		height: 982,
+		devicePixelRatio: 2,
+	});
+	assert.deepEqual(reading.rafDeltas, [16.6, 16.7, 16.5]);
+	assert.equal(reading.compositor.backend, "darwin-aqua");
+	assert.equal(reading.compositor.hyprlandSkipped, true);
+	assert.match(reading.compositor.marker, /^silkplot-evidence-probe-darwin-14447-/);
+	assert.equal(title, "original");
+});
+
+test("linux headed display inspect still pins and selects via hyprctl", async () => {
+	const calls = [];
+	let title = "original";
+	const clientOnOne = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux",
+		address: "0xabc123",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 1,
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	const clientOnTwo = { ...clientOnOne, monitor: 2, at: [5440, 80] };
+	let clientsPayload = JSON.stringify([clientOnOne]);
+
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				clientOnOne.title = argument;
+				clientOnTwo.title = argument;
+				clientsPayload = JSON.stringify([
+					clientsPayload.includes('"monitor":2') ? clientOnTwo : clientOnOne,
+				]);
+				return undefined;
+			}
+			assert.equal(argument, 2);
+			return {
+				startedAt: "2026-09-15T12:00:00.000Z",
+				endedAt: "2026-09-15T12:00:01.000Z",
+				screen: { width: 2560, height: 1440 },
+				rafDeltas: [16.67, 16.67],
+			};
+		},
+	};
+
+	const execFile = (command, args, options) => {
+		calls.push([command, args, options]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "clients") {
+			return clientsPayload.includes('"monitor":2')
+				? JSON.stringify([clientOnTwo])
+				: JSON.stringify([clientOnOne]);
+		}
+		if (args[0] === "dispatch") {
+			clientsPayload = JSON.stringify([clientOnTwo]);
+			return "";
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+
+	const reading = await inspectDisplaySurface(page, 2, "probe-linux", {
+		mode: "headed",
+		browserPid: 42,
+		platform: "linux",
+		execFile,
+	});
+
+	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "clients"));
+	assert.deepEqual(
+		calls.find(([command, args]) => command === "hyprctl" && args[0] === "dispatch")?.slice(0, 2),
+		[
+			"hyprctl",
+			[
+				"dispatch",
+				'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
+			],
+		],
+	);
+	assert.equal(reading.compositor.before.monitorId, 2);
+	assert.equal(reading.compositor.after.monitorId, 2);
+	assert.equal(reading.compositor.before.address, "0xabc123");
+	assert.equal(reading.compositor.backend, undefined);
+	assert.equal(reading.compositor.hyprlandSkipped, undefined);
+	assert.deepEqual(reading.rafDeltas, [16.67, 16.67]);
+	assert.equal(title, "original");
 });
 
 test("the default browser surface is an explicitly diagnostic headless run", () => {

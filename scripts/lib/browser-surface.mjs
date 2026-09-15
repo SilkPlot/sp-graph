@@ -230,12 +230,24 @@ export function pinCompositorClient(
 	return true;
 }
 
-const compositorClient = async (page, browserPid, marker) => {
+/** Choose the headed compositor backend from the host platform. */
+export function resolveCompositorBackend(platform = process.platform) {
+	if (platform === "darwin") return "darwin-aqua";
+	if (platform === "linux") return "hyprland";
+	return "unsupported";
+}
+
+const compositorClient = async (
+	page,
+	browserPid,
+	marker,
+	{ execFile = execFileSync } = {},
+) => {
 	let lastError;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		try {
 			const clients = JSON.parse(
-				execFileSync("hyprctl", ["clients", "-j"], {
+				execFile("hyprctl", ["clients", "-j"], {
 					encoding: "utf8",
 					timeout: 2_000,
 					stdio: ["ignore", "pipe", "pipe"],
@@ -250,12 +262,17 @@ const compositorClient = async (page, browserPid, marker) => {
 	throw lastError;
 };
 
-const pinnedCompositorClient = async (page, browserPid, marker) => {
-	const client = await compositorClient(page, browserPid, marker);
-	if (!pinCompositorClient(client)) return client;
+const pinnedCompositorClient = async (
+	page,
+	browserPid,
+	marker,
+	{ execFile = execFileSync } = {},
+) => {
+	const client = await compositorClient(page, browserPid, marker, { execFile });
+	if (!pinCompositorClient(client, { dispatch: execFile })) return client;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		await page.waitForTimeout(50);
-		const moved = await compositorClient(page, browserPid, marker);
+		const moved = await compositorClient(page, browserPid, marker, { execFile });
 		if (moved.monitorId === 2) return moved;
 	}
 	throw new Error(
@@ -268,11 +285,18 @@ export async function inspectDisplaySurface(
 	page,
 	sampleCount = 120,
 	context = "unspecified",
-	{ mode = "headless", browserPid = null } = {},
+	{
+		mode = "headless",
+		browserPid = null,
+		platform = process.platform,
+		compositorBackend = resolveCompositorBackend(platform),
+		execFile = execFileSync,
+	} = {},
 ) {
 	let originalTitle;
 	let marker;
 	let compositorBefore;
+	const useHyprland = mode === "headed" && compositorBackend === "hyprland";
 	if (mode === "headed") {
 		if (!Number.isInteger(browserPid) || browserPid <= 0) {
 			throw new Error("headed display evidence requires the CDP browser PID");
@@ -282,7 +306,11 @@ export async function inspectDisplaySurface(
 		await page.evaluate((title) => {
 			document.title = title;
 		}, marker);
-		compositorBefore = await pinnedCompositorClient(page, browserPid, marker);
+		if (useHyprland) {
+			compositorBefore = await pinnedCompositorClient(page, browserPid, marker, {
+				execFile,
+			});
+		}
 	}
 	try {
 		const reading = await page.evaluate(async (count) => {
@@ -317,22 +345,36 @@ export async function inspectDisplaySurface(
 			rafDeltas,
 		};
 		}, sampleCount);
-		const compositorAfter =
-			mode === "headed"
-				? await compositorClient(page, browserPid, marker)
-				: undefined;
+		if (mode !== "headed") {
+			return {
+				context,
+				...reading,
+			};
+		}
+		if (useHyprland) {
+			const compositorAfter = await compositorClient(page, browserPid, marker, {
+				execFile,
+			});
+			return {
+				context,
+				...reading,
+				compositor: {
+					marker,
+					before: compositorBefore,
+					after: compositorAfter,
+				},
+			};
+		}
+		// Darwin (and any non-Hyprland headed host): keep screen + rAF evidence;
+		// do not spawn hyprctl. Honest skip metadata only — no binding claim.
 		return {
 			context,
 			...reading,
-			...(mode === "headed"
-				? {
-						compositor: {
-							marker,
-							before: compositorBefore,
-							after: compositorAfter,
-						},
-					}
-				: {}),
+			compositor: {
+				marker,
+				backend: compositorBackend,
+				hyprlandSkipped: true,
+			},
 		};
 	} finally {
 		if (mode === "headed" && originalTitle !== undefined) {
