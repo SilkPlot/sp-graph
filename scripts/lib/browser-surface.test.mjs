@@ -4,6 +4,8 @@ import {
 	appendBrowserProcessSnapshot,
   browserSurfacePlan,
   classifyBrowserSurface,
+	FROZEN_HEADED_WINDOW,
+	headedChromeArgs,
   inspectBrowserSurface,
 	inspectDisplaySurface,
 	pinCompositorClient,
@@ -152,9 +154,25 @@ test("linux resolves to the hyprland compositor backend and darwin to aqua", () 
 	assert.equal(resolveCompositorBackend("win32"), "unsupported");
 });
 
-test("darwin headed display inspect never spawns hyprctl", async () => {
+test("darwin headed display inspect never spawns hyprctl and records frozen Aqua sizes", async () => {
 	const calls = [];
 	let title = "original";
+	let pinCalls = 0;
+	const frozenScreen = {
+		width: 1512,
+		height: 982,
+		availWidth: 1512,
+		availHeight: 982,
+		colorDepth: 30,
+		pixelDepth: 30,
+		devicePixelRatio: 2,
+		screenX: 80,
+		screenY: 80,
+		outerWidth: 1280,
+		outerHeight: 1100,
+		innerWidth: 1200,
+		innerHeight: 900,
+	};
 	const page = {
 		title: async () => title,
 		waitForTimeout: async () => {},
@@ -163,11 +181,21 @@ test("darwin headed display inspect never spawns hyprctl", async () => {
 				title = argument;
 				return undefined;
 			}
+			// pin path reads outer bounds with a zero-arg evaluate
+			if (typeof callback === "function" && argument === undefined) {
+				return {
+					outerWidth: frozenScreen.outerWidth,
+					outerHeight: frozenScreen.outerHeight,
+					screenX: frozenScreen.screenX,
+					screenY: frozenScreen.screenY,
+					devicePixelRatio: frozenScreen.devicePixelRatio,
+				};
+			}
 			assert.equal(argument, 3);
 			return {
 				startedAt: "2026-09-15T12:00:00.000Z",
 				endedAt: "2026-09-15T12:00:01.000Z",
-				screen: { width: 1512, height: 982, devicePixelRatio: 2 },
+				screen: frozenScreen,
 				rafDeltas: [16.6, 16.7, 16.5],
 			};
 		},
@@ -177,24 +205,31 @@ test("darwin headed display inspect never spawns hyprctl", async () => {
 		mode: "headed",
 		browserPid: 14447,
 		platform: "darwin",
-		execFile: (...args) => {
-			calls.push(args);
-			throw new Error("hyprctl must not run on Darwin");
+		pinFrozenWindow: async () => {
+			pinCalls += 1;
+		},
+		execFile: (command, args) => {
+			calls.push([command, args]);
+			throw new Error(`hyprctl must not run on Darwin: ${command} ${args}`);
 		},
 	});
 
+	assert.equal(pinCalls, 1);
 	assert.deepEqual(calls, []);
-	assert.equal(reading.context, "probe-darwin");
-	assert.deepEqual(reading.screen, {
-		width: 1512,
-		height: 982,
-		devicePixelRatio: 2,
-	});
-	assert.deepEqual(reading.rafDeltas, [16.6, 16.7, 16.5]);
 	assert.equal(reading.compositor.backend, "darwin-aqua");
-	assert.equal(reading.compositor.hyprlandSkipped, true);
+	assert.equal(reading.compositor.hyprlandSkipped, undefined);
+	assert.deepEqual(reading.compositor.before.size, {
+		width: FROZEN_HEADED_WINDOW.width,
+		height: FROZEN_HEADED_WINDOW.height,
+	});
+	assert.deepEqual(reading.compositor.after.size, {
+		width: FROZEN_HEADED_WINDOW.width,
+		height: FROZEN_HEADED_WINDOW.height,
+	});
 	assert.match(reading.compositor.marker, /^silkplot-evidence-probe-darwin-14447-/);
+	assert.deepEqual(reading.rafDeltas, [16.6, 16.7, 16.5]);
 	assert.equal(title, "original");
+
 });
 
 test("linux headed display inspect still pins and selects via hyprctl", async () => {
@@ -295,28 +330,49 @@ test("headed measurement requires the exact full Chrome executable", () => {
   );
 
   assert.deepEqual(
-    browserSurfacePlan([
-      "node",
-      "measure",
-      "--browser-surface",
-      "headed",
-      "--executable",
-      "/opt/chrome/chrome",
-    ]),
+    browserSurfacePlan(
+      [
+        "node",
+        "measure",
+        "--browser-surface",
+        "headed",
+        "--executable",
+        "/opt/chrome/chrome",
+      ],
+      { platform: "linux" },
+    ),
     {
       mode: "headed",
       executablePath: "/opt/chrome/chrome",
       launchOptions: {
 			headless: false,
 			executablePath: "/opt/chrome/chrome",
-			args: [
-				"--window-position=5440,80",
-				"--window-size=1280,1100",
-				"--class=silkplot-perf",
-			],
+			args: headedChromeArgs("linux"),
 		},
     },
   );
+
+  assert.deepEqual(
+    browserSurfacePlan(
+      [
+        "node",
+        "measure",
+        "--browser-surface",
+        "headed",
+        "--executable",
+        "/opt/chrome/chrome",
+      ],
+      { platform: "darwin" },
+    ).launchOptions.args,
+    [
+      "--window-position=80,80",
+      "--window-size=1280,1100",
+      "--force-device-scale-factor=2",
+      "--class=silkplot-perf",
+    ],
+  );
+  assert.doesNotMatch(headedChromeArgs("darwin").join(" "), /5440/);
+  assert.match(headedChromeArgs("linux").join(" "), /5440/);
 });
 
 test("a headed hardware-accelerated Chrome surface is eligible for binding consideration", () => {
