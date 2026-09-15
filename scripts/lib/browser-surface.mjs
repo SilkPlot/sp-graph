@@ -31,8 +31,9 @@ export function headedChromeArgs(platform = process.platform) {
 		return [
 			`--window-position=${darwinPosition.x},${darwinPosition.y}`,
 			`--window-size=${width},${height}`,
-			// Mac binding surface requires backing scale 2.0 (§1a). Without this,
-			// Chrome on some Aqua setups reports devicePixelRatio 1 (74432).
+			// Forced launch pin (same class as --window-size): Mac binding gate
+			// requires devicePixelRatio === 2 (§1a). 74432 recorded DPR 1 without
+			// this; it is not a claim of authentic untouched host Retina.
 			"--force-device-scale-factor=2",
 			"--class=silkplot-perf",
 		];
