@@ -323,6 +323,7 @@ test("a headed hardware-accelerated Chrome surface is eligible for binding consi
   const result = classifyBrowserSurface({
     mode: "headed",
     instrumented: false,
+    platform: "linux",
     gpu: {
       featureStatus: {
         gpu_compositing: "enabled",
@@ -349,6 +350,7 @@ test("browser evidence stays context-neutral for a hardware-accelerated headless
 	const result = classifyBrowserSurface({
 		mode: "headless",
 		instrumented: false,
+		platform: "linux",
 		gpu: {
 			featureStatus: {
 				gpu_compositing: "enabled",
@@ -399,6 +401,7 @@ test("a different hardware GPU does not satisfy the named RTX 4090 binding surfa
 	const result = classifyBrowserSurface({
 		mode: "headed",
 		instrumented: false,
+		platform: "linux",
 		gpu: {
 			featureStatus: {
 				gpu_compositing: "enabled",
@@ -421,10 +424,175 @@ test("a different hardware GPU does not satisfy the named RTX 4090 binding surfa
 	]);
 });
 
+test("darwin ANGLE Metal Apple M1 is a binding-candidate surface", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer:
+					"ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+			},
+		},
+		webgl: {
+			vendor: "Google Inc. (Apple)",
+			renderer:
+				"ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, true);
+	assert.equal(result.classification, "binding-candidate");
+	assert.deepEqual(result.ineligibilityReasons, []);
+});
+
+test("darwin SwiftShader remains a diagnostic software GPU", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))",
+			},
+		},
+		webgl: {
+			renderer: "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)))",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.match(result.ineligibilityReasons.join("\n"), /software GPU \(SwiftShader\)/);
+});
+
+test("darwin Apple-without-Metal page renderer fails the Darwin named GPU gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "Apple M1 GPU",
+			},
+		},
+		webgl: {
+			vendor: "Apple Inc.",
+			renderer: "Apple M1 GPU",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+	]);
+});
+
+test("darwin Metal-alone without Apple or ANGLE fails the Darwin named GPU gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "Metal Renderer",
+			},
+		},
+		webgl: {
+			renderer: "Metal Renderer",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+	]);
+});
+
+test("darwin Intel UHD without Metal is diagnostic on the Darwin Metal gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "darwin",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer: "ANGLE (Intel, Intel(R) UHD Graphics 770, OpenGL ES 3.2)",
+			},
+		},
+		webgl: {
+			renderer: "ANGLE (Intel, Intel(R) UHD Graphics 770)",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not Apple Metal / ANGLE Metal on the Darwin named host",
+	]);
+});
+
+test("linux still refuses Apple M1 Metal under the Omarchy RTX 4090 gate", () => {
+	const result = classifyBrowserSurface({
+		mode: "headed",
+		instrumented: false,
+		platform: "linux",
+		gpu: {
+			featureStatus: {
+				gpu_compositing: "enabled",
+				rasterization: "enabled",
+				webgl: "enabled",
+			},
+			auxAttributes: {
+				glRenderer:
+					"ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+			},
+		},
+		webgl: {
+			renderer:
+				"ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+		},
+	});
+
+	assert.equal(result.surfaceEligible, false);
+	assert.equal(result.classification, "diagnostic");
+	assert.deepEqual(result.ineligibilityReasons, [
+		"page renderer is not the named NVIDIA GeForce RTX 4090 binding GPU",
+	]);
+});
+
 test("an RTX auxiliary record cannot mask a different page renderer", () => {
 	const result = classifyBrowserSurface({
 		mode: "headed",
 		instrumented: false,
+		platform: "linux",
 		gpu: {
 			featureStatus: {
 				gpu_compositing: "enabled",
