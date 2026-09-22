@@ -5,6 +5,7 @@ import {
   browserSurfacePlan,
   classifyBrowserSurface,
 	FROZEN_HEADED_WINDOW,
+	FROZEN_HEADED_WINDOW_DARWIN,
 	headedChromeArgs,
   inspectBrowserSurface,
 	inspectDisplaySurface,
@@ -169,9 +170,9 @@ test("darwin headed display inspect never spawns hyprctl and records frozen Aqua
 		screenX: 80,
 		screenY: 80,
 		outerWidth: 1280,
-		outerHeight: 1100,
+		outerHeight: 780,
 		innerWidth: 1200,
-		innerHeight: 900,
+		innerHeight: 680,
 	};
 	const page = {
 		title: async () => title,
@@ -219,12 +220,12 @@ test("darwin headed display inspect never spawns hyprctl and records frozen Aqua
 	assert.equal(reading.compositor.backend, "darwin-aqua");
 	assert.equal(reading.compositor.hyprlandSkipped, undefined);
 	assert.deepEqual(reading.compositor.before.size, {
-		width: FROZEN_HEADED_WINDOW.width,
-		height: FROZEN_HEADED_WINDOW.height,
+		width: FROZEN_HEADED_WINDOW_DARWIN.width,
+		height: FROZEN_HEADED_WINDOW_DARWIN.height,
 	});
 	assert.deepEqual(reading.compositor.after.size, {
-		width: FROZEN_HEADED_WINDOW.width,
-		height: FROZEN_HEADED_WINDOW.height,
+		width: FROZEN_HEADED_WINDOW_DARWIN.width,
+		height: FROZEN_HEADED_WINDOW_DARWIN.height,
 	});
 	assert.match(reading.compositor.marker, /^silkplot-evidence-probe-darwin-14447-/);
 	assert.deepEqual(reading.rafDeltas, [16.6, 16.7, 16.5]);
@@ -366,7 +367,7 @@ test("headed measurement requires the exact full Chrome executable", () => {
     ).launchOptions.args,
     [
       "--window-position=80,80",
-      "--window-size=1280,1100",
+      "--window-size=1280,780",
       "--force-device-scale-factor=2",
       "--class=silkplot-perf",
     ],
