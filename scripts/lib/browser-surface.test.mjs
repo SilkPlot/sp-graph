@@ -287,7 +287,6 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 		workspace: { id: HEADED_HYPRLAND_WORKSPACE, name: String(HEADED_HYPRLAND_WORKSPACE) },
 		at: [5440, 80],
 	};
-	let clientsPayload = JSON.stringify([clientOnOne]);
 	let pinned = false;
 
 	const page = {
@@ -298,7 +297,6 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 				title = argument;
 				clientOnOne.title = argument;
 				clientPinned.title = argument;
-				clientsPayload = JSON.stringify([pinned ? clientPinned : clientOnOne]);
 				return undefined;
 			}
 			assert.equal(argument, 2);
@@ -321,7 +319,6 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 			const dispatchArg = args[1] ?? "";
 			if (dispatchArg.includes("movetoworkspacesilent") || dispatchArg.includes("hl.dsp.window.move")) {
 				pinned = true;
-				clientsPayload = JSON.stringify([clientPinned]);
 			}
 			return "";
 		}
