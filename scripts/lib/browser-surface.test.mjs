@@ -9,6 +9,7 @@ import {
   inspectBrowserSurface,
 	inspectDisplaySurface,
 	pinCompositorClient,
+	HEADED_HYPRLAND_WORKSPACE,
 	resolveCompositorBackend,
 	selectCompositorClient,
 } from "./browser-surface.mjs";
@@ -108,12 +109,17 @@ test("the compositor client is tied to the marked page and exact browser PID", (
 	);
 });
 
-test("a headed evidence window is pinned to the frozen output by address", () => {
+test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-steal", () => {
 	const calls = [];
 	const dispatch = (...args) => calls.push(args);
+	const opts = {
+		encoding: "utf8",
+		timeout: 2_000,
+		stdio: ["ignore", "pipe", "pipe"],
+	};
 	assert.equal(
 		pinCompositorClient(
-			{ address: "0xabc123", monitorId: 1 },
+			{ address: "0xabc123", monitorId: 1, workspaceId: 4 },
 			{ dispatch },
 		),
 		true,
@@ -125,18 +131,45 @@ test("a headed evidence window is pinned to the frozen output by address", () =>
 				"dispatch",
 				'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
 			],
-			{
-				encoding: "utf8",
-				timeout: 2_000,
-				stdio: ["ignore", "pipe", "pipe"],
-			},
+			opts,
+		],
+		[
+			"hyprctl",
+			[
+				"dispatch",
+				`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
+			],
+			opts,
 		],
 	]);
 
 	calls.length = 0;
 	assert.equal(
 		pinCompositorClient(
-			{ address: "0xabc123", monitorId: 2 },
+			{ address: "0xabc123", monitorId: 2, workspaceId: 4 },
+			{ dispatch },
+		),
+		true,
+	);
+	assert.deepEqual(calls, [
+		[
+			"hyprctl",
+			[
+				"dispatch",
+				`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
+			],
+			opts,
+		],
+	]);
+
+	calls.length = 0;
+	assert.equal(
+		pinCompositorClient(
+			{
+				address: "0xabc123",
+				monitorId: 2,
+				workspaceId: HEADED_HYPRLAND_WORKSPACE,
+			},
 			{ dispatch },
 		),
 		false,
@@ -232,7 +265,7 @@ test("darwin headed display inspect never spawns hyprctl and records frozen Aqua
 
 });
 
-test("linux headed display inspect still pins and selects via hyprctl", async () => {
+test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () => {
 	const calls = [];
 	let title = "original";
 	const clientOnOne = {
@@ -243,12 +276,18 @@ test("linux headed display inspect still pins and selects via hyprctl", async ()
 		hidden: false,
 		visible: true,
 		monitor: 1,
+		workspace: { id: 4, name: "4" },
 		at: [100, 80],
 		size: [1280, 1100],
 		xwayland: false,
 	};
-	const clientOnTwo = { ...clientOnOne, monitor: 2, at: [5440, 80] };
-	let clientsPayload = JSON.stringify([clientOnOne]);
+	const clientPinned = {
+		...clientOnOne,
+		monitor: 2,
+		workspace: { id: HEADED_HYPRLAND_WORKSPACE, name: String(HEADED_HYPRLAND_WORKSPACE) },
+		at: [5440, 80],
+	};
+	let pinned = false;
 
 	const page = {
 		title: async () => title,
@@ -257,10 +296,7 @@ test("linux headed display inspect still pins and selects via hyprctl", async ()
 			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
 				title = argument;
 				clientOnOne.title = argument;
-				clientOnTwo.title = argument;
-				clientsPayload = JSON.stringify([
-					clientsPayload.includes('"monitor":2') ? clientOnTwo : clientOnOne,
-				]);
+				clientPinned.title = argument;
 				return undefined;
 			}
 			assert.equal(argument, 2);
@@ -277,12 +313,13 @@ test("linux headed display inspect still pins and selects via hyprctl", async ()
 		calls.push([command, args, options]);
 		assert.equal(command, "hyprctl");
 		if (args[0] === "clients") {
-			return clientsPayload.includes('"monitor":2')
-				? JSON.stringify([clientOnTwo])
-				: JSON.stringify([clientOnOne]);
+			return JSON.stringify([pinned ? clientPinned : clientOnOne]);
 		}
 		if (args[0] === "dispatch") {
-			clientsPayload = JSON.stringify([clientOnTwo]);
+			const dispatchArg = args[1] ?? "";
+			if (dispatchArg.includes("movetoworkspacesilent") || dispatchArg.includes("hl.dsp.window.move")) {
+				pinned = true;
+			}
 			return "";
 		}
 		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
@@ -296,18 +333,20 @@ test("linux headed display inspect still pins and selects via hyprctl", async ()
 	});
 
 	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "clients"));
-	assert.deepEqual(
-		calls.find(([command, args]) => command === "hyprctl" && args[0] === "dispatch")?.slice(0, 2),
-		[
-			"hyprctl",
-			[
-				"dispatch",
-				'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
-			],
-		],
+	const dispatches = calls.filter(([command, args]) => command === "hyprctl" && args[0] === "dispatch");
+	assert.equal(dispatches.length, 2);
+	assert.equal(
+		dispatches[0][1][1],
+		'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
+	);
+	assert.equal(
+		dispatches[1][1][1],
+		`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
 	);
 	assert.equal(reading.compositor.before.monitorId, 2);
+	assert.equal(reading.compositor.before.workspaceId, HEADED_HYPRLAND_WORKSPACE);
 	assert.equal(reading.compositor.after.monitorId, 2);
+	assert.equal(reading.compositor.after.workspaceId, HEADED_HYPRLAND_WORKSPACE);
 	assert.equal(reading.compositor.before.address, "0xabc123");
 	assert.equal(reading.compositor.backend, undefined);
 	assert.equal(reading.compositor.hyprlandSkipped, undefined);
