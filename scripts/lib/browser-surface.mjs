@@ -24,6 +24,10 @@ export const FROZEN_HEADED_WINDOW = Object.freeze({
 	darwinPosition: Object.freeze({ x: 80, y: 80 }),
 });
 
+/** Omarchy headed binding workspace — silent pin; never focus-steal Adam's active WS. */
+export const HEADED_HYPRLAND_WORKSPACE = 5;
+
+
 /** Headed Chrome args: Omarchy floats on DP-2; Darwin stays on-screen with forced scale-factor 2. */
 export function headedChromeArgs(platform = process.platform) {
 	const { width, height, linuxPosition, darwinPosition } = FROZEN_HEADED_WINDOW;
@@ -248,37 +252,57 @@ export function selectCompositorClient(clients, browserPid, marker) {
 		hidden: client.hidden,
 		visible: client.visible,
 		monitorId: client.monitor,
+		workspaceId: Number.isInteger(client?.workspace?.id)
+			? client.workspace.id
+			: null,
 		position: { x, y },
 		size: { width, height },
 		xwayland: client.xwayland,
 	};
 }
 
-/** Move only this marked evidence window onto the protocol's frozen output. */
+/** Move marked evidence window to DP-2 and Hyprland WS5 without focus-steal. */
 export function pinCompositorClient(
 	client,
 	{
 		dispatch = execFileSync,
 		targetMonitorId = 2,
 		targetMonitorName = "DP-2",
+		targetWorkspaceId = HEADED_HYPRLAND_WORKSPACE,
 	} = {},
 ) {
-	if (client?.monitorId === targetMonitorId) return false;
 	if (!/^0x[0-9a-f]+$/i.test(client?.address ?? "")) {
 		throw new Error("headed display evidence requires a valid Hyprland address");
 	}
-	dispatch(
-		"hyprctl",
-		[
-			"dispatch",
-			`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${client.address}" })`,
-		],
-		{
-			encoding: "utf8",
-			timeout: 2_000,
-			stdio: ["ignore", "pipe", "pipe"],
-		},
-	);
+	const onMonitor = client?.monitorId === targetMonitorId;
+	const onWorkspace = client?.workspaceId === targetWorkspaceId;
+	if (onMonitor && onWorkspace) return false;
+	const opts = {
+		encoding: "utf8",
+		timeout: 2_000,
+		stdio: ["ignore", "pipe", "pipe"],
+	};
+	if (!onMonitor) {
+		dispatch(
+			"hyprctl",
+			[
+				"dispatch",
+				`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${client.address}" })`,
+			],
+			opts,
+		);
+	}
+	if (!onWorkspace) {
+		// movetoworkspacesilent creates WS5 if missing and does not switch Adam's focus.
+		dispatch(
+			"hyprctl",
+			[
+				"dispatch",
+				`movetoworkspacesilent ${targetWorkspaceId},address:${client.address}`,
+			],
+			opts,
+		);
+	}
 	return true;
 }
 
@@ -325,10 +349,15 @@ const pinnedCompositorClient = async (
 	for (let attempt = 0; attempt < 20; attempt++) {
 		await page.waitForTimeout(50);
 		const moved = await compositorClient(page, browserPid, marker, { execFile });
-		if (moved.monitorId === 2) return moved;
+		if (
+			moved.monitorId === 2 &&
+			moved.workspaceId === HEADED_HYPRLAND_WORKSPACE
+		) {
+			return moved;
+		}
 	}
 	throw new Error(
-		`headed evidence window '${client.address}' did not move to DP-2`,
+		`headed evidence window '${client.address}' did not pin to DP-2 workspace ${HEADED_HYPRLAND_WORKSPACE}`,
 	);
 };
 
