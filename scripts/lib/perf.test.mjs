@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   ACCEPTANCE_MS,
   FROZEN_PAGE_OPTIONS,
+  frozenPageOptions,
+  FROZEN_PAGE_OPTIONS_DARWIN,
 	PROTOCOL_PASSES,
 	createInputActivityRecorder,
 	assertServerIdentity,
@@ -119,6 +121,13 @@ test("every measured and probe page shares the frozen viewport options", () => {
     viewport: { width: 1200, height: 900 },
     deviceScaleFactor: 1,
   });
+
+test("darwin uses Mac-fit frozen page options; linux keeps Omarchy viewport", () => {
+  assert.deepEqual(frozenPageOptions("linux"), FROZEN_PAGE_OPTIONS);
+  assert.deepEqual(frozenPageOptions("darwin"), FROZEN_PAGE_OPTIONS_DARWIN);
+  assert.deepEqual(FROZEN_PAGE_OPTIONS_DARWIN.viewport, { width: 1200, height: 680 });
+});
+
 });
 
 test("frame summaries retain the raw deltas they summarize", () => {

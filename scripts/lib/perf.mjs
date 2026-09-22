@@ -68,11 +68,20 @@ export const interactionTiming = (distribution) => ({
 
 /** Frozen viewport and device scale factor. A frame number without these is not comparable to anything. */
 export const VIEWPORT = { width: 1200, height: 900 };
+/** Mac-fit dual geometry (Sign 2026-09-22): viewport height fits built-in usable outer 780. Omarchy keeps VIEWPORT. */
+export const VIEWPORT_DARWIN = { width: 1200, height: 680 };
 export const DEVICE_SCALE_FACTOR = 1;
 export const FROZEN_PAGE_OPTIONS = {
   viewport: VIEWPORT,
   deviceScaleFactor: DEVICE_SCALE_FACTOR,
 };
+export const FROZEN_PAGE_OPTIONS_DARWIN = {
+  viewport: VIEWPORT_DARWIN,
+  deviceScaleFactor: DEVICE_SCALE_FACTOR,
+};
+export function frozenPageOptions(platform = process.platform) {
+  return platform === "darwin" ? FROZEN_PAGE_OPTIONS_DARWIN : FROZEN_PAGE_OPTIONS;
+}
 
 /** The binding CPU throttle. 6/10/20 are supplementary and never the pass gate. */
 export const BINDING_RATE = 4;

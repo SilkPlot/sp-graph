@@ -24,13 +24,21 @@ export const FROZEN_HEADED_WINDOW = Object.freeze({
 	darwinPosition: Object.freeze({ x: 80, y: 80 }),
 });
 
+/** Mac-fit dual geometry (Sign 2026-09-22): fits built-in 1440×900 usable height (3841 clamped at 787). Omarchy keeps FROZEN_HEADED_WINDOW. */
+export const FROZEN_HEADED_WINDOW_DARWIN = Object.freeze({
+	width: 1280,
+	height: 780,
+	position: Object.freeze({ x: 80, y: 80 }),
+});
+
 /** Headed Chrome args: Omarchy floats on DP-2; Darwin stays on-screen with forced scale-factor 2. */
 export function headedChromeArgs(platform = process.platform) {
 	const { width, height, linuxPosition, darwinPosition } = FROZEN_HEADED_WINDOW;
 	if (platform === "darwin") {
+		const d = FROZEN_HEADED_WINDOW_DARWIN;
 		return [
-			`--window-position=${darwinPosition.x},${darwinPosition.y}`,
-			`--window-size=${width},${height}`,
+			`--window-position=${d.position.x},${d.position.y}`,
+			`--window-size=${d.width},${d.height}`,
 			// Forced launch pin (same class as --window-size): Mac binding gate
 			// requires devicePixelRatio === 2 (§1a). 74432 recorded DPR 1 without
 			// this; it is not a claim of authentic untouched host Retina.
@@ -49,10 +57,10 @@ export function headedChromeArgs(platform = process.platform) {
 export async function pinDarwinFrozenWindow(
 	page,
 	{
-		width = FROZEN_HEADED_WINDOW.width,
-		height = FROZEN_HEADED_WINDOW.height,
-		left = FROZEN_HEADED_WINDOW.darwinPosition.x,
-		top = FROZEN_HEADED_WINDOW.darwinPosition.y,
+		width = FROZEN_HEADED_WINDOW_DARWIN.width,
+		height = FROZEN_HEADED_WINDOW_DARWIN.height,
+		left = FROZEN_HEADED_WINDOW_DARWIN.position.x,
+		top = FROZEN_HEADED_WINDOW_DARWIN.position.y,
 	} = {},
 ) {
 	const session = await page.context().newCDPSession(page);
@@ -375,11 +383,11 @@ export async function inspectDisplaySurface(
 				devicePixelRatio,
 			}));
 			if (
-				pinned.outerWidth !== FROZEN_HEADED_WINDOW.width ||
-				pinned.outerHeight !== FROZEN_HEADED_WINDOW.height
+				pinned.outerWidth !== FROZEN_HEADED_WINDOW_DARWIN.width ||
+				pinned.outerHeight !== FROZEN_HEADED_WINDOW_DARWIN.height
 			) {
 				throw new Error(
-					`headed Darwin evidence window is ${pinned.outerWidth}x${pinned.outerHeight}, not frozen floating ${FROZEN_HEADED_WINDOW.width}x${FROZEN_HEADED_WINDOW.height}`,
+					`headed Darwin evidence window is ${pinned.outerWidth}x${pinned.outerHeight}, not Mac-fit frozen floating ${FROZEN_HEADED_WINDOW_DARWIN.width}x${FROZEN_HEADED_WINDOW_DARWIN.height}`,
 				);
 			}
 			compositorBefore = {
@@ -450,11 +458,11 @@ export async function inspectDisplaySurface(
 		if (useDarwinAqua) {
 			const after = reading.screen;
 			if (
-				after.outerWidth !== FROZEN_HEADED_WINDOW.width ||
-				after.outerHeight !== FROZEN_HEADED_WINDOW.height
+				after.outerWidth !== FROZEN_HEADED_WINDOW_DARWIN.width ||
+				after.outerHeight !== FROZEN_HEADED_WINDOW_DARWIN.height
 			) {
 				throw new Error(
-					`headed Darwin evidence window drifted to ${after.outerWidth}x${after.outerHeight}, not frozen floating ${FROZEN_HEADED_WINDOW.width}x${FROZEN_HEADED_WINDOW.height}`,
+					`headed Darwin evidence window drifted to ${after.outerWidth}x${after.outerHeight}, not Mac-fit frozen floating ${FROZEN_HEADED_WINDOW_DARWIN.width}x${FROZEN_HEADED_WINDOW_DARWIN.height}`,
 				);
 			}
 			return {

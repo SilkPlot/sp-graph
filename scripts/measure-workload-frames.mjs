@@ -52,6 +52,7 @@ import {
   DROPPED_MS,
   DURATION_MS,
   FROZEN_PAGE_OPTIONS,
+  frozenPageOptions,
   PROTOCOL_PASSES,
   TIMER_TOLERANCE_MS,
   VIEWPORT,
@@ -162,7 +163,7 @@ async function captureBrowserPage(browser, page, context) {
 }
 
 async function finalizeBrowserSurface(browser) {
-  const page = await browser.newPage(FROZEN_PAGE_OPTIONS);
+  const page = await browser.newPage(frozenPageOptions());
   try {
     await page.goto("data:text/html,<canvas></canvas>");
     await captureBrowserPage(browser, page, "probe-final");
@@ -330,7 +331,7 @@ async function openWorkloadPage(
   query = "",
   evidenceContext = `${workload}${query}:primary`,
 ) {
-  const page = await browser.newPage(FROZEN_PAGE_OPTIONS);
+  const page = await browser.newPage(frozenPageOptions());
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   try {
@@ -810,7 +811,7 @@ function judge(result) {
 /* -------------------------------------------------------------------------- */
 
 const browser = await chromium.launch(BROWSER_PLAN.launchOptions);
-const probePage = await browser.newPage(FROZEN_PAGE_OPTIONS);
+const probePage = await browser.newPage(frozenPageOptions());
 await probePage.goto("data:text/html,<canvas></canvas>");
 const browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN);
 browserSurfaceEvidence = browserSurface;
