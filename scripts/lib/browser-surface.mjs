@@ -24,7 +24,7 @@ export const FROZEN_HEADED_WINDOW = Object.freeze({
 	darwinPosition: Object.freeze({ x: 80, y: 80 }),
 });
 
-/** Omarchy headed binding workspace — silent pin; never focus-steal Adam's active WS. */
+/** Omarchy headed soft-preflight workspace — silent pin; never focus-steal Adam's active WS. */
 export const HEADED_HYPRLAND_WORKSPACE = 5;
 
 
@@ -261,7 +261,7 @@ export function selectCompositorClient(clients, browserPid, marker) {
 	};
 }
 
-/** Move marked evidence window to DP-2 and Hyprland WS5 without focus-steal. */
+/** Move marked evidence window to DP-2 (hard) and try Hyprland WS5 silent pin (soft). */
 export function pinCompositorClient(
 	client,
 	{
@@ -293,17 +293,22 @@ export function pinCompositorClient(
 		);
 	}
 	if (!onWorkspace) {
-		// Hyprland 0.56+ Lua: classic movetoworkspacesilent is rejected.
-		// hl.dsp.window.move({ workspace, silent = true }) creates WS5 if missing
-		// and must not steal Adam's focus (same contract as movetoworkspacesilent).
-		dispatch(
-			"hyprctl",
-			[
-				"dispatch",
-				`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, silent = true, follow = false, window = "address:${client.address}" })`,
-			],
-			opts,
-		);
+		// Soft preflight (protocol 2026-09-28): try silent WS5 pin; miss must not
+		// abort measure. Hyprland 0.56+ Lua: classic movetoworkspacesilent is
+		// rejected; hl.dsp.window.move({ workspace, silent = true }) creates WS5
+		// if missing and must not steal Adam's focus.
+		try {
+			dispatch(
+				"hyprctl",
+				[
+					"dispatch",
+					`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, silent = true, follow = false, window = "address:${client.address}" })`,
+				],
+				opts,
+			);
+		} catch {
+			// Soft: record later from observed workspaceId; DP-2 stays hard.
+		}
 	}
 	return true;
 }
@@ -348,20 +353,42 @@ const pinnedCompositorClient = async (
 ) => {
 	const client = await compositorClient(page, browserPid, marker, { execFile });
 	if (!pinCompositorClient(client, { dispatch: execFile })) return client;
+	let moved = client;
+	let onNamedOutput = false;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		await page.waitForTimeout(50);
-		const moved = await compositorClient(page, browserPid, marker, { execFile });
-		if (
-			moved.monitorId === 2 &&
-			moved.workspaceId === HEADED_HYPRLAND_WORKSPACE
-		) {
-			return moved;
+		moved = await compositorClient(page, browserPid, marker, { execFile });
+		if (moved.monitorId === 2) {
+			onNamedOutput = true;
+			// Prefer WS5 when the soft pin lands, but DP-2 alone is enough to proceed.
+			if (moved.workspaceId === HEADED_HYPRLAND_WORKSPACE) {
+				return moved;
+			}
 		}
 	}
-	throw new Error(
-		`headed evidence window '${client.address}' did not pin to DP-2 workspace ${HEADED_HYPRLAND_WORKSPACE}`,
-	);
+	if (!onNamedOutput || moved.monitorId !== 2) {
+		throw new Error(
+			`headed evidence window '${client.address}' did not pin to named DP-2 output`,
+		);
+	}
+	return moved;
 };
+
+/** Soft-preflight record for Hyprland WS5 silent pin (not a binding / §6 gate). */
+export function workspace5SilentPinRecord(before, after) {
+	const beforeId = before?.workspaceId;
+	const afterId = after?.workspaceId;
+	return {
+		softPreflight: true,
+		attempted: true,
+		succeeded:
+			beforeId === HEADED_HYPRLAND_WORKSPACE &&
+			afterId === HEADED_HYPRLAND_WORKSPACE,
+		targetWorkspaceId: HEADED_HYPRLAND_WORKSPACE,
+		beforeWorkspaceId: beforeId ?? null,
+		afterWorkspaceId: afterId ?? null,
+	};
+}
 
 /** Measure the output and steady-state rAF cadence of the actual headed page. */
 export async function inspectDisplaySurface(
@@ -473,6 +500,10 @@ export async function inspectDisplaySurface(
 					marker,
 					before: compositorBefore,
 					after: compositorAfter,
+					workspace5SilentPin: workspace5SilentPinRecord(
+						compositorBefore,
+						compositorAfter,
+					),
 				},
 			};
 		}
