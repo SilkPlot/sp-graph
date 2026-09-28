@@ -347,7 +347,7 @@ export function pinCompositorClient(
 		}
 	}
 	// Soft WS5 can yank the window off DP-2 when the host rule is WS3 — always
-	// re-assert the named DP-2 hard gate after the soft try (Signed A / sp-docs #28).
+	// re-assert the named DP-2 hard gate after the soft try (Signed A).
 	moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, opts);
 	return true;
 }
