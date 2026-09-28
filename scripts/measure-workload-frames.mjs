@@ -41,6 +41,7 @@ import {
   inspectBrowserProcesses,
   inspectBrowserSurface,
   inspectDisplaySurface,
+  writeHyprlandRetainFailArtifact,
 } from "./lib/browser-surface.mjs";
 import {
   ACCEPTANCE_MS,
@@ -131,6 +132,22 @@ const TABLE_MODES = (() => {
   return choice === "both" ? ["derived", "none"] : [choice];
 })();
 
+
+/** Persist hyprlandRetain on headed pin/DP-2 hard fail so dig is not console-only. */
+function persistHyprlandRetainOnAbort(error) {
+  const retain = error?.hyprlandRetain;
+  if (!retain || !JSON_OUT) return false;
+  const written = writeHyprlandRetainFailArtifact(JSON_OUT, retain, {
+    reason: error instanceof Error ? error.message : String(error),
+    recordedBy: "scripts/measure-workload-frames.mjs",
+  });
+  if (written) {
+    console.log(`wrote ${written.jsonOutPath} (hyprland retain fail artifact)`);
+    console.log(`wrote ${written.retainPath}`);
+  }
+  return Boolean(written);
+}
+
 /** Settle repetitions, for a p95 rather than a single sample. */
 const SETTLE_REPEATS = 10;
 /** The protocol's settle gate for a replacement and for the 48-chart resize. */
@@ -152,12 +169,17 @@ async function captureBrowserPage(browser, page, context) {
   const browserPid = before?.processes.find(
     (process) => process.type === "browser",
   )?.pid;
-  browserSurfaceEvidence.displaySnapshots.push(
-    await inspectDisplaySurface(page, 120, context, {
-      mode: browserSurfaceEvidence.requestedMode,
-      browserPid,
-    }),
-  );
+  try {
+    browserSurfaceEvidence.displaySnapshots.push(
+      await inspectDisplaySurface(page, 120, context, {
+        mode: browserSurfaceEvidence.requestedMode,
+        browserPid,
+      }),
+    );
+  } catch (error) {
+    persistHyprlandRetainOnAbort(error);
+    throw error;
+  }
   await captureBrowserProcesses(browser);
 }
 
@@ -812,7 +834,18 @@ function judge(result) {
 const browser = await chromium.launch(BROWSER_PLAN.launchOptions);
 const probePage = await browser.newPage(FROZEN_PAGE_OPTIONS);
 await probePage.goto("data:text/html,<canvas></canvas>");
-const browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN);
+let browserSurface;
+try {
+  browserSurface = await inspectBrowserSurface(browser, probePage, BROWSER_PLAN);
+} catch (error) {
+  // Headed Hyprland pin / named DP-2 hard fail aborts before workload.json —
+  // persist structured retain so dig recovers without re-running.
+  persistHyprlandRetainOnAbort(error);
+  console.error(error instanceof Error ? error.message : String(error));
+  await probePage.close().catch(() => {});
+  await browser.close().catch(() => {});
+  process.exit(2);
+}
 browserSurfaceEvidence = browserSurface;
 await probePage.close();
 
