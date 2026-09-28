@@ -7,7 +7,8 @@
  */
 import { arg } from "./perf.mjs";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 const SURFACES = new Set(["headless", "headed"]);
 const SOFTWARE_RENDERERS = new Map([
@@ -231,7 +232,7 @@ export function appendBrowserProcessSnapshot(surface, snapshot) {
 }
 
 /** Select and normalize the compositor client belonging to one marked page. */
-export function selectCompositorClient(clients, browserPid, marker) {
+export function selectCompositorClient(clients, browserPid, marker, { monitors } = {}) {
 	const matches = clients.filter(
 		(client) => client?.pid === browserPid && String(client?.title).includes(marker),
 	);
@@ -243,6 +244,7 @@ export function selectCompositorClient(clients, browserPid, marker) {
 	const client = matches[0];
 	const [x, y] = Array.isArray(client.at) ? client.at : [];
 	const [width, height] = Array.isArray(client.size) ? client.size : [];
+	const monitorId = client.monitor;
 	return {
 		observedAt: new Date().toISOString(),
 		address: client.address ?? null,
@@ -251,7 +253,8 @@ export function selectCompositorClient(clients, browserPid, marker) {
 		mapped: client.mapped,
 		hidden: client.hidden,
 		visible: client.visible,
-		monitorId: client.monitor,
+		monitorId,
+		monitorName: resolveMonitorName(monitors, monitorId),
 		workspaceId: Number.isInteger(client?.workspace?.id)
 			? client.workspace.id
 			: null,
@@ -259,6 +262,15 @@ export function selectCompositorClient(clients, browserPid, marker) {
 		size: { width, height },
 		xwayland: client.xwayland,
 	};
+}
+
+/** Resolve Hyprland connector name from monitor id (named DP-2 gate evidence). */
+export function resolveMonitorName(monitors, monitorId) {
+	if (!Number.isInteger(monitorId)) return null;
+	const match = (Array.isArray(monitors) ? monitors : []).find(
+		(monitor) => monitor?.id === monitorId,
+	);
+	return typeof match?.name === "string" ? match.name : null;
 }
 
 /** Resolve Hyprland monitor id by connector name (DP-2 hard gate — never invent id 2). */
@@ -272,6 +284,31 @@ export function resolveNamedMonitorId(monitors, name = "DP-2") {
 		);
 	}
 	return match.id;
+}
+
+/**
+ * Structured abort artifact so dig can recover hyprlandRetain without re-running.
+ * Written to the existing --json path (workload.json) on headed pin / DP-2 hard fail.
+ */
+export function hyprlandRetainFailArtifact(retain, { reason, recordedBy } = {}) {
+	return {
+		recordedBy: recordedBy ?? "scripts/lib/browser-surface.mjs",
+		abortedBeforeWorkloads: true,
+		abortKind: "hyprland-pin-fail",
+		abortReason: reason ?? null,
+		hyprlandRetain: retain ?? null,
+		results: [],
+	};
+}
+
+/** Persist pin-fail retain into workload.json (+ sibling hyprland-retain.json) for dig. */
+export function writeHyprlandRetainFailArtifact(jsonOutPath, retain, opts = {}) {
+	if (!jsonOutPath || !retain) return null;
+	const artifact = hyprlandRetainFailArtifact(retain, opts);
+	writeFileSync(jsonOutPath, `${JSON.stringify(artifact, null, 2)}\n`);
+	const retainPath = join(dirname(jsonOutPath), "hyprland-retain.json");
+	writeFileSync(retainPath, `${JSON.stringify(retain, null, 2)}\n`);
+	return { jsonOutPath, retainPath, artifact };
 }
 
 const hyprctlJson = (execFile, args) =>
@@ -363,13 +400,23 @@ const compositorClient = async (
 	page,
 	browserPid,
 	marker,
-	{ execFile = execFileSync } = {},
+	{ execFile = execFileSync, monitors } = {},
 ) => {
 	let lastError;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		try {
 			const clients = hyprctlJson(execFile, ["clients", "-j"]);
-			return selectCompositorClient(clients, browserPid, marker);
+			let monitorList = monitors;
+			if (!Array.isArray(monitorList)) {
+				try {
+					monitorList = hyprctlJson(execFile, ["monitors", "-j"]);
+				} catch {
+					monitorList = undefined;
+				}
+			}
+			return selectCompositorClient(clients, browserPid, marker, {
+				monitors: monitorList,
+			});
 		} catch (error) {
 			lastError = error;
 			await page.waitForTimeout(50);
@@ -423,7 +470,10 @@ const pinnedCompositorClient = async (
 			targetMonitorId: null,
 		});
 	}
-	const client = await compositorClient(page, browserPid, marker, { execFile });
+	const client = await compositorClient(page, browserPid, marker, {
+		execFile,
+		monitors: retainBefore.monitors,
+	});
 	const finish = (result, retainAfter = retainBefore) =>
 		attachHyprlandRetain(result, {
 			before: retainBefore,
@@ -446,7 +496,10 @@ const pinnedCompositorClient = async (
 	let onNamedOutput = false;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		await page.waitForTimeout(50);
-		moved = await compositorClient(page, browserPid, marker, { execFile });
+		moved = await compositorClient(page, browserPid, marker, {
+			execFile,
+			monitors: retainBefore.monitors,
+		});
 		if (moved.monitorId === targetMonitorId) {
 			onNamedOutput = true;
 			// Prefer WS5 when the soft pin lands, but named DP-2 alone is enough.

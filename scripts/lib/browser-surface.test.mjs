@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
 	appendBrowserProcessSnapshot,
@@ -11,9 +14,12 @@ import {
 	pinCompositorClient,
 	HEADED_HYPRLAND_WORKSPACE,
 	resolveCompositorBackend,
+	resolveMonitorName,
 	resolveNamedMonitorId,
 	selectCompositorClient,
 	workspace5SilentPinRecord,
+	hyprlandRetainFailArtifact,
+	writeHyprlandRetainFailArtifact,
 } from "./browser-surface.mjs";
 
 const MOCK_MONITORS = [
@@ -97,10 +103,12 @@ test("the compositor client is tied to the marked page and exact browser PID", (
 		],
 		42,
 		"silkplot-evidence-probe",
+		{ monitors: MOCK_MONITORS },
 	);
 
 	assert.equal(selected.address, "0x2");
 	assert.equal(selected.monitorId, 2);
+	assert.equal(selected.monitorName, "DP-2");
 	assert.deepEqual(selected.position, { x: 6647, y: 38 });
 	assert.deepEqual(selected.size, { width: 1261, height: 1390 });
 	assert.throws(
@@ -127,6 +135,134 @@ test("resolveNamedMonitorId gates DP-2 by connector name not a hardcoded id", ()
 		() => resolveNamedMonitorId([{ id: 2, name: "HDMI-A-1" }], "DP-2"),
 		/named monitor 'DP-2'/,
 	);
+});
+
+test("resolveMonitorName maps monitor id to connector name for named DP-2 evidence", () => {
+	assert.equal(resolveMonitorName(MOCK_MONITORS, 2), "DP-2");
+	assert.equal(resolveMonitorName([{ id: 7, name: "DP-2" }], 7), "DP-2");
+	assert.equal(resolveMonitorName(MOCK_MONITORS, 99), null);
+	assert.equal(resolveMonitorName(undefined, 2), null);
+});
+
+test("hyprland retain fail artifact persists structured before/after for dig", () => {
+	const retain = {
+		before: { monitors: MOCK_MONITORS, clients: [{ address: "0x1", monitor: 1 }] },
+		after: { monitors: MOCK_MONITORS, clients: [{ address: "0x1", monitor: 0 }] },
+		targetMonitorName: "DP-2",
+		targetMonitorId: 2,
+	};
+	const dir = mkdtempSync(join(tmpdir(), "hyprland-retain-"));
+	try {
+		const workloadPath = join(dir, "workload.json");
+		const written = writeHyprlandRetainFailArtifact(workloadPath, retain, {
+			reason: "headed evidence window did not pin to named DP-2 output (id 2)",
+			recordedBy: "scripts/measure-workload-frames.mjs",
+		});
+		assert.ok(written);
+		assert.equal(written.retainPath, join(dir, "hyprland-retain.json"));
+		const workload = JSON.parse(readFileSync(workloadPath, "utf8"));
+		assert.equal(workload.abortedBeforeWorkloads, true);
+		assert.equal(workload.abortKind, "hyprland-pin-fail");
+		assert.match(workload.abortReason, /named DP-2/);
+		assert.equal(workload.hyprlandRetain.targetMonitorId, 2);
+		assert.equal(workload.hyprlandRetain.after.clients[0].monitor, 0);
+		assert.deepEqual(workload.results, []);
+		const retainOnly = JSON.parse(readFileSync(written.retainPath, "utf8"));
+		assert.deepEqual(retainOnly, retain);
+		assert.equal(
+			hyprlandRetainFailArtifact(retain).abortKind,
+			"hyprland-pin-fail",
+		);
+		assert.equal(writeHyprlandRetainFailArtifact(undefined, retain), null);
+		assert.equal(writeHyprlandRetainFailArtifact(workloadPath, null), null);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+test("DP-2 hard fail retain is recoverable from disk without re-running inspect", async () => {
+	const calls = [];
+	let title = "original";
+	const clientOnOne = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux-disk",
+		address: "0x0a70102",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 1,
+		workspace: { id: 3, name: "3" },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	const clientYanked = {
+		...clientOnOne,
+		monitor: 0,
+		workspace: { id: 3, name: "3" },
+	};
+	let phase = "before";
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				clientOnOne.title = argument;
+				clientYanked.title = argument;
+				return undefined;
+			}
+			throw new Error("measure must not run on DP-2 hard fail");
+		},
+	};
+	const execFile = (command, args) => {
+		calls.push([command, args]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") return JSON.stringify(MOCK_MONITORS);
+		if (args[0] === "clients") {
+			return JSON.stringify([phase === "before" ? clientOnOne : clientYanked]);
+		}
+		if (args[0] === "dispatch") {
+			phase = "after";
+			return "";
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+	const dir = mkdtempSync(join(tmpdir(), "hyprland-retain-fail-"));
+	try {
+		const workloadPath = join(dir, "workload.json");
+		await assert.rejects(
+			() =>
+				inspectDisplaySurface(page, 2, "probe-linux-disk", {
+					mode: "headed",
+					browserPid: 42,
+					platform: "linux",
+					execFile,
+				}),
+			(error) => {
+				assert.ok(error.hyprlandRetain);
+				const written = writeHyprlandRetainFailArtifact(
+					workloadPath,
+					error.hyprlandRetain,
+					{
+						reason: error.message,
+						recordedBy: "scripts/measure-workload-frames.mjs",
+					},
+				);
+				assert.ok(written);
+				const fromDisk = JSON.parse(readFileSync(workloadPath, "utf8"));
+				assert.equal(fromDisk.abortedBeforeWorkloads, true);
+				assert.equal(fromDisk.hyprlandRetain.targetMonitorName, "DP-2");
+				assert.equal(fromDisk.hyprlandRetain.after.clients[0].monitor, 0);
+				assert.ok(Array.isArray(fromDisk.hyprlandRetain.before.monitors));
+				const retainOnly = JSON.parse(readFileSync(written.retainPath, "utf8"));
+				assert.equal(retainOnly.targetMonitorId, 2);
+				return true;
+			},
+		);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-steal", () => {
@@ -372,6 +508,7 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	);
 	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 2);
 	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorName, "DP-2");
+	assert.equal(reading.compositor.before.monitorName, "DP-2");
 	assert.ok(Array.isArray(reading.compositor.before.hyprlandRetain.before.monitors));
 	assert.ok(Array.isArray(reading.compositor.before.hyprlandRetain.after.clients));
 	assert.equal(reading.compositor.before.monitorId, 2);
@@ -1114,4 +1251,12 @@ test("browser process evidence records when the CDP snapshot was observed", asyn
 	);
 
 	assert.equal(Number.isNaN(Date.parse(surface.processesInspectedAt)), false);
+});
+
+test("measure persists hyprlandRetain into --json on headed pin abort before workloads", () => {
+	const source = readFileSync(new URL("../measure-workload-frames.mjs", import.meta.url), "utf8");
+	assert.match(source, /writeHyprlandRetainFailArtifact/);
+	assert.match(source, /persistHyprlandRetainOnAbort/);
+	assert.match(source, /error\?\.hyprlandRetain/);
+	assert.match(source, /abortedBeforeWorkloads/);
 });
