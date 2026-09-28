@@ -261,18 +261,61 @@ export function selectCompositorClient(clients, browserPid, marker) {
 	};
 }
 
+/** Resolve Hyprland monitor id by connector name (DP-2 hard gate — never invent id 2). */
+export function resolveNamedMonitorId(monitors, name = "DP-2") {
+	const match = (Array.isArray(monitors) ? monitors : []).find(
+		(monitor) => monitor?.name === name,
+	);
+	if (!Number.isInteger(match?.id)) {
+		throw new Error(
+			`headed evidence requires named monitor '${name}' from hyprctl monitors -j`,
+		);
+	}
+	return match.id;
+}
+
+const hyprctlJson = (execFile, args) =>
+	JSON.parse(
+		execFile("hyprctl", args, {
+			encoding: "utf8",
+			timeout: 2_000,
+			stdio: ["ignore", "pipe", "pipe"],
+		}),
+	);
+
+const hyprlandRetainSnapshot = (execFile) => ({
+	monitors: hyprctlJson(execFile, ["monitors", "-j"]),
+	clients: hyprctlJson(execFile, ["clients", "-j"]),
+});
+
+const moveWindowToNamedMonitor = (dispatch, address, targetMonitorName, opts) => {
+	dispatch(
+		"hyprctl",
+		[
+			"dispatch",
+			`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${address}" })`,
+		],
+		opts,
+	);
+};
+
 /** Move marked evidence window to DP-2 (hard) and try Hyprland WS5 silent pin (soft). */
 export function pinCompositorClient(
 	client,
 	{
 		dispatch = execFileSync,
-		targetMonitorId = 2,
+		targetMonitorId,
 		targetMonitorName = "DP-2",
 		targetWorkspaceId = HEADED_HYPRLAND_WORKSPACE,
 	} = {},
 ) {
 	if (!/^0x[0-9a-f]+$/i.test(client?.address ?? "")) {
 		throw new Error("headed display evidence requires a valid Hyprland address");
+	}
+	if (!Number.isInteger(targetMonitorId)) {
+		throw new Error(
+			"headed display evidence requires resolved targetMonitorId from named DP-2",
+		);
 	}
 	const onMonitor = client?.monitorId === targetMonitorId;
 	const onWorkspace = client?.workspaceId === targetWorkspaceId;
@@ -283,14 +326,7 @@ export function pinCompositorClient(
 		stdio: ["ignore", "pipe", "pipe"],
 	};
 	if (!onMonitor) {
-		dispatch(
-			"hyprctl",
-			[
-				"dispatch",
-				`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${client.address}" })`,
-			],
-			opts,
-		);
+		moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, opts);
 	}
 	if (!onWorkspace) {
 		// Soft preflight (protocol 2026-09-28): try silent WS5 pin; miss must not
@@ -310,6 +346,9 @@ export function pinCompositorClient(
 			// Soft: record later from observed workspaceId; DP-2 stays hard.
 		}
 	}
+	// Soft WS5 can yank the window off DP-2 when the host rule is WS3 — always
+	// re-assert the named DP-2 hard gate after the soft try (Signed A / sp-docs #28).
+	moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, opts);
 	return true;
 }
 
@@ -329,13 +368,7 @@ const compositorClient = async (
 	let lastError;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		try {
-			const clients = JSON.parse(
-				execFile("hyprctl", ["clients", "-j"], {
-					encoding: "utf8",
-					timeout: 2_000,
-					stdio: ["ignore", "pipe", "pipe"],
-				}),
-			);
+			const clients = hyprctlJson(execFile, ["clients", "-j"]);
 			return selectCompositorClient(clients, browserPid, marker);
 		} catch (error) {
 			lastError = error;
@@ -345,33 +378,103 @@ const compositorClient = async (
 	throw lastError;
 };
 
+const attachHyprlandRetain = (target, retain) => {
+	Object.defineProperty(target, "hyprlandRetain", {
+		value: retain,
+		enumerable: true,
+		configurable: true,
+		writable: true,
+	});
+	return target;
+};
+
 const pinnedCompositorClient = async (
 	page,
 	browserPid,
 	marker,
-	{ execFile = execFileSync } = {},
+	{
+		execFile = execFileSync,
+		targetMonitorName = "DP-2",
+	} = {},
 ) => {
+	// Retain raw Hyprland clients+monitors before the pin sequence so dig is
+	// never ABSENT on DP-2 hard fail (host-2624233).
+	let retainBefore;
+	try {
+		retainBefore = hyprlandRetainSnapshot(execFile);
+	} catch (error) {
+		const fail = new Error(
+			`headed evidence could not retain Hyprland clients/monitors before pin: ${error?.message ?? error}`,
+		);
+		fail.cause = error;
+		throw fail;
+	}
+	let targetMonitorId;
+	try {
+		targetMonitorId = resolveNamedMonitorId(
+			retainBefore.monitors,
+			targetMonitorName,
+		);
+	} catch (error) {
+		throw attachHyprlandRetain(error, {
+			before: retainBefore,
+			after: retainBefore,
+			targetMonitorName,
+			targetMonitorId: null,
+		});
+	}
 	const client = await compositorClient(page, browserPid, marker, { execFile });
-	if (!pinCompositorClient(client, { dispatch: execFile })) return client;
+	const finish = (result, retainAfter = retainBefore) =>
+		attachHyprlandRetain(result, {
+			before: retainBefore,
+			after: retainAfter,
+			targetMonitorName,
+			targetMonitorId,
+		});
+
+	if (
+		!pinCompositorClient(client, {
+			dispatch: execFile,
+			targetMonitorId,
+			targetMonitorName,
+		})
+	) {
+		return finish(client);
+	}
+
 	let moved = client;
 	let onNamedOutput = false;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		await page.waitForTimeout(50);
 		moved = await compositorClient(page, browserPid, marker, { execFile });
-		if (moved.monitorId === 2) {
+		if (moved.monitorId === targetMonitorId) {
 			onNamedOutput = true;
-			// Prefer WS5 when the soft pin lands, but DP-2 alone is enough to proceed.
+			// Prefer WS5 when the soft pin lands, but named DP-2 alone is enough.
 			if (moved.workspaceId === HEADED_HYPRLAND_WORKSPACE) {
-				return moved;
+				let retainAfter = retainBefore;
+				try {
+					retainAfter = hyprlandRetainSnapshot(execFile);
+				} catch {
+					// Keep before snapshot if after retain fails; pin already succeeded.
+				}
+				return finish(moved, retainAfter);
 			}
 		}
 	}
-	if (!onNamedOutput || moved.monitorId !== 2) {
-		throw new Error(
-			`headed evidence window '${client.address}' did not pin to named DP-2 output`,
-		);
+
+	let retainAfter = retainBefore;
+	try {
+		retainAfter = hyprlandRetainSnapshot(execFile);
+	} catch {
+		// Prefer structured before retain over throw-address-only.
 	}
-	return moved;
+	if (!onNamedOutput || moved.monitorId !== targetMonitorId) {
+		const error = new Error(
+			`headed evidence window '${client.address}' did not pin to named ${targetMonitorName} output (id ${targetMonitorId})`,
+		);
+		throw finish(error, retainAfter);
+	}
+	return finish(moved, retainAfter);
 };
 
 /** Soft-preflight record for Hyprland WS5 silent pin (not a binding / §6 gate). */

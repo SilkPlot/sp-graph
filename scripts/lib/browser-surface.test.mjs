@@ -11,9 +11,16 @@ import {
 	pinCompositorClient,
 	HEADED_HYPRLAND_WORKSPACE,
 	resolveCompositorBackend,
+	resolveNamedMonitorId,
 	selectCompositorClient,
 	workspace5SilentPinRecord,
 } from "./browser-surface.mjs";
+
+const MOCK_MONITORS = [
+	{ id: 0, name: "HDMI-A-1" },
+	{ id: 1, name: "DP-1" },
+	{ id: 2, name: "DP-2" },
+];
 
 test("later renderer snapshots extend the complete browser process surface", () => {
 	const surface = { processSnapshots: [], processes: [] };
@@ -110,6 +117,18 @@ test("the compositor client is tied to the marked page and exact browser PID", (
 	);
 });
 
+test("resolveNamedMonitorId gates DP-2 by connector name not a hardcoded id", () => {
+	assert.equal(resolveNamedMonitorId(MOCK_MONITORS, "DP-2"), 2);
+	assert.equal(
+		resolveNamedMonitorId([{ id: 7, name: "DP-2" }, { id: 2, name: "HDMI-A-1" }], "DP-2"),
+		7,
+	);
+	assert.throws(
+		() => resolveNamedMonitorId([{ id: 2, name: "HDMI-A-1" }], "DP-2"),
+		/named monitor 'DP-2'/,
+	);
+});
+
 test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-steal", () => {
 	const calls = [];
 	const dispatch = (...args) => calls.push(args);
@@ -118,50 +137,41 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 		timeout: 2_000,
 		stdio: ["ignore", "pipe", "pipe"],
 	};
+	const dp2Move = [
+		"hyprctl",
+		[
+			"dispatch",
+			'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
+		],
+		opts,
+	];
+	const ws5Move = [
+		"hyprctl",
+		[
+			"dispatch",
+			`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
+		],
+		opts,
+	];
 	assert.equal(
 		pinCompositorClient(
 			{ address: "0xabc123", monitorId: 1, workspaceId: 4 },
-			{ dispatch },
+			{ dispatch, targetMonitorId: 2 },
 		),
 		true,
 	);
-	assert.deepEqual(calls, [
-		[
-			"hyprctl",
-			[
-				"dispatch",
-				'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
-			],
-			opts,
-		],
-		[
-			"hyprctl",
-			[
-				"dispatch",
-				`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
-			],
-			opts,
-		],
-	]);
+	// Initial DP-2 move, soft WS5, then always re-assert DP-2 by name.
+	assert.deepEqual(calls, [dp2Move, ws5Move, dp2Move]);
 
 	calls.length = 0;
 	assert.equal(
 		pinCompositorClient(
 			{ address: "0xabc123", monitorId: 2, workspaceId: 4 },
-			{ dispatch },
+			{ dispatch, targetMonitorId: 2 },
 		),
 		true,
 	);
-	assert.deepEqual(calls, [
-		[
-			"hyprctl",
-			[
-				"dispatch",
-				`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
-			],
-			opts,
-		],
-	]);
+	assert.deepEqual(calls, [ws5Move, dp2Move]);
 
 	calls.length = 0;
 	assert.equal(
@@ -171,7 +181,7 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 				monitorId: 2,
 				workspaceId: HEADED_HYPRLAND_WORKSPACE,
 			},
-			{ dispatch },
+			{ dispatch, targetMonitorId: 2 },
 		),
 		false,
 	);
@@ -179,6 +189,14 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 	assert.throws(
 		() => pinCompositorClient({ address: "not-an-address", monitorId: 1 }),
 		/valid Hyprland address/,
+	);
+	assert.throws(
+		() =>
+			pinCompositorClient(
+				{ address: "0xabc123", monitorId: 1, workspaceId: 4 },
+				{ dispatch },
+			),
+		/resolved targetMonitorId/,
 	);
 });
 
@@ -313,6 +331,9 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	const execFile = (command, args, options) => {
 		calls.push([command, args, options]);
 		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") {
+			return JSON.stringify(MOCK_MONITORS);
+		}
 		if (args[0] === "clients") {
 			return JSON.stringify([pinned ? clientPinned : clientOnOne]);
 		}
@@ -334,8 +355,9 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	});
 
 	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "clients"));
+	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "monitors"));
 	const dispatches = calls.filter(([command, args]) => command === "hyprctl" && args[0] === "dispatch");
-	assert.equal(dispatches.length, 2);
+	assert.equal(dispatches.length, 3);
 	assert.equal(
 		dispatches[0][1][1],
 		'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
@@ -344,6 +366,14 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 		dispatches[1][1][1],
 		`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
 	);
+	assert.equal(
+		dispatches[2][1][1],
+		'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
+	);
+	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 2);
+	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorName, "DP-2");
+	assert.ok(Array.isArray(reading.compositor.before.hyprlandRetain.before.monitors));
+	assert.ok(Array.isArray(reading.compositor.before.hyprlandRetain.after.clients));
 	assert.equal(reading.compositor.before.monitorId, 2);
 	assert.equal(reading.compositor.before.workspaceId, HEADED_HYPRLAND_WORKSPACE);
 	assert.equal(reading.compositor.after.monitorId, 2);
@@ -410,6 +440,9 @@ test("linux headed display inspect keeps measuring when WS5 soft pin misses on D
 	const execFile = (command, args, options) => {
 		calls.push([command, args, options]);
 		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") {
+			return JSON.stringify(MOCK_MONITORS);
+		}
 		if (args[0] === "clients") {
 			return JSON.stringify([onDp2 ? clientOnDp2 : clientOnOne]);
 		}
@@ -460,8 +493,210 @@ test("linux headed display inspect keeps measuring when WS5 soft pin misses on D
 				String(args[1]).includes(`workspace = ${HEADED_HYPRLAND_WORKSPACE}`),
 		),
 	);
+	const missDispatches = calls.filter(([, args]) => args[0] === "dispatch");
+	assert.equal(missDispatches.length, 3);
+	assert.match(String(missDispatches[0][1][1]), /monitor = "DP-2"/);
+	assert.match(String(missDispatches[1][1][1]), /workspace = 5/);
+	assert.match(String(missDispatches[2][1][1]), /monitor = "DP-2"/);
+	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 2);
 });
 
+
+
+test("linux headed display inspect fails hard when named DP-2 is absent and retains clients", async () => {
+	const calls = [];
+	let title = "original";
+	const client = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux-absent",
+		address: "0xdead01",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 1,
+		workspace: { id: 4, name: "4" },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				client.title = argument;
+				return undefined;
+			}
+			throw new Error("measure must not run when DP-2 is absent");
+		},
+	};
+	const execFile = (command, args, options) => {
+		calls.push([command, args, options]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") {
+			return JSON.stringify([{ id: 0, name: "HDMI-A-1" }, { id: 1, name: "DP-1" }]);
+		}
+		if (args[0] === "clients") {
+			return JSON.stringify([client]);
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+	await assert.rejects(
+		() =>
+			inspectDisplaySurface(page, 2, "probe-linux-absent", {
+				mode: "headed",
+				browserPid: 42,
+				platform: "linux",
+				execFile,
+			}),
+		(error) => {
+			assert.match(String(error?.message ?? error), /named monitor 'DP-2'/);
+			return true;
+		},
+	);
+	assert.ok(calls.some(([, args]) => args[0] === "monitors"));
+});
+
+test("linux headed display inspect resolves DP-2 by name when its id is not 2", async () => {
+	const calls = [];
+	let title = "original";
+	const monitors = [
+		{ id: 0, name: "HDMI-A-1" },
+		{ id: 7, name: "DP-2" },
+	];
+	const clientOnOne = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux-id7",
+		address: "0x1d70001",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 0,
+		workspace: { id: 4, name: "4" },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	const clientPinned = {
+		...clientOnOne,
+		monitor: 7,
+		workspace: { id: HEADED_HYPRLAND_WORKSPACE, name: String(HEADED_HYPRLAND_WORKSPACE) },
+		at: [5440, 80],
+	};
+	let pinned = false;
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				clientOnOne.title = argument;
+				clientPinned.title = argument;
+				return undefined;
+			}
+			assert.equal(argument, 2);
+			return {
+				startedAt: "2026-09-15T12:00:00.000Z",
+				endedAt: "2026-09-15T12:00:01.000Z",
+				screen: { width: 2560, height: 1440 },
+				rafDeltas: [16.67, 16.67],
+			};
+		},
+	};
+	const execFile = (command, args) => {
+		calls.push([command, args]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") return JSON.stringify(monitors);
+		if (args[0] === "clients") {
+			return JSON.stringify([pinned ? clientPinned : clientOnOne]);
+		}
+		if (args[0] === "dispatch") {
+			pinned = true;
+			return "";
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+	const reading = await inspectDisplaySurface(page, 2, "probe-linux-id7", {
+		mode: "headed",
+		browserPid: 42,
+		platform: "linux",
+		execFile,
+	});
+	assert.equal(reading.compositor.before.monitorId, 7);
+	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 7);
+	assert.equal(reading.compositor.after.monitorId, 7);
+	assert.ok(!calls.some(([, args]) => args[0] === "dispatch" && String(args).includes("monitorId")));
+});
+
+test("linux headed display inspect retains clients on DP-2 hard fail after soft WS5 yank", async () => {
+	const calls = [];
+	let title = "original";
+	const clientOnOne = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux-yank",
+		address: "0x0a70101",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 1,
+		workspace: { id: 3, name: "3" },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	// After soft WS5 the host rule yanks the window onto HDMI (monitor 0) — DP-2 hard fail.
+	const clientYanked = {
+		...clientOnOne,
+		monitor: 0,
+		workspace: { id: 3, name: "3" },
+	};
+	let phase = "before";
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				clientOnOne.title = argument;
+				clientYanked.title = argument;
+				return undefined;
+			}
+			throw new Error("measure must not run on DP-2 hard fail");
+		},
+	};
+	const execFile = (command, args) => {
+		calls.push([command, args]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "monitors") return JSON.stringify(MOCK_MONITORS);
+		if (args[0] === "clients") {
+			return JSON.stringify([phase === "before" ? clientOnOne : clientYanked]);
+		}
+		if (args[0] === "dispatch") {
+			phase = "after";
+			return "";
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+	await assert.rejects(
+		() =>
+			inspectDisplaySurface(page, 2, "probe-linux-yank", {
+				mode: "headed",
+				browserPid: 42,
+				platform: "linux",
+				execFile,
+			}),
+		(error) => {
+			assert.match(String(error?.message ?? error), /named DP-2 output \(id 2\)/);
+			assert.ok(error.hyprlandRetain);
+			assert.equal(error.hyprlandRetain.targetMonitorId, 2);
+			assert.ok(Array.isArray(error.hyprlandRetain.before.clients));
+			assert.ok(Array.isArray(error.hyprlandRetain.after.clients));
+			assert.equal(error.hyprlandRetain.after.clients[0].monitor, 0);
+			return true;
+		},
+	);
+});
 
 test("the default browser surface is an explicitly diagnostic headless run", () => {
   assert.deepEqual(browserSurfacePlan([]), {
