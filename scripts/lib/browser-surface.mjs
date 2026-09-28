@@ -293,12 +293,14 @@ export function pinCompositorClient(
 		);
 	}
 	if (!onWorkspace) {
-		// movetoworkspacesilent creates WS5 if missing and does not switch Adam's focus.
+		// Hyprland 0.56+ Lua: classic movetoworkspacesilent is rejected.
+		// hl.dsp.window.move({ workspace, silent = true }) creates WS5 if missing
+		// and must not steal Adam's focus (same contract as movetoworkspacesilent).
 		dispatch(
 			"hyprctl",
 			[
 				"dispatch",
-				`movetoworkspacesilent ${targetWorkspaceId},address:${client.address}`,
+				`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, silent = true, follow = false, window = "address:${client.address}" })`,
 			],
 			opts,
 		);

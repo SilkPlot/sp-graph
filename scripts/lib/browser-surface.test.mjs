@@ -137,7 +137,7 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 			"hyprctl",
 			[
 				"dispatch",
-				`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
+				`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
 			],
 			opts,
 		],
@@ -156,7 +156,7 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 			"hyprctl",
 			[
 				"dispatch",
-				`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
+				`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
 			],
 			opts,
 		],
@@ -317,7 +317,7 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 		}
 		if (args[0] === "dispatch") {
 			const dispatchArg = args[1] ?? "";
-			if (dispatchArg.includes("movetoworkspacesilent") || dispatchArg.includes("hl.dsp.window.move")) {
+			if (dispatchArg.includes("hl.dsp.window.move")) {
 				pinned = true;
 			}
 			return "";
@@ -341,7 +341,7 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	);
 	assert.equal(
 		dispatches[1][1][1],
-		`movetoworkspacesilent ${HEADED_HYPRLAND_WORKSPACE},address:0xabc123`,
+		`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
 	);
 	assert.equal(reading.compositor.before.monitorId, 2);
 	assert.equal(reading.compositor.before.workspaceId, HEADED_HYPRLAND_WORKSPACE);
