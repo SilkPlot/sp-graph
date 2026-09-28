@@ -12,6 +12,7 @@ import {
 	HEADED_HYPRLAND_WORKSPACE,
 	resolveCompositorBackend,
 	selectCompositorClient,
+	workspace5SilentPinRecord,
 } from "./browser-surface.mjs";
 
 test("later renderer snapshots extend the complete browser process surface", () => {
@@ -350,9 +351,117 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	assert.equal(reading.compositor.before.address, "0xabc123");
 	assert.equal(reading.compositor.backend, undefined);
 	assert.equal(reading.compositor.hyprlandSkipped, undefined);
+	assert.deepEqual(reading.compositor.workspace5SilentPin, {
+		softPreflight: true,
+		attempted: true,
+		succeeded: true,
+		targetWorkspaceId: HEADED_HYPRLAND_WORKSPACE,
+		beforeWorkspaceId: HEADED_HYPRLAND_WORKSPACE,
+		afterWorkspaceId: HEADED_HYPRLAND_WORKSPACE,
+	});
 	assert.deepEqual(reading.rafDeltas, [16.67, 16.67]);
 	assert.equal(title, "original");
 });
+
+test("linux headed display inspect keeps measuring when WS5 soft pin misses on DP-2", async () => {
+	const calls = [];
+	let title = "original";
+	const clientOnOne = {
+		pid: 42,
+		title: "silkplot-evidence-probe-linux-ws5-miss",
+		address: "0xdef456",
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: 1,
+		workspace: { id: 4, name: "4" },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	};
+	const clientOnDp2 = {
+		...clientOnOne,
+		monitor: 2,
+		workspace: { id: 4, name: "4" },
+		at: [5440, 80],
+	};
+	let onDp2 = false;
+
+	const page = {
+		title: async () => title,
+		waitForTimeout: async () => {},
+		evaluate: async (callback, argument) => {
+			if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+				title = argument;
+				clientOnOne.title = argument;
+				clientOnDp2.title = argument;
+				return undefined;
+			}
+			assert.equal(argument, 2);
+			return {
+				startedAt: "2026-09-15T12:00:00.000Z",
+				endedAt: "2026-09-15T12:00:01.000Z",
+				screen: { width: 2560, height: 1440 },
+				rafDeltas: [16.67, 16.67],
+			};
+		},
+	};
+
+	const execFile = (command, args, options) => {
+		calls.push([command, args, options]);
+		assert.equal(command, "hyprctl");
+		if (args[0] === "clients") {
+			return JSON.stringify([onDp2 ? clientOnDp2 : clientOnOne]);
+		}
+		if (args[0] === "dispatch") {
+			const dispatchArg = args[1] ?? "";
+			if (dispatchArg.includes('monitor = "DP-2"')) {
+				onDp2 = true;
+				return "";
+			}
+			if (dispatchArg.includes("workspace =")) {
+				// Soft miss: silent WS5 pin is rejected / no-ops; stay on WS4.
+				throw new Error("soft WS5 pin rejected");
+			}
+			throw new Error(`unexpected hyprctl dispatch: ${dispatchArg}`);
+		}
+		throw new Error(`unexpected hyprctl args: ${JSON.stringify(args)}`);
+	};
+
+	const reading = await inspectDisplaySurface(page, 2, "probe-linux-ws5-miss", {
+		mode: "headed",
+		browserPid: 42,
+		platform: "linux",
+		execFile,
+	});
+
+	assert.equal(reading.compositor.before.monitorId, 2);
+	assert.equal(reading.compositor.before.workspaceId, 4);
+	assert.equal(reading.compositor.after.monitorId, 2);
+	assert.equal(reading.compositor.after.workspaceId, 4);
+	assert.deepEqual(reading.compositor.workspace5SilentPin, {
+		softPreflight: true,
+		attempted: true,
+		succeeded: false,
+		targetWorkspaceId: HEADED_HYPRLAND_WORKSPACE,
+		beforeWorkspaceId: 4,
+		afterWorkspaceId: 4,
+	});
+	assert.deepEqual(
+		workspace5SilentPinRecord(reading.compositor.before, reading.compositor.after),
+		reading.compositor.workspace5SilentPin,
+	);
+	assert.deepEqual(reading.rafDeltas, [16.67, 16.67]);
+	assert.equal(title, "original");
+	assert.ok(
+		calls.some(
+			([, args]) =>
+				args[0] === "dispatch" &&
+				String(args[1]).includes(`workspace = ${HEADED_HYPRLAND_WORKSPACE}`),
+		),
+	);
+});
+
 
 test("the default browser surface is an explicitly diagnostic headless run", () => {
   assert.deepEqual(browserSurfacePlan([]), {
