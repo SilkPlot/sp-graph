@@ -31,7 +31,7 @@
     "prepack": "npm run build:dist"
   },
   "peerDependencies": {
-    "solid-js": "^1.9.15"
+    "solid-js": "^1.9.17"
   },
   "dependencies": {
     "@silkplot/core": "0.4.0-next.0",
@@ -40,7 +40,7 @@
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
-    "solid-js": "^1.9.15",
+    "solid-js": "^1.9.17",
     "typescript": "^7.0.2"
   }
 }
