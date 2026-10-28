@@ -9,6 +9,9 @@ import {
   classifyBrowserSurface,
 	FROZEN_HEADED_WINDOW,
 	headedChromeArgs,
+	HYPRCTL_OUTPUT_LIMIT,
+	runHyprctl,
+	spawnHyprctl,
   inspectBrowserSurface,
 	inspectDisplaySurface,
 	pinCompositorClient,
@@ -296,8 +299,9 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 		),
 		true,
 	);
-	// Initial DP-2 move, soft WS5, then always re-assert DP-2 by name.
-	assert.deepEqual(calls, [dp2Move, ws5Move, dp2Move]);
+	// DP-2 first, then soft WS5. No trailing DP-2 re-assert: it would put the
+	// window back on DP-2's active workspace and discard the WS5 pin.
+	assert.deepEqual(calls, [dp2Move, ws5Move]);
 
 	calls.length = 0;
 	assert.equal(
@@ -307,7 +311,7 @@ test("a headed evidence window is pinned to DP-2 and Hyprland WS5 without focus-
 		),
 		true,
 	);
-	assert.deepEqual(calls, [ws5Move, dp2Move]);
+	assert.deepEqual(calls, [ws5Move]);
 
 	calls.length = 0;
 	assert.equal(
@@ -493,7 +497,7 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "clients"));
 	assert.ok(calls.some(([command, args]) => command === "hyprctl" && args[0] === "monitors"));
 	const dispatches = calls.filter(([command, args]) => command === "hyprctl" && args[0] === "dispatch");
-	assert.equal(dispatches.length, 3);
+	assert.equal(dispatches.length, 2);
 	assert.equal(
 		dispatches[0][1][1],
 		'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
@@ -501,10 +505,6 @@ test("linux headed display inspect pins DP-2 and silent-moves to WS5", async () 
 	assert.equal(
 		dispatches[1][1][1],
 		`hl.dsp.window.move({ workspace = ${HEADED_HYPRLAND_WORKSPACE}, silent = true, follow = false, window = "address:0xabc123" })`,
-	);
-	assert.equal(
-		dispatches[2][1][1],
-		'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0xabc123" })',
 	);
 	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 2);
 	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorName, "DP-2");
@@ -631,10 +631,21 @@ test("linux headed display inspect keeps measuring when WS5 soft pin misses on D
 		),
 	);
 	const missDispatches = calls.filter(([, args]) => args[0] === "dispatch");
-	assert.equal(missDispatches.length, 3);
+	assert.equal(missDispatches.length, 2);
 	assert.match(String(missDispatches[0][1][1]), /monitor = "DP-2"/);
 	assert.match(String(missDispatches[1][1][1]), /workspace = 5/);
-	assert.match(String(missDispatches[2][1][1]), /monitor = "DP-2"/);
+	// The rejected soft WS5 move is recorded, not swallowed.
+	const missLog = reading.compositor.before.hyprlandRetain.dispatches.filter(
+		(entry) => entry.step.startsWith("pin:"),
+	);
+	assert.deepEqual(
+		missLog.map((entry) => [entry.step, entry.ok]),
+		[
+			["pin:monitor", true],
+			["pin:workspace", false],
+		],
+	);
+	assert.match(missLog[1].errorMessage, /soft WS5 pin rejected/);
 	assert.equal(reading.compositor.before.hyprlandRetain.targetMonitorId, 2);
 });
 
@@ -1259,4 +1270,459 @@ test("measure persists hyprlandRetain into --json on headed pin abort before wor
 	assert.match(source, /persistHyprlandRetainOnAbort/);
 	assert.match(source, /error\?\.hyprlandRetain/);
 	assert.match(source, /abortedBeforeWorkloads/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Findings 1-3 hardening (hyprctl mocked; nothing here touches a compositor) */
+/* -------------------------------------------------------------------------- */
+
+const MARKER_ADDRESS = "0x0b0b0b01";
+
+/**
+ * Stateful fake of the Hyprland behaviour the pin depends on: a monitor move
+ * re-homes the window onto that monitor's ACTIVE workspace; a workspace move
+ * re-homes it onto whichever monitor owns that workspace. `wsOwner` says which
+ * monitor owns workspace 5. This models the documented dispatch semantics; it
+ * is not evidence about the Omarchy host.
+ */
+function fakeHyprland({ wsOwner, start = { monitor: 1, workspace: 4 }, fail = {} }) {
+	const activeWorkspace = { 0: 1, 1: 2, 2: 3 };
+	const window = { ...start };
+	const calls = [];
+	const client = () => ({
+		pid: 42,
+		title: state.title,
+		address: MARKER_ADDRESS,
+		mapped: true,
+		hidden: false,
+		visible: true,
+		monitor: window.monitor,
+		workspace: { id: window.workspace, name: String(window.workspace) },
+		at: [100, 80],
+		size: [1280, 1100],
+		xwayland: false,
+	});
+	const state = { title: "original", window, calls };
+	const exec = (command, args) => {
+		assert.equal(command, "hyprctl");
+		calls.push(args);
+		const key = args[0] === "dispatch" ? String(args[1]) : args[0];
+		for (const [needle, behaviour] of Object.entries(fail)) {
+			if (key.includes(needle)) return behaviour(args);
+		}
+		if (args[0] === "monitors") return JSON.stringify(MOCK_MONITORS);
+		if (args[0] === "clients") return JSON.stringify([client()]);
+		if (args[0] === "dispatch") {
+			if (key.includes('monitor = "DP-2"')) {
+				window.monitor = 2;
+				window.workspace = activeWorkspace[2];
+			} else if (key.includes("workspace = 5")) {
+				window.workspace = 5;
+				window.monitor = wsOwner;
+			} else {
+				throw new Error(`unexpected dispatch ${key}`);
+			}
+			return "ok";
+		}
+		throw new Error(`unexpected hyprctl args ${JSON.stringify(args)}`);
+	};
+	return { state, exec };
+}
+
+const fakePage = (fake, { measure } = {}) => ({
+	title: async () => fake.state.title,
+	waitForTimeout: async () => {},
+	evaluate: async (callback, argument) => {
+		if (typeof callback === "function" && callback.length === 1 && typeof argument === "string") {
+			fake.state.title = argument;
+			return undefined;
+		}
+		if (measure) return measure();
+		return {
+			startedAt: "2026-10-28T12:00:00.000Z",
+			endedAt: "2026-10-28T12:00:01.000Z",
+			screen: { width: 2560, height: 1440 },
+			rafDeltas: [16.67, 16.67],
+		};
+	},
+});
+
+const inspectHeaded = (fake, page, context) =>
+	inspectDisplaySurface(page, 2, context, {
+		mode: "headed",
+		browserPid: 42,
+		platform: "linux",
+		execFile: fake.exec,
+	});
+
+const dispatchCalls = (fake) => fake.state.calls.filter((args) => args[0] === "dispatch");
+
+test("finding 3: DP-2 then WS5 leaves both pins true with no re-move when WS5 is on DP-2", async () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	const reading = await inspectHeaded(fake, fakePage(fake), "pin-both");
+	const dispatches = dispatchCalls(fake);
+	assert.equal(dispatches.length, 2);
+	assert.match(String(dispatches[0][1]), /monitor = "DP-2"/);
+	assert.match(String(dispatches[1][1]), /workspace = 5/);
+	assert.deepEqual(fake.state.window, { monitor: 2, workspace: HEADED_HYPRLAND_WORKSPACE });
+	assert.equal(reading.compositor.before.monitorId, 2);
+	assert.equal(reading.compositor.before.workspaceId, HEADED_HYPRLAND_WORKSPACE);
+	assert.equal(reading.compositor.after.monitorId, 2);
+	assert.equal(reading.compositor.after.workspaceId, HEADED_HYPRLAND_WORKSPACE);
+	const retain = reading.compositor.before.hyprlandRetain;
+	assert.deepEqual(retain.pin, { firstTryBothPins: true, dp2Repairs: 0 });
+	assert.equal(retain.dispatches.filter((entry) => entry.step.startsWith("repair")).length, 0);
+	assert.equal(reading.compositor.workspace5SilentPin.succeeded, true);
+});
+
+test("finding 3: the retired order (DP-2 re-assert after WS5) discards the WS5 pin in the same model", () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	const dp2 = ["dispatch", 'hl.dsp.window.move({ monitor = "DP-2", follow = false, window = "address:0x1" })'];
+	const ws5 = ["dispatch", "hl.dsp.window.move({ workspace = 5, silent = true, window = \"address:0x1\" })"];
+	for (const args of [dp2, ws5, dp2]) fake.exec("hyprctl", args);
+	assert.deepEqual(fake.state.window, { monitor: 2, workspace: 3 });
+});
+
+test("finding 3: when WS5 lives on another monitor DP-2 is repaired once and the record says not first try", async () => {
+	const fake = fakeHyprland({ wsOwner: 0 });
+	const reading = await inspectHeaded(fake, fakePage(fake), "pin-ws5-elsewhere");
+	const dispatches = dispatchCalls(fake);
+	assert.equal(dispatches.length, 3);
+	assert.match(String(dispatches[0][1]), /monitor = "DP-2"/);
+	assert.match(String(dispatches[1][1]), /workspace = 5/);
+	assert.match(String(dispatches[2][1]), /monitor = "DP-2"/);
+	// DP-2 (hard gate) holds; WS5 (soft) is lost and said so.
+	assert.equal(reading.compositor.after.monitorId, 2);
+	assert.notEqual(reading.compositor.after.workspaceId, HEADED_HYPRLAND_WORKSPACE);
+	assert.deepEqual(reading.compositor.before.hyprlandRetain.pin, {
+		firstTryBothPins: false,
+		dp2Repairs: 1,
+	});
+	assert.equal(reading.compositor.workspace5SilentPin.succeeded, false);
+});
+
+test("finding 3: a window already on both pins is not moved at all", async () => {
+	const fake = fakeHyprland({
+		wsOwner: 2,
+		start: { monitor: 2, workspace: HEADED_HYPRLAND_WORKSPACE },
+	});
+	const reading = await inspectHeaded(fake, fakePage(fake), "pin-already");
+	assert.equal(dispatchCalls(fake).length, 0);
+	assert.equal(reading.compositor.before.hyprlandRetain.pin.firstTryBothPins, true);
+});
+
+test("finding 3: a window on WS5 but off DP-2 gets WS5 re-issued after the DP-2 move", () => {
+	const issued = [];
+	pinCompositorClient(
+		{ address: "0xabc123", monitorId: 1, workspaceId: HEADED_HYPRLAND_WORKSPACE },
+		{ dispatch: (_command, args) => issued.push(args[1]), targetMonitorId: 2 },
+	);
+	assert.equal(issued.length, 2);
+	assert.match(issued[0], /monitor = "DP-2"/);
+	assert.match(issued[1], /workspace = 5/);
+});
+
+test("finding 2: a dispatch's exit code, stdout and stderr are captured on success", () => {
+	const log = [];
+	const entry = runHyprctl(
+		() => ({ status: 0, stdout: "ok\n", stderr: "warn: lua deprecation\n" }),
+		["dispatch", "hl.dsp.window.move({})"],
+		{ log, step: "pin:monitor" },
+	);
+	assert.equal(log.length, 1);
+	assert.equal(entry.ok, true);
+	assert.equal(entry.exitCode, 0);
+	assert.equal(entry.stdout, "ok\n");
+	assert.equal(entry.stderr, "warn: lua deprecation\n");
+	assert.equal(entry.step, "pin:monitor");
+	assert.equal(JSON.parse(JSON.stringify(entry)).raw, undefined);
+});
+
+test("finding 2: execFileSync-shaped success records stdout and a null stderr, not a guess", () => {
+	const log = [];
+	runHyprctl(() => "ok", ["dispatch", "x"], { log });
+	assert.equal(log[0].stdout, "ok");
+	assert.equal(log[0].stderr, null);
+	assert.equal(log[0].exitCode, 0);
+});
+
+test("finding 2: a failed or timed-out dispatch records exit code, signal, stdout and stderr", () => {
+	const log = [];
+	const failure = Object.assign(new Error("exit 1"), {
+		status: 1,
+		signal: null,
+		stdout: "partial out",
+		stderr: "lua error: bad window",
+	});
+	assert.throws(() => runHyprctl(() => { throw failure; }, ["dispatch", "x"], { log }), /exit 1/);
+	const timeout = Object.assign(new Error("spawnSync hyprctl ETIMEDOUT"), {
+		code: "ETIMEDOUT",
+		status: null,
+		signal: "SIGTERM",
+		stdout: Buffer.from(""),
+		stderr: Buffer.from("hung"),
+	});
+	assert.throws(() => runHyprctl(() => { throw timeout; }, ["dispatch", "y"], { log }), /ETIMEDOUT/);
+	assert.equal(log.length, 2);
+	assert.deepEqual(
+		{ ok: log[0].ok, exitCode: log[0].exitCode, stdout: log[0].stdout, stderr: log[0].stderr, timedOut: log[0].timedOut },
+		{ ok: false, exitCode: 1, stdout: "partial out", stderr: "lua error: bad window", timedOut: false },
+	);
+	assert.deepEqual(
+		{ ok: log[1].ok, exitCode: log[1].exitCode, signal: log[1].signal, stderr: log[1].stderr, timedOut: log[1].timedOut },
+		{ ok: false, exitCode: null, signal: "SIGTERM", stderr: "hung", timedOut: true },
+	);
+});
+
+test("finding 2: oversized output is clipped and says so", () => {
+	const log = [];
+	runHyprctl(() => ({ status: 0, stdout: "x".repeat(HYPRCTL_OUTPUT_LIMIT + 50), stderr: "" }), ["dispatch", "x"], { log });
+	assert.match(log[0].stdout, /\[truncated 50 chars\]$/);
+});
+
+test("finding 2: spawnHyprctl returns stderr on success and carries output on failure and timeout", () => {
+	// Runs node, not hyprctl: proves the default runner's stream handling only.
+	const node = process.execPath;
+	const ok = spawnHyprctl(node, ["-e", 'process.stdout.write("out"); process.stderr.write("err")']);
+	assert.deepEqual(ok, { status: 0, stdout: "out", stderr: "err" });
+	assert.throws(
+		() => spawnHyprctl(node, ["-e", 'process.stdout.write("o"); process.stderr.write("e"); process.exit(3)']),
+		(error) => error.status === 3 && error.stdout === "o" && error.stderr === "e",
+	);
+	assert.throws(
+		() => spawnHyprctl(node, ["-e", "setTimeout(() => {}, 5000)"], { timeout: 100 }),
+		(error) => error.code === "ETIMEDOUT" && error.signal === "SIGTERM",
+	);
+});
+
+test("finding 2: every dispatch lands in the retain record with its output", async () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	const exec = (command, args, options) => {
+		const out = fake.exec(command, args, options);
+		return args[0] === "dispatch" ? { status: 0, stdout: out, stderr: "note" } : out;
+	};
+	const reading = await inspectDisplaySurface(fakePage(fake), 2, "pin-record", {
+		mode: "headed",
+		browserPid: 42,
+		platform: "linux",
+		execFile: exec,
+	});
+	const pins = reading.compositor.before.hyprlandRetain.dispatches.filter((entry) =>
+		entry.step.startsWith("pin:"),
+	);
+	assert.deepEqual(pins.map((entry) => entry.step), ["pin:monitor", "pin:workspace"]);
+	for (const entry of pins) {
+		assert.equal(entry.exitCode, 0);
+		assert.equal(entry.stdout, "ok");
+		assert.equal(entry.stderr, "note");
+		assert.equal(entry.args[0], "dispatch");
+	}
+});
+
+const persistedFailure = (error) => {
+	assert.ok(error.hyprlandRetain, "failure carries a retain record");
+	const dir = mkdtempSync(join(tmpdir(), "hyprland-retain-"));
+	try {
+		const jsonPath = join(dir, "workload.json");
+		const written = writeHyprlandRetainFailArtifact(jsonPath, error.hyprlandRetain, {
+			reason: error.message,
+		});
+		assert.ok(written, "record written");
+		const onDisk = JSON.parse(readFileSync(jsonPath, "utf8"));
+		assert.equal(onDisk.abortedBeforeWorkloads, true);
+		assert.deepEqual(JSON.parse(readFileSync(written.retainPath, "utf8")), onDisk.hyprlandRetain);
+		return onDisk.hyprlandRetain;
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+};
+
+const timeoutFailure = () =>
+	Object.assign(new Error("spawnSync hyprctl ETIMEDOUT"), {
+		code: "ETIMEDOUT",
+		status: null,
+		signal: "SIGTERM",
+		stdout: "",
+		stderr: "",
+	});
+
+test("finding 1: a hyprctl timeout on the first snapshot still writes a record", async () => {
+	const fake = fakeHyprland({
+		wsOwner: 2,
+		fail: {
+			monitors: () => {
+				throw timeoutFailure();
+			},
+		},
+	});
+	await assert.rejects(
+		() => inspectHeaded(fake, fakePage(fake), "pin-snapshot"),
+		(error) => {
+			assert.match(error.message, /could not retain Hyprland clients\/monitors/);
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "retain-before");
+			assert.equal(record.failure.timedOut, true);
+			assert.equal(record.before, null);
+			assert.equal(record.dispatches.at(-1).timedOut, true);
+			assert.equal(dispatchCalls(fake).length, 0);
+			return true;
+		},
+	);
+});
+
+test("finding 1: a clients failure when locating the marked window still writes a record", async () => {
+	let clientsCalls = 0;
+	const fake = fakeHyprland({
+		wsOwner: 2,
+		fail: {
+			clients: () => {
+				clientsCalls += 1;
+				if (clientsCalls === 1) return JSON.stringify([]);
+				throw timeoutFailure();
+			},
+		},
+	});
+	await assert.rejects(
+		() => inspectHeaded(fake, fakePage(fake), "pin-lookup"),
+		(error) => {
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "client-lookup");
+			assert.ok(record.before, "pre-pin snapshot is kept");
+			assert.equal(record.targetMonitorId, 2);
+			assert.ok(record.dispatches.some((entry) => entry.step === "observe:clients" && entry.timedOut));
+			assert.equal(dispatchCalls(fake).length, 0);
+			return true;
+		},
+	);
+});
+
+test("finding 1: a hard DP-2 dispatch failure writes its exit code and stderr into the record", async () => {
+	const fake = fakeHyprland({
+		wsOwner: 2,
+		fail: {
+			'monitor = "DP-2"': () => {
+				throw Object.assign(new Error("hyprctl dispatch exited 1"), {
+					status: 1,
+					signal: null,
+					stdout: "",
+					stderr: "Lua: no such monitor",
+				});
+			},
+		},
+	});
+	await assert.rejects(
+		() => inspectHeaded(fake, fakePage(fake), "pin-dispatch"),
+		(error) => {
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "pin-dispatch");
+			assert.equal(record.failure.exitCode, 1);
+			const entry = record.dispatches.find((item) => item.step === "pin:monitor");
+			assert.equal(entry.ok, false);
+			assert.equal(entry.exitCode, 1);
+			assert.equal(entry.stderr, "Lua: no such monitor");
+			// The window was not moved, so the after snapshot still shows it where it was.
+			assert.equal(record.after.clients[0].monitor, 1);
+			return true;
+		},
+	);
+});
+
+test("finding 1: a timeout while observing the pin writes a record with both snapshots", async () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	const baseExec = fake.exec;
+	let moved = false;
+	fake.exec = (command, args, options) => {
+		if (args[0] === "dispatch") moved = true;
+		if (moved && args[0] === "clients" && fake.state.calls.filter((a) => a[0] === "clients").length > 0) {
+			// every observation after the pin hangs; the after-snapshot too
+			fake.state.calls.push(args);
+			throw timeoutFailure();
+		}
+		return baseExec(command, args, options);
+	};
+	await assert.rejects(
+		() => inspectHeaded(fake, fakePage(fake), "pin-observe"),
+		(error) => {
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "pin-observe");
+			assert.ok(record.before, "before kept");
+			assert.ok(record.after, "after falls back to before when it cannot be read");
+			assert.ok(record.dispatches.some((entry) => entry.step === "pin:workspace" && entry.ok));
+			return true;
+		},
+	);
+});
+
+test("finding 1: a failed after-reading or measurement keeps the pin-time record on the error", async () => {
+	const fakeA = fakeHyprland({ wsOwner: 2 });
+	await assert.rejects(
+		() =>
+			inspectHeaded(
+				fakeA,
+				fakePage(fakeA, {
+					measure: () => {
+						throw new Error("page crashed mid-measure");
+					},
+				}),
+				"pin-measure",
+			),
+		(error) => {
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "measure");
+			assert.match(record.failure.message, /page crashed/);
+			assert.deepEqual(record.pin, { firstTryBothPins: true, dp2Repairs: 0 });
+			return true;
+		},
+	);
+
+	const fakeB = fakeHyprland({ wsOwner: 2 });
+	const baseExec = fakeB.exec;
+	let measured = false;
+	fakeB.exec = (command, args, options) => {
+		if (measured && args[0] === "clients") throw timeoutFailure();
+		return baseExec(command, args, options);
+	};
+	await assert.rejects(
+		() =>
+			inspectHeaded(
+				fakeB,
+				fakePage(fakeB, {
+					measure: () => {
+						measured = true;
+						return {
+							startedAt: "2026-10-28T12:00:00.000Z",
+							endedAt: "2026-10-28T12:00:01.000Z",
+							screen: { width: 2560, height: 1440 },
+							rafDeltas: [16.67],
+						};
+					},
+				}),
+				"pin-after",
+			),
+		(error) => {
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "compositor-after");
+			assert.equal(record.failure.timedOut, true);
+			assert.ok(record.dispatches.some((entry) => entry.step === "observe:clients" && entry.timedOut));
+			return true;
+		},
+	);
+});
+
+test("finding 1: a rejected soft WS5 move is recorded and does not abort", async () => {
+	const fake = fakeHyprland({
+		wsOwner: 2,
+		fail: {
+			"workspace = 5": () => {
+				throw timeoutFailure();
+			},
+		},
+	});
+	const reading = await inspectHeaded(fake, fakePage(fake), "pin-soft");
+	const entry = reading.compositor.before.hyprlandRetain.dispatches.find(
+		(item) => item.step === "pin:workspace",
+	);
+	assert.equal(entry.ok, false);
+	assert.equal(entry.timedOut, true);
+	assert.equal(reading.compositor.workspace5SilentPin.succeeded, false);
 });
