@@ -644,19 +644,22 @@ const pinnedCompositorClient = async (
 			log,
 		});
 	// Poll until the window is on named DP-2 and WS5, or the attempts run out.
+	// The outcome is the FINAL poll only: a transient DP-2 reading followed by a
+	// reading elsewhere is "not on DP-2", never latched as a success.
 	const settle = async () => {
 		let last;
-		let onNamedOutput = false;
 		for (let attempt = 0; attempt < 20; attempt++) {
 			await page.waitForTimeout(50);
 			last = await observe();
-			if (last.monitorId === targetMonitorId) {
-				onNamedOutput = true;
-				// Prefer WS5 when the soft pin lands, but named DP-2 alone is enough.
-				if (last.workspaceId === HEADED_HYPRLAND_WORKSPACE) break;
+			// Prefer WS5 when the soft pin lands, but named DP-2 alone is enough.
+			if (
+				last.monitorId === targetMonitorId &&
+				last.workspaceId === HEADED_HYPRLAND_WORKSPACE
+			) {
+				break;
 			}
 		}
-		return { last, onNamedOutput };
+		return { last, onNamedOutput: last?.monitorId === targetMonitorId };
 	};
 
 	let stage = "client-lookup";
@@ -684,7 +687,7 @@ const pinnedCompositorClient = async (
 			stage = "pin-observe-after-repair";
 			({ last: moved, onNamedOutput } = await settle());
 		}
-		if (!onNamedOutput || moved.monitorId !== targetMonitorId) {
+		if (!onNamedOutput) {
 			throw new Error(
 				`headed evidence window '${client.address}' did not pin to named ${targetMonitorName} output (id ${targetMonitorId})`,
 			);
@@ -740,6 +743,7 @@ export async function inspectDisplaySurface(
 	let originalTitle;
 	let marker;
 	let compositorBefore;
+	let inFlightError;
 	const useHyprland = mode === "headed" && compositorBackend === "hyprland";
 	const useDarwinAqua = mode === "headed" && compositorBackend === "darwin-aqua";
 	if (mode === "headed") {
@@ -895,15 +899,30 @@ export async function inspectDisplaySurface(
 	} catch (error) {
 		// A failure after the pin (measurement, or the after-reading) still leaves
 		// the pin-time retain on the error so the caller can persist it.
-		if (useHyprland && !error?.hyprlandRetain) {
-			throw withAfterMeasureRetain(error, compositorBefore, [], "measure");
-		}
-		throw error;
+		inFlightError =
+			useHyprland && !error?.hyprlandRetain
+				? withAfterMeasureRetain(error, compositorBefore, [], "measure")
+				: error;
+		throw inFlightError;
 	} finally {
 		if (mode === "headed" && originalTitle !== undefined) {
-			await page.evaluate((title) => {
-				document.title = title;
-			}, originalTitle);
+			// Best effort: a closed or crashed page rejects here, and that rejection
+			// must not replace the error (and its hyprlandRetain) already in flight.
+			try {
+				await page.evaluate((title) => {
+					document.title = title;
+				}, originalTitle);
+			} catch (restoreError) {
+				// Say so on the retain (the thrown error's, and the pin-time one a
+				// successful result carries) instead of throwing.
+				const titleRestoreError = describeFailure("title-restore", restoreError);
+				for (const retain of [
+					inFlightError?.hyprlandRetain,
+					compositorBefore?.hyprlandRetain,
+				]) {
+					if (retain) retain.titleRestoreError = titleRestoreError;
+				}
+			}
 		}
 	}
 }

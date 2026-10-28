@@ -1726,3 +1726,118 @@ test("finding 1: a rejected soft WS5 move is recorded and does not abort", async
 	assert.equal(entry.timedOut, true);
 	assert.equal(reading.compositor.workspace5SilentPin.succeeded, false);
 });
+
+test("finding 3: a transient DP-2 reading does not latch the pin outcome; the final poll decides and DP-2 is repaired once", async () => {
+	const fake = fakeHyprland({ wsOwner: 0 });
+	const baseExec = fake.exec;
+	let readingsSinceMove = 0;
+	let repaired = false;
+	let moves = 0;
+	fake.exec = (command, args, options) => {
+		if (args[0] === "dispatch") {
+			moves += 1;
+			// 1: DP-2, 2: soft WS5, 3: the repair.
+			if (moves === 3) repaired = true;
+			return baseExec(command, args, options);
+		}
+		if (args[0] === "clients" && moves >= 2) {
+			readingsSinceMove += 1;
+			// First look after the moves shows DP-2; every later one shows the window
+			// back on monitor 0, until the repair lands.
+			if (repaired) Object.assign(fake.state.window, { monitor: 2, workspace: 3 });
+			else if (readingsSinceMove === 1) Object.assign(fake.state.window, { monitor: 2, workspace: 3 });
+			else Object.assign(fake.state.window, { monitor: 0, workspace: HEADED_HYPRLAND_WORKSPACE });
+		}
+		return baseExec(command, args, options);
+	};
+	const reading = await inspectHeaded(fake, fakePage(fake), "pin-transient");
+	const retain = reading.compositor.before.hyprlandRetain;
+	assert.deepEqual(retain.pin, { firstTryBothPins: false, dp2Repairs: 1 });
+	assert.equal(dispatchCalls(fake).length, 3);
+	assert.match(String(dispatchCalls(fake)[2][1]), /monitor = "DP-2"/);
+	assert.equal(reading.compositor.before.monitorId, 2);
+});
+
+test("finding 3: a transient DP-2 reading followed by a failed repair is recorded as not pinned", async () => {
+	const fake = fakeHyprland({ wsOwner: 0 });
+	const baseExec = fake.exec;
+	let moves = 0;
+	let readingsSinceMove = 0;
+	fake.exec = (command, args, options) => {
+		if (args[0] === "dispatch") {
+			moves += 1;
+			return baseExec(command, args, options);
+		}
+		if (args[0] === "clients" && moves >= 2) {
+			readingsSinceMove += 1;
+			Object.assign(
+				fake.state.window,
+				readingsSinceMove === 1
+					? { monitor: 2, workspace: 3 }
+					: { monitor: 0, workspace: HEADED_HYPRLAND_WORKSPACE },
+			);
+		}
+		return baseExec(command, args, options);
+	};
+	await assert.rejects(
+		() => inspectHeaded(fake, fakePage(fake), "pin-transient-fail"),
+		(error) => {
+			assert.match(error.message, /did not pin to named DP-2/);
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "pin-observe-after-repair");
+			assert.deepEqual(record.pin, { firstTryBothPins: false, dp2Repairs: 1 });
+			return true;
+		},
+	);
+});
+
+test("finding 1: a title-restore failure on a closed page does not replace the retained error", async () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	let closed = false;
+	const page = fakePage(fake, {
+		measure: () => {
+			closed = true;
+			throw new Error("page crashed mid-measure");
+		},
+	});
+	const evaluate = page.evaluate;
+	page.evaluate = async (callback, argument) => {
+		if (closed) throw new Error("Target page, context or browser has been closed");
+		return evaluate(callback, argument);
+	};
+	await assert.rejects(
+		() => inspectHeaded(fake, page, "pin-restore"),
+		(error) => {
+			assert.match(error.message, /page crashed mid-measure/);
+			const record = persistedFailure(error);
+			assert.equal(record.failure.stage, "measure");
+			assert.equal(record.titleRestoreError.stage, "title-restore");
+			assert.match(record.titleRestoreError.message, /has been closed/);
+			return true;
+		},
+	);
+});
+
+test("finding 1: a title-restore failure after a good measurement keeps the result and notes it on the record", async () => {
+	const fake = fakeHyprland({ wsOwner: 2 });
+	let closed = false;
+	const page = fakePage(fake, {
+		measure: () => {
+			closed = true;
+			return {
+				startedAt: "2026-10-28T12:00:00.000Z",
+				endedAt: "2026-10-28T12:00:01.000Z",
+				screen: { width: 2560, height: 1440 },
+				rafDeltas: [16.67],
+			};
+		},
+	});
+	const evaluate = page.evaluate;
+	page.evaluate = async (callback, argument) => {
+		if (closed && typeof argument === "string") throw new Error("Target closed");
+		return evaluate(callback, argument);
+	};
+	const reading = await inspectHeaded(fake, page, "pin-restore-ok");
+	assert.deepEqual(reading.rafDeltas, [16.67]);
+	assert.equal(reading.compositor.before.hyprlandRetain.titleRestoreError.stage, "title-restore");
+});
