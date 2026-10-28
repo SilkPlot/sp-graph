@@ -6,7 +6,7 @@
  * different Chrome surface than the measurement it is meant to explain.
  */
 import { arg } from "./perf.mjs";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -311,39 +311,154 @@ export function writeHyprlandRetainFailArtifact(jsonOutPath, retain, opts = {}) 
 	return { jsonOutPath, retainPath, artifact };
 }
 
-const hyprctlJson = (execFile, args) =>
-	JSON.parse(
-		execFile("hyprctl", args, {
-			encoding: "utf8",
-			timeout: 2_000,
-			stdio: ["ignore", "pipe", "pipe"],
-		}),
-	);
+/** Longest stdout/stderr kept per hyprctl call in a retain record. */
+export const HYPRCTL_OUTPUT_LIMIT = 8_192;
 
-const hyprlandRetainSnapshot = (execFile) => ({
-	monitors: hyprctlJson(execFile, ["monitors", "-j"]),
-	clients: hyprctlJson(execFile, ["clients", "-j"]),
+const clipOutput = (value) => {
+	if (value === undefined || value === null) return null;
+	const text = Buffer.isBuffer(value) ? value.toString("utf8") : String(value);
+	return text.length > HYPRCTL_OUTPUT_LIMIT
+		? `${text.slice(0, HYPRCTL_OUTPUT_LIMIT)}…[truncated ${text.length - HYPRCTL_OUTPUT_LIMIT} chars]`
+		: text;
+};
+
+/**
+ * Default hyprctl runner. Same contract as execFileSync (throws on a non-zero
+ * exit, a signal or a timeout, with `status`/`signal`/`stdout`/`stderr` on the
+ * error) except that a success returns `{ status, stdout, stderr }`, so a
+ * successful dispatch's stderr is not lost. execFileSync cannot return it.
+ */
+export function spawnHyprctl(command, args, options = {}) {
+	const result = spawnSync(command, args, {
+		encoding: "utf8",
+		timeout: 2_000,
+		stdio: ["ignore", "pipe", "pipe"],
+		...options,
+	});
+	if (result.error || result.status !== 0 || result.signal) {
+		const error =
+			result.error ??
+			new Error(
+				`${command} ${args[0] ?? ""} ${
+					result.signal ? `killed by ${result.signal}` : `exited ${result.status}`
+				}`,
+			);
+		error.status = result.status;
+		error.signal = result.signal;
+		error.stdout = result.stdout;
+		error.stderr = result.stderr;
+		throw error;
+	}
+	return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+/**
+ * Run one hyprctl command and always leave an entry in `log`, success or not:
+ * exit code, signal, timeout, stdout and stderr. Queries (`clients`, `monitors`)
+ * keep only the stdout size on success; their payload is retained separately.
+ * Returns the entry; rethrows the original error (with `hyprctlEntry` attached).
+ *
+ * `exec` may be execFileSync-shaped (returns stdout; stderr is then unavailable
+ * on success and recorded as null) or spawnHyprctl-shaped.
+ */
+export function runHyprctl(exec, args, { step, log, keepStdout = true } = {}) {
+	const entry = {
+		step: step ?? args[0],
+		command: "hyprctl",
+		args,
+		startedAt: new Date().toISOString(),
+	};
+	const opts = { encoding: "utf8", timeout: 2_000, stdio: ["ignore", "pipe", "pipe"] };
+	try {
+		const out = exec("hyprctl", args, opts);
+		const shaped =
+			out !== null && typeof out === "object" && !Buffer.isBuffer(out);
+		const stdout = shaped ? out.stdout : out;
+		const stdoutText = stdout === undefined || stdout === null ? "" : String(stdout);
+		Object.assign(entry, {
+			ok: true,
+			exitCode: shaped && Number.isInteger(out.status) ? out.status : 0,
+			signal: null,
+			timedOut: false,
+			stdout: keepStdout ? clipOutput(stdoutText) : null,
+			stdoutBytes: Buffer.byteLength(stdoutText),
+			stderr: shaped ? clipOutput(out.stderr) : null,
+		});
+		log?.push(entry);
+		Object.defineProperty(entry, "raw", { value: stdoutText, enumerable: false });
+		return entry;
+	} catch (error) {
+		Object.assign(entry, {
+			ok: false,
+			exitCode: Number.isInteger(error?.status) ? error.status : null,
+			signal: error?.signal ?? null,
+			timedOut: error?.code === "ETIMEDOUT",
+			errorCode: error?.code ?? null,
+			errorMessage: error?.message ?? String(error),
+			stdout: clipOutput(error?.stdout),
+			stderr: clipOutput(error?.stderr),
+		});
+		log?.push(entry);
+		if (error !== null && typeof error === "object") {
+			Object.defineProperty(error, "hyprctlEntry", {
+				value: entry,
+				enumerable: false,
+				configurable: true,
+				writable: true,
+			});
+		}
+		throw error;
+	}
+}
+
+const hyprctlJson = (execFile, args, { log, step } = {}) => {
+	const entry = runHyprctl(execFile, args, { log, step, keepStdout: false });
+	try {
+		return JSON.parse(entry.raw);
+	} catch (error) {
+		entry.parseError = error?.message ?? String(error);
+		entry.stdout = clipOutput(entry.raw);
+		throw error;
+	}
+};
+
+const hyprlandRetainSnapshot = (execFile, { log, label = "snapshot" } = {}) => ({
+	monitors: hyprctlJson(execFile, ["monitors", "-j"], { log, step: `${label}:monitors` }),
+	clients: hyprctlJson(execFile, ["clients", "-j"], { log, step: `${label}:clients` }),
 });
 
-const moveWindowToNamedMonitor = (dispatch, address, targetMonitorName, opts) => {
-	dispatch(
-		"hyprctl",
+const moveWindowToNamedMonitor = (dispatch, address, targetMonitorName, { log, step }) =>
+	runHyprctl(
+		dispatch,
 		[
 			"dispatch",
 			`hl.dsp.window.move({ monitor = "${targetMonitorName}", follow = false, window = "address:${address}" })`,
 		],
-		opts,
+		{ log, step },
 	);
-};
 
-/** Move marked evidence window to DP-2 (hard) and try Hyprland WS5 silent pin (soft). */
+/**
+ * Pin the marked evidence window: named DP-2 (hard), then Hyprland WS5 (soft).
+ *
+ * Order matters. A monitor move lands the window on that monitor's *active*
+ * workspace, so DP-2 goes first and WS5 second; the reverse order (or a DP-2
+ * move after WS5) discards the workspace pin. Each move is issued at most once
+ * here. There is no unconditional re-assert: if WS5 turns out to live on
+ * another monitor, the caller observes that and repairs DP-2 once (see
+ * pinnedCompositorClient), and the record says the pins were not both true on
+ * the first try.
+ *
+ * Every dispatch's exit code, stdout and stderr go to `log` when given.
+ * Returns false when the window was already on both pins (nothing issued).
+ */
 export function pinCompositorClient(
 	client,
 	{
-		dispatch = execFileSync,
+		dispatch = spawnHyprctl,
 		targetMonitorId,
 		targetMonitorName = "DP-2",
 		targetWorkspaceId = HEADED_HYPRLAND_WORKSPACE,
+		log,
 	} = {},
 ) {
 	if (!/^0x[0-9a-f]+$/i.test(client?.address ?? "")) {
@@ -357,35 +472,33 @@ export function pinCompositorClient(
 	const onMonitor = client?.monitorId === targetMonitorId;
 	const onWorkspace = client?.workspaceId === targetWorkspaceId;
 	if (onMonitor && onWorkspace) return false;
-	const opts = {
-		encoding: "utf8",
-		timeout: 2_000,
-		stdio: ["ignore", "pipe", "pipe"],
-	};
 	if (!onMonitor) {
-		moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, opts);
+		moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, {
+			log,
+			step: "pin:monitor",
+		});
 	}
-	if (!onWorkspace) {
-		// Soft preflight (protocol 2026-09-28): try silent WS5 pin; miss must not
-		// abort measure. Hyprland 0.56+ Lua: classic movetoworkspacesilent is
-		// rejected; hl.dsp.window.move({ workspace, silent = true }) creates WS5
-		// if missing and must not steal Adam's focus.
+	// Needed after a monitor move even when the window reported WS5 before it:
+	// that reading predates the move, which re-homes the window to DP-2's
+	// active workspace.
+	if (!onWorkspace || !onMonitor) {
+		// Soft preflight (protocol 2026-09-28): a miss must not abort measure.
+		// Hyprland 0.56+ Lua: classic movetoworkspacesilent is rejected;
+		// hl.dsp.window.move({ workspace, silent = true }) creates WS5 if missing
+		// and must not steal the user's focus. The failure is recorded in `log`.
 		try {
-			dispatch(
-				"hyprctl",
+			runHyprctl(
+				dispatch,
 				[
 					"dispatch",
 					`hl.dsp.window.move({ workspace = ${targetWorkspaceId}, silent = true, follow = false, window = "address:${client.address}" })`,
 				],
-				opts,
+				{ log, step: "pin:workspace" },
 			);
 		} catch {
-			// Soft: record later from observed workspaceId; DP-2 stays hard.
+			// Soft: the entry in `log` carries the exit code and output.
 		}
 	}
-	// Soft WS5 can yank the window off DP-2 when the host rule is WS3 — always
-	// re-assert the named DP-2 hard gate after the soft try (Signed A).
-	moveWindowToNamedMonitor(dispatch, client.address, targetMonitorName, opts);
 	return true;
 }
 
@@ -400,16 +513,22 @@ const compositorClient = async (
 	page,
 	browserPid,
 	marker,
-	{ execFile = execFileSync, monitors } = {},
+	{ execFile = spawnHyprctl, monitors, log } = {},
 ) => {
 	let lastError;
 	for (let attempt = 0; attempt < 20; attempt++) {
 		try {
-			const clients = hyprctlJson(execFile, ["clients", "-j"]);
+			const clients = hyprctlJson(execFile, ["clients", "-j"], {
+				log,
+				step: "observe:clients",
+			});
 			let monitorList = monitors;
 			if (!Array.isArray(monitorList)) {
 				try {
-					monitorList = hyprctlJson(execFile, ["monitors", "-j"]);
+					monitorList = hyprctlJson(execFile, ["monitors", "-j"], {
+						log,
+						step: "observe:monitors",
+					});
 				} catch {
 					monitorList = undefined;
 				}
@@ -435,99 +554,148 @@ const attachHyprlandRetain = (target, retain) => {
 	return target;
 };
 
+/** Plain-data description of a thrown value for the retain record. */
+const describeFailure = (stage, error) => ({
+	stage,
+	message: error instanceof Error ? error.message : String(error),
+	code: error?.code ?? null,
+	exitCode: Number.isInteger(error?.status) ? error.status : null,
+	signal: error?.signal ?? null,
+	timedOut: error?.code === "ETIMEDOUT",
+});
+
 const pinnedCompositorClient = async (
 	page,
 	browserPid,
 	marker,
 	{
-		execFile = execFileSync,
+		execFile = spawnHyprctl,
 		targetMonitorName = "DP-2",
 	} = {},
 ) => {
+	// Every hyprctl call below appends here (exit code, stdout, stderr), and
+	// every exit path — success or throw — carries it in `hyprlandRetain`.
+	const log = [];
+	const state = {
+		before: null,
+		after: null,
+		targetMonitorId: null,
+		pin: { firstTryBothPins: null, dp2Repairs: 0 },
+	};
+	const retainRecord = (extra = {}) => ({
+		before: state.before,
+		after: state.after ?? state.before,
+		targetMonitorName,
+		targetMonitorId: state.targetMonitorId,
+		pin: { ...state.pin },
+		dispatches: log,
+		...extra,
+	});
+	const bestEffortAfter = () => {
+		try {
+			return hyprlandRetainSnapshot(execFile, { log, label: "after" });
+		} catch {
+			return state.before;
+		}
+	};
+	// Any throw leaves a record: before/after snapshots when they exist, the
+	// full command log, and which stage failed.
+	const failed = (stage, error, { snapshotAfter = true } = {}) => {
+		const failure = error instanceof Error ? error : new Error(String(error));
+		if (failure.hyprlandRetain) return failure;
+		if (snapshotAfter && state.before) state.after = bestEffortAfter();
+		return attachHyprlandRetain(
+			failure,
+			retainRecord({ failure: describeFailure(stage, failure) }),
+		);
+	};
+
 	// Retain raw Hyprland clients+monitors before the pin sequence so dig is
 	// never ABSENT on DP-2 hard fail (host-2624233).
-	let retainBefore;
 	try {
-		retainBefore = hyprlandRetainSnapshot(execFile);
+		state.before = hyprlandRetainSnapshot(execFile, { log, label: "before" });
 	} catch (error) {
 		const fail = new Error(
 			`headed evidence could not retain Hyprland clients/monitors before pin: ${error?.message ?? error}`,
 		);
 		fail.cause = error;
-		throw fail;
+		fail.status = error?.status;
+		fail.signal = error?.signal;
+		fail.code = error?.code;
+		throw failed("retain-before", fail, { snapshotAfter: false });
 	}
-	let targetMonitorId;
 	try {
-		targetMonitorId = resolveNamedMonitorId(
-			retainBefore.monitors,
+		state.targetMonitorId = resolveNamedMonitorId(
+			state.before.monitors,
 			targetMonitorName,
 		);
 	} catch (error) {
-		throw attachHyprlandRetain(error, {
-			before: retainBefore,
-			after: retainBefore,
-			targetMonitorName,
-			targetMonitorId: null,
-		});
+		throw failed("resolve-named-monitor", error, { snapshotAfter: false });
 	}
-	const client = await compositorClient(page, browserPid, marker, {
-		execFile,
-		monitors: retainBefore.monitors,
-	});
-	const finish = (result, retainAfter = retainBefore) =>
-		attachHyprlandRetain(result, {
-			before: retainBefore,
-			after: retainAfter,
-			targetMonitorName,
-			targetMonitorId,
-		});
-
-	if (
-		!pinCompositorClient(client, {
-			dispatch: execFile,
-			targetMonitorId,
-			targetMonitorName,
-		})
-	) {
-		return finish(client);
-	}
-
-	let moved = client;
-	let onNamedOutput = false;
-	for (let attempt = 0; attempt < 20; attempt++) {
-		await page.waitForTimeout(50);
-		moved = await compositorClient(page, browserPid, marker, {
+	const targetMonitorId = state.targetMonitorId;
+	const finish = (result) => {
+		state.after = bestEffortAfter();
+		return attachHyprlandRetain(result, retainRecord());
+	};
+	const observe = () =>
+		compositorClient(page, browserPid, marker, {
 			execFile,
-			monitors: retainBefore.monitors,
+			monitors: state.before.monitors,
+			log,
 		});
-		if (moved.monitorId === targetMonitorId) {
-			onNamedOutput = true;
+	// Poll until the window is on named DP-2 and WS5, or the attempts run out.
+	// The outcome is the FINAL poll only: a transient DP-2 reading followed by a
+	// reading elsewhere is "not on DP-2", never latched as a success.
+	const settle = async () => {
+		let last;
+		for (let attempt = 0; attempt < 20; attempt++) {
+			await page.waitForTimeout(50);
+			last = await observe();
 			// Prefer WS5 when the soft pin lands, but named DP-2 alone is enough.
-			if (moved.workspaceId === HEADED_HYPRLAND_WORKSPACE) {
-				let retainAfter = retainBefore;
-				try {
-					retainAfter = hyprlandRetainSnapshot(execFile);
-				} catch {
-					// Keep before snapshot if after retain fails; pin already succeeded.
-				}
-				return finish(moved, retainAfter);
+			if (
+				last.monitorId === targetMonitorId &&
+				last.workspaceId === HEADED_HYPRLAND_WORKSPACE
+			) {
+				break;
 			}
 		}
-	}
+		return { last, onNamedOutput: last?.monitorId === targetMonitorId };
+	};
 
-	let retainAfter = retainBefore;
+	let stage = "client-lookup";
 	try {
-		retainAfter = hyprlandRetainSnapshot(execFile);
-	} catch {
-		// Prefer structured before retain over throw-address-only.
+		const client = await observe();
+		stage = "pin-dispatch";
+		if (!pinCompositorClient(client, { dispatch: execFile, targetMonitorId, targetMonitorName, log })) {
+			state.pin.firstTryBothPins = true;
+			return finish(client);
+		}
+
+		stage = "pin-observe";
+		let { last: moved, onNamedOutput } = await settle();
+		state.pin.firstTryBothPins =
+			onNamedOutput && moved.workspaceId === HEADED_HYPRLAND_WORKSPACE;
+		if (!onNamedOutput) {
+			// The soft WS5 move re-homed the window to another monitor (WS5 is not
+			// on DP-2). Repair the DP-2 hard gate once, observably, and say so.
+			stage = "dp2-repair";
+			state.pin.dp2Repairs = 1;
+			moveWindowToNamedMonitor(execFile, client.address, targetMonitorName, {
+				log,
+				step: "repair:monitor",
+			});
+			stage = "pin-observe-after-repair";
+			({ last: moved, onNamedOutput } = await settle());
+		}
+		if (!onNamedOutput) {
+			throw new Error(
+				`headed evidence window '${client.address}' did not pin to named ${targetMonitorName} output (id ${targetMonitorId})`,
+			);
+		}
+		return finish(moved);
+	} catch (error) {
+		throw failed(stage, error);
 	}
-	if (!onNamedOutput || moved.monitorId !== targetMonitorId) {
-		const error = new Error(
-			`headed evidence window '${client.address}' did not pin to named ${targetMonitorName} output (id ${targetMonitorId})`,
-		);
-		throw finish(error, retainAfter);
-	}
-	return finish(moved, retainAfter);
 };
 
 /** Soft-preflight record for Hyprland WS5 silent pin (not a binding / §6 gate). */
@@ -546,6 +714,18 @@ export function workspace5SilentPinRecord(before, after) {
 	};
 }
 
+/** Carry the pin-time retain, plus any later hyprctl calls, on a post-pin failure. */
+const withAfterMeasureRetain = (error, compositorBefore, laterLog, stage) => {
+	const failure = error instanceof Error ? error : new Error(String(error));
+	const base = compositorBefore?.hyprlandRetain;
+	if (!base || failure.hyprlandRetain) return failure;
+	return attachHyprlandRetain(failure, {
+		...base,
+		dispatches: [...(base.dispatches ?? []), ...laterLog],
+		failure: describeFailure(stage, failure),
+	});
+};
+
 /** Measure the output and steady-state rAF cadence of the actual headed page. */
 export async function inspectDisplaySurface(
 	page,
@@ -556,13 +736,14 @@ export async function inspectDisplaySurface(
 		browserPid = null,
 		platform = process.platform,
 		compositorBackend = resolveCompositorBackend(platform),
-		execFile = execFileSync,
+		execFile = spawnHyprctl,
 		pinFrozenWindow = pinDarwinFrozenWindow,
 	} = {},
 ) {
 	let originalTitle;
 	let marker;
 	let compositorBefore;
+	let inFlightError;
 	const useHyprland = mode === "headed" && compositorBackend === "hyprland";
 	const useDarwinAqua = mode === "headed" && compositorBackend === "darwin-aqua";
 	if (mode === "headed") {
@@ -646,9 +827,21 @@ export async function inspectDisplaySurface(
 			};
 		}
 		if (useHyprland) {
-			const compositorAfter = await compositorClient(page, browserPid, marker, {
-				execFile,
-			});
+			const afterLog = [];
+			let compositorAfter;
+			try {
+				compositorAfter = await compositorClient(page, browserPid, marker, {
+					execFile,
+					log: afterLog,
+				});
+			} catch (error) {
+				throw withAfterMeasureRetain(
+					error,
+					compositorBefore,
+					afterLog,
+					"compositor-after",
+				);
+			}
 			return {
 				context,
 				...reading,
@@ -703,11 +896,33 @@ export async function inspectDisplaySurface(
 				hyprlandSkipped: true,
 			},
 		};
+	} catch (error) {
+		// A failure after the pin (measurement, or the after-reading) still leaves
+		// the pin-time retain on the error so the caller can persist it.
+		inFlightError =
+			useHyprland && !error?.hyprlandRetain
+				? withAfterMeasureRetain(error, compositorBefore, [], "measure")
+				: error;
+		throw inFlightError;
 	} finally {
 		if (mode === "headed" && originalTitle !== undefined) {
-			await page.evaluate((title) => {
-				document.title = title;
-			}, originalTitle);
+			// Best effort: a closed or crashed page rejects here, and that rejection
+			// must not replace the error (and its hyprlandRetain) already in flight.
+			try {
+				await page.evaluate((title) => {
+					document.title = title;
+				}, originalTitle);
+			} catch (restoreError) {
+				// Say so on the retain (the thrown error's, and the pin-time one a
+				// successful result carries) instead of throwing.
+				const titleRestoreError = describeFailure("title-restore", restoreError);
+				for (const retain of [
+					inFlightError?.hyprlandRetain,
+					compositorBefore?.hyprlandRetain,
+				]) {
+					if (retain) retain.titleRestoreError = titleRestoreError;
+				}
+			}
 		}
 	}
 }
