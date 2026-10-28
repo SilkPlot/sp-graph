@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -45,6 +45,21 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			// Verbatim copy of the published LTTB algorithm. It must stay
+			// byte-identical to the reference, so the Math.min/Math.max
+			// suggestion is disabled for this one file and this one rule only.
+			"includes": ["scripts/lib/lttb-reference.mjs"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"useMathMinMax": "off"
+					}
+				}
+			}
+		}
+	],
 	// Formatting is deliberately not adopted. This config is a lint baseline; a
 	// formatter would rewrite every file in the tree and bury the next diff.
 	"formatter": { "enabled": false },
