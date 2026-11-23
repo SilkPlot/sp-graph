@@ -74,6 +74,29 @@ describe("createViewport — uncontrolled navigation", () => {
     });
   });
 
+  it("uses the latest default on reset without moving a navigated viewport prematurely", () => {
+    withFixture(() => {
+      const [defaultDomain, setDefaultDomain] = createSignal(date(T0 + DAY, T0 + 2 * DAY));
+      const vp = createViewport({
+        fullExtent: () => ms(T0, T0 + 5 * DAY),
+        defaultVisibleDomain: defaultDomain,
+      });
+      return { vp, setDefaultDomain };
+    }, ({ vp, setDefaultDomain }) => {
+      vp.pan(DAY);
+      flush();
+      expect(vp.visibleMsDomain()).toEqual(ms(T0 + 2 * DAY, T0 + 3 * DAY));
+
+      setDefaultDomain(date(T0 + 3 * DAY, T0 + 4 * DAY));
+      flush();
+      expect(vp.visibleMsDomain()).toEqual(ms(T0 + 2 * DAY, T0 + 3 * DAY));
+
+      vp.reset();
+      flush();
+      expect(vp.visibleMsDomain()).toEqual(ms(T0 + 3 * DAY, T0 + 4 * DAY));
+    });
+  });
+
   it("seeds from the full extent when no default is declared", () => {
     withFixture(() => {
       const vp = createViewport({ fullExtent: () => ms(T0, T0 + 4 * DAY) });

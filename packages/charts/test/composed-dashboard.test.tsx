@@ -12,7 +12,7 @@
  * asserts across members.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, Show } from "solid-js";
+import { createSignal, flush, Show } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
 import { AreaChart, LineChart } from "../src/index";
@@ -107,6 +107,7 @@ describe("Data replacement across the composition", () => {
     expect(rowCounts()).toEqual([5, 5, 1, 10]);
 
     setData(series(4));
+    flush();
 
     // Days 5-9 now contain nothing; latest resolves to day 3; the outside chart
     // shows all four. Asserted as a SET across members, because a replacement
@@ -120,6 +121,7 @@ describe("Data replacement across the composition", () => {
 
     const before = charts(container);
     setData(series(6));
+    flush();
     const after = charts(container);
 
     // Fine-grained reactivity updates in place. A re-created tree would discard
