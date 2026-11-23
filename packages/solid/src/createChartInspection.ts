@@ -18,7 +18,7 @@
  * many charts pays for one hover loop.
  *
  * SSR-safe: `window`, `getBoundingClientRect`, and `requestAnimationFrame` are
- * touched only inside `onMount`/`onCleanup` and the pointer handlers, which run in
+ * touched only inside `onSettled`/`onCleanup` and the pointer handlers, which run in
  * a rendered component in a browser. Nothing here runs at module load.
  */
 import {
@@ -26,9 +26,8 @@ import {
   createMemo,
   createEffect,
   createSignal,
-  on,
   onCleanup,
-  onMount,
+  onSettled,
 } from "solid-js";
 import type { ActivePoint, ActivePointIndex } from "@silkplot/core";
 import { useChartBounds } from "./context";
@@ -118,7 +117,9 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
   // spurious "cleared" before the reader has done anything.
   if (spec.onActivePointChange) {
     createEffect(
-      on(point, (current) => spec.onActivePointChange?.(current), { defer: true }),
+      point,
+      (current) => spec.onActivePointChange?.(current),
+      { defer: true },
     );
   }
 
@@ -193,7 +194,7 @@ export function createChartInspection<D>(spec: ChartInspectionSpec<D>): ChartIns
   };
 
   // Seed a measurement at mount so a first hover before any enter still resolves.
-  onMount(refreshRect);
+  onSettled(refreshRect);
   onCleanup(() => {
     if (frame !== 0) cancelAnimationFrame(frame);
   });

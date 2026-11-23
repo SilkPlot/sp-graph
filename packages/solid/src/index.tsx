@@ -4,7 +4,7 @@
  * This is the "Solid renders" half. Every DOM element here is a Solid element;
  * we never hand the tree to d3-selection/transition/axis. `solid-js` is a peer
  * dependency — the host app provides it and compiles these `.tsx` sources with
- * its own `vite-plugin-solid` (the "solid" export condition points here).
+ * its own `@solidjs/vite-plugin` (the "solid" export condition points here).
  */
 export { ChartRoot } from "./ChartRoot";
 export type { ChartRootProps, MarginReservation } from "./ChartRoot";

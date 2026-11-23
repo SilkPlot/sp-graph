@@ -13,7 +13,7 @@
 import { LineChart } from "@silkplot/charts";
 import type { TimeInterval, ViewportCause } from "@silkplot/core";
 import { RangeControl, type ViewportCommands } from "@silkplot/solid";
-import { createSignal, onMount, type Component } from "solid-js";
+import { createSignal, onSettled, type Component } from "solid-js";
 import { w2History, w2Replacement } from "../../../packages/charts/test/workload-fixtures";
 import { HISTORICAL_COMPOSITION_IDENTITY } from "./composition-revision";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
@@ -37,7 +37,7 @@ export const WorkloadAV1: Component = () => {
     setVisible(domain);
   };
 
-  onMount(() => {
+  onSettled(() => {
     const root = document.getElementById("root");
     if (!root) return;
     publish({

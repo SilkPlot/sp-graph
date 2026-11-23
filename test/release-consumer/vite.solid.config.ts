@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 import { recordResolution } from "./record-resolution.ts";
 
-// Resolution path A. `vite-plugin-solid` contributes the "solid" export
+// Resolution path A. `@solidjs/vite-plugin` contributes the "solid" export
 // condition, so `@silkplot/*` resolves to shipped TSX source and this build
 // compiles the JSX itself.
 //

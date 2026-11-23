@@ -6,7 +6,8 @@
  * formatters are version-sensitive — nothing here hardcodes a d3 output.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, type Accessor, type JSX } from "solid-js";
+import { createSignal, flush, type Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import {
   Axis,
@@ -31,9 +32,9 @@ function mount(
     // SVG parent. It is never shown to anyone, so a name would describe nothing.
     // biome-ignore lint/a11y/noSvgWithoutTitle: test harness element, never rendered to a user
     <svg>
-      <ChartBoundsContext.Provider value={boundsAccessor}>
+      <ChartBoundsContext value={boundsAccessor}>
         {children()}
-      </ChartBoundsContext.Provider>
+      </ChartBoundsContext>
     </svg>
   ));
 }
@@ -279,7 +280,7 @@ describe("Axis — reactivity", () => {
   it("recomputes ticks (the ticks createMemo reruns) when the scale prop signal changes", () => {
     const scaleA = linearScale({ domain: [0, 10], range: [0, BOUNDS.innerWidth] });
     const scaleB = linearScale({ domain: [0, 100000], range: [0, BOUNDS.innerWidth] });
-    const [scale, setScale] = createSignal<ContinuousScale>(scaleA);
+    const [scale, setScale] = createSignal<ContinuousScale>(() => scaleA);
 
     const { container } = mount(() => <Axis scale={scale()} />);
     const axisGroup = getAxisGroup(container);
@@ -294,6 +295,7 @@ describe("Axis — reactivity", () => {
     // treat it as an `(prev) => next` updater and invoke it instead of
     // storing it.
     setScale(() => scaleB);
+    flush();
 
     const expectedB = computeTicks(scaleB, {}).map((t) => t.label);
     expect(labelsNow()).toEqual(expectedB);

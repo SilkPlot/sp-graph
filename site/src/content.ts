@@ -103,7 +103,7 @@ export const ENVIRONMENTS: readonly EnvironmentRow[] = [
   },
   {
     what: "Bundler",
-    requirement: "Solid-aware (Vite + vite-plugin-solid, or equivalent)",
+    requirement: "Solid-aware compiler for the selected Solid version",
     why: "The \"solid\" export condition serves TSX source so your bundler compiles the JSX itself — that is what keeps fine-grained reactivity intact.",
   },
   {

@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { fileURLToPath } from "node:url";
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 
 /**
  * Dev server for the visual fixture page.

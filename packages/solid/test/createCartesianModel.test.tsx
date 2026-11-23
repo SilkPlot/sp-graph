@@ -9,7 +9,8 @@
  * collapse into each other.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, type Accessor, type JSX } from "solid-js";
+import { createSignal, type Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import { linearScale, timeScale, bandScale, extentOf } from "@silkplot/core";
 import {
@@ -46,9 +47,9 @@ function buildModel<T, X extends AxisScale>(
     return null;
   };
   render(() => (
-    <ChartBoundsContext.Provider value={boundsAccessor}>
+    <ChartBoundsContext value={boundsAccessor}>
       <Probe />
-    </ChartBoundsContext.Provider>
+    </ChartBoundsContext>
   ));
   return model;
 }

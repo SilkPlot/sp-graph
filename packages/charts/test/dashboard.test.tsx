@@ -235,7 +235,7 @@ describe("A chart handed a resolution nothing supplies yet", () => {
       setDynamic: () => {},
     };
     return render(() => (
-      <DashboardTimeContext.Provider value={time}>
+      <DashboardTimeContext value={time}>
         <LineChart
           title="Member"
           data={data}
@@ -243,7 +243,7 @@ describe("A chart handed a resolution nothing supplies yet", () => {
           height={200}
           table={{ columns: ["Time", "Value"] }}
         />
-      </DashboardTimeContext.Provider>
+      </DashboardTimeContext>
     ));
   };
 
@@ -296,7 +296,7 @@ describe("A chart handed a resolution nothing supplies yet", () => {
       setDynamic: () => {},
     };
     const { container } = render(() => (
-      <DashboardTimeContext.Provider value={time}>
+      <DashboardTimeContext value={time}>
         <ChartRoot width={400} height={200}>
           {/*
             Named, even as a fixture. An unnamed `role="img"` is the exact
@@ -308,7 +308,7 @@ describe("A chart handed a resolution nothing supplies yet", () => {
             <ChartEmptyMark message="Nothing here" />
           </svg>
         </ChartRoot>
-      </DashboardTimeContext.Provider>
+      </DashboardTimeContext>
     ));
 
     // The drawn half stays; the live region does not, so a group that announces

@@ -14,7 +14,8 @@
  * The content is entirely the caller's. See
  * docs/decisions/adr-0002-crosshair-and-tooltip-anchor.md.
  */
-import { createMemo, type Component, type JSX } from "solid-js";
+import { createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useChartBounds } from "./context";
 import { createResize } from "./createResize";
 

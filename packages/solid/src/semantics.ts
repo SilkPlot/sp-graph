@@ -345,8 +345,8 @@ export function createChartSemantics(props: ChartSemanticsInput): ChartSemantics
   // whichever child happens to read the name first.
   resolved();
 
-  createEffect(() => {
-    for (const issue of resolved().issues) {
+  createEffect(() => resolved().issues, (issues) => {
+    for (const issue of issues) {
       props.onSemanticsIssue?.(issue);
       if (isDevelopmentBuild()) console.warn(issue.message);
     }

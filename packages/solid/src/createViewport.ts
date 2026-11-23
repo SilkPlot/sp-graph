@@ -34,7 +34,7 @@
  * builds from this interval, and touches no state in this holder — which is the
  * whole reason the selected window survives both.
  */
-import { createEffect, createMemo, createSignal, on, type Accessor } from "solid-js";
+import { createEffect, createMemo, createSignal, type Accessor } from "solid-js";
 import {
   DEFAULT_MIN_SPAN_MS,
   applyMinSpan,
@@ -186,13 +186,15 @@ export function createViewport<M = unknown>(spec: ViewportSpec<M>): Viewport {
   // controlled path is not reconciled here: its caller owns the interval, and the
   // display memo above still clamps it. Growth returns null and keeps the window.
   createEffect(
-    on(bound, (b) => {
+    bound,
+    (b) => {
       if (spec.visibleDomain?.() !== undefined) return;
       const r = reconcileDataChange(uncontrolled(), b, defaultMs(), minSpan());
       if (r === null) return;
       setUncontrolled(r.interval);
       spec.onVisibleDomainChange?.(toTimeInterval(r.interval), r.cause);
-    }, { defer: true }),
+    },
+    { defer: true },
   );
 
   const setVisibleDomain = (interval: MsInterval, cause: ViewportCause): void => {

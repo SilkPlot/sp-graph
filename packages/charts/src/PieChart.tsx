@@ -11,7 +11,8 @@
  * The named graphic is the empty `SvgLayer` title/desc-only exception the
  * Canvas cartesian work already landed. Marks paint on Canvas. No new SVG.
  */
-import { Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   computePie,
   createPieIndex,

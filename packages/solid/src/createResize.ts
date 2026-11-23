@@ -2,10 +2,10 @@
  * createResize — measure an element's content box reactively.
  *
  * SSR-safe: no `window`, `document`, or `ResizeObserver` is touched at module
- * top level or during server render. All DOM work happens in `onMount`, and is
+ * top level or during server render. All DOM work happens in `onSettled`, and is
  * torn down in `onCleanup`. Returns a signal of the current size.
  */
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import type { Accessor } from "solid-js";
 
 export interface Size {
@@ -32,7 +32,7 @@ export function createResize(initial: Size = { width: 0, height: 0 }): CreateRes
   const [size, setSize] = createSignal<Size>(initial);
   const [target, setTarget] = createSignal<HTMLElement>();
 
-  onMount(() => {
+  onSettled(() => {
     const el = target();
     if (!el || typeof ResizeObserver === "undefined") return;
 
@@ -53,7 +53,7 @@ export function createResize(initial: Size = { width: 0, height: 0 }): CreateRes
     // Seed an initial measurement so the first paint has real numbers.
     setSize({ width: el.clientWidth, height: el.clientHeight });
 
-    onCleanup(() => observer.disconnect());
+    return () => observer.disconnect();
   });
 
   return { size, setTarget };

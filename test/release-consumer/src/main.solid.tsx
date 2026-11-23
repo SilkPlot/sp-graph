@@ -1,7 +1,7 @@
 /**
  * Resolution path A — a Solid-aware consumer.
  *
- * `vite-plugin-solid` adds the "solid" export condition, so every `@silkplot/*`
+ * `@solidjs/vite-plugin` adds the "solid" export condition, so every `@silkplot/*`
  * import here resolves to the package's shipped TSX **source** and this app's own
  * bundler compiles the JSX for its own target. That is the path the "solid"
  * condition exists to serve, and the reason it must never be "simplified" to the
@@ -11,7 +11,7 @@
  * what has to work. If this file needs a workaround, so does every consumer.
  */
 import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { LineChart } from "@silkplot/charts";
 import { tokensToCss } from "@silkplot/theme";
 import { extentOf } from "@silkplot/core";

@@ -18,7 +18,8 @@
  * composed data, not an interaction model.
  */
 import { describe, expect, it, vi } from "vitest";
-import { createSignal, For, Match, Show, Switch, type ComponentProps } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
 import { render, fireEvent } from "@solidjs/testing-library";
 import { Legend } from "@silkplot/solid";
 import type { Series } from "@silkplot/core";

@@ -25,7 +25,7 @@
  * domain `timeExtentScale` produced before this phase. The narrowing is the
  * identity, and no existing baseline moves.
  */
-import { createMemo, createSignal, onMount, type Accessor } from "solid-js";
+import { createMemo, createSignal, onSettled, type Accessor } from "solid-js";
 import {
   createViewport,
   type DashboardTime,
@@ -255,5 +255,5 @@ export function emitViewportCommands(
   emit: ((commands: ViewportCommands) => void) | undefined,
   viewport: Viewport,
 ): void {
-  if (emit) onMount(() => emit(viewport));
+  if (emit) onSettled(() => emit(viewport));
 }

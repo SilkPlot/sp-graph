@@ -5,7 +5,8 @@
  * live on HTML so this surface does not mount an SVG at all. Marks live on
  * the Canvas. Geometry is consumed, never packed here.
  */
-import { createEffect, createSignal, createUniqueId, type Component, type JSX } from "solid-js";
+import { createEffect, createSignal, createUniqueId, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { cssVar, tokens } from "@silkplot/theme";
 import { weekCanvasSize } from "./canvas-week-geometry";
 import { syncCanvasWeek } from "./canvas-week-paint";
@@ -52,17 +53,18 @@ export const CanvasWeek: Component<CanvasWeekProps> = (props) => {
   const descId = createUniqueId();
   const size = () => weekCanvasSize(props.grid, props.width);
 
-  createEffect(() => {
-    syncCanvasWeek(
-      canvas(),
-      props.grid,
-      props.rects,
-      props.width,
+  createEffect(
+    () => ({ canvas: canvas(), grid: props.grid, rects: props.rects, width: props.width, viewport: props.viewport, overscan: props.overscan }),
+    (inputs) => syncCanvasWeek(
+      inputs.canvas,
+      inputs.grid,
+      inputs.rects,
+      inputs.width,
       window.devicePixelRatio,
-      props.viewport,
-      props.overscan,
-    );
-  });
+      inputs.viewport,
+      inputs.overscan,
+    ),
+  );
 
   const wrapStyle = (): JSX.CSSProperties => ({
     position: "relative",

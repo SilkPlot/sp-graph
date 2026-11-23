@@ -12,7 +12,8 @@
  * D3 does all the math inside memos; Solid renders every element. No
  * d3-selection, d3-transition, or d3-axis anywhere.
  */
-import { createMemo, Show, type Component, type JSX } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   linePath,
   type ActivePoint,

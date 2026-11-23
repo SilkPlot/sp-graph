@@ -18,7 +18,8 @@
  * the `createHitIndex` composition. Resolution remains in the pointer model;
  * this chart supplies the scales and draws the resulting active mark.
  */
-import { Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   createScatterIndex,
   extentOf,

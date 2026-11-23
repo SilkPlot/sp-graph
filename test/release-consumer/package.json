@@ -11,9 +11,10 @@
     "build:default": "vite build -c vite.default.config.ts"
   },
   "devDependencies": {
-    "solid-js": "^1.9.14",
+    "@solidjs/vite-plugin": "3.0.1",
+    "@solidjs/web": "2.0.3",
+    "solid-js": "2.0.3",
     "typescript": "^7.0.2",
-    "vite": "^8.1.5",
-    "vite-plugin-solid": "^2.11.12"
+    "vite": "^8.1.5"
   }
 }

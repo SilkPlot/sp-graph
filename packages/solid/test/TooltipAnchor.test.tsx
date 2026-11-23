@@ -7,7 +7,7 @@
  * primitive, and lives in `interaction.test.tsx`.
  */
 import { describe, expect, it } from "vitest";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import {
   TooltipAnchor,

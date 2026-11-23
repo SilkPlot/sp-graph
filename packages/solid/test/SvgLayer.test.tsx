@@ -5,7 +5,8 @@
  * the sizing and children-placement behaviour.
  */
 import { describe, expect, it } from "vitest";
-import type { Accessor, JSX } from "solid-js";
+import type { Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import {
   SvgLayer,
@@ -24,9 +25,9 @@ function mount(
   boundsAccessor: Accessor<ChartBounds> = () => BOUNDS,
 ) {
   return render(() => (
-    <ChartBoundsContext.Provider value={boundsAccessor}>
+    <ChartBoundsContext value={boundsAccessor}>
       {children()}
-    </ChartBoundsContext.Provider>
+    </ChartBoundsContext>
   ));
 }
 

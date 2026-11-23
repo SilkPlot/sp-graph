@@ -1,13 +1,14 @@
 /**
  * ChartRoot — the responsive container every chart mounts inside.
  *
- * Measures its own box with `createResize` (ResizeObserver in onMount, SSR-safe)
+ * Measures its own box with `createResize` (ResizeObserver in onSettled, SSR-safe)
  * and provides reactive `ChartBounds` via context. Children read those bounds
  * with `useChartBounds()`. Width/height may also be supplied explicitly to opt
  * out of measurement.
  */
 import { createMemo } from "solid-js";
-import type { JSX, ParentComponent } from "solid-js";
+import type { ParentComponent } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   ChartBoundsContext,
   resolveBounds,
@@ -83,9 +84,9 @@ export const ChartRoot: ParentComponent<ChartRootProps> = (props) => {
 
   return (
     <div ref={setTarget} class={props.class} style={containerStyle()}>
-      <ChartBoundsContext.Provider value={bounds}>
+      <ChartBoundsContext value={bounds}>
         {props.children}
-      </ChartBoundsContext.Provider>
+      </ChartBoundsContext>
     </div>
   );
 };

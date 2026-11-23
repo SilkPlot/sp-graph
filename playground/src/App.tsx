@@ -6,16 +6,8 @@
  * the composed Canvas surface, and @silkplot/theme supplies the tokens — all
  * wired across workspace packages.
  */
-import {
-  createSignal,
-  createMemo,
-  onMount,
-  onCleanup,
-  Show,
-  For,
-  type Component,
-  type JSX,
-} from "solid-js";
+import { createSignal, createMemo, onSettled, Show, For, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   LineChart,
   AreaChart,
@@ -164,16 +156,16 @@ const InteractiveLineBody: Component<{ data: readonly TimePoint[] }> = (props) =
     rect = surface?.getBoundingClientRect();
   };
 
-  onMount(() => {
+  onSettled(() => {
     refreshRect();
     window.addEventListener("resize", refreshRect, { passive: true });
     // Capture phase: a scroll in any ancestor moves us, not just the window.
     window.addEventListener("scroll", refreshRect, { passive: true, capture: true });
-    onCleanup(() => {
+    return () => {
       window.removeEventListener("resize", refreshRect);
       window.removeEventListener("scroll", refreshRect, { capture: true });
       if (frame) cancelAnimationFrame(frame);
-    });
+    };
   });
 
   const resolve = (): void => {
@@ -528,7 +520,7 @@ const ThemeControl: Component = () => {
           <button
             type="button"
             class={FOCUS_CLASS}
-            aria-pressed={mode() === m}
+            aria-pressed={mode() === m ? "true" : "false"}
             onClick={() => apply(m)}
             style={{
               font: "inherit",

@@ -8,7 +8,8 @@
  *
  * Not a rewrite of `WeekGrid`. No SVG, no WebGL, no second time grid.
  */
-import { Show, createEffect, createMemo, createSignal, mergeProps, type Component, type JSX } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, merge, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   createHeatmapIndex,
   layoutHeatmapCells,
@@ -72,7 +73,7 @@ type BodyProps = CalendarHeatmapBaseProps & { semantics: ChartSemantics };
 
 function heatmapSemantics(props: ChartSemanticsProps): ChartSemantics {
   return createChartSemantics(
-    mergeProps(props, {
+    merge(props, {
       get defaultTable() {
         if (props.decorative === true) return undefined;
         return {};
@@ -98,10 +99,11 @@ const CalendarHeatmapPlot: Component<{
 }> = (props) => {
   const bounds = useChartBounds();
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>();
-  createEffect(() => {
-    const b = bounds();
+  createEffect(
+    () => ({ bounds: bounds(), canvas: canvas(), cells: props.cells(), index: props.activeIndex() }),
+    ({ bounds: b, canvas: el, cells, index }) => {
     syncCalendarHeatmap(
-      canvas(),
+      el,
       {
         width: b.innerWidth,
         height: b.innerHeight,
@@ -110,11 +112,12 @@ const CalendarHeatmapPlot: Component<{
         outerWidth: b.width,
         outerHeight: b.height,
       },
-      props.cells(),
-      props.activeIndex(),
+      cells,
+      index,
       window.devicePixelRatio,
     );
-  });
+    },
+  );
   return (
     <canvas
       ref={setCanvas}

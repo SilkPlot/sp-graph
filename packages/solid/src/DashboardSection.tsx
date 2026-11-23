@@ -24,7 +24,8 @@
  * position. What it does NOT do is lay its children out; that is still the
  * application's.
  */
-import { createMemo, type JSX, type ParentComponent } from "solid-js";
+import { createMemo, type ParentComponent } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { SectionScope } from "@silkplot/core";
 import { DashboardSectionContext, rollingWindow } from "./dashboard-section";
 import { useDashboardTime, type TimeInterval } from "./dashboard-time";
@@ -95,13 +96,13 @@ export const DashboardSection: ParentComponent<DashboardSectionProps> = (props) 
   };
 
   return (
-    <DashboardSectionContext.Provider value={scope}>
+    <DashboardSectionContext value={scope}>
       <section class={props.class} aria-label={`${props.label}. ${scopeText()}`} data-silkplot-section="">
         <p data-silkplot-section-scope="">
           <strong>{props.label}</strong> — {scopeText()}
         </p>
         {props.children}
       </section>
-    </DashboardSectionContext.Provider>
+    </DashboardSectionContext>
   );
 };

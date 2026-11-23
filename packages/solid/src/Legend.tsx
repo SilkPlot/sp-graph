@@ -43,7 +43,8 @@
  * like a working legend. A standing probe mutates the shared function and
  * asserts BOTH this suite and the charts suite go red.
  */
-import { For, createMemo, createSignal, type Accessor, type JSX } from "solid-js";
+import { For, createMemo, createSignal, type Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { resolveSeriesStyle, type Series } from "@silkplot/core";
 import { SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
 import { LegendSwatch } from "./LegendSwatch";
@@ -213,7 +214,7 @@ export function Legend(props: LegendProps): JSX.Element {
               type="button"
               data-sp-legend-item={series.id}
               class={SP_FOCUSABLE_CLASS}
-              aria-pressed={shown()}
+              aria-pressed={shown() ? "true" : "false"}
               // Roving tabindex — one stop for the whole toolbar.
               tabindex={i() === clampedCursor() ? 0 : -1}
               onFocus={() => setCursor(i())}

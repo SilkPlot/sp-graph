@@ -14,7 +14,8 @@
  * normalizes stable series identity, visibility, shared-time columns, and
  * per-series paint. Collapsing them would hide those real differences.
  */
-import { createMemo, Show, type JSX } from "solid-js";
+import { createMemo, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   createTimeSeriesIndex,
   decimateMinMax,

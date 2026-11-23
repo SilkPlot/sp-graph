@@ -12,7 +12,8 @@
  * computation and the marks that must not disagree, not the ones that
  * legitimately do).
  */
-import { type Accessor, type JSX, Show, createEffect, createMemo, createSignal } from "solid-js";
+import { type Accessor, Show, createEffect, createMemo, createSignal } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   createTimeSeriesIndex,
   windowActivePointIndex,
@@ -311,8 +312,8 @@ export function InteractionLayer<D>(props: InteractionLayerProps<D>): JSX.Elemen
   };
 
   const brushing = (): boolean => props.viewportGestures?.brushing() ?? false;
-  createEffect(() => {
-    if (!brushing()) return;
+  createEffect(brushing, (isBrushing) => {
+    if (!isBrushing) return;
     // A pending hover rAF from the move that started the drag would write the
     // active point back after we clear it. Cancel first.
     insp.cancelPendingPointer();

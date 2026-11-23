@@ -12,7 +12,7 @@
  * measured itself, and the harness's warm-up would spend part of its second on a
  * zero-size chart — which is fast, and would quietly improve every number.
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { tokensToCss } from "@silkplot/theme";
 import { App } from "./App";
 

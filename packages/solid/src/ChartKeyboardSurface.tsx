@@ -32,7 +32,8 @@
  * library owns the mechanics; it cannot know honestly whether a value is
  * appointments, rands, or degrees.
  */
-import { Show, type Component, type JSX } from "solid-js";
+import { Show, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { ChartKeyboard } from "./createChartKeyboard";
 
 /**

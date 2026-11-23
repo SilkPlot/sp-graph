@@ -5,7 +5,7 @@
  * identical boot rather than an approximation of it — see that file for the
  * defect that cost.
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { installThemeStyles } from "./install-styles";
 import { App } from "./App";
 import "./styles.css";

@@ -10,7 +10,8 @@
  * of the series/axes bitmap. A keyboard step must not restroke the dense
  * path — that restroke is how W-D derived inspection dropped a frame.
  */
-import { createEffect, createSignal, untrack, type JSX } from "solid-js";
+import { createTrackedEffect, createSignal, untrack } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useChartBounds } from "@silkplot/solid";
 import { createThemeRevision } from "./canvas-theme";
 import {
@@ -244,7 +245,9 @@ export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
   const themeRev = createThemeRevision();
   const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>();
 
-  createEffect(() => {
+  // Painters read live chart data while issuing Canvas 2D commands. Keep each
+  // imperative paint pass tracked without coupling overlay updates to base painting.
+  createTrackedEffect(() => {
     const el = canvas();
     const layout = layoutOf(bounds());
     themeRev();
@@ -255,7 +258,7 @@ export const CanvasPlot = (props: CanvasPlotProps): JSX.Element => {
     untrack(() => compositeCanvasOverlay(el, layout, overlay));
   });
 
-  createEffect(() => {
+  createTrackedEffect(() => {
     const overlay = props.overlay;
     if (overlay === undefined) return;
     themeRev();

@@ -26,7 +26,7 @@ export const ExampleCard: Component<{ example: DocExample }> = (props) => {
       <button
         type="button"
         class="example__toggle sp-focusable"
-        aria-expanded={open()}
+        aria-expanded={open() ? "true" : "false"}
         aria-controls={panelId()}
         onClick={() => setOpen(!open())}
       >

@@ -54,17 +54,18 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "@solidjs/testing-library": "^0.8.10",
+    "@solidjs/compiler": "2.0.0",
+    "@solidjs/testing-library": "1.0.0-rc.2",
+    "@solidjs/vite-plugin": "3.0.1",
+    "@solidjs/web": "2.0.3",
     "@vitest/browser": "^5.0.0",
     "@vitest/browser-playwright": "^5.0.0",
     "@vitest/coverage-v8": "^5.0.0",
-    "esbuild-plugin-solid": "^0.6.0",
     "playwright": "^1.63.0",
-    "solid-js": "^1.9.15",
+    "solid-js": "2.0.3",
     "tsup": "^8.5.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
-    "vite-plugin-solid": "^2.11.14",
     "vitest": "^5.0.0"
   }
 }

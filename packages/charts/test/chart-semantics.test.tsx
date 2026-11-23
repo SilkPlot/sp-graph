@@ -29,7 +29,8 @@
  * either cannot tell live content from frozen content and will not say so.
  */
 import { describe, expect, it, vi } from "vitest";
-import { createSignal, type JSX } from "solid-js";
+import { createSignal } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
 import type { CategoryPoint, TimePoint, XYPoint } from "../src/index";

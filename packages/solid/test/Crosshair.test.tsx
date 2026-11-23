@@ -8,7 +8,7 @@
  * `interaction.test.tsx` — those are compositions, not this primitive.
  */
 import { describe, expect, it } from "vitest";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import {
   Crosshair,
@@ -23,9 +23,9 @@ function renderInBounds(children: () => JSX.Element) {
   return render(() => (
     // biome-ignore lint/a11y/noSvgWithoutTitle: test harness element, never rendered to a user
     <svg>
-      <ChartBoundsContext.Provider value={() => BOUNDS}>
+      <ChartBoundsContext value={() => BOUNDS}>
         {children()}
-      </ChartBoundsContext.Provider>
+      </ChartBoundsContext>
     </svg>
   ));
 }

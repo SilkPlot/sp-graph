@@ -37,7 +37,8 @@
  * Grouped and stacked variants take `mode` plus `series` (the shared series
  * model). They are a sibling path: this adapter is not rewritten for them.
  */
-import { Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   CATEGORY_LABEL_ROTATION_DEG,
   createBandIndex,

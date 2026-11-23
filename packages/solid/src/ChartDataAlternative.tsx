@@ -40,7 +40,8 @@
  * way round — the alternative is a button whose state is accurate and whose
  * content is missing.
  */
-import { createSignal, createUniqueId, For, Show, type Component, type JSX } from "solid-js";
+import { createSignal, createUniqueId, For, Show, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { toCsv } from "@silkplot/core";
 import type { ChartSemantics } from "./semantics";
 import { SP_FOCUSABLE_CLASS } from "./ChartKeyboardSurface";
@@ -240,7 +241,7 @@ export const ChartDataAlternative: Component<ChartDataAlternativeProps> = (props
           <button
             type="button"
             class={SP_FOCUSABLE_CLASS}
-            aria-expanded={visible()}
+            aria-expanded={visible() ? "true" : "false"}
             aria-controls={regionId}
             onClick={() => setOpen(!open())}
             data-silkplot-table-toggle=""

@@ -23,7 +23,7 @@ import type {
   ViewportCause,
 } from "@silkplot/core";
 import { RangeControl, type ViewportCommands } from "@silkplot/solid";
-import { createSignal, For, onMount, type Component } from "solid-js";
+import { createSignal, For, onSettled, type Component } from "solid-js";
 import {
   w2History,
   w2Replacement,
@@ -169,7 +169,7 @@ export const WorkloadA: Component = () => {
     setVisible(domain);
   };
 
-  onMount(() => {
+  onSettled(() => {
     const root = document.getElementById("root");
     if (!root) return;
     publish({

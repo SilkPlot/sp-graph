@@ -10,7 +10,7 @@
  * It is displayed on the site by reading this file's own bytes, never by
  * retyping them.
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { LineChart, type TimePoint } from "@silkplot/charts";
 import { tokensToCss, focusVisibleCss } from "@silkplot/theme";
 

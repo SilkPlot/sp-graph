@@ -29,7 +29,7 @@
  */
 import { AreaChart, BarChart, LineChart } from "@silkplot/charts";
 import type { ActivePoint, RankedCategory, Series, SeriesDatum } from "@silkplot/core";
-import { For, Show, createSignal, onMount, type Component } from "solid-js";
+import { For, Show, createSignal, onSettled, type Component } from "solid-js";
 import { w1DashboardDeck } from "../../../packages/charts/test/workload-fixtures";
 import { settle, setPathological, pathologicalRebuilds } from "./instrument";
 import { noteActive, publish } from "./state";
@@ -194,7 +194,7 @@ export const WorkloadC: Component = () => {
   const [narrow, setNarrow] = createSignal(false);
   let host: HTMLDivElement | undefined;
 
-  onMount(() => {
+  onSettled(() => {
     const root = document.getElementById("root");
     const surface = document.getElementById("surface");
     if (!root || !surface) return;

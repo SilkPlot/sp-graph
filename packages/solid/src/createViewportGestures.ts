@@ -40,10 +40,10 @@
  * that a touch may reach without an enter — NOT on a `window` resize/scroll
  * listener, so many mounted charts add no global listeners (responsive containers). The wheel
  * listener is `{ passive: false }` because a captured zoom must `preventDefault`;
- * it is the only non-passive listener. Everything is attached in `onMount` and
+ * it is the only non-passive listener. Everything is attached in `onSettled` and
  * removed in `onCleanup`, so a server render reaches none of it.
  */
-import { type Accessor, createSignal, onCleanup, onMount } from "solid-js";
+import { type Accessor, createSignal, onCleanup, onSettled } from "solid-js";
 import type { ScaleTime } from "@silkplot/core";
 import { useChartBounds } from "./context";
 import type { Viewport } from "./createViewport";
@@ -380,7 +380,7 @@ export function createViewportGestures(spec: ViewportGesturesSpec): ViewportGest
     surface = element;
   };
 
-  onMount(() => {
+  onSettled(() => {
     refreshRect();
     // The rect is refreshed when the pointer ENTERS the surface — the moment a
     // wheel-zoom, brush, or pinch can begin — rather than on a `window`
