@@ -29,7 +29,8 @@
  * With no formatter it falls back to §9's generic-and-honest defaults: an
  * unadorned number, and an ISO 8601 instant.
  */
-import { For, Show, type JSX } from "solid-js";
+import { For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { NormalizedReference } from "@silkplot/core";
 
 export interface ReferenceListProps {

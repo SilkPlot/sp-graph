@@ -1,7 +1,7 @@
 /**
  * Resolution path B — a consumer whose bundler has never heard of Solid.
  *
- * No `vite-plugin-solid`, so the "solid" condition is never offered and every
+ * No `@solidjs/vite-plugin`, so the "solid" condition is never offered and every
  * `@silkplot/*` import resolves through "default" to the compiled ESM bundle,
  * with "types" serving the declarations beside it. This is the path that did not
  * exist before ADR-0006, and the one nothing inside the workspace exercises: the
@@ -13,7 +13,7 @@
  * runs without borrowing any part of the Solid-aware toolchain.
  */
 import { createSignal, createComponent } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { LineChart } from "@silkplot/charts";
 import { tokensToCss } from "@silkplot/theme";
 import { extentOf } from "@silkplot/core";

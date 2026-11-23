@@ -13,7 +13,8 @@
  * against a chart drawing one series out of twenty-two.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, Show, type JSX } from "solid-js";
+import { createSignal, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import type { Series } from "@silkplot/core";
 import { Dashboard, DashboardSection } from "@silkplot/solid";

@@ -3,7 +3,7 @@
   // Typecheck of resolution path A.
   //
   // `customConditions: ["solid"]` makes TypeScript take the same branch of the
-  // exports map that `vite-plugin-solid` takes at build time, so this typechecks
+  // exports map that `@solidjs/vite-plugin` takes at build time, so this typechecks
   // the shipped TSX SOURCE. Without it TypeScript would follow "types" into
   // `dist` and quietly check a different set of files than the bundler compiles.
   //
@@ -17,7 +17,7 @@
     "moduleResolution": "bundler",
     "customConditions": ["solid"],
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "@solidjs/web",
     "types": [],
     "strict": true,
     "verbatimModuleSyntax": true,

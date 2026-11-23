@@ -1,5 +1,5 @@
-import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
+import { defaultClientConditions, defineConfig } from "vite";
+import solid from "@solidjs/vite-plugin";
 
 // The site consumes the workspace packages' TSX SOURCE through each package's
 // "solid" export condition, exactly as the playground does and exactly as a
@@ -13,7 +13,8 @@ export default defineConfig({
   // base would hard-code today's hostname into every asset URL.
   base: "./",
   resolve: {
-    conditions: ["source", "solid", "development", "browser"],
+    // Preserve Vite's dev/production switch so production never resolves Solid's dev runtime.
+    conditions: ["source", "solid", ...defaultClientConditions],
   },
   build: {
     outDir: "dist",

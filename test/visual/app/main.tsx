@@ -6,7 +6,7 @@
  * of the same composition path a consumer uses, not a private one built for the
  * screenshots.
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { tokensToCss } from "@silkplot/theme";
 import { App } from "./App";
 

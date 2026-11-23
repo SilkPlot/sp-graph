@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createEffect, createRoot, createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal, flush } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import {
   resolveBounds,
   resolveMargins,
   DEFAULT_MARGINS,
   useChartBounds,
+  useDashboardSection,
+  useDashboardTime,
   ChartBoundsContext,
 } from "../src/index";
 import type { ChartBounds } from "../src/index";
@@ -128,9 +130,9 @@ describe("useChartBounds", () => {
         return null;
       };
       return (
-        <ChartBoundsContext.Provider value={() => fixedBounds}>
+        <ChartBoundsContext value={() => fixedBounds}>
           <Consumer />
-        </ChartBoundsContext.Provider>
+        </ChartBoundsContext>
       );
     });
 
@@ -162,21 +164,37 @@ describe("useChartBounds", () => {
         const ctx = useChartBounds();
         // createEffect (not a plain body read) is what re-runs when the
         // accessor's underlying signal changes.
-        createEffect(() => {
-          seen.push(ctx());
+        createEffect(ctx, (value) => {
+          seen.push(value);
         });
         return null;
       };
       return (
-        <ChartBoundsContext.Provider value={bounds}>
+        <ChartBoundsContext value={bounds}>
           <Consumer />
-        </ChartBoundsContext.Provider>
+        </ChartBoundsContext>
       );
     });
 
+    flush();
     expect(seen).toEqual([initial]);
     setBounds(updated);
+    flush();
     expect(seen).toEqual([initial, updated]);
     unmount();
+  });
+});
+
+
+describe("optional dashboard contexts", () => {
+  it("returns undefined for time and section outside their providers", () => {
+    createRoot((dispose) => {
+      try {
+        expect(useDashboardTime()).toBeUndefined();
+        expect(useDashboardSection()).toBeUndefined();
+      } finally {
+        dispose();
+      }
+    });
   });
 });

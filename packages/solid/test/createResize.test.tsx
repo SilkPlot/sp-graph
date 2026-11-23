@@ -10,7 +10,7 @@ const SEEDED = { width: 300, height: 150 };
 /**
  * Mount a sized box wired to `createResize`, and hand back its API.
  *
- * `createResize()` must be called inside a rendered component: `onMount` only
+ * `createResize()` must be called inside a rendered component: `onSettled` only
  * runs within a reactive root, and bare in a test body it silently reads back
  * `{ width: 0, height: 0 }`. `render()` provides that root — which is exactly
  * why this is a shared fixture rather than four hand-copied ones that could
@@ -50,7 +50,7 @@ describe("createResize", () => {
   it("seeds a real measurement from the target's content box on mount", () => {
     const { api, unmount } = renderBox();
 
-    // The seed measurement happens synchronously in onMount, so it should
+    // The seed measurement happens synchronously in onSettled, so it should
     // already be correct without needing to await the observer callback.
     expect(api.size()).toEqual(SEEDED);
 
@@ -80,7 +80,7 @@ describe("createResize", () => {
 
     const { unmount } = render(() => <Fixture />);
 
-    // Give onMount a chance to run; with no target it should bail out cleanly.
+    // Give onSettled a chance to run; with no target it should bail out cleanly.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(api.size()).toEqual({ width: 7, height: 9 });

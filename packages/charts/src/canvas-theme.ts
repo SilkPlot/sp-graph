@@ -11,7 +11,7 @@
  * Contrast is media-only (ADR-0001 / ADR-0004). There is no `data-sp-contrast`
  * to observe; `prefers-contrast` is the signal.
  */
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { THEME_ATTR } from "@silkplot/theme";
 
 const SCHEME_QUERY = "(prefers-color-scheme: dark)";
@@ -39,9 +39,6 @@ export function subscribeThemeRevision(onChange: () => void): () => void {
 /** A Solid signal that increments whenever the cascade's colour tokens may have moved. */
 export function createThemeRevision(): () => number {
   const [rev, setRev] = createSignal(0);
-  onMount(() => {
-    const stop = subscribeThemeRevision(() => setRev((n) => n + 1));
-    onCleanup(stop);
-  });
+  onSettled(() => subscribeThemeRevision(() => setRev((n) => n + 1)));
   return rev;
 }

@@ -11,7 +11,8 @@
  * lives one level up, in `createChartSemantics`, which every composed chart
  * runs. `title`/`desc` remain accepted directly for that low-level use.
  */
-import type { JSX, ParentComponent } from "solid-js";
+import type { ParentComponent } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useChartBounds } from "./context";
 
 export interface SvgLayerProps {

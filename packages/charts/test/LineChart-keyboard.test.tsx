@@ -10,7 +10,7 @@
  * so the tests are synchronous and do not wait on ChartRoot's ResizeObserver.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { userEvent } from "vitest/browser";
 import { LineChart } from "../src/index";
@@ -120,10 +120,12 @@ describe("a composed chart is keyboard-navigable", () => {
     expect(optionOf(container)?.getAttribute("aria-posinset")).toBe("4");
 
     setData(DATA.slice(0, 2));
+    flush();
     expect(optionOf(container)?.getAttribute("aria-posinset")).toBe("2");
     expect(optionOf(container)?.getAttribute("aria-setsize")).toBe("2");
 
     setData([]);
+    flush();
     expect(optionOf(container)).toBeNull();
     expect(crosshairOf(container)).toBeNull();
   });

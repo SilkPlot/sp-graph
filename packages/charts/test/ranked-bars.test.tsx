@@ -14,7 +14,8 @@
  * them from the model under test would agree with any change to it.
  */
 import { describe, expect, it, vi } from "vitest";
-import { createSignal, type ComponentProps } from "solid-js";
+import { createSignal } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
 import { render, fireEvent } from "@solidjs/testing-library";
 import { bandScale, linearScale } from "@silkplot/core";
 import type { RankedCategory } from "@silkplot/core";

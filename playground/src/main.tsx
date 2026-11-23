@@ -1,5 +1,5 @@
 /* SilkPlot playground entry. Proves the workspace wires together end to end. */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { tokensToCss } from "@silkplot/theme";
 import { App } from "./App";
 

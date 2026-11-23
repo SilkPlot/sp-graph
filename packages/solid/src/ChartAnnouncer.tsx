@@ -45,7 +45,8 @@
  *     live region announces nothing and a stale sentence is the thing being
  *     cleared.
  */
-import { createEffect, createSignal, onCleanup, type Component, type JSX } from "solid-js";
+import { createEffect, createSignal, onCleanup, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 const VISUALLY_HIDDEN: JSX.CSSProperties = {
   position: "absolute",
@@ -126,8 +127,7 @@ export const ChartAnnouncer: Component<ChartAnnouncerProps> = (props) => {
     }, props.throttleMs ?? DEFAULT_ANNOUNCE_THROTTLE_MS);
   };
 
-  createEffect(() => {
-    const text = props.message ?? "";
+  createEffect(() => props.message ?? "", (text) => {
 
     if (text === lastWritten) {
       // De-duplication. A re-render that produces the same sentence is not a

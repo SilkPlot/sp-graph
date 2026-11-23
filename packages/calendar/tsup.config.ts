@@ -1,11 +1,11 @@
 import { defineConfig } from "tsup";
-import { solidPlugin } from "esbuild-plugin-solid";
+import { solidDomCompiler } from "../../scripts/lib/solid-2-compiler.mjs";
 
 // The publishable build for a bundler that knows nothing about Solid.
 //
 // Solid's JSX is not React's: it compiles to fine-grained reactive DOM
 // operations, not to a `createElement` call tree. So this entry is compiled by
-// Solid's own babel preset (`generate: "dom"`), never by esbuild's generic JSX
+// Solid's native compiler (`generate: "dom"`), never by esbuild's generic JSX
 // transform — a generic transform produces markup that renders once and then
 // never updates.
 //
@@ -26,5 +26,5 @@ export default defineConfig({
   sourcemap: true,
   target: "es2022",
   treeshake: true,
-  esbuildPlugins: [solidPlugin({ solid: { generate: "dom" } })],
+  esbuildPlugins: [solidDomCompiler],
 });

@@ -12,7 +12,8 @@
  * `defaultRange`. `onRangeChange` fires either way, so a controlled parent and a
  * persistence layer see the same events.
  */
-import { createMemo, createSignal, type JSX, type ParentComponent } from "solid-js";
+import { createMemo, createSignal, type ParentComponent } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { TimeScopeIssue } from "@silkplot/core";
 import {
   DashboardTimeContext,
@@ -85,9 +86,9 @@ export const Dashboard: ParentComponent<DashboardProps> = (props) => {
   });
 
   return (
-    <DashboardTimeContext.Provider value={time}>
+    <DashboardTimeContext value={time}>
       {props.children}
       <ChartAnnouncer channel="selection" message={selectionMessage()} />
-    </DashboardTimeContext.Provider>
+    </DashboardTimeContext>
   );
 };

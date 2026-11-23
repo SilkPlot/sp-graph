@@ -14,8 +14,12 @@ they cannot drift on bounds, ticks, interaction, or semantic alternatives.
 ## Install
 
 ```sh
-npm install @silkplot/charts@next solid-js
+npm install @silkplot/charts@next solid-js@1.9.20
 ```
+
+The registry alpha uses Solid 1. Packages built from this Solid 2 checkout
+use `solid-js@2.0.3` and `@solidjs/web@2.0.3` supplied by the consuming app.
+Do not mix the two release sets.
 Published under the `next` dist-tag. **Use `@next` explicitly and pin an exact
 version** — npm assigned `latest` to this package's first-ever publish because no
 earlier version existed, so a bare install resolves here today and will resolve

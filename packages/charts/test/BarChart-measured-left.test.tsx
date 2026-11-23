@@ -7,7 +7,7 @@
  * Measured mode may vary with font — these assertions check fit, not pixels.
  */
 import { describe, expect, it } from "vitest";
-import type { ComponentProps } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import type { RankedCategory } from "@silkplot/core";
 import { CATEGORY_LABEL_LEFT_TICK_GAP_PX } from "@silkplot/core";

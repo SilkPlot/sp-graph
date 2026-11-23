@@ -9,7 +9,8 @@
  * Colour and dash resolve against this element so a themed page and an
  * unthemed one still agree with the cascade. No SVG is mounted.
  */
-import { createEffect, createSignal, type JSX } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export const SWATCH_WIDTH = 20;
 export const SWATCH_HEIGHT = 12;
@@ -79,16 +80,12 @@ export function paintLegendSwatch(el: HTMLCanvasElement, spec: LegendSwatchSpec)
 export function LegendSwatch(props: LegendSwatchSpec): JSX.Element {
   const [host, setHost] = createSignal<HTMLCanvasElement>();
 
-  createEffect(() => {
-    const el = host();
-    if (el === undefined) return;
-    paintLegendSwatch(el, {
-      stroke: props.stroke,
-      dash: props.dash,
-      strokeWidth: props.strokeWidth,
-      opacity: props.opacity,
-    });
-  });
+  createEffect(
+    () => ({ el: host(), stroke: props.stroke, dash: props.dash, strokeWidth: props.strokeWidth, opacity: props.opacity }),
+    ({ el, ...paint }) => {
+      if (el !== undefined) paintLegendSwatch(el, paint);
+    },
+  );
 
   return (
     // The wrapper, not the canvas, is `aria-hidden`: Biome treats `<canvas>` as

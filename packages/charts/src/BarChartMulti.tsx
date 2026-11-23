@@ -7,7 +7,8 @@
  * visibility, missing values, the legend, and the derived table cannot drift
  * from Line and Area.
  */
-import { Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   CATEGORY_LABEL_ROTATION_DEG,
   bandScale,

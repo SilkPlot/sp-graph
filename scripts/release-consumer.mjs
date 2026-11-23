@@ -42,6 +42,7 @@ import { basename, extname, join } from "node:path";
 const CANVAS_PLOT = "[data-silkplot-canvas-plot]";
 const SERIES_PATH = "data-silkplot-mark-d";
 const AXIS_LABELS = "data-silkplot-axis-labels";
+const CROSSHAIR = "data-silkplot-crosshair";
 
 /** Enough of a static server to load a Vite build. */
 const MIME = {
@@ -293,10 +294,11 @@ const indent = (text) => String(text).split("\n").map((l) => `      ${l}`).join(
 async function smoke(root, path) {
   const failures = [];
   const { server, port } = await serve(root);
-  const browser = await chromium.launch();
+  let browser;
+  const consoleErrors = [];
   try {
+    browser = await chromium.launch();
     const page = await browser.newPage();
-    const consoleErrors = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
     });
@@ -334,10 +336,13 @@ async function smoke(root, path) {
     }
 
     const canvas = page.locator(CANVAS_PLOT).first();
-    if ((await canvas.count()) === 0) {
-      failures.push(`[${path.id}] no Canvas plot was rendered from the packed tarballs`);
-      return failures;
-    }
+    // The ResizeObserver and Solid's batched effects settle after app startup.
+    await canvas.waitFor({ state: "visible", timeout: 5_000 });
+    await page.waitForFunction(
+      ({ plot, attr }) => Boolean(document.querySelector(plot)?.getAttribute(attr)),
+      { plot: CANVAS_PLOT, attr: SERIES_PATH },
+      { timeout: 5_000 },
+    );
 
     // Tick labels come from @silkplot/core's tick computation via the Canvas
     // axis, so their presence exercises all three packages.
@@ -361,12 +366,30 @@ async function smoke(root, path) {
       return failures;
     }
 
+    // Real keyboard interaction with the packed chart must select a point and
+    // paint the crosshair without replacing the cached base series path.
+    const keyboard = page.locator("[data-silkplot-keyboard-surface]").first();
+    await keyboard.focus();
+    await keyboard.press("ArrowRight");
+    const active = keyboard.locator('[role="option"][aria-posinset="1"]');
+    await active.waitFor({ state: "attached", timeout: 5_000 });
+    const crosshair = page.locator(`${CANVAS_PLOT}[${CROSSHAIR}]`);
+    await crosshair.waitFor({ state: "attached", timeout: 5_000 });
+    if ((await canvas.getAttribute(SERIES_PATH)) !== before) {
+      failures.push(`[${path.id}] keyboard navigation changed the base series path`);
+    }
+    await keyboard.press("Escape");
+    await active.waitFor({ state: "detached", timeout: 5_000 });
+    await crosshair.waitFor({ state: "detached", timeout: 5_000 });
+
     // Reactivity. Non-uniform replacement data, so the new path cannot coincide
     // with the old one under any domain policy.
     await page.evaluate(() => globalThis.__silkplotReplace());
     await page.waitForFunction(
-      ({ previous, plot, attr }) =>
-        document.querySelector(plot)?.getAttribute(attr) !== previous,
+      ({ previous, plot, attr }) => {
+        const current = document.querySelector(plot)?.getAttribute(attr);
+        return Boolean(current) && current !== previous;
+      },
       { previous: before, plot: CANVAS_PLOT, attr: SERIES_PATH },
       { timeout: 5_000 },
     ).catch(() => {
@@ -383,12 +406,17 @@ async function smoke(root, path) {
       failures.push(`[${path.id}] @silkplot/core's extentOf returned ${JSON.stringify(extent)}, expected a max of 90`);
     }
 
+  } catch (error) {
+    failures.push(`[${path.id}] Chromium smoke failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
     if (consoleErrors.length > 0) {
       failures.push(`[${path.id}] the console reported ${consoleErrors.length} error(s):\n${indent(consoleErrors.join("\n"))}`);
     }
-  } finally {
-    await browser.close();
-    server.close();
+    try {
+      await browser?.close();
+    } finally {
+      server.close();
+    }
   }
   return failures;
 }

@@ -9,7 +9,8 @@
  *
  * The named graphic is HTML, not SVG. Marks and axes paint on Canvas.
  */
-import { Show, createMemo, type Component, type JSX } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   binHeatmap,
   createHeatmapIndex,

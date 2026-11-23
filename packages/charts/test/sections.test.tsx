@@ -12,7 +12,7 @@
  * is the shape that cannot survive the boundary being removed.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { Dashboard, DashboardSection } from "@silkplot/solid";
 import { LineChart } from "../src/index";
@@ -106,6 +106,7 @@ describe("One global selection, three effective ranges", () => {
     expect(tableDays(container)).toEqual([[2, 3], [6, 7]]);
 
     setWindow({ start: new Date(T0 + 8 * DAY), end: new Date(T0 + 9 * DAY) });
+    flush();
 
     // The first moved; the second did not. Asserted as a pair, because a suite
     // that only checked the moved section would pass with isolation broken.

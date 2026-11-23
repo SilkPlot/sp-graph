@@ -9,7 +9,8 @@
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@solidjs/testing-library";
 import { vi } from "vitest";
-import { createSignal, type ComponentProps } from "solid-js";
+import { createSignal } from "solid-js";
+import type { ComponentProps } from "@solidjs/web";
 import {
   bandScale,
   categoryTimesOf,

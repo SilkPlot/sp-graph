@@ -89,7 +89,7 @@ See [`@silkplot/solid`'s `Axis`](packages/solid/src/Axis.tsx) for the canonical 
 SilkPlot is on npm under the **`next`** dist-tag:
 
 ```sh
-npm install @silkplot/charts@next @silkplot/solid@next @silkplot/core@next @silkplot/theme@next solid-js
+npm install @silkplot/charts@next @silkplot/solid@next @silkplot/core@next @silkplot/theme@next solid-js@1.9.20
 ```
 
 **Use the `@next` tag explicitly, and pin an exact version.** npm assigns
@@ -99,7 +99,23 @@ that stops being true the moment a stable version exists, and a lockfile written
 today would then mean something different. This is 0.x: a minor bump may contain
 breaking changes.
 
-Your app needs a Solid-aware bundler — with Vite, that is
+The currently published alpha is for **Solid 1**. For the Solid 2 source
+build in this checkout, install the coordinated tarballs rather than mixing
+them with the registry alpha. Use `solid-js@2.0.3`, `@solidjs/web@2.0.3`
+and [`@solidjs/vite-plugin`](https://docs.solidjs.com/reference/vite-plugin-solid/)
+in the app consuming those tarballs. This does not change existing installs.
+
+```sh
+# In a Solid 2 app, after copying all four tarballs from this checkout into ./tarballs:
+npm install --save-exact solid-js@2.0.3 @solidjs/web@2.0.3 ./tarballs/silkplot-*.tgz
+npm install --save-dev --save-exact vite@8.3.0 @solidjs/vite-plugin@3.0.1
+```
+
+Use `@solidjs/vite-plugin` in `vite.config.ts` and set `jsxImportSource` to
+`@solidjs/web` in `tsconfig.json`. The plugin supplies the native compiler;
+the app does not need to install it separately.
+
+Your Solid 1 app needs a Solid-aware bundler — with Vite, that is
 [`vite-plugin-solid`](https://github.com/solidjs/vite-plugin-solid). The `"solid"`
 export condition serves the shipped `.tsx` source so your bundler applies the JSX
 transform itself, which is what keeps Solid's fine-grained reactivity intact

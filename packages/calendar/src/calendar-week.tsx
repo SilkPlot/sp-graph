@@ -50,7 +50,7 @@ export const CalendarWeek: Component<CalendarWeekProps> = (props) => {
           type="button"
           class={FOCUS_CLASS}
           data-silkplot-agenda-toggle=""
-          aria-pressed={view() === "agenda"}
+          aria-pressed={view() === "agenda" ? "true" : "false"}
           onClick={() => setView("agenda")}
         >
           Agenda view
@@ -59,7 +59,7 @@ export const CalendarWeek: Component<CalendarWeekProps> = (props) => {
           type="button"
           class={FOCUS_CLASS}
           data-silkplot-week-toggle=""
-          aria-pressed={view() === "week"}
+          aria-pressed={view() === "week" ? "true" : "false"}
           onClick={() => setView("week")}
         >
           Week view

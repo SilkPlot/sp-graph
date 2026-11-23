@@ -14,7 +14,7 @@
  * page keeps following the OS live. The early-boot script in `index.html`
  * re-applies a saved explicit choice before first paint.
  */
-import { createSignal, For, onMount, type Component } from "solid-js";
+import { createSignal, For, onSettled, type Component } from "solid-js";
 import { THEME_ATTR } from "@silkplot/theme";
 
 type Choice = "system" | "light" | "dark";
@@ -39,7 +39,7 @@ function apply(choice: Choice): void {
 export const ThemeSwitcher: Component = () => {
   const [choice, setChoice] = createSignal<Choice>("system");
 
-  onMount(() => {
+  onSettled(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "light" || saved === "dark") {
       setChoice(saved);
@@ -65,7 +65,7 @@ export const ThemeSwitcher: Component = () => {
           <button
             type="button"
             class="switcher__btn sp-focusable"
-            aria-pressed={choice() === c.value}
+            aria-pressed={choice() === c.value ? "true" : "false"}
             onClick={() => pick(c.value)}
           >
             {c.label}

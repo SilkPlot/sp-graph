@@ -20,7 +20,7 @@
 import { LineChart } from "@silkplot/charts";
 import type { ActivePoint, Series, SeriesDatum } from "@silkplot/core";
 import { Legend } from "@silkplot/solid";
-import { createEffect, createSignal, For, onMount, type Component } from "solid-js";
+import { createEffect, createSignal, For, onSettled, type Component } from "solid-js";
 import {
   w1DenseSeries,
   w1References,
@@ -156,8 +156,7 @@ export const WorkloadB: Component = () => {
   let host: HTMLDivElement | undefined;
   let isolated = false;
 
-  createEffect(() => {
-    const current = visibleSeries();
+  createEffect(visibleSeries, (current) => {
     if (visibilityStateChanged(observedVisibleSeries, current)) {
       const signature = current.join("\0");
       const expectedPoints = expectedVisibleLineGeometryPoints(SERIES, current);
@@ -177,7 +176,7 @@ export const WorkloadB: Component = () => {
     observedVisibleSeries = current;
   });
 
-  onMount(() => {
+  onSettled(() => {
     const root = document.getElementById("root");
     const surface = document.getElementById("surface");
     if (!root || !surface) return;

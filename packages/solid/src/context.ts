@@ -69,7 +69,7 @@ export function resolveBounds(
 }
 
 /** Context carries an accessor so consumers re-run only when bounds change. */
-export const ChartBoundsContext = createContext<Accessor<ChartBounds>>();
+export const ChartBoundsContext = createContext<Accessor<ChartBounds> | null>(null);
 
 /** Read the current chart bounds. Throws if used outside a `<ChartRoot>`. */
 export function useChartBounds(): Accessor<ChartBounds> {

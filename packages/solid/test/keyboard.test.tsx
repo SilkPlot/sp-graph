@@ -22,7 +22,7 @@
  * while being wrong.
  */
 import { describe, expect, it } from "vitest";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import { userEvent } from "vitest/browser";
 import { linearScale, createHitIndex } from "@silkplot/core";
@@ -34,16 +34,28 @@ import {
   type ActiveDatum,
 } from "../src/index";
 
-/** Drive `createActiveDatum` outside a component, with a disposable root. */
+/** Create reactive primitives under a disposable owner, then drive them as event code. */
+function withOwner<T, R>(setup: () => T, body: (value: T) => R): R {
+  const { value, dispose } = createRoot((dispose) => ({ value: setup(), dispose }));
+  try {
+    return body(value);
+  } finally {
+    dispose();
+  }
+}
+
 function withActive<T>(count: number, body: (active: ActiveDatum) => T): T {
-  return createRoot((dispose) => {
+  return withOwner(() => createActiveDatum({ count: () => count }), body);
+}
+
+function withKeyboard<T>(
+  count: number,
+  body: (value: { active: ActiveDatum; kb: ReturnType<typeof createChartKeyboard> }) => T,
+): T {
+  return withOwner(() => {
     const active = createActiveDatum({ count: () => count });
-    try {
-      return body(active);
-    } finally {
-      dispose();
-    }
-  });
+    return { active, kb: createChartKeyboard({ active }) };
+  }, body);
 }
 
 describe("createActiveDatum — the one state both inputs write", () => {
@@ -54,6 +66,7 @@ describe("createActiveDatum — the one state both inputs write", () => {
   it("takes a direct index from the pointer path", () => {
     withActive(5, (a) => {
       a.set(3);
+      flush();
       expect(a.index()).toBe(3);
     });
   });
@@ -63,7 +76,9 @@ describe("createActiveDatum — the one state both inputs write", () => {
     // invent a selection the user never made.
     withActive(5, (a) => {
       a.set(2);
+      flush();
       a.set(-1);
+      flush();
       expect(a.index()).toBeUndefined();
     });
   });
@@ -71,6 +86,7 @@ describe("createActiveDatum — the one state both inputs write", () => {
   it("steps forward from no selection to the first point", () => {
     withActive(5, (a) => {
       a.step(1);
+      flush();
       expect(a.index()).toBe(0);
     });
   });
@@ -78,6 +94,7 @@ describe("createActiveDatum — the one state both inputs write", () => {
   it("steps backward from no selection to the last point", () => {
     withActive(5, (a) => {
       a.step(-1);
+      flush();
       expect(a.index()).toBe(4);
     });
   });
@@ -85,8 +102,11 @@ describe("createActiveDatum — the one state both inputs write", () => {
   it("clamps at the last point rather than wrapping to the first", () => {
     withActive(3, (a) => {
       a.toLast();
+      flush();
       a.step(1);
+      flush();
       a.step(1);
+      flush();
       expect(a.index()).toBe(2);
     });
   });
@@ -94,18 +114,20 @@ describe("createActiveDatum — the one state both inputs write", () => {
   it("clamps at the first point rather than wrapping to the last", () => {
     withActive(3, (a) => {
       a.toFirst();
+      flush();
       a.step(-1);
+      flush();
       expect(a.index()).toBe(0);
     });
   });
 
   it("does nothing at all on empty data", () => {
     withActive(0, (a) => {
-      a.step(1);
-      a.toFirst();
-      a.toLast();
-      a.set(0);
-      expect(a.index()).toBeUndefined();
+      for (const select of [() => a.step(1), a.toFirst, a.toLast, () => a.set(0)]) {
+        select();
+        flush();
+        expect(a.index()).toBeUndefined();
+      }
       expect(a.count()).toBe(0);
     });
   });
@@ -115,16 +137,19 @@ describe("createActiveDatum — the one state both inputs write", () => {
     // shorter one must not point past the end. Every reader — cursor, option
     // label, announcement — indexes through this accessor, so one clamp covers
     // all of them.
-    createRoot((dispose) => {
+    withOwner(() => {
       const [count, setCount] = createSignal(10);
-      const active = createActiveDatum({ count });
+      return { active: createActiveDatum({ count }), setCount };
+    }, ({ active, setCount }) => {
       active.set(9);
+      flush();
       expect(active.index()).toBe(9);
       setCount(3);
+      flush();
       expect(active.index()).toBe(2);
       setCount(0);
+      flush();
       expect(active.index()).toBeUndefined();
-      dispose();
     });
   });
 
@@ -132,7 +157,9 @@ describe("createActiveDatum — the one state both inputs write", () => {
     withActive(100, (a) => {
       expect(a.pageSize()).toBe(DEFAULT_PAGE_SIZE);
       a.toFirst();
+      flush();
       a.step(a.pageSize());
+      flush();
       expect(a.index()).toBe(DEFAULT_PAGE_SIZE);
     });
   });
@@ -211,11 +238,10 @@ describe("the composite's ARIA shape", () => {
     expect(surface.getAttribute("aria-activedescendant")).toBe(opt?.id);
   });
 
-  it("drops aria-activedescendant when a live region carries the step", () => {
+  it("drops aria-activedescendant when a live region carries the step", async () => {
     const { container } = render(() => {
       const active = createActiveDatum({ count: () => 3 });
       const keyboard = createChartKeyboard({ active });
-      active.set(1);
       return (
         <ChartKeyboardSurface
           keyboard={keyboard}
@@ -226,6 +252,8 @@ describe("the composite's ARIA shape", () => {
       );
     });
     const surface = container.querySelector<HTMLElement>("[data-silkplot-keyboard-surface]")!;
+    surface.focus();
+    await userEvent.keyboard("{ArrowRight}{ArrowRight}");
     // The option stays — it is the parallel semantic DOM layer, not merely an
     // announcement mechanism — but the reader is not sent to it, so the live
     // region is the only thing that speaks.
@@ -336,26 +364,22 @@ describe("entering, exploring, and leaving", () => {
   it("leaves Escape to the page when there is nothing to cancel", () => {
     // A chart with no selection must not swallow the Escape that closes the
     // dialog it sits in.
-    createRoot((dispose) => {
-      const active = createActiveDatum({ count: () => 5 });
-      const kb = createChartKeyboard({ active });
+    withKeyboard(5, ({ active, kb }) => {
       const bare = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
       expect(kb.onKeyDown(bare)).toBe(false);
       expect(bare.defaultPrevented).toBe(false);
 
       active.set(2);
+      flush();
       const withSelection = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
       expect(kb.onKeyDown(withSelection)).toBe(true);
+      flush();
       expect(active.index()).toBeUndefined();
-      dispose();
     });
   });
 
   it("prevents the default scroll on the keys it claims, and only those", () => {
-    createRoot((dispose) => {
-      const active = createActiveDatum({ count: () => 5 });
-      const kb = createChartKeyboard({ active });
-
+    withKeyboard(5, ({ kb }) => {
       for (const key of ["ArrowRight", "ArrowLeft", "Home", "End", "PageUp", "PageDown"]) {
         const e = new KeyboardEvent("keydown", { key, cancelable: true });
         expect(kb.onKeyDown(e), `${key} was not claimed`).toBe(true);
@@ -367,14 +391,11 @@ describe("entering, exploring, and leaving", () => {
         expect(kb.onKeyDown(e), `${key} was claimed`).toBe(false);
         expect(e.defaultPrevented, `${key} was prevented`).toBe(false);
       }
-      dispose();
     });
   });
 
   it("ignores a modified arrow, which belongs to the browser or the reader", () => {
-    createRoot((dispose) => {
-      const active = createActiveDatum({ count: () => 5 });
-      const kb = createChartKeyboard({ active });
+    withKeyboard(5, ({ active, kb }) => {
       for (const mod of ["ctrlKey", "metaKey", "altKey"] as const) {
         const e = new KeyboardEvent("keydown", {
           key: "ArrowRight",
@@ -384,7 +405,6 @@ describe("entering, exploring, and leaving", () => {
         expect(kb.onKeyDown(e), `${mod}+ArrowRight was claimed`).toBe(false);
       }
       expect(active.index()).toBeUndefined();
-      dispose();
     });
   });
 });
@@ -440,24 +460,25 @@ describe("pointer and keyboard resolve the same datum", () => {
   const ys = linearScale({ domain: [0, 10], range: [200, 0] });
 
   it("lands on the same index from a pointer pixel and from arrow keys", () => {
-    createRoot((dispose) => {
-      const active = createActiveDatum({ count: () => data.length });
-      const kb = createChartKeyboard({ active });
+    withKeyboard(data.length, ({ active, kb }) => {
       const index = createHitIndex(data, { x: (d) => xs(d.x), y: (d) => ys(d.y) });
 
       // Pointer: a pixel slightly off the middle datum.
       active.set(index.nearest(xs(4.7), ys(4.7)));
+      flush();
       const fromPointer = active.index();
       expect(fromPointer).toBe(1);
 
       // Keyboard: Home, then one step forward, on the SAME state object.
       active.clear();
+      flush();
       kb.onKeyDown(new KeyboardEvent("keydown", { key: "Home", cancelable: true }));
+      flush();
       kb.onKeyDown(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+      flush();
       const fromKeyboard = active.index();
 
       expect(fromKeyboard).toBe(fromPointer);
-      dispose();
     });
   });
 
@@ -465,17 +486,16 @@ describe("pointer and keyboard resolve the same datum", () => {
     // The proof that it is one state and not two agreeing ones: if the keyboard
     // kept its own index, stepping after a pointer move would jump back to
     // wherever the keyboard had been.
-    createRoot((dispose) => {
-      const active = createActiveDatum({ count: () => data.length });
-      const kb = createChartKeyboard({ active });
+    withKeyboard(data.length, ({ active, kb }) => {
       const index = createHitIndex(data, { x: (d) => xs(d.x), y: (d) => ys(d.y) });
 
       active.set(index.nearest(xs(9.6), ys(9.6)));
+      flush();
       expect(active.index()).toBe(2);
 
       kb.onKeyDown(new KeyboardEvent("keydown", { key: "ArrowLeft", cancelable: true }));
+      flush();
       expect(active.index()).toBe(1);
-      dispose();
     });
   });
 });

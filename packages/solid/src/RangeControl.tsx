@@ -36,7 +36,8 @@
  * pending frame on unmount. Nothing is touched at module load, so a server render
  * reaches none of it.
  */
-import { type JSX, createMemo, createUniqueId, onCleanup, type Component } from "solid-js";
+import { createMemo, createUniqueId, onCleanup, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   DEFAULT_MIN_SPAN_MS,
   clampInterval,

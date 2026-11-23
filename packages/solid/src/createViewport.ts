@@ -34,7 +34,7 @@
  * builds from this interval, and touches no state in this holder — which is the
  * whole reason the selected window survives both.
  */
-import { createEffect, createMemo, createSignal, on, type Accessor } from "solid-js";
+import { createEffect, createMemo, createSignal, untrack, type Accessor } from "solid-js";
 import {
   DEFAULT_MIN_SPAN_MS,
   applyMinSpan,
@@ -156,7 +156,12 @@ export function createViewport<M = unknown>(spec: ViewportSpec<M>): Viewport {
   // written even when controlled (as `createDashboardTime` writes its own), so a
   // caller that stops controlling resumes from the last committed value rather
   // than snapping back.
-  const seed = fit(defaultMs() ?? bound(), bound());
+  // Snapshot the inputs once. Subscribing here would reset an active viewport
+  // whenever the data changes, bypassing the reconciliation rules below.
+  const seed = untrack(() => {
+    const initialBound = bound();
+    return fit(defaultMs() ?? initialBound, initialBound);
+  });
   const [uncontrolled, setUncontrolled] = createSignal<MsInterval>(seed);
 
   // The current domain: the controlled prop when present, else the store. The
@@ -186,13 +191,19 @@ export function createViewport<M = unknown>(spec: ViewportSpec<M>): Viewport {
   // controlled path is not reconciled here: its caller owns the interval, and the
   // display memo above still clamps it. Growth returns null and keeps the window.
   createEffect(
-    on(bound, (b) => {
-      if (spec.visibleDomain?.() !== undefined) return;
-      const r = reconcileDataChange(uncontrolled(), b, defaultMs(), minSpan());
+    bound,
+    (b) => {
+      // The bound alone triggers reconciliation. Read the current viewport
+      // and reset policy for this transition without subscribing to them.
+      const r = untrack(() => {
+        if (spec.visibleDomain?.() !== undefined) return null;
+        return reconcileDataChange(uncontrolled(), b, defaultMs(), minSpan());
+      });
       if (r === null) return;
       setUncontrolled(r.interval);
       spec.onVisibleDomainChange?.(toTimeInterval(r.interval), r.cause);
-    }, { defer: true }),
+    },
+    { defer: true },
   );
 
   const setVisibleDomain = (interval: MsInterval, cause: ViewportCause): void => {

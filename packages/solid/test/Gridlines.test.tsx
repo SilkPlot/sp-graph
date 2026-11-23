@@ -11,7 +11,8 @@
  * copy of the tick math drifting from the first.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal, type Accessor, type JSX } from "solid-js";
+import { createSignal, type Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import { computeTicks, computeBandTicks, linearScale, bandScale } from "@silkplot/core";
 import {
@@ -32,9 +33,9 @@ function renderWithBounds(
   return render(() => (
     // biome-ignore lint/a11y/noSvgWithoutTitle: test harness element, never rendered to a user
     <svg>
-      <ChartBoundsContext.Provider value={boundsAccessor}>
+      <ChartBoundsContext value={boundsAccessor}>
         {children()}
-      </ChartBoundsContext.Provider>
+      </ChartBoundsContext>
     </svg>
   ));
 }

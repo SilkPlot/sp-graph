@@ -25,7 +25,7 @@ import {
   type Series,
   type SeriesDatum,
 } from "@silkplot/core";
-import { createSignal, onMount, type Component } from "solid-js";
+import { createSignal, onSettled, type Component } from "solid-js";
 import {
   W4_SPIKE_INDICES,
   w4Seconds,
@@ -158,7 +158,7 @@ export const WorkloadD: Component = () => {
   const [visibleSeries, setVisibleSeries] = createSignal<readonly string[]>(ALL_IDS);
   let host: HTMLDivElement | undefined;
 
-  onMount(() => {
+  onSettled(() => {
     const root = document.getElementById("root");
     if (!root) return;
     publish({

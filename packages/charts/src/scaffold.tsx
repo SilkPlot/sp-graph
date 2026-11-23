@@ -14,7 +14,8 @@
  * scaffolding is the point; unifying the policies would be a bug wearing the
  * same clothes, and one an all-positive fixture cannot see.
  */
-import { createMemo, mergeProps, Show, type Accessor, type Component, type JSX } from "solid-js";
+import { createMemo, merge, Show, type Accessor, type Component } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import {
   decimateMinMax,
   extentOf,
@@ -182,14 +183,14 @@ export function histogramTableColumns(options: {
  * decorative chart gets nothing — it is out of the accessibility tree, so a
  * table would be a surface with no reader.
  *
- * `mergeProps`, not a spread: `props` is Solid's reactive proxy, and spreading
+ * `merge`, not a spread: `props` is Solid's reactive proxy, and spreading
  * it reads every field once, in the component body, outside any tracking scope.
  * The chart would then hold the semantics it had at first render while its marks
  * followed the live props — the same class of bug ADR-0003 exists to prevent.
  */
 export function createInspectableSemantics(props: ChartSemanticsInput): ChartSemantics {
   return createChartSemantics(
-    mergeProps(props, {
+    merge(props, {
       get defaultTable(): ChartDataTable | undefined {
         // `defaultTable`, not `table`: a library-supplied table renders, but
         // deliberately does not satisfy the missing-description check. It

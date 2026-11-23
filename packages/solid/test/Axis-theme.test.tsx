@@ -9,7 +9,7 @@
  * not a var() string that never resolves.
  */
 import { describe, expect, it } from "vitest";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import {
   Axis,
@@ -29,9 +29,9 @@ function mountThemed(style: JSX.CSSProperties) {
       {/* test harness element, never shown to a user */}
       {/* biome-ignore lint/a11y/noSvgWithoutTitle: test harness element */}
       <svg>
-        <ChartBoundsContext.Provider value={() => BOUNDS}>
+        <ChartBoundsContext value={() => BOUNDS}>
           <Axis scale={linear} />
-        </ChartBoundsContext.Provider>
+        </ChartBoundsContext>
       </svg>
     </div>
   ));

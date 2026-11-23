@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 import { COVERAGE_FLOORS } from "./scripts/coverage-floors.mjs";
 
 // Tests live in each package's `test/` directory, never colocated in `src/`:

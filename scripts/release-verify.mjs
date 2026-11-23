@@ -83,8 +83,8 @@ const HELD_BACK = [
   },
 ];
 
-/** Solid-exporting packages own no copy of solid-js; the application does. */
-const PEER_ONLY = ["solid-js"];
+/** Solid-exporting packages use the application's reactive runtime and renderer. */
+const PEER_ONLY = ["solid-js", "@solidjs/web"];
 
 // ---------------------------------------------------------------------------
 // The allowlist
@@ -378,6 +378,9 @@ for (const { target, manifest } of packed) {
   }
 
   for (const peer of PEER_ONLY) {
+    if (target.solidCondition && manifest.peerDependencies?.[peer] === undefined) {
+      fail(target.name, `the Solid export requires a peer dependency on ${peer}`);
+    }
     if (manifest.dependencies?.[peer] !== undefined) {
       fail(
         target.name,

@@ -14,7 +14,7 @@
     "customConditions": ["source"],
     "moduleDetection": "force",
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
+    "jsxImportSource": "@solidjs/web",
     "types": [],
 
     "strict": true,

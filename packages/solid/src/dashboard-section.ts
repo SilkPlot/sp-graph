@@ -14,11 +14,11 @@ import { createContext, useContext, type Accessor } from "solid-js";
 import type { SectionScope } from "@silkplot/core";
 
 /** Carries an accessor so a section whose scope moves re-resolves its members. */
-export const DashboardSectionContext = createContext<Accessor<SectionScope>>();
+export const DashboardSectionContext = createContext<Accessor<SectionScope> | null>(null);
 
 /** The scope of the section a chart is rendered inside, or `undefined`. */
 export function useDashboardSection(): Accessor<SectionScope> | undefined {
-  return useContext(DashboardSectionContext);
+  return useContext(DashboardSectionContext) ?? undefined;
 }
 
 /**
