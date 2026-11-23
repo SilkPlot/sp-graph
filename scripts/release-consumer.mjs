@@ -295,10 +295,10 @@ async function smoke(root, path) {
   const failures = [];
   const { server, port } = await serve(root);
   let browser;
+  const consoleErrors = [];
   try {
     browser = await chromium.launch();
     const page = await browser.newPage();
-    const consoleErrors = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
     });
@@ -406,12 +406,12 @@ async function smoke(root, path) {
       failures.push(`[${path.id}] @silkplot/core's extentOf returned ${JSON.stringify(extent)}, expected a max of 90`);
     }
 
-    if (consoleErrors.length > 0) {
-      failures.push(`[${path.id}] the console reported ${consoleErrors.length} error(s):\n${indent(consoleErrors.join("\n"))}`);
-    }
   } catch (error) {
     failures.push(`[${path.id}] Chromium smoke failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
+    if (consoleErrors.length > 0) {
+      failures.push(`[${path.id}] the console reported ${consoleErrors.length} error(s):\n${indent(consoleErrors.join("\n"))}`);
+    }
     try {
       await browser?.close();
     } finally {

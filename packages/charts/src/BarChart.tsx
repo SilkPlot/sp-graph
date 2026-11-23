@@ -370,6 +370,10 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
     return displayedCategoryLabel(label, props.categoryTickFormat);
   };
 
+  // Compute the dynamic formatter props in the component owner, not in a
+  // JSX conditional getter that would allocate a memo during canvas painting.
+  const xFormat = createMemo(() => isVertical() ? categoryFormat : props.valueTickFormat);
+  const yFormat = createMemo(() => isVertical() ? props.valueTickFormat : categoryFormat);
   const bounds = useChartBounds();
   const xLabelRotation = (): number | undefined => {
     const decision = categoryLabelRotationFor(props, bounds().innerWidth);
@@ -384,8 +388,8 @@ const BarChartBody: Component<BarChartBodyProps> = (props) => {
         semantics={props.semantics}
         // Which formatter reaches which axis follows orientation — which is the
         // whole reason the props are not named for the axes.
-        xFormat={isVertical() ? categoryFormat : props.valueTickFormat}
-        yFormat={isVertical() ? props.valueTickFormat : categoryFormat}
+        xFormat={xFormat()}
+        yFormat={yFormat()}
         xLabelRotation={xLabelRotation()}
         paint={(ctx, _plot, resolve) => {
           const painted: CanvasMark[] = [];

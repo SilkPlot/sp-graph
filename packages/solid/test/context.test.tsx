@@ -6,6 +6,8 @@ import {
   resolveMargins,
   DEFAULT_MARGINS,
   useChartBounds,
+  useDashboardSection,
+  useDashboardTime,
   ChartBoundsContext,
 } from "../src/index";
 import type { ChartBounds } from "../src/index";
@@ -180,5 +182,19 @@ describe("useChartBounds", () => {
     flush();
     expect(seen).toEqual([initial, updated]);
     unmount();
+  });
+});
+
+
+describe("optional dashboard contexts", () => {
+  it("returns undefined for time and section outside their providers", () => {
+    createRoot((dispose) => {
+      try {
+        expect(useDashboardTime()).toBeUndefined();
+        expect(useDashboardSection()).toBeUndefined();
+      } finally {
+        dispose();
+      }
+    });
   });
 });

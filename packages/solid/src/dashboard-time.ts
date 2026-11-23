@@ -59,7 +59,7 @@ export interface DashboardTime {
   setDynamic: (interval: TimeInterval | undefined) => void;
 }
 
-export const DashboardTimeContext = createContext<DashboardTime>();
+export const DashboardTimeContext = createContext<DashboardTime | null>(null);
 
 /**
  * Read the dashboard a chart is rendered inside, or `undefined` when there is
@@ -69,7 +69,7 @@ export const DashboardTimeContext = createContext<DashboardTime>();
  * oversight — see the module comment.
  */
 export function useDashboardTime(): DashboardTime | undefined {
-  return useContext(DashboardTimeContext);
+  return useContext(DashboardTimeContext) ?? undefined;
 }
 
 export interface DashboardTimeSpec {

@@ -12,7 +12,7 @@
  * the composed charts prove only their own wiring of it.
  */
 import { describe, expect, it } from "vitest";
-import { createSignal } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/testing-library";
 import {
   ChartDataAlternative,
@@ -140,6 +140,7 @@ describe("createChartSemantics — ids and reactivity", () => {
     });
     expect(name()).toBe("Before");
     setTitle("After");
+    flush();
     expect(name()).toBe("After");
   });
 
@@ -219,6 +220,7 @@ describe("ChartDataAlternative", () => {
       ["Nov", 17],
       ["Dec", 962],
     ]);
+    flush();
 
     expect(container.querySelectorAll("tbody tr")).toHaveLength(3);
     expect(Array.from(container.querySelectorAll("tbody td")).map((el) => el.textContent)).toEqual(

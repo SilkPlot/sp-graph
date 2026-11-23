@@ -29,7 +29,7 @@
  * either cannot tell live content from frozen content and will not say so.
  */
 import { describe, expect, it, vi } from "vitest";
-import { createSignal } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/testing-library";
 import { AreaChart, BarChart, LineChart, ScatterChart } from "../src/index";
@@ -418,6 +418,7 @@ for (const family of FAMILIES) {
       expect(tableValues(container)).toEqual(valuesBefore);
 
       swap();
+      flush();
 
       expect(tableValues(container)).toEqual(valuesAfter);
       expect(tableLabels(container)).toEqual(labelsAfter);

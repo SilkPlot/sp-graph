@@ -340,11 +340,6 @@ export function createChartSemantics(props: ChartSemanticsInput): ChartSemantics
     }),
   );
 
-  // Read once eagerly so a development-build contract violation throws while
-  // the caller's own component is on the stack, rather than later from
-  // whichever child happens to read the name first.
-  resolved();
-
   createEffect(() => resolved().issues, (issues) => {
     for (const issue of issues) {
       props.onSemanticsIssue?.(issue);
